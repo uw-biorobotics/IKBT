@@ -1,0 +1,15 @@
+7/6 working!!
+[[th₃₀₀, d₁, th₅₀₁₀, th₄₀₁, th₂₀], [th₅₁₀₀, d₁, th₃₁₀, th₄₁₀, th₂₁], [th₃₀₀, d
+₁, th₂₀, th₅₀₀₀, th₄₀₀], [d₁, th₅₁₁₀, th₃₁₀, th₄₁₁, th₂₁]]
+
+7/5 now seems recognize "siblings", but can't filter out the false groups
+[[th₃₀₀, d₁, th₅₀₁₀, th₄₀₁, th₂₀], [th₃₀₀, d₁, th₄₀₁, th₂₀, th₅₀₁₁], [th₅₁₀₀, 
+th₃₀₀, d₁, th₄₁₀, th₂₀, th₂₁], [th₅₁₀₁, th₃₀₀, d₁, th₄₁₀, th₂₀, th₂₁], [th₃₀₀,
+ d₁, th₂₀, th₅₀₀₀, th₄₀₀], [th₃₀₀, d₁, th₅₀₀₁, th₂₀, th₄₀₀], [th₃₀₀, d₁, th₅₁₁
+₀, th₂₀, th₄₁₁, th₂₁], [th₅₁₁₁, d₁, th₂₀, th₂₁, th₃₀₀, th₄₁₁]]
+
+7/4 only recongizes symbols along the same path.
+
+[[d₁], [th₂₀, th₄₀₁, th₅₀₁₀], [th₂₀, th₄₀₁, th₅₀₁₁], [th₂₁, th₄₁₀, th₅₁₀₀], [t
+h₂₁, th₄₁₀, th₅₁₀₁], [th₂₀, th₄₀₀, th₅₀₀₀], [th₂₀, th₄₀₀, th₅₀₀₁], [th₂₁, th₄₁
+₁, th₅₁₁₀], [th₂₁, th₄₁₁, th₅₁₁₁], [th₂₀, th₃₀₀], [th₂₁, th₃₁₀]]

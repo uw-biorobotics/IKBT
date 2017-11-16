@@ -1,0 +1,73 @@
+Testing IK solution
+
+
+⎡(sin(th₂)⋅cos(th₅) - sin(th₅)⋅cos(th₂)⋅cos(th₃))⋅cos(th₆) + sin(th₃)⋅sin(th₆)
+⎢
+⎢-(sin(th₂)⋅sin(th₅)⋅cos(th₃) + cos(th₂)⋅cos(th₅))⋅cos(th₆) + sin(th₂)⋅sin(th₃
+⎢
+⎢                   -(sin(th₃)⋅sin(th₅)⋅cos(th₆) + sin(th₆)⋅cos(th₃))
+⎢
+⎣                                           0
+
+⋅cos(th₂)   -(sin(th₂)⋅cos(th₅) - sin(th₅)⋅cos(th₂)⋅cos(th₃))⋅sin(th₆) + sin(t
+
+)⋅sin(th₆)  (sin(th₂)⋅sin(th₅)⋅cos(th₃) + cos(th₂)⋅cos(th₅))⋅sin(th₆) + sin(th
+
+                                sin(th₃)⋅sin(th₅)⋅sin(th₆) - cos(th₃)⋅cos(th₆)
+
+                                                       0
+
+h₃)⋅cos(th₂)⋅cos(th₆)  sin(th₂)⋅sin(th₅) + cos(th₂)⋅cos(th₃)⋅cos(th₅)  d₄⋅sin(
+
+₂)⋅sin(th₃)⋅cos(th₆)   sin(th₂)⋅cos(th₃)⋅cos(th₅) - sin(th₅)⋅cos(th₂)  d₄⋅sin(
+
+                                     sin(th₃)⋅cos(th₅)
+
+                                             0
+
+th₃)⋅cos(th₂) + l₀⋅sin(th₂)⎤
+                           ⎥
+th₂)⋅sin(th₃) - l₀⋅cos(th₂)⎥
+                           ⎥
+  d₁ - d₄⋅cos(th₃)         ⎥
+                           ⎥
+         1                 ⎦
+term:
+(sin(th₂)⋅cos(th₅) - sin(th₅)⋅cos(th₂)⋅cos(th₃))⋅cos(th₆) + sin(th₃)⋅sin(th₆)⋅
+cos(th₂)
+term:
+-(sin(th₂)⋅cos(th₅) - sin(th₅)⋅cos(th₂)⋅cos(th₃))⋅sin(th₆) + sin(th₃)⋅cos(th₂)
+⋅cos(th₆)
+term:
+sin(th₂)⋅sin(th₅) + cos(th₂)⋅cos(th₃)⋅cos(th₅)
+term:
+d₄⋅sin(th₃)⋅cos(th₂) + l₀⋅sin(th₂)
+term:
+-(sin(th₂)⋅sin(th₅)⋅cos(th₃) + cos(th₂)⋅cos(th₅))⋅cos(th₆) + sin(th₂)⋅sin(th₃)
+⋅sin(th₆)
+term:
+(sin(th₂)⋅sin(th₅)⋅cos(th₃) + cos(th₂)⋅cos(th₅))⋅sin(th₆) + sin(th₂)⋅sin(th₃)⋅
+cos(th₆)
+term:
+sin(th₂)⋅cos(th₃)⋅cos(th₅) - sin(th₅)⋅cos(th₂)
+term:
+d₄⋅sin(th₂)⋅sin(th₃) - l₀⋅cos(th₂)
+term:
+-(sin(th₃)⋅sin(th₅)⋅cos(th₆) + sin(th₆)⋅cos(th₃))
+term:
+sin(th₃)⋅sin(th₅)⋅sin(th₆) - cos(th₃)⋅cos(th₆)
+term:
+sin(th₃)⋅cos(th₅)
+term:
+d₁ - d₄⋅cos(th₃)
+term:
+0
+term:
+0
+term:
+0
+term:
+1
+
+## 
+no clear feasible choices

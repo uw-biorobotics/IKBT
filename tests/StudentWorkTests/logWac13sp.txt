@@ -1,0 +1,392 @@
+
+          Testing IK solution
+
+
+⎡sin(th₂)⋅sin(th₅) + cos(th₂)⋅cos(th₅)⋅cos(th₃ + th₄)   sin(th₂)⋅cos(th₅) - si
+⎢
+⎢sin(th₂)⋅cos(th₅)⋅cos(th₃ + th₄) - sin(th₅)⋅cos(th₂)  -(sin(th₂)⋅sin(th₅)⋅cos
+⎢
+⎢              sin(th₃ + th₄)⋅cos(th₅)                                -sin(th₅
+⎢
+⎣                         0
+
+n(th₅)⋅cos(th₂)⋅cos(th₃ + th₄)    sin(th₃ + th₄)⋅cos(th₂)    l₂⋅cos(th₂)⋅cos(t
+
+(th₃ + th₄) + cos(th₂)⋅cos(th₅))  sin(th₂)⋅sin(th₃ + th₄)  d₁ + l₂⋅sin(th₂)⋅co
+
+)⋅sin(th₃ + th₄)                      -cos(th₃ + th₄)                      h +
+
+    0                                        0
+
+h₃) + l₃⋅sin(th₂) + l₄⋅sin(th₃ + th₄)⋅cos(th₂)   ⎤
+                                                 ⎥
+s(th₃) - l₃⋅cos(th₂) + l₄⋅sin(th₂)⋅sin(th₃ + th₄)⎥
+                                                 ⎥
+ l₂⋅sin(th₃) - l₄⋅cos(th₃ + th₄)                 ⎥
+                                                 ⎥
+              1                                  ⎦
+term:
+sin(th₂)⋅sin(th₅) + cos(th₂)⋅cos(th₅)⋅cos(th₃ + th₄)
+term:
+sin(th₂)⋅cos(th₅) - sin(th₅)⋅cos(th₂)⋅cos(th₃ + th₄)
+term:
+sin(th₃ + th₄)⋅cos(th₂)
+term:
+l₂⋅cos(th₂)⋅cos(th₃) + l₃⋅sin(th₂) + l₄⋅sin(th₃ + th₄)⋅cos(th₂)
+term:
+sin(th₂)⋅cos(th₅)⋅cos(th₃ + th₄) - sin(th₅)⋅cos(th₂)
+term:
+-(sin(th₂)⋅sin(th₅)⋅cos(th₃ + th₄) + cos(th₂)⋅cos(th₅))
+term:
+sin(th₂)⋅sin(th₃ + th₄)
+term:
+d₁ + l₂⋅sin(th₂)⋅cos(th₃) - l₃⋅cos(th₂) + l₄⋅sin(th₂)⋅sin(th₃ + th₄)
+term:
+sin(th₃ + th₄)⋅cos(th₅)
+term:
+-sin(th₅)⋅sin(th₃ + th₄)
+term:
+-cos(th₃ + th₄)
+term:
+h + l₂⋅sin(th₃) - l₄⋅cos(th₃ + th₄)
+term:
+0
+term:
+0
+term:
+0
+term:
+1
+finish set up
+sum of anlge ID  ticked
+sum of angles transform: squeezed test input:
+⎡c₂⋅c₃₄⋅c₅ + s₂⋅s₅   -c₂⋅c₃₄⋅s₅ + c₅⋅s₂  c₂⋅s₃₄     c₂⋅c₃⋅l₂ + c₂⋅l₄⋅s₃₄ + l₃⋅
+⎢
+⎢-c₂⋅s₅ + c₃₄⋅c₅⋅s₂  -c₂⋅c₅ - c₃₄⋅s₂⋅s₅  s₂⋅s₃₄  -c₂⋅l₃ + c₃⋅l₂⋅s₂ + d₁ + l₄⋅s
+⎢
+⎢      c₅⋅s₃₄             -s₃₄⋅s₅         -c₃₄          -c₃₄⋅l₄ + h + l₂⋅s₃
+⎢
+⎣        0                   0             0                     1
+
+s₂   ⎤
+     ⎥
+₂⋅s₃₄⎥
+     ⎥
+     ⎥
+     ⎥
+     ⎦
+Sum of Angles: I found  1  sum of angles terms
+find th_xy:
+th_34
+original expression
+sin(th_2)*sin(th_5) + cos(th_2)*cos(th_5)*cos(th_3 + th_4)
+Sum of Angles Transform: replaced
+sin(th_2)*sin(th_5) + cos(th_2)*cos(th_34)*cos(th_5)
+creat unknown obj and save:
+Sum of Angles: I found  1  sum of angles terms
+find th_xy:
+th_34
+original expression
+sin(th_2)*cos(th_5) - sin(th_5)*cos(th_2)*cos(th_3 + th_4)
+Sum of Angles Transform: replaced
+sin(th_2)*cos(th_5) - sin(th_5)*cos(th_2)*cos(th_34)
+Sum of Angles: I found  1  sum of angles terms
+find th_xy:
+th_34
+original expression
+sin(th_3 + th_4)*cos(th_2)
+Sum of Angles Transform: replaced
+sin(th_34)*cos(th_2)
+Sum of Angles: I found  1  sum of angles terms
+find th_xy:
+th_34
+original expression
+l_2*cos(th_2)*cos(th_3) + l_3*sin(th_2) + l_4*sin(th_3 + th_4)*cos(th_2)
+Sum of Angles Transform: replaced
+l_2*cos(th_2)*cos(th_3) + l_3*sin(th_2) + l_4*sin(th_34)*cos(th_2)
+Sum of Angles: I found  1  sum of angles terms
+find th_xy:
+th_34
+original expression
+sin(th_2)*cos(th_5)*cos(th_3 + th_4) - sin(th_5)*cos(th_2)
+Sum of Angles Transform: replaced
+sin(th_2)*cos(th_34)*cos(th_5) - sin(th_5)*cos(th_2)
+Sum of Angles: I found  1  sum of angles terms
+find th_xy:
+th_34
+original expression
+-(sin(th_2)*sin(th_5)*cos(th_3 + th_4) + cos(th_2)*cos(th_5))
+Sum of Angles Transform: replaced
+-sin(th_2)*sin(th_5)*cos(th_34) - cos(th_2)*cos(th_5)
+Sum of Angles: I found  1  sum of angles terms
+find th_xy:
+th_34
+original expression
+sin(th_2)*sin(th_3 + th_4)
+Sum of Angles Transform: replaced
+sin(th_2)*sin(th_34)
+Sum of Angles: I found  1  sum of angles terms
+find th_xy:
+th_34
+original expression
+d_1 + l_2*sin(th_2)*cos(th_3) - l_3*cos(th_2) + l_4*sin(th_2)*sin(th_3 + th_4)
+Sum of Angles Transform: replaced
+d_1 + l_2*sin(th_2)*cos(th_3) - l_3*cos(th_2) + l_4*sin(th_2)*sin(th_34)
+Sum of Angles: I found  1  sum of angles terms
+find th_xy:
+th_34
+original expression
+sin(th_3 + th_4)*cos(th_5)
+Sum of Angles Transform: replaced
+sin(th_34)*cos(th_5)
+Sum of Angles: I found  1  sum of angles terms
+find th_xy:
+th_34
+original expression
+-sin(th_5)*sin(th_3 + th_4)
+Sum of Angles Transform: replaced
+-sin(th_34)*sin(th_5)
+Sum of Angles: I found  1  sum of angles terms
+find th_xy:
+th_34
+original expression
+-cos(th_3 + th_4)
+Sum of Angles Transform: replaced
+-cos(th_34)
+Sum of Angles: I found  1  sum of angles terms
+find th_xy:
+th_34
+original expression
+h + l_2*sin(th_3) - l_4*cos(th_3 + th_4)
+Sum of Angles Transform: replaced
+h + l_2*sin(th_3) - l_4*cos(th_34)
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+basenode:  sum of anlge ID  SUCCESS
+algebra ID  ticked
+running:  algebra ID  , input RHS:
+algebra ID: Looking for unknown:  d_1  in equation:  e_24  =  d_1 + e_23*l_4 + l_2*sin(th_2)*cos(th_3) - l_3*cos(th_2)
+  which has  3  unknown
+algebra ID: Looking for unknown:  th_2  in equation:  e_24  =  d_1 + e_23*l_4 + l_2*sin(th_2)*cos(th_3) - l_3*cos(th_2)
+  which has  3  unknown
+algebra ID: Looking for unknown:  th_2  in equation:  e_14  =  e_13*l_4 + l_2*cos(th_2)*cos(th_3) + l_3*sin(th_2)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_2  in equation:  e_21  =  -e_33*sin(th_2)*cos(th_5) - sin(th_5)*cos(th_2)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_2  in equation:  e_11  =  -e_33*cos(th_2)*cos(th_5) + sin(th_2)*sin(th_5)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_2  in equation:  e_12  =  e_33*sin(th_5)*cos(th_2) + sin(th_2)*cos(th_5)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_2  in equation:  e_22  =  e_33*sin(th_2)*sin(th_5) - cos(th_2)*cos(th_5)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_2  in equation:  e_13  =  sin(th_34)*cos(th_2)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_2  in equation:  e_23  =  sin(th_2)*sin(th_34)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_3  in equation:  e_24  =  d_1 + e_23*l_4 + l_2*sin(th_2)*cos(th_3) - l_3*cos(th_2)
+  which has  3  unknown
+algebra ID: Looking for unknown:  th_3  in equation:  e_14  =  e_13*l_4 + l_2*cos(th_2)*cos(th_3) + l_3*sin(th_2)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_3  in equation:  e_34  =  e_33*l_4 + h + l_2*sin(th_3)
+  which has  1  unknown
+algebra ID: Looking for unknown:  th_5  in equation:  e_21  =  -e_33*sin(th_2)*cos(th_5) - sin(th_5)*cos(th_2)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_5  in equation:  e_11  =  -e_33*cos(th_2)*cos(th_5) + sin(th_2)*sin(th_5)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_5  in equation:  e_12  =  e_33*sin(th_5)*cos(th_2) + sin(th_2)*cos(th_5)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_5  in equation:  e_22  =  e_33*sin(th_2)*sin(th_5) - cos(th_2)*cos(th_5)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_5  in equation:  e_32  =  -sin(th_34)*sin(th_5)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_5  in equation:  e_31  =  sin(th_34)*cos(th_5)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_34  in equation:  e_32  =  -sin(th_34)*sin(th_5)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_34  in equation:  e_13  =  sin(th_34)*cos(th_2)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_34  in equation:  e_23  =  sin(th_2)*sin(th_34)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_34  in equation:  e_31  =  sin(th_34)*cos(th_5)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_34  in equation:  e_33  =  -cos(th_34)
+  which has  1  unknown
+basenode:  algebra ID  FAIL
+algebra ID  ticked
+running:  algebra ID  , input RHS:
+algebra ID: Looking for unknown:  d_1  in equation:  e_24  =  d_1 + e_23*l_4 + l_2*sin(th_2)*cos(th_3) - l_3*cos(th_2)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_2  in equation:  e_24  =  d_1 + e_23*l_4 + l_2*sin(th_2)*cos(th_3) - l_3*cos(th_2)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_2  in equation:  e_14  =  e_13*l_4 + l_2*cos(th_2)*cos(th_3) + l_3*sin(th_2)
+  which has  1  unknown
+algebra ID: Looking for unknown:  th_2  in equation:  e_21  =  -e_33*sin(th_2)*cos(th_5) - sin(th_5)*cos(th_2)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_2  in equation:  e_11  =  -e_33*cos(th_2)*cos(th_5) + sin(th_2)*sin(th_5)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_2  in equation:  e_12  =  e_33*sin(th_5)*cos(th_2) + sin(th_2)*cos(th_5)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_2  in equation:  e_22  =  e_33*sin(th_2)*sin(th_5) - cos(th_2)*cos(th_5)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_2  in equation:  e_13  =  sin(th_34)*cos(th_2)
+  which has  1  unknown
+algebra ID: Looking for unknown:  th_2  in equation:  e_23  =  sin(th_2)*sin(th_34)
+  which has  1  unknown
+algebra ID: Looking for unknown:  th_5  in equation:  e_21  =  -e_33*sin(th_2)*cos(th_5) - sin(th_5)*cos(th_2)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_5  in equation:  e_11  =  -e_33*cos(th_2)*cos(th_5) + sin(th_2)*sin(th_5)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_5  in equation:  e_12  =  e_33*sin(th_5)*cos(th_2) + sin(th_2)*cos(th_5)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_5  in equation:  e_22  =  e_33*sin(th_2)*sin(th_5) - cos(th_2)*cos(th_5)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_5  in equation:  e_32  =  -sin(th_34)*sin(th_5)
+  which has  1  unknown
+algebra ID: Looking for unknown:  th_5  in equation:  e_31  =  sin(th_34)*cos(th_5)
+  which has  1  unknown
+basenode:  algebra ID  FAIL
+sum of anlge ID  ticked
+sum of angles transform: squeezed test input:
+⎡-c₂⋅c₅⋅e₃₃ + s₂⋅s₅  c₂⋅e₃₃⋅s₅ + c₅⋅s₂   c₂⋅sin(th₃₄)     c₂⋅c₃⋅l₂ + e₁₃⋅l₄ +
+⎢
+⎢-c₂⋅s₅ - c₅⋅e₃₃⋅s₂  -c₂⋅c₅ + e₃₃⋅s₂⋅s₅  s₂⋅sin(th₃₄)  -c₂⋅l₃ + c₃⋅l₂⋅s₂ + d₁
+⎢
+⎢   c₅⋅sin(th₃₄)       -s₅⋅sin(th₃₄)      -cos(th₃₄)         e₃₃⋅l₄ + h + l₂⋅s
+⎢
+⎣        0                   0                0                       1
+
+l₃⋅s₂   ⎤
+        ⎥
++ e₂₃⋅l₄⎥
+        ⎥
+₃       ⎥
+        ⎥
+        ⎦
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+basenode:  sum of anlge ID  SUCCESS
+algebra ID  ticked
+running:  algebra ID  , input RHS:
+algebra ID: Looking for unknown:  d_1  in equation:  e_24  =  d_1 + e_23*l_4 + l_2*sin(th_2)*cos(th_3) - l_3*cos(th_2)
+  which has  1  unknown
+basenode:  algebra ID  SUCCESS
+algebra ID  ticked
+running:  algebra ID  , input RHS:
+basenode:  algebra ID  FAIL
+algebra ID  ticked
+running:  algebra ID  , input RHS:
+basenode:  algebra ID  FAIL
+sum of anlge ID  ticked
+sum of angles transform: squeezed test input:
+⎡-c₂⋅c₅⋅e₃₃ + s₂⋅s₅  c₂⋅e₃₃⋅s₅ + c₅⋅s₂   c₂⋅sin(th₃₄)     c₂⋅c₃⋅l₂ + e₁₃⋅l₄ +
+⎢
+⎢-c₂⋅s₅ - c₅⋅e₃₃⋅s₂  -c₂⋅c₅ + e₃₃⋅s₂⋅s₅  s₂⋅sin(th₃₄)  -c₂⋅l₃ + c₃⋅l₂⋅s₂ + d₁
+⎢
+⎢   c₅⋅sin(th₃₄)       -s₅⋅sin(th₃₄)      -cos(th₃₄)         e₃₃⋅l₄ + h + l₂⋅s
+⎢
+⎣        0                   0                0                       1
+
+l₃⋅s₂   ⎤
+        ⎥
++ e₂₃⋅l₄⎥
+        ⎥
+₃       ⎥
+        ⎥
+        ⎦
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+basenode:  sum of anlge ID  SUCCESS
+algebra ID  ticked
+running:  algebra ID  , input RHS:
+basenode:  algebra ID  FAIL
+algebra ID  ticked
+running:  algebra ID  , input RHS:
+basenode:  algebra ID  FAIL
+algebra ID  ticked
+running:  algebra ID  , input RHS:
+basenode:  algebra ID  FAIL
+sum of anlge ID  ticked
+sum of angles transform: squeezed test input:
+⎡-c₂⋅c₅⋅e₃₃ + s₂⋅s₅  c₂⋅e₃₃⋅s₅ + c₅⋅s₂   c₂⋅sin(th₃₄)     c₂⋅c₃⋅l₂ + e₁₃⋅l₄ +
+⎢
+⎢-c₂⋅s₅ - c₅⋅e₃₃⋅s₂  -c₂⋅c₅ + e₃₃⋅s₂⋅s₅  s₂⋅sin(th₃₄)  -c₂⋅l₃ + c₃⋅l₂⋅s₂ + d₁
+⎢
+⎢   c₅⋅sin(th₃₄)       -s₅⋅sin(th₃₄)      -cos(th₃₄)         e₃₃⋅l₄ + h + l₂⋅s
+⎢
+⎣        0                   0                0                       1
+
+l₃⋅s₂   ⎤
+        ⎥
++ e₂₃⋅l₄⎥
+        ⎥
+₃       ⎥
+        ⎥
+        ⎦
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+Sum of Angles: I found  0  sum of angles terms
+basenode:  sum of anlge ID  SUCCESS
+algebra ID  ticked
+running:  algebra ID  , input RHS:
+basenode:  algebra ID  FAIL
+algebra ID  ticked
+running:  algebra ID  , input RHS:
+basenode:  algebra ID  FAIL
+algebra ID  ticked
+running:  algebra ID  , input RHS:
+basenode:  algebra ID  FAIL
+d_1
+[-e_23*l_4 + e_24 - l_2*sin(th_2)*cos(th_3) + l_3*cos(th_2)]
+th_2
+[atan2(e_23/sin(th_34), e_13/sin(th_34))]
+th_3
+[asin((-e_33*l_4 + e_34 - h)/l_2), -asin((-e_33*l_4 + e_34 - h)/l_2) + pi]
+th_4
+[-th_3 + th_34, -th_3 + th_34, -th_3 + th_34, -th_3 + th_34, -th_3 + th_34, -th_3 + th_34, -th_3 + th_34, -th_3 + th_34]
+th_5
+[atan2(-e_32/sin(th_34), e_31/sin(th_34))]
+th_34
+[acos(-e_33), -acos(-e_33)]

@@ -1,0 +1,102 @@
+%% Default Latex document template
+%%
+%%  blake@rcs.ee.washington.edu
+
+\documentclass[letterpaper]{article}
+\usepackage{hyperref}
+% Uncomment for bibliog.
+%\bibliographystyle{unsrt}
+
+\usepackage{graphicx}
+\usepackage{lineno}
+%\usepackage{fancyhdr}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
+%
+%  Set Up Margins 
+
+%
+%        Font selection
+%
+%\renewcommand{\rmdefault}{ptm}             % Times
+%\renewcommand{\rmdefault}{phv}             % Helvetica
+%\renewcommand{\rmdefault}{pcr}             % Courier
+%\renewcommand{\rmdefault}{pbk}             % Bookman
+%\renewcommand{\rmdefault}{pag}             % Avant Garde
+%\renewcommand{\rmdefault}{ppl}             % Palatino
+%\renewcommand{\rmdefault}{pch}             % Charter
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+%         Page format Mods HERE
+%
+%Mod's to page size for this document
+\addtolength\textwidth{0cm}
+\addtolength\oddsidemargin{0cm}
+\addtolength\headsep{0cm}
+\addtolength\textheight{0cm}
+%\linespread{0.894}   % 0.894 = 6 lines per inch, 1 = "single",  1.6 = "double"
+ 
+
+% Make table rows deeper
+%\renewcommand\arraystretch{2.0}% Vertical Row size, 1.0 is for standard spacing)
+
+\begin{document}
+\begin{center}
+\section*{LaTex Output from IK-BT Package}
+Blake Hannaford, Dianmu Zhang\\
+University of Washington\\
+July 2017
+\end{center}
+
+\section{Introduction}
+The IK-BT package generates a report on your inverse kinematics solution automatically.   This produces an output that can be much easier to read and check.   The Latex output consists of two parts:
+\begin{enumerate}
+    \item {\tt ik\_report\_template.tex} --- the template document containing overall setup and formatting information,
+    \item {\tt IK\_solution\_NAME.tex}  --- the specific solution equations produced for your robot (where {\tt NAME} is your robot's name), 
+    \item {\tt IK\_solution.tex} --- a copy of the most recently solved {\tt IK\_solution\_NAME.tex}.
+\end{enumerate}
+
+\section{How to use}
+To produce your readable output, just enter
+\begin{verbatim}
+
+> pdflatex ik_report_template.tex
+
+\end{verbatim}
+The template will automatically include your most recent solution ({\tt $\backslash$input\{IK\_solution.tex\}}).  {\tt IK\_solution\_NAME.tex} is kept so that solving a new robot does not clobber your old work. 
+
+Your output will then appear as {\tt IK\_solution.pdf}.   
+The package produces the following output sections in the Latex file:
+
+
+\begin{enumerate}
+    \item Introduction
+    \item Kinematic Parameters:
+    Lists your DH parameters for reference and error checking.
+    \item Forward Kinematic Equations:
+    These are the automatically computed FK equations that are actually solved. 
+    \item Unknown Variables:
+    Lists the unknows in solution order. 
+    \item Solutions:
+    The equations for all solutions for each variable. 
+    \item Solution Branching graph:
+    A graph illustrating the dependencies between solutions
+    
+\end{enumerate}
+
+
+Sometimes the equations or the graph can be too long and extend beyond the right side margin.   In this case you need to go into the {\tt IK\_solution.tex} file and make appropriate edits to break up the equations onto separate lines.  Suggestions are provided in the report. 
+
+
+\section{LaTex}
+If you are not familiar with LaTex, you can install it in your system, or mouse the latex content into an online tool such as \url{https://www.overleaf.com}.
+
+Debian Based Linux:   $>$ apt-get -y install texlive
+  
+Other OS:  \url{https://www.latex-project.org/get/}
+
+
+\end{document}
+

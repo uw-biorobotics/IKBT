@@ -1,0 +1,94 @@
+
+          Testing IK solution
+
+
+⎡sin(th₂)⋅sin(th₄) + cos(th₂)⋅cos(th₃)⋅cos(th₄)   sin(th₂)⋅cos(th₄) - sin(th₄)
+⎢
+⎢              -sin(th₃)⋅cos(th₄)                                sin(th₃)⋅sin(
+⎢
+⎢sin(th₂)⋅cos(th₃)⋅cos(th₄) - sin(th₄)⋅cos(th₂)  -(sin(th₂)⋅sin(th₄)⋅cos(th₃)
+⎢
+⎣                      0                                                 0
+
+⋅cos(th₂)⋅cos(th₃)    sin(th₃)⋅cos(th₂)    -l₃⋅sin(th₃)⋅cos(th₂)  ⎤
+                                                                  ⎥
+th₄)                      cos(th₃)          -(l₂ + l₃⋅cos(th₃))   ⎥
+                                                                  ⎥
++ cos(th₂)⋅cos(th₄))  sin(th₂)⋅sin(th₃)  d₁ - l₃⋅sin(th₂)⋅sin(th₃)⎥
+                                                                  ⎥
+                              0                      1            ⎦
+term:
+sin(th₂)⋅sin(th₄) + cos(th₂)⋅cos(th₃)⋅cos(th₄)
+term:
+sin(th₂)⋅cos(th₄) - sin(th₄)⋅cos(th₂)⋅cos(th₃)
+term:
+sin(th₃)⋅cos(th₂)
+term:
+-l₃⋅sin(th₃)⋅cos(th₂)
+term:
+-sin(th₃)⋅cos(th₄)
+term:
+sin(th₃)⋅sin(th₄)
+term:
+cos(th₃)
+term:
+-(l₂ + l₃⋅cos(th₃))
+term:
+sin(th₂)⋅cos(th₃)⋅cos(th₄) - sin(th₄)⋅cos(th₂)
+term:
+-(sin(th₂)⋅sin(th₄)⋅cos(th₃) + cos(th₂)⋅cos(th₄))
+term:
+sin(th₂)⋅sin(th₃)
+term:
+d₁ - l₃⋅sin(th₂)⋅sin(th₃)
+term:
+0
+term:
+0
+term:
+0
+term:
+1
+############################
+th_4: tan
+term:
+-sin(th₃)⋅cos(th₄)
+term:
+sin(th₃)⋅sin(th₄)
+
+th_2: tan
+term:
+-l₃⋅sin(th₃)⋅cos(th₂)
+term:
+sin(th₂)⋅sin(th₃)
+
+th_3: sin or cos
+term:
+cos(th₃)
+
+d_1: algbra, or sub then algbra
+term:
+sin(th₂)⋅sin(th₃)
+term:
+d₁ - l₃⋅sin(th₂)⋅sin(th₃)
+
+
+#########################
+
+
+
+
+
+           Completion Detector:  4  variables,  4  are solved.
+             solved:  d_1   th_2   th_3   th_4
+
+
+
+
+ Solution Complete!!
+
+basenode:  Completion Detection  SUCCESS
+d_1
+th_2
+th_3
+th_4

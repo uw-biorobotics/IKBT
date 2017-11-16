@@ -1,0 +1,49 @@
+Testing IKBT
+
+There are several ways to test the IKBT funcionality as a whole, and also unit tests of each piece.   
+
+Unit tests:
+
+To test all the leaves (solvers), (from this directory):
+
+> cd ..  << you need to be in the project directory currently called IK-2, not /tests >>
+> python -m tests.leavestest  << no ".py">>
+
+to test the "helperfunctions":
+
+> cd ..
+> python -m tests.helpertest
+
+HTML test report output:
+
+"leavestest" can generate a nice HTML summary of the results using the package HTMLTestRunner.py by Wai Yip Tung.  to generate an html test report:
+
+
+> cd .. 
+> python -m tests.leavestest html
+
+then open a new tab in your browser, hit <ctl>-O, and navigate to the project page and open the file "IK-BT_testreport.html".
+(if nesc, customize projdir = '<dir>' in your leavestest.py file to place the file in the right place.)
+
+
+Testing an individual leaf. 
+
+If you are having trouble with a particular solver ("leaf"), you can test it individually:
+
+> cd ..
+> python -m ikbtleaves.sincos_solver  
+
+(for the case of sincos solver for example). 
+
+
+Testing ik_classes.py
+  This file has not been integrated with unittest yet.  To test: 
+  
+> cd ..
+> python -m ikbtbasics.ik_classes
+
+
+
+
+
+

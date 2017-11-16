@@ -1,0 +1,16 @@
+IKBT can generate code with which to implement the derived inverse kinematics solution. 
+
+Python:
+
+The generated file is really a fragment, designed to save the tedium and error prone-ness 
+of typing in equations, it is not yet a fully functioning program. However it does 
+contain domain tests to make sure that valid arguments are presented to arccos() arcsin(). 
+
+
+Cpp:
+
+The Cpp output should compile without error:
+
+Linux:
+>g++  filename.cpp
+

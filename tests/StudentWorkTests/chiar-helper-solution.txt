@@ -1,0 +1,148 @@
+
+                             test robot Chair_Helper   PASSES
+                             
+#############################Fixed !!!##################################
+ Solution Complete!!
+
+basenode:  Completion Detect  SUCCESS
+========== Solution output ================
+          test: Chair_Helper
+
+
+1 d_1  by method:  algebra ,   1  solution(s)
+{d_1: d_1 = Pz - l_4*r_33}
+
+
+2 th_2  by method:  arcsin ,   2  solution(s)
+{th_20: th_20 = asin((Px - l_1 - l_4*r_13)/l_2), th_21: th_21 = -asin((Px - l_1 - l_4*r_13)/l_2) + pi}
+
+
+4 th_3  by method:  arccos ,   2  solution(s)
+{th_3100: th_3100 = acos(-(r_13*cos(th_21) + r_23*sin(th_21))/sin(th_410)), th_3010: th_3010 = acos(-(r_13*cos(th_20) + r_23*sin(th_20))/sin(th_401)), th_3110: th_3110 = acos(-(r_13*cos(th_21) + r_23*sin(th_21))/sin(th_411)), th_3011: th_3011 = -acos(-(r_13*cos(th_20) + r_23*sin(th_20))/sin(th_401)), th_3000: th_3000 = acos(-(r_13*cos(th_20) + r_23*sin(th_20))/sin(th_400)), th_3111: th_3111 = -acos(-(r_13*cos(th_21) + r_23*sin(th_21))/sin(th_411)), th_3101: th_3101 = -acos(-(r_13*cos(th_21) + r_23*sin(th_21))/sin(th_410)), th_3001: th_3001 = -acos(-(r_13*cos(th_20) + r_23*sin(th_20))/sin(th_400))}
+
+
+3 th_4  by method:  arccos ,   2  solution(s)
+{th_401: th_401 = -acos(r_13*sin(th_20) - r_23*cos(th_20)), th_410: th_410 = acos(r_13*sin(th_21) - r_23*cos(th_21)), th_400: th_400 = acos(r_13*sin(th_20) - r_23*cos(th_20)), th_411: th_411 = -acos(r_13*sin(th_21) - r_23*cos(th_21))}
+
+
+5 th_5  by method:  arccos ,   2  solution(s)
+{th_5111: th_5111 = -acos((r_11*sin(th_21) - r_21*cos(th_21))/sin(th_411)), th_5101: th_5101 = -acos((r_11*sin(th_21) - r_21*cos(th_21))/sin(th_410)), th_5001: th_5001 = -acos((r_11*sin(th_20) - r_21*cos(th_20))/sin(th_400)), th_5011: th_5011 = -acos((r_11*sin(th_20) - r_21*cos(th_20))/sin(th_401)), th_5100: th_5100 = acos((r_11*sin(th_21) - r_21*cos(th_21))/sin(th_410)), th_5010: th_5010 = acos((r_11*sin(th_20) - r_21*cos(th_20))/sin(th_401)), th_5110: th_5110 = acos((r_11*sin(th_21) - r_21*cos(th_21))/sin(th_411)), th_5000: th_5000 = acos((r_11*sin(th_20) - r_21*cos(th_20))/sin(th_400))}
+========== Solution Graph (Edges) output ================
+Edge from child: th_401 to parent: th_20
+Edge from child: th_5010 to parent: th_401
+Edge from child: th_411 to parent: th_21
+Edge from child: th_3001 to parent: th_400
+Edge from child: th_3111 to parent: th_411
+Edge from child: th_3110 to parent: th_411
+Edge from child: th_410 to parent: th_21
+Edge from child: th_3100 to parent: th_410
+Edge from child: th_3011 to parent: th_401
+Edge from child: th_5001 to parent: th_400
+Edge from child: th_5101 to parent: th_410
+Edge from child: th_3000 to parent: th_400
+Edge from child: th_3101 to parent: th_410
+Edge from child: th_5011 to parent: th_401
+Edge from child: th_5100 to parent: th_410
+Edge from child: th_400 to parent: th_20
+Edge from child: th_5110 to parent: th_411
+Edge from child: th_5111 to parent: th_411
+Edge from child: th_3010 to parent: th_401
+Edge from child: th_5000 to parent: th_400
+========== End Solution output ================
+
+ Asserting:  d_1  =  Pz - l_4*r_33
+
+ Asserting:  th_2  =  asin((Px - l_1 - l_4*r_13)/l_2), -asin((Px - l_1 - l_4*r_13)/l_2) + pi
+
+ Asserting:  th_3  =  [acos(-(r_13*cos(th_2) + r_23*sin(th_2))/sin(th_4)) ,  -acos(-(r_13*cos(th_2) + r_23*sin(th_2))/sin(th_4))]
+acos(-(r_13*cos(th_2) + r_23*sin(th_2))/sin(th_4))
+
+
+
+
+ Asserting:  th_4  =  acos(r_13*sin(th_2) - r_23*cos(th_2)),
+ -acos(r_13*sin(th_2) - r_23*cos(th_2))
+
+ Asserting:  th_5  =  acos((r_11*sin(th_2) - r_21*cos(th_2))/sin(th_4)) -acos((r_11*sin(th_2) - r_21*cos(th_2))/sin(th_4))
+
+
+
+                             test robot Chair_Helper   PASSES
+
+
+
+
+
+
+
+
+
+
+
+
+========== Solution output (with notation bug) ================
+          test: Chair_Helper
+
+
+1 d_1  by method:  algebra ,   1  solution(s)
+{d_1: d_1 = Pz - l_4*r_33}
+
+
+2 th_2  by method:  arcsin ,   2  solution(s)
+{th_20: th_20 = asin((Px - l_1 - l_4*r_13)/l_2), th_21: th_21 = -asin((Px - l_1 - l_4*r_13)/l_2) + pi}
+
+
+4 th_3  by method:  arccos ,   2  solution(s)
+{th_3100: th_3100 = acos(-(r_13*cos(th_2) + r_23*sin(th_2))/sin(th_410)), th_3010: th_3010 = acos(-(r_13*cos(th_2) + r_23*sin(th_2))/sin(th_401)), th_3110: th_3110 = acos(-(r_13*cos(th_2) + r_23*sin(th_2))/sin(th_411)), th_3011: th_3011 = -acos(-(r_13*cos(th_2) + r_23*sin(th_2))/sin(th_401)), th_3000: th_3000 = acos(-(r_13*cos(th_20) + r_23*sin(th_20))/sin(th_400)), th_3111: th_3111 = -acos(-(r_13*cos(th_2) + r_23*sin(th_2))/sin(th_411)), th_3101: th_3101 = -acos(-(r_13*cos(th_2) + r_23*sin(th_2))/sin(th_410)), th_3001: th_3001 = -acos(-(r_13*cos(th_20) + r_23*sin(th_20))/sin(th_400))}
+
+
+3 th_4  by method:  arccos ,   2  solution(s)
+{th_401: th_401 = -acos(r_13*sin(th_20) - r_23*cos(th_20)), th_410: th_410 = acos(r_13*sin(th_21) - r_23*cos(th_21)), th_400: th_400 = acos(r_13*sin(th_20) - r_23*cos(th_20)), th_411: th_411 = -acos(r_13*sin(th_21) - r_23*cos(th_21))}
+
+
+5 th_5  by method:  arccos ,   2  solution(s)
+{th_5111: th_5111 = -acos((r_11*sin(th_2) - r_21*cos(th_2))/sin(th_411)), th_5101: th_5101 = -acos((r_11*sin(th_2) - r_21*cos(th_2))/sin(th_410)), th_5001: th_5001 = -acos((r_11*sin(th_20) - r_21*cos(th_20))/sin(th_400)), th_5011: th_5011 = -acos((r_11*sin(th_2) - r_21*cos(th_2))/sin(th_401)), th_5100: th_5100 = acos((r_11*sin(th_2) - r_21*cos(th_2))/sin(th_410)), th_5010: th_5010 = acos((r_11*sin(th_2) - r_21*cos(th_2))/sin(th_401)), th_5110: th_5110 = acos((r_11*sin(th_2) - r_21*cos(th_2))/sin(th_411)), th_5000: th_5000 = acos((r_11*sin(th_2) - r_21*cos(th_2))/sin(th_400))}
+========== Solution Graph (Edges) output ================
+Edge from child: th_401 to parent: th_20
+Edge from child: th_5010 to parent: th_401
+Edge from child: th_411 to parent: th_21
+Edge from child: th_3001 to parent: th_400
+Edge from child: th_3111 to parent: th_411
+Edge from child: th_3110 to parent: th_411
+Edge from child: th_410 to parent: th_21
+Edge from child: th_3100 to parent: th_410
+Edge from child: th_3011 to parent: th_401
+Edge from child: th_5001 to parent: th_400
+Edge from child: th_5101 to parent: th_410
+Edge from child: th_3000 to parent: th_400
+Edge from child: th_3101 to parent: th_410
+Edge from child: th_5011 to parent: th_401
+Edge from child: th_5100 to parent: th_410
+Edge from child: th_400 to parent: th_20
+Edge from child: th_5110 to parent: th_411
+Edge from child: th_5111 to parent: th_411
+Edge from child: th_3010 to parent: th_401
+Edge from child: th_5000 to parent: th_400
+========== End Solution output ================
+
+ Asserting:  d_1  =  Pz - l_4*r_33
+
+ Asserting:  th_2  =  asin((Px - l_1 - l_4*r_13)/l_2), -asin((Px - l_1 - l_4*r_13)/l_2) + pi
+
+ Asserting:  th_3  =  [acos(-(r_13*cos(th_2) + r_23*sin(th_2))/sin(th_4)) ,  -acos(-(r_13*cos(th_2) + r_23*sin(th_2))/sin(th_4))]
+acos(-(r_13*cos(th_2) + r_23*sin(th_2))/sin(th_4))
+
+
+
+
+ Asserting:  th_4  =  acos(r_13*sin(th_2) - r_23*cos(th_2)),
+ -acos(r_13*sin(th_2) - r_23*cos(th_2))
+
+ Asserting:  th_5  =  acos((r_11*sin(th_2) - r_21*cos(th_2))/sin(th_4)) -acos((r_11*sin(th_2) - r_21*cos(th_2))/sin(th_4))
+
+
+
+
+
+
+

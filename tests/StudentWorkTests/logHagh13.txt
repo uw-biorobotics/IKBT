@@ -1,0 +1,386 @@
+          Testing IK solution
+
+
+⎡-sin(th₁)⋅cos(th₄ + th₆) + sin(th₂)⋅sin(th₄ + th₆)⋅cos(th₁)  sin(th₁)⋅sin(th₄
+⎢
+⎢sin(th₁)⋅sin(th₂)⋅sin(th₄ + th₆) + cos(th₁)⋅cos(th₄ + th₆)   sin(th₁)⋅sin(th₂
+⎢
+⎢                 -sin(th₄ + th₆)⋅cos(th₂)
+⎢
+⎣                             0
+
+ + th₆) + sin(th₂)⋅cos(th₁)⋅cos(th₄ + th₆)  -cos(th₁)⋅cos(th₂)  d₃⋅sin(th₂)⋅co
+
+)⋅cos(th₄ + th₆) - sin(th₄ + th₆)⋅cos(th₁)  -sin(th₁)⋅cos(th₂)  d₃⋅sin(th₁)⋅si
+
+ -cos(th₂)⋅cos(th₄ + th₆)                       -sin(th₂)
+
+            0                                       0
+
+s(th₁) - d₅⋅(sin(th₁)⋅sin(th₄) + sin(th₂)⋅cos(th₁)⋅cos(th₄)) + l₂⋅sin(th₁)⎤
+                                                                          ⎥
+n(th₂) - d₅⋅(sin(th₁)⋅sin(th₂)⋅cos(th₄) - sin(th₄)⋅cos(th₁)) - l₂⋅cos(th₁)⎥
+                                                                          ⎥
+          -d₃⋅cos(th₂) + d₅⋅cos(th₂)⋅cos(th₄) + l₁                        ⎥
+                                                                          ⎥
+                             1                                            ⎦
+term:
+-sin(th₁)⋅cos(th₄ + th₆) + sin(th₂)⋅sin(th₄ + th₆)⋅cos(th₁)
+term:
+sin(th₁)⋅sin(th₄ + th₆) + sin(th₂)⋅cos(th₁)⋅cos(th₄ + th₆)
+term:
+-cos(th₁)⋅cos(th₂)
+term:
+d₃⋅sin(th₂)⋅cos(th₁) - d₅⋅(sin(th₁)⋅sin(th₄) + sin(th₂)⋅cos(th₁)⋅cos(th₄)) + l
+₂⋅sin(th₁)
+term:
+sin(th₁)⋅sin(th₂)⋅sin(th₄ + th₆) + cos(th₁)⋅cos(th₄ + th₆)
+term:
+sin(th₁)⋅sin(th₂)⋅cos(th₄ + th₆) - sin(th₄ + th₆)⋅cos(th₁)
+term:
+-sin(th₁)⋅cos(th₂)
+term:
+d₃⋅sin(th₁)⋅sin(th₂) - d₅⋅(sin(th₁)⋅sin(th₂)⋅cos(th₄) - sin(th₄)⋅cos(th₁)) - l
+₂⋅cos(th₁)
+term:
+-sin(th₄ + th₆)⋅cos(th₂)
+term:
+-cos(th₂)⋅cos(th₄ + th₆)
+term:
+-sin(th₂)
+term:
+-d₃⋅cos(th₂) + d₅⋅cos(th₂)⋅cos(th₄) + l₁
+term:
+0
+term:
+0
+term:
+0
+term:
+1
+finish set up
+algebra ID  ticked
+running:  algebra ID  , input RHS:
+algebra ID: Looking for unknown:  th_1  in equation:  e_24 = -d_3*e_33*sin(th_1) - d_5*(-e_33*sin(th_1)*cos(th_4) - sin(th_4)*cos(th_1)) - l_2*cos(th_1)
+  which has  4  unknown
+algebra ID: Looking for unknown:  th_1  in equation:  e_14 = -d_3*e_33*cos(th_1) - d_5*(-e_33*cos(th_1)*cos(th_4) + sin(th_1)*sin(th_4)) + l_2*sin(th_1)
+  which has  4  unknown
+algebra ID: Looking for unknown:  th_1  in equation:  e_11 = -e_33*sin(th_4 + th_6)*cos(th_1) - sin(th_1)*cos(th_4 + th_6)
+  which has  3  unknown
+algebra ID: Looking for unknown:  th_1  in equation:  e_22 = -e_33*sin(th_1)*cos(th_4 + th_6) - sin(th_4 + th_6)*cos(th_1)
+  which has  3  unknown
+algebra ID: Looking for unknown:  th_1  in equation:  e_12 = -e_33*cos(th_1)*cos(th_4 + th_6) + sin(th_1)*sin(th_4 + th_6)
+  which has  3  unknown
+algebra ID: Looking for unknown:  th_1  in equation:  e_21 = -e_33*sin(th_1)*sin(th_4 + th_6) + cos(th_1)*cos(th_4 + th_6)
+  which has  3  unknown
+algebra ID: Looking for unknown:  th_1  in equation:  e_13 = -cos(th_1)*cos(th_2)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_1  in equation:  e_23 = -sin(th_1)*cos(th_2)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_2  in equation:  e_34 = -d_3*cos(th_2) + d_5*cos(th_2)*cos(th_4) + l_1
+  which has  4  unknown
+algebra ID: Looking for unknown:  th_2  in equation:  e_31 = -sin(th_4 + th_6)*cos(th_2)
+  which has  3  unknown
+algebra ID: Looking for unknown:  th_2  in equation:  e_32 = -cos(th_2)*cos(th_4 + th_6)
+  which has  3  unknown
+algebra ID: Looking for unknown:  th_2  in equation:  e_13 = -cos(th_1)*cos(th_2)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_2  in equation:  e_23 = -sin(th_1)*cos(th_2)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_2  in equation:  e_33 = -sin(th_2)
+  which has  1  unknown
+algebra ID: Looking for unknown:  d_3  in equation:  e_24 = -d_3*e_33*sin(th_1) - d_5*(-e_33*sin(th_1)*cos(th_4) - sin(th_4)*cos(th_1)) - l_2*cos(th_1)
+  which has  4  unknown
+algebra ID: Looking for unknown:  d_3  in equation:  e_14 = -d_3*e_33*cos(th_1) - d_5*(-e_33*cos(th_1)*cos(th_4) + sin(th_1)*sin(th_4)) + l_2*sin(th_1)
+  which has  4  unknown
+algebra ID: Looking for unknown:  d_3  in equation:  e_34 = -d_3*cos(th_2) + d_5*cos(th_2)*cos(th_4) + l_1
+  which has  4  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_24 = -d_3*e_33*sin(th_1) - d_5*(-e_33*sin(th_1)*cos(th_4) - sin(th_4)*cos(th_1)) - l_2*cos(th_1)
+  which has  4  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_14 = -d_3*e_33*cos(th_1) - d_5*(-e_33*cos(th_1)*cos(th_4) + sin(th_1)*sin(th_4)) + l_2*sin(th_1)
+  which has  4  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_11 = -e_33*sin(th_4 + th_6)*cos(th_1) - sin(th_1)*cos(th_4 + th_6)
+  which has  3  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_22 = -e_33*sin(th_1)*cos(th_4 + th_6) - sin(th_4 + th_6)*cos(th_1)
+  which has  3  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_12 = -e_33*cos(th_1)*cos(th_4 + th_6) + sin(th_1)*sin(th_4 + th_6)
+  which has  3  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_21 = -e_33*sin(th_1)*sin(th_4 + th_6) + cos(th_1)*cos(th_4 + th_6)
+  which has  3  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_34 = -d_3*cos(th_2) + d_5*cos(th_2)*cos(th_4) + l_1
+  which has  4  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_31 = -sin(th_4 + th_6)*cos(th_2)
+  which has  3  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_32 = -cos(th_2)*cos(th_4 + th_6)
+  which has  3  unknown
+algebra ID: Looking for unknown:  d_5  in equation:  e_24 = -d_3*e_33*sin(th_1) - d_5*(-e_33*sin(th_1)*cos(th_4) - sin(th_4)*cos(th_1)) - l_2*cos(th_1)
+  which has  4  unknown
+algebra ID: Looking for unknown:  d_5  in equation:  e_14 = -d_3*e_33*cos(th_1) - d_5*(-e_33*cos(th_1)*cos(th_4) + sin(th_1)*sin(th_4)) + l_2*sin(th_1)
+  which has  4  unknown
+algebra ID: Looking for unknown:  d_5  in equation:  e_34 = -d_3*cos(th_2) + d_5*cos(th_2)*cos(th_4) + l_1
+  which has  4  unknown
+algebra ID: Looking for unknown:  th_6  in equation:  e_11 = -e_33*sin(th_4 + th_6)*cos(th_1) - sin(th_1)*cos(th_4 + th_6)
+  which has  3  unknown
+algebra ID: Looking for unknown:  th_6  in equation:  e_22 = -e_33*sin(th_1)*cos(th_4 + th_6) - sin(th_4 + th_6)*cos(th_1)
+  which has  3  unknown
+algebra ID: Looking for unknown:  th_6  in equation:  e_12 = -e_33*cos(th_1)*cos(th_4 + th_6) + sin(th_1)*sin(th_4 + th_6)
+  which has  3  unknown
+algebra ID: Looking for unknown:  th_6  in equation:  e_21 = -e_33*sin(th_1)*sin(th_4 + th_6) + cos(th_1)*cos(th_4 + th_6)
+  which has  3  unknown
+algebra ID: Looking for unknown:  th_6  in equation:  e_31 = -sin(th_4 + th_6)*cos(th_2)
+  which has  3  unknown
+algebra ID: Looking for unknown:  th_6  in equation:  e_32 = -cos(th_2)*cos(th_4 + th_6)
+  which has  3  unknown
+basenode:  algebra ID  FAIL
+th_1
+th_2
+d_3
+th_4
+d_5
+th_6
+
+
+th_1
+
+th_1
+
+algebra ID  ticked
+running:  algebra ID  , input RHS:
+algebra ID: Looking for unknown:  d_3  in equation:  e_24 = -d_3*e_33*sin(th_1) - d_5*(-e_33*sin(th_1)*cos(th_4) - sin(th_4)*cos(th_1)) - l_2*cos(th_1)
+  which has  3  unknown
+algebra ID: Looking for unknown:  d_3  in equation:  e_14 = -d_3*e_33*cos(th_1) - d_5*(-e_33*cos(th_1)*cos(th_4) + sin(th_1)*sin(th_4)) + l_2*sin(th_1)
+  which has  3  unknown
+algebra ID: Looking for unknown:  d_3  in equation:  e_34 = -d_3*cos(th_2) + d_5*cos(th_2)*cos(th_4) + l_1
+  which has  3  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_24 = -d_3*e_33*sin(th_1) - d_5*(-e_33*sin(th_1)*cos(th_4) - sin(th_4)*cos(th_1)) - l_2*cos(th_1)
+  which has  3  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_14 = -d_3*e_33*cos(th_1) - d_5*(-e_33*cos(th_1)*cos(th_4) + sin(th_1)*sin(th_4)) + l_2*sin(th_1)
+  which has  3  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_11 = -e_33*sin(th_4 + th_6)*cos(th_1) - sin(th_1)*cos(th_4 + th_6)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_22 = -e_33*sin(th_1)*cos(th_4 + th_6) - sin(th_4 + th_6)*cos(th_1)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_12 = -e_33*cos(th_1)*cos(th_4 + th_6) + sin(th_1)*sin(th_4 + th_6)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_21 = -e_33*sin(th_1)*sin(th_4 + th_6) + cos(th_1)*cos(th_4 + th_6)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_34 = -d_3*cos(th_2) + d_5*cos(th_2)*cos(th_4) + l_1
+  which has  3  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_31 = -sin(th_4 + th_6)*cos(th_2)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_32 = -cos(th_2)*cos(th_4 + th_6)
+  which has  2  unknown
+algebra ID: Looking for unknown:  d_5  in equation:  e_24 = -d_3*e_33*sin(th_1) - d_5*(-e_33*sin(th_1)*cos(th_4) - sin(th_4)*cos(th_1)) - l_2*cos(th_1)
+  which has  3  unknown
+algebra ID: Looking for unknown:  d_5  in equation:  e_14 = -d_3*e_33*cos(th_1) - d_5*(-e_33*cos(th_1)*cos(th_4) + sin(th_1)*sin(th_4)) + l_2*sin(th_1)
+  which has  3  unknown
+algebra ID: Looking for unknown:  d_5  in equation:  e_34 = -d_3*cos(th_2) + d_5*cos(th_2)*cos(th_4) + l_1
+  which has  3  unknown
+algebra ID: Looking for unknown:  th_6  in equation:  e_11 = -e_33*sin(th_4 + th_6)*cos(th_1) - sin(th_1)*cos(th_4 + th_6)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_6  in equation:  e_22 = -e_33*sin(th_1)*cos(th_4 + th_6) - sin(th_4 + th_6)*cos(th_1)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_6  in equation:  e_12 = -e_33*cos(th_1)*cos(th_4 + th_6) + sin(th_1)*sin(th_4 + th_6)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_6  in equation:  e_21 = -e_33*sin(th_1)*sin(th_4 + th_6) + cos(th_1)*cos(th_4 + th_6)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_6  in equation:  e_31 = -sin(th_4 + th_6)*cos(th_2)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_6  in equation:  e_32 = -cos(th_2)*cos(th_4 + th_6)
+  which has  2  unknown
+basenode:  algebra ID  FAIL
+Completion Detection  ticked
+
+
+
+
+
+           Completion Detector:  6  variables,  2  are solved.
+             solved:  th_1   th_2
+
+
+
+basenode:  Completion Detection  FAIL
+algebra ID  ticked
+running:  algebra ID  , input RHS:
+algebra ID: Looking for unknown:  d_3  in equation:  e_24 = -d_3*e_33*sin(th_1) - d_5*(-e_33*sin(th_1)*cos(th_4) - sin(th_4)*cos(th_1)) - l_2*cos(th_1)
+  which has  3  unknown
+algebra ID: Looking for unknown:  d_3  in equation:  e_14 = -d_3*e_33*cos(th_1) - d_5*(-e_33*cos(th_1)*cos(th_4) + sin(th_1)*sin(th_4)) + l_2*sin(th_1)
+  which has  3  unknown
+algebra ID: Looking for unknown:  d_3  in equation:  e_34 = -d_3*cos(th_2) + d_5*cos(th_2)*cos(th_4) + l_1
+  which has  3  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_24 = -d_3*e_33*sin(th_1) - d_5*(-e_33*sin(th_1)*cos(th_4) - sin(th_4)*cos(th_1)) - l_2*cos(th_1)
+  which has  3  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_14 = -d_3*e_33*cos(th_1) - d_5*(-e_33*cos(th_1)*cos(th_4) + sin(th_1)*sin(th_4)) + l_2*sin(th_1)
+  which has  3  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_11 = -e_33*sin(th_4 + th_6)*cos(th_1) - sin(th_1)*cos(th_4 + th_6)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_22 = -e_33*sin(th_1)*cos(th_4 + th_6) - sin(th_4 + th_6)*cos(th_1)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_12 = -e_33*cos(th_1)*cos(th_4 + th_6) + sin(th_1)*sin(th_4 + th_6)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_21 = -e_33*sin(th_1)*sin(th_4 + th_6) + cos(th_1)*cos(th_4 + th_6)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_34 = -d_3*cos(th_2) + d_5*cos(th_2)*cos(th_4) + l_1
+  which has  3  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_31 = -sin(th_4 + th_6)*cos(th_2)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_32 = -cos(th_2)*cos(th_4 + th_6)
+  which has  2  unknown
+algebra ID: Looking for unknown:  d_5  in equation:  e_24 = -d_3*e_33*sin(th_1) - d_5*(-e_33*sin(th_1)*cos(th_4) - sin(th_4)*cos(th_1)) - l_2*cos(th_1)
+  which has  3  unknown
+algebra ID: Looking for unknown:  d_5  in equation:  e_14 = -d_3*e_33*cos(th_1) - d_5*(-e_33*cos(th_1)*cos(th_4) + sin(th_1)*sin(th_4)) + l_2*sin(th_1)
+  which has  3  unknown
+algebra ID: Looking for unknown:  d_5  in equation:  e_34 = -d_3*cos(th_2) + d_5*cos(th_2)*cos(th_4) + l_1
+  which has  3  unknown
+algebra ID: Looking for unknown:  th_6  in equation:  e_11 = -e_33*sin(th_4 + th_6)*cos(th_1) - sin(th_1)*cos(th_4 + th_6)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_6  in equation:  e_22 = -e_33*sin(th_1)*cos(th_4 + th_6) - sin(th_4 + th_6)*cos(th_1)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_6  in equation:  e_12 = -e_33*cos(th_1)*cos(th_4 + th_6) + sin(th_1)*sin(th_4 + th_6)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_6  in equation:  e_21 = -e_33*sin(th_1)*sin(th_4 + th_6) + cos(th_1)*cos(th_4 + th_6)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_6  in equation:  e_31 = -sin(th_4 + th_6)*cos(th_2)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_6  in equation:  e_32 = -cos(th_2)*cos(th_4 + th_6)
+  which has  2  unknown
+basenode:  algebra ID  FAIL
+Completion Detection  ticked
+
+
+
+
+
+           Completion Detector:  6  variables,  2  are solved.
+             solved:  th_1   th_2
+
+
+
+basenode:  Completion Detection  FAIL
+algebra ID  ticked
+running:  algebra ID  , input RHS:
+algebra ID: Looking for unknown:  d_3  in equation:  e_24 = -d_3*e_33*sin(th_1) - d_5*(-e_33*sin(th_1)*cos(th_4) - sin(th_4)*cos(th_1)) - l_2*cos(th_1)
+  which has  3  unknown
+algebra ID: Looking for unknown:  d_3  in equation:  e_14 = -d_3*e_33*cos(th_1) - d_5*(-e_33*cos(th_1)*cos(th_4) + sin(th_1)*sin(th_4)) + l_2*sin(th_1)
+  which has  3  unknown
+algebra ID: Looking for unknown:  d_3  in equation:  e_34 = -d_3*cos(th_2) + d_5*cos(th_2)*cos(th_4) + l_1
+  which has  3  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_24 = -d_3*e_33*sin(th_1) - d_5*(-e_33*sin(th_1)*cos(th_4) - sin(th_4)*cos(th_1)) - l_2*cos(th_1)
+  which has  3  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_14 = -d_3*e_33*cos(th_1) - d_5*(-e_33*cos(th_1)*cos(th_4) + sin(th_1)*sin(th_4)) + l_2*sin(th_1)
+  which has  3  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_11 = -e_33*sin(th_4 + th_6)*cos(th_1) - sin(th_1)*cos(th_4 + th_6)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_22 = -e_33*sin(th_1)*cos(th_4 + th_6) - sin(th_4 + th_6)*cos(th_1)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_12 = -e_33*cos(th_1)*cos(th_4 + th_6) + sin(th_1)*sin(th_4 + th_6)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_21 = -e_33*sin(th_1)*sin(th_4 + th_6) + cos(th_1)*cos(th_4 + th_6)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_34 = -d_3*cos(th_2) + d_5*cos(th_2)*cos(th_4) + l_1
+  which has  3  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_31 = -sin(th_4 + th_6)*cos(th_2)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_32 = -cos(th_2)*cos(th_4 + th_6)
+  which has  2  unknown
+algebra ID: Looking for unknown:  d_5  in equation:  e_24 = -d_3*e_33*sin(th_1) - d_5*(-e_33*sin(th_1)*cos(th_4) - sin(th_4)*cos(th_1)) - l_2*cos(th_1)
+  which has  3  unknown
+algebra ID: Looking for unknown:  d_5  in equation:  e_14 = -d_3*e_33*cos(th_1) - d_5*(-e_33*cos(th_1)*cos(th_4) + sin(th_1)*sin(th_4)) + l_2*sin(th_1)
+  which has  3  unknown
+algebra ID: Looking for unknown:  d_5  in equation:  e_34 = -d_3*cos(th_2) + d_5*cos(th_2)*cos(th_4) + l_1
+  which has  3  unknown
+algebra ID: Looking for unknown:  th_6  in equation:  e_11 = -e_33*sin(th_4 + th_6)*cos(th_1) - sin(th_1)*cos(th_4 + th_6)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_6  in equation:  e_22 = -e_33*sin(th_1)*cos(th_4 + th_6) - sin(th_4 + th_6)*cos(th_1)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_6  in equation:  e_12 = -e_33*cos(th_1)*cos(th_4 + th_6) + sin(th_1)*sin(th_4 + th_6)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_6  in equation:  e_21 = -e_33*sin(th_1)*sin(th_4 + th_6) + cos(th_1)*cos(th_4 + th_6)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_6  in equation:  e_31 = -sin(th_4 + th_6)*cos(th_2)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_6  in equation:  e_32 = -cos(th_2)*cos(th_4 + th_6)
+  which has  2  unknown
+basenode:  algebra ID  FAIL
+Completion Detection  ticked
+
+
+
+
+
+           Completion Detector:  6  variables,  2  are solved.
+             solved:  th_1   th_2
+
+
+
+basenode:  Completion Detection  FAIL
+algebra ID  ticked
+running:  algebra ID  , input RHS:
+algebra ID: Looking for unknown:  d_3  in equation:  e_24 = -d_3*e_33*sin(th_1) - d_5*(-e_33*sin(th_1)*cos(th_4) - sin(th_4)*cos(th_1)) - l_2*cos(th_1)
+  which has  3  unknown
+algebra ID: Looking for unknown:  d_3  in equation:  e_14 = -d_3*e_33*cos(th_1) - d_5*(-e_33*cos(th_1)*cos(th_4) + sin(th_1)*sin(th_4)) + l_2*sin(th_1)
+  which has  3  unknown
+algebra ID: Looking for unknown:  d_3  in equation:  e_34 = -d_3*cos(th_2) + d_5*cos(th_2)*cos(th_4) + l_1
+  which has  3  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_24 = -d_3*e_33*sin(th_1) - d_5*(-e_33*sin(th_1)*cos(th_4) - sin(th_4)*cos(th_1)) - l_2*cos(th_1)
+  which has  3  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_14 = -d_3*e_33*cos(th_1) - d_5*(-e_33*cos(th_1)*cos(th_4) + sin(th_1)*sin(th_4)) + l_2*sin(th_1)
+  which has  3  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_11 = -e_33*sin(th_4 + th_6)*cos(th_1) - sin(th_1)*cos(th_4 + th_6)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_22 = -e_33*sin(th_1)*cos(th_4 + th_6) - sin(th_4 + th_6)*cos(th_1)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_12 = -e_33*cos(th_1)*cos(th_4 + th_6) + sin(th_1)*sin(th_4 + th_6)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_21 = -e_33*sin(th_1)*sin(th_4 + th_6) + cos(th_1)*cos(th_4 + th_6)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_34 = -d_3*cos(th_2) + d_5*cos(th_2)*cos(th_4) + l_1
+  which has  3  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_31 = -sin(th_4 + th_6)*cos(th_2)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_4  in equation:  e_32 = -cos(th_2)*cos(th_4 + th_6)
+  which has  2  unknown
+algebra ID: Looking for unknown:  d_5  in equation:  e_24 = -d_3*e_33*sin(th_1) - d_5*(-e_33*sin(th_1)*cos(th_4) - sin(th_4)*cos(th_1)) - l_2*cos(th_1)
+  which has  3  unknown
+algebra ID: Looking for unknown:  d_5  in equation:  e_14 = -d_3*e_33*cos(th_1) - d_5*(-e_33*cos(th_1)*cos(th_4) + sin(th_1)*sin(th_4)) + l_2*sin(th_1)
+  which has  3  unknown
+algebra ID: Looking for unknown:  d_5  in equation:  e_34 = -d_3*cos(th_2) + d_5*cos(th_2)*cos(th_4) + l_1
+  which has  3  unknown
+algebra ID: Looking for unknown:  th_6  in equation:  e_11 = -e_33*sin(th_4 + th_6)*cos(th_1) - sin(th_1)*cos(th_4 + th_6)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_6  in equation:  e_22 = -e_33*sin(th_1)*cos(th_4 + th_6) - sin(th_4 + th_6)*cos(th_1)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_6  in equation:  e_12 = -e_33*cos(th_1)*cos(th_4 + th_6) + sin(th_1)*sin(th_4 + th_6)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_6  in equation:  e_21 = -e_33*sin(th_1)*sin(th_4 + th_6) + cos(th_1)*cos(th_4 + th_6)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_6  in equation:  e_31 = -sin(th_4 + th_6)*cos(th_2)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_6  in equation:  e_32 = -cos(th_2)*cos(th_4 + th_6)
+  which has  2  unknown
+basenode:  algebra ID  FAIL
+Completion Detection  ticked
+
+
+
+
+
+           Completion Detector:  6  variables,  2  are solved.
+             solved:  th_1   th_2
+
+
+
+basenode:  Completion Detection  FAIL
+th_1
+[atan2(e_23, e_13), atan2(-e_23, e_13)]
+th_2
+[atan2(e_33*sin(th_1), e_23)]
+
+###############
+algebra ID: Looking for unknown:  th_6  in equation:  e_31 = -sin(th_4 + th_6)*cos(th_2)
+  which has  2  unknown
+algebra ID: Looking for unknown:  th_6  in equation:  e_32 = -cos(th_2)*cos(th_4 + th_6)
+  which has  2  unknown
+  
+if sum of angle could detect th4+th6, it potentially can solve this

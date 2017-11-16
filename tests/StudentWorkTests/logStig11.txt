@@ -1,0 +1,157 @@
+  Testing IK solution
+
+
+⎡(((sin(th₁)⋅sin(th₃) + cos(th₁)⋅cos(th₂)⋅cos(th₃))⋅cos(th₄) - sin(th₂)⋅sin(th
+⎢
+⎢                                                      (-(sin(th₂)⋅cos(th₃)⋅co
+⎢
+⎢(((sin(th₁)⋅cos(th₂)⋅cos(th₃) - sin(th₃)⋅cos(th₁))⋅cos(th₄) - sin(th₁)⋅sin(th
+⎢
+⎣
+
+₄)⋅cos(th₁))⋅cos(th₅) + (sin(th₁)⋅cos(th₃) - sin(th₃)⋅cos(th₁)⋅cos(th₂))⋅sin(t
+
+s(th₄) + sin(th₄)⋅cos(th₂))⋅cos(th₅) + sin(th₂)⋅sin(th₃)⋅sin(th₅))⋅cos(th₆) +
+
+₂)⋅sin(th₄))⋅cos(th₅) - (sin(th₁)⋅sin(th₃)⋅cos(th₂) + cos(th₁)⋅cos(th₃))⋅sin(t
+
+                                                        0
+
+h₅))⋅cos(th₆) + ((sin(th₁)⋅sin(th₃) + cos(th₁)⋅cos(th₂)⋅cos(th₃))⋅sin(th₄) + s
+
+(-sin(th₂)⋅sin(th₄)⋅cos(th₃) + cos(th₂)⋅cos(th₄))⋅sin(th₆)
+
+h₅))⋅cos(th₆) + ((sin(th₁)⋅cos(th₂)⋅cos(th₃) - sin(th₃)⋅cos(th₁))⋅sin(th₄) + s
+
+
+
+in(th₂)⋅cos(th₁)⋅cos(th₄))⋅sin(th₆)  -(((sin(th₁)⋅sin(th₃) + cos(th₁)⋅cos(th₂)
+
+
+
+in(th₁)⋅sin(th₂)⋅cos(th₄))⋅sin(th₆)  -(((sin(th₁)⋅cos(th₂)⋅cos(th₃) - sin(th₃)
+
+
+
+⋅cos(th₃))⋅cos(th₄) - sin(th₂)⋅sin(th₄)⋅cos(th₁))⋅cos(th₅) + (sin(th₁)⋅cos(th₃
+
+             -(-(sin(th₂)⋅cos(th₃)⋅cos(th₄) + sin(th₄)⋅cos(th₂))⋅cos(th₅) + si
+
+⋅cos(th₁))⋅cos(th₄) - sin(th₁)⋅sin(th₂)⋅sin(th₄))⋅cos(th₅) - (sin(th₁)⋅sin(th₃
+
+
+
+) - sin(th₃)⋅cos(th₁)⋅cos(th₂))⋅sin(th₅))⋅sin(th₆) + ((sin(th₁)⋅sin(th₃) + cos
+
+n(th₂)⋅sin(th₃)⋅sin(th₅))⋅sin(th₆) + (-sin(th₂)⋅sin(th₄)⋅cos(th₃) + cos(th₂)⋅c
+
+)⋅cos(th₂) + cos(th₁)⋅cos(th₃))⋅sin(th₅))⋅sin(th₆) + ((sin(th₁)⋅cos(th₂)⋅cos(t
+
+               0
+
+(th₁)⋅cos(th₂)⋅cos(th₃))⋅sin(th₄) + sin(th₂)⋅cos(th₁)⋅cos(th₄))⋅cos(th₆)  ((si
+
+os(th₄))⋅cos(th₆)
+
+h₃) - sin(th₃)⋅cos(th₁))⋅sin(th₄) + sin(th₁)⋅sin(th₂)⋅cos(th₄))⋅cos(th₆)  ((si
+
+
+
+n(th₁)⋅sin(th₃) + cos(th₁)⋅cos(th₂)⋅cos(th₃))⋅cos(th₄) - sin(th₂)⋅sin(th₄)⋅cos
+
+                               -(sin(th₂)⋅cos(th₃)⋅cos(th₄) + sin(th₄)⋅cos(th₂
+
+n(th₁)⋅cos(th₂)⋅cos(th₃) - sin(th₃)⋅cos(th₁))⋅cos(th₄) - sin(th₁)⋅sin(th₂)⋅sin
+
+                                                                          0
+
+(th₁))⋅sin(th₅) - (sin(th₁)⋅cos(th₃) - sin(th₃)⋅cos(th₁)⋅cos(th₂))⋅cos(th₅)  -
+
+))⋅sin(th₅) - sin(th₂)⋅sin(th₃)⋅cos(th₅)
+
+(th₄))⋅sin(th₅) + (sin(th₁)⋅sin(th₃)⋅cos(th₂) + cos(th₁)⋅cos(th₃))⋅cos(th₅)  -
+
+
+
+l₁⋅sin(th₂)⋅cos(th₁) + l₂⋅(sin(th₁)⋅sin(th₃) + cos(th₁)⋅cos(th₂)⋅cos(th₃)) - l
+
+                                       -l₁⋅cos(th₂) - l₂⋅sin(th₂)⋅cos(th₃) - l
+
+l₁⋅sin(th₁)⋅sin(th₂) + l₂⋅(sin(th₁)⋅cos(th₂)⋅cos(th₃) - sin(th₃)⋅cos(th₁)) - l
+
+
+
+₃⋅(-(sin(th₁)⋅sin(th₃) + cos(th₁)⋅cos(th₂)⋅cos(th₃))⋅sin(th₄) - sin(th₂)⋅cos(t
+
+₃⋅sin(th₂)⋅sin(th₄)⋅cos(th₃) + l₃⋅cos(th₂)⋅cos(th₄)
+
+₃⋅(-(sin(th₁)⋅cos(th₂)⋅cos(th₃) - sin(th₃)⋅cos(th₁))⋅sin(th₄) - sin(th₁)⋅sin(t
+
+     1
+
+h₁)⋅cos(th₄))⎤
+             ⎥
+             ⎥
+             ⎥
+h₂)⋅cos(th₄))⎥
+             ⎥
+             ⎦
+term:
+(((sin(th₁)⋅sin(th₃) + cos(th₁)⋅cos(th₂)⋅cos(th₃))⋅cos(th₄) - sin(th₂)⋅sin(th₄
+)⋅cos(th₁))⋅cos(th₅) + (sin(th₁)⋅cos(th₃) - sin(th₃)⋅cos(th₁)⋅cos(th₂))⋅sin(th
+₅))⋅cos(th₆) + ((sin(th₁)⋅sin(th₃) + cos(th₁)⋅cos(th₂)⋅cos(th₃))⋅sin(th₄) + si
+n(th₂)⋅cos(th₁)⋅cos(th₄))⋅sin(th₆)
+term:
+-(((sin(th₁)⋅sin(th₃) + cos(th₁)⋅cos(th₂)⋅cos(th₃))⋅cos(th₄) - sin(th₂)⋅sin(th
+₄)⋅cos(th₁))⋅cos(th₅) + (sin(th₁)⋅cos(th₃) - sin(th₃)⋅cos(th₁)⋅cos(th₂))⋅sin(t
+h₅))⋅sin(th₆) + ((sin(th₁)⋅sin(th₃) + cos(th₁)⋅cos(th₂)⋅cos(th₃))⋅sin(th₄) + s
+in(th₂)⋅cos(th₁)⋅cos(th₄))⋅cos(th₆)
+term:
+((sin(th₁)⋅sin(th₃) + cos(th₁)⋅cos(th₂)⋅cos(th₃))⋅cos(th₄) - sin(th₂)⋅sin(th₄)
+⋅cos(th₁))⋅sin(th₅) - (sin(th₁)⋅cos(th₃) - sin(th₃)⋅cos(th₁)⋅cos(th₂))⋅cos(th₅
+)
+term:
+-l₁⋅sin(th₂)⋅cos(th₁) + l₂⋅(sin(th₁)⋅sin(th₃) + cos(th₁)⋅cos(th₂)⋅cos(th₃)) -
+l₃⋅(-(sin(th₁)⋅sin(th₃) + cos(th₁)⋅cos(th₂)⋅cos(th₃))⋅sin(th₄) - sin(th₂)⋅cos(
+th₁)⋅cos(th₄))
+term:
+(-(sin(th₂)⋅cos(th₃)⋅cos(th₄) + sin(th₄)⋅cos(th₂))⋅cos(th₅) + sin(th₂)⋅sin(th₃
+)⋅sin(th₅))⋅cos(th₆) + (-sin(th₂)⋅sin(th₄)⋅cos(th₃) + cos(th₂)⋅cos(th₄))⋅sin(t
+h₆)
+term:
+-(-(sin(th₂)⋅cos(th₃)⋅cos(th₄) + sin(th₄)⋅cos(th₂))⋅cos(th₅) + sin(th₂)⋅sin(th
+₃)⋅sin(th₅))⋅sin(th₆) + (-sin(th₂)⋅sin(th₄)⋅cos(th₃) + cos(th₂)⋅cos(th₄))⋅cos(
+th₆)
+term:
+-(sin(th₂)⋅cos(th₃)⋅cos(th₄) + sin(th₄)⋅cos(th₂))⋅sin(th₅) - sin(th₂)⋅sin(th₃)
+⋅cos(th₅)
+term:
+-l₁⋅cos(th₂) - l₂⋅sin(th₂)⋅cos(th₃) - l₃⋅sin(th₂)⋅sin(th₄)⋅cos(th₃) + l₃⋅cos(t
+h₂)⋅cos(th₄)
+term:
+(((sin(th₁)⋅cos(th₂)⋅cos(th₃) - sin(th₃)⋅cos(th₁))⋅cos(th₄) - sin(th₁)⋅sin(th₂
+)⋅sin(th₄))⋅cos(th₅) - (sin(th₁)⋅sin(th₃)⋅cos(th₂) + cos(th₁)⋅cos(th₃))⋅sin(th
+₅))⋅cos(th₆) + ((sin(th₁)⋅cos(th₂)⋅cos(th₃) - sin(th₃)⋅cos(th₁))⋅sin(th₄) + si
+n(th₁)⋅sin(th₂)⋅cos(th₄))⋅sin(th₆)
+term:
+-(((sin(th₁)⋅cos(th₂)⋅cos(th₃) - sin(th₃)⋅cos(th₁))⋅cos(th₄) - sin(th₁)⋅sin(th
+₂)⋅sin(th₄))⋅cos(th₅) - (sin(th₁)⋅sin(th₃)⋅cos(th₂) + cos(th₁)⋅cos(th₃))⋅sin(t
+h₅))⋅sin(th₆) + ((sin(th₁)⋅cos(th₂)⋅cos(th₃) - sin(th₃)⋅cos(th₁))⋅sin(th₄) + s
+in(th₁)⋅sin(th₂)⋅cos(th₄))⋅cos(th₆)
+term:
+((sin(th₁)⋅cos(th₂)⋅cos(th₃) - sin(th₃)⋅cos(th₁))⋅cos(th₄) - sin(th₁)⋅sin(th₂)
+⋅sin(th₄))⋅sin(th₅) + (sin(th₁)⋅sin(th₃)⋅cos(th₂) + cos(th₁)⋅cos(th₃))⋅cos(th₅
+)
+term:
+-l₁⋅sin(th₁)⋅sin(th₂) + l₂⋅(sin(th₁)⋅cos(th₂)⋅cos(th₃) - sin(th₃)⋅cos(th₁)) -
+l₃⋅(-(sin(th₁)⋅cos(th₂)⋅cos(th₃) - sin(th₃)⋅cos(th₁))⋅sin(th₄) - sin(th₁)⋅sin(
+th₂)⋅cos(th₄))
+term:
+0
+term:
+0
+term:
+0
+term:
+1
+finish set up

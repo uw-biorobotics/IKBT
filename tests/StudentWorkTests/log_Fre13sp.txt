@@ -1,0 +1,71 @@
+
+⎡(sin(th₂)⋅sin(th₄) + cos(th₂)⋅cos(th₃)⋅cos(th₄))⋅cos(th₅) + sin(th₃)⋅sin(th₅)
+⎢
+⎢                   -sin(th₃)⋅cos(th₄)⋅cos(th₅) + sin(th₅)⋅cos(th₃)
+⎢
+⎢(sin(th₂)⋅cos(th₃)⋅cos(th₄) - sin(th₄)⋅cos(th₂))⋅cos(th₅) + sin(th₂)⋅sin(th₃)
+⎢
+⎣                                          0
+
+⋅cos(th₂)  -(sin(th₂)⋅sin(th₄) + cos(th₂)⋅cos(th₃)⋅cos(th₄))⋅sin(th₅) + sin(th
+
+                               sin(th₃)⋅sin(th₅)⋅cos(th₄) + cos(th₃)⋅cos(th₅)
+
+⋅sin(th₅)  -(sin(th₂)⋅cos(th₃)⋅cos(th₄) - sin(th₄)⋅cos(th₂))⋅sin(th₅) + sin(th
+
+                                                      0
+
+₃)⋅cos(th₂)⋅cos(th₅)  -sin(th₂)⋅cos(th₄) + sin(th₄)⋅cos(th₂)⋅cos(th₃)    l₃⋅si
+
+                                    -sin(th₃)⋅sin(th₄)
+
+₂)⋅sin(th₃)⋅cos(th₅)  sin(th₂)⋅sin(th₄)⋅cos(th₃) + cos(th₂)⋅cos(th₄)   d₁ - l₃
+
+                                             0
+
+n(th₂) - l₅⋅(sin(th₂)⋅cos(th₄) - sin(th₄)⋅cos(th₂)⋅cos(th₃))   ⎤
+                                                               ⎥
+                 -l₅⋅sin(th₃)⋅sin(th₄)                         ⎥
+                                                               ⎥
+⋅cos(th₂) + l₅⋅(sin(th₂)⋅sin(th₄)⋅cos(th₃) + cos(th₂)⋅cos(th₄))⎥
+                                                               ⎥
+                           1                                   ⎦
+term:
+(sin(th₂)⋅sin(th₄) + cos(th₂)⋅cos(th₃)⋅cos(th₄))⋅cos(th₅) + sin(th₃)⋅sin(th₅)⋅
+cos(th₂)
+term:
+-(sin(th₂)⋅sin(th₄) + cos(th₂)⋅cos(th₃)⋅cos(th₄))⋅sin(th₅) + sin(th₃)⋅cos(th₂)
+⋅cos(th₅)
+term:
+-sin(th₂)⋅cos(th₄) + sin(th₄)⋅cos(th₂)⋅cos(th₃)
+term:
+l₃⋅sin(th₂) - l₅⋅(sin(th₂)⋅cos(th₄) - sin(th₄)⋅cos(th₂)⋅cos(th₃))
+term:
+-sin(th₃)⋅cos(th₄)⋅cos(th₅) + sin(th₅)⋅cos(th₃)
+term:
+sin(th₃)⋅sin(th₅)⋅cos(th₄) + cos(th₃)⋅cos(th₅)
+term:
+-sin(th₃)⋅sin(th₄)
+term:
+-l₅⋅sin(th₃)⋅sin(th₄)
+term:
+(sin(th₂)⋅cos(th₃)⋅cos(th₄) - sin(th₄)⋅cos(th₂))⋅cos(th₅) + sin(th₂)⋅sin(th₃)⋅
+sin(th₅)
+term:
+-(sin(th₂)⋅cos(th₃)⋅cos(th₄) - sin(th₄)⋅cos(th₂))⋅sin(th₅) + sin(th₂)⋅sin(th₃)
+⋅cos(th₅)
+term:
+sin(th₂)⋅sin(th₄)⋅cos(th₃) + cos(th₂)⋅cos(th₄)
+term:
+d₁ - l₃⋅cos(th₂) + l₅⋅(sin(th₂)⋅sin(th₄)⋅cos(th₃) + cos(th₂)⋅cos(th₄))
+term:
+0
+term:
+0
+term:
+0
+term:
+1
+
+####################3
+no obvious methods, (potential errors in student's original FK), come back later
