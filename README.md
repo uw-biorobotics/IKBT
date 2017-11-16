@@ -8,7 +8,7 @@ Our major contributions to automate closed-form kinematics solving are:
  1. IKBT provides convenience features such as automatic documentation of the solution in \LaTeX and automatic code generation in Python and C++. 
  1.  Implementation in a modern open-source, cross-platform, programming language (Python) with minimal dependencies outside of the standard Python distribution ({\tt sympy}).
  
-How to cite: 	arXiv:1711.05412
+How to cite: 
 
 http://arxiv.org/abs/1711.05412
 
