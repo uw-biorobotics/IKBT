@@ -1,0 +1,97 @@
+%% Default Latex document template
+%%
+%%  blake@rcs.ee.washington.edu
+
+\documentclass[letterpaper]{article}
+% \documentclass[letterpaper]{standalone}
+
+% Uncomment for bibliog.
+%\bibliographystyle{unsrt}
+
+\usepackage{graphicx}
+\usepackage{lineno}
+\usepackage{amsmath}
+\usepackage{hyperref}
+\usepackage{datetime}
+\usepackage{breqn}     %break up long equations marked by \begin{dmath}
+
+%\usepackage{fancyhdr}
+\usepackage{tikz}
+\usetikzlibrary{arrows,positioning,automata,shadows,fit,shapes}
+ 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
+%
+%  Set Up Margins
+
+\setlength\oddsidemargin{0in}
+\setlength\evensidemargin{0in}
+\usepackage[left=0.98in, right=0.98in, top=1.0in, bottom=1.0in]{geometry}
+\linespread{0.894}  % 1.0 = single    1.6 = double
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% Useful style and math macros
+%
+
+
+\newcommand\Dfrac[2]{\frac{\displaystyle #1}{\displaystyle #2}}
+\newcommand\beq{\begin{equation}}
+\newcommand\eeq{\end{equation}}
+
+\newcommand\bmat{\begin{bmatrix}}
+\newcommand\emat{\end{bmatrix}}
+
+\newenvironment{solution}
+{\ttfamily \vspace{0.155in} {\bf SOLUTION:} \\ }
+{ \vspace{0.25in} \par }
+
+%
+%        Font selection
+%
+%\renewcommand{\rmdefault}{ptm}             % Times
+%\renewcommand{\rmdefault}{phv}             % Helvetica
+%\renewcommand{\rmdefault}{pcr}             % Courier
+%\renewcommand{\rmdefault}{pbk}             % Bookman
+%\renewcommand{\rmdefault}{pag}             % Avant Garde
+%\renewcommand{\rmdefault}{ppl}             % Palatino
+%\renewcommand{\rmdefault}{pch}             % Charter
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+%         Page format Mods HERE
+%
+%Mod's to page size for this document
+\addtolength\textwidth{0cm}
+\addtolength\oddsidemargin{0cm}
+\addtolength\headsep{0cm}
+\addtolength\textheight{0cm}
+%\linespread{0.894}   % 0.894 = 6 lines per inch, 1 = "single",  1.6 = "double"
+
+% header options for fancyhdr
+
+%\pagestyle{fancy}
+%\lhead{LEFT HEADER}
+%\chead{CENTER HEADER}
+%\rhead{RIGHT HEADER}
+%\lfoot{Hannaford, U. of Washington}
+%\rfoot{\today}
+%\cfoot{\thepage}
+
+
+
+% Make table rows deeper
+%\renewcommand\arraystretch{2.0}% Vertical Row size, 1.0 is for standard spacing)
+
+\begin{document}
+\setpagewiselinenumbers        %  Line numbers for edits to drafts.
+\modulolinenumbers[1]          %  number every N lines
+
+% \linenumbers                   %  start numbering lines here
+
+\input{IK_solution.tex} 
+
+\end{document}
+
