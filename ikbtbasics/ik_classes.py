@@ -16,7 +16,7 @@
 
 # 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
 
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. 
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
 # IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import sympy as sp
@@ -29,7 +29,7 @@ from solution_graph_v2 import *
 import matching as mtch
 from sys import exit
 import b3 as b3          # behavior trees
-import pickle 
+import pickle
 from ikbtfunctions.helperfunctions import *
 import ikbtfunctions.graph2latex as gl
 #from kin_cl import *
@@ -53,47 +53,47 @@ soa_expansions[th_23] = th_2 + th_3
 soa_expansions[th_34] = th_3 + th_4
 soa_expansions[th_45] = th_4 + th_5
 soa_expansions[th_56] = th_5 + th_6
-         
+
 
 #
-#   retrieve forward kinematics from a pickle file if it exists. 
-#      if it doesn't, compute the FK and store it in a pickle file. 
+#   retrieve forward kinematics from a pickle file if it exists.
+#      if it doesn't, compute the FK and store it in a pickle file.
 def kinematics_pickle(rname, dh, constants, pvals, vv, unks, test):
     #
     #   Check for a pickle file of combined pre-computed Mech and Robot objects
-    # 
-            
+    #
+
     if test:   # for some reason in unittest/module mode, default dir is changed upward
         os.chdir('IK-2') # correct this situation
-        
+
     pickle_dir = 'fk_eqns/'
-          
+
     if not os.path.isdir(pickle_dir):  # if this doesn't exist, create it.
         os.mkdir(pickle_dir)
-        
+
     name = pickle_dir + rname + '_pickle.p'
-                
+
     try:
         with open(name, 'r') as pick:
             print '\nReading pre-computed forward kinematics\n'
             [m, R, unks]  = pickle.load(pick)
-    except:     
+    except:
         # set up mechanism object instance
         m = kc.mechanism(dh, constants, vv)
-        m.pvals = pvals  # store numerical values of parameters 
+        m.pvals = pvals  # store numerical values of parameters
         print 'Did not find stored pickle file: ', name
         print "Starting Forward Kinematics"
         m.forward_kinematics()
         print "Completed Forward Kinematics"
-        print 'Starting Sum of Angles scan (slow!)'        
-    
-        # set up Robot Object instance        
-        R = Robot(m, rname)              # set up IK structs etc 
-        R.scan_for_equations(unks)       # generate equation lists 
+        print 'Starting Sum of Angles scan (slow!)'
+
+        # set up Robot Object instance
+        R = Robot(m, rname)              # set up IK structs etc
+        R.scan_for_equations(unks)       # generate equation lists
         #R.sum_of_angles_transform(unks)  # find sum of angles
-        
+
         R.generate_solution_nodes(unks) # generate solution nodes
- 
+
         print ' Storing results'
         with open(name,'wb') as pf:
             pickle.dump( [m, R, unks], pf)
@@ -102,7 +102,7 @@ def kinematics_pickle(rname, dh, constants, pvals, vv, unks, test):
 
 
 def check_the_pickle(dh1, dh2):   # check that two mechanisms have identical DH params
-    flag = False 
+    flag = False
     if (dh1.shape[0] != dh2.shape[0]):
         print   '   Wrong number of rows!'
         flag = True
@@ -130,17 +130,17 @@ def find_xy(thx, thy):
     thxy_s = thx_s.intersection(thy_s)
     thxy = thxy_s.pop()
     return thxy
-    
-    
-    
+
+
+
 #  Class to contain all robot info
 class Robot:
     def __init__(self, Mech=None, name="*Unnamed*"):
-        self.name = name        
+        self.name = name
         # the following data pertain to the solution tree for this Robot
         self.solveN = 0   # index of current solution in solving sequence
         self.soltag = ''  # suffix tag for current solution level leafs
-        self.params = []  # constant dh params such as l_4 etc.       
+        self.params = []  # constant dh params such as l_4 etc.
         self.solution_nodes = []  # first one is the root, by solve order
         self.variables_symbols = []
         self.notation_graph = set() #solution nodes notation graph
@@ -153,11 +153,11 @@ class Robot:
 
         if(Mech != None):    # in testing situations we only need a "Robot" to keep track of solutions above
             self.Mech = Mech
-  
-            self.min_index = 0  # start DOF of the current chain 
+
+            self.min_index = 0  # start DOF of the current chain
                                 #  min_index starts at 0 for ALL manips.
             #  max index == index of highest unsolved link variable
-            #  define indeces for DH table 
+            #  define indeces for DH table
             d = 2      # joint offset DH param index
             th = 3     # joint angle DH param index
             self.max_index = -99
@@ -171,16 +171,16 @@ class Robot:
             #  build up the equations to solve:
             self.mequation_list = Mech.get_mequation_set()  # all the Matrix FK equations
             print 'ik_classes: length Robot.mequation_list: ', len(self.mequation_list)
-            
+
     def generate_solution_nodes(self, unknowns):
         '''generate solution nodes'''
         for unk in unknowns:
             self.solution_nodes.append(Node(unk))
             self.variables_symbols.append(unk.symbol)
-            
+
         print self.solution_nodes
         print self.variables_symbols
-        
+
     # get lists of unsolved equations having 1 and 2 unks
     # class Robot:
     def scan_for_equations(self,variables):
@@ -203,16 +203,16 @@ class Robot:
 
                         if e1 not in self.l1:
                             self.l1.append(e1)   # only append if not already there
-                    if(n==2):   
+                    if(n==2):
                         flag = False
 
                         if e1 not in self.l2:
                             self.l2.append(e1)    # only append if not already there
-                    if(n > 2):   
+                    if(n > 2):
 
                         if e1 not in self.l3p:
                             self.l3p.append(e1)    # only append if not already there
-        for e in self.kequation_aux_list:  
+        for e in self.kequation_aux_list:
             lhs = e.LHS
             rhs = e.RHS
             n = count_unknowns(variables, lhs) + count_unknowns(variables, rhs)
@@ -220,7 +220,7 @@ class Robot:
                 self.l1.append(kc.kequation(lhs, rhs))  # change from 0, rhs-lhs !!  ************
             if(n==2):
                 self.l2.append(kc.kequation(lhs, rhs))
-                
+
         self.l1 = erank(self.l1) # sort the equations (in place) so solvers get preferred eqns first
         self.l2 = erank(self.l2)
         self.l3p = erank(self.l3p)
@@ -236,7 +236,7 @@ class Robot:
         self.l2 = []
         for eqn in Meqn.get_kequation_list():
             lh1x1 = eqn.LHS  #4x4 matrix
-            rh1x1 = eqn.RHS  #4x4 matrix 
+            rh1x1 = eqn.RHS  #4x4 matrix
             n = count_unknowns(variables, lh1x1) + count_unknowns(variables, rh1x1)
             #e1 = kequation(lh1x1, rh1x1) # change from 0,rh1x1-lh1x1 **********
             e1 = eqn
@@ -245,40 +245,40 @@ class Robot:
                 if e1 not in self.l1:
 
                     self.l1.append(e1)   # only append if not already there
-            if(n==2):   
+            if(n==2):
                 flag = False
 
                 if e1 not in self.l2:
-                    self.l2.append(e1)    # only append if not already there                             
+                    self.l2.append(e1)    # only append if not already there
         self.l1 = erank(self.l1) # sort the equations (in place) so solvers get preferred eqns first
         self.l2 = erank(self.l2)
         return [self.l1, self.l2]
-    
-    
-    
-    # identify sum of angles terms and transform them to new variable    
+
+
+
+    # identify sum of angles terms and transform them to new variable
     def sum_of_angles_transform(self,variables):
-        
+
         unkn_sums_sym = set() #keep track of joint variable symbols
-        
+
         thx = sp.Wild('thx')
         thy = sp.Wild('thy')
         sgn = sp.Wild('sgn')
-        
+
         success_flag = False
-        
+
         for k in range(0,len(self.mequation_list)):
             Meq = self.mequation_list[k]  # get next matrix equation
-            
+
             for i in [0,1,2]:   # only first three rows are interesting
                 for j in [0,1,2,3]:
-                    # simplfy with lasting effect 
+                    # simplfy with lasting effect
                     Meq.Ts[i,j] = sp.simplify(Meq.Ts[i,j])  # simplify should catch c1s2+s1c2 etc. (RHS)
                     Meq.Td[i,j] = sp.simplify(Meq.Td[i,j])  # simplify should catch c1s2+s1c2 etc. (LHS)
-                    
+
                     lhs = Meq.Td[i,j]
                     rhs = Meq.Ts[i,j]
-                    
+
                     for expr in [lhs, rhs]:
                         sub_sin = expr.find(sp.sin(thx + sgn * thy)) #returns a subset of expressions with the quary pattern, this finds sin(thx) too
                         sub_cos = expr.find(sp.cos(thx + sgn * thy))
@@ -295,7 +295,7 @@ class Robot:
                             d = cos_expr.match(sp.cos(thx + sgn * thy))
                             if d[thx] != 0 and d[sgn] != 0 and d[thy] != 0:
                                 found = True
-                                
+
                         if found:
                             #print 'SoA: found ', sin_expr, ' in ', expr
                             success_flag = True
@@ -315,19 +315,19 @@ class Robot:
                                 tmpeqn = kc.kequation(th_xy, d[thx] + d[sgn] * d[thy])
                                 print 'sumofanglesT: appending ', tmpeqn
                                 self.kequation_aux_list.append(tmpeqn)
-                                print d[thx] + d[sgn]*d[thy] 
+                                print d[thx] + d[sgn]*d[thy]
                             #substitute all thx +/- thy expression with th_xy
                             self.mequation_list[k].Td[i,j] = Meq.Td[i,j].subs(d[thx] + d[sgn] * d[thy], th_xy)
-                            self.mequation_list[k].Ts[i,j] = Meq.Ts[i,j].subs(d[thx] + d[sgn] * d[thy], th_xy) 
-                            
+                            self.mequation_list[k].Ts[i,j] = Meq.Ts[i,j].subs(d[thx] + d[sgn] * d[thy], th_xy)
+
 # class kequation()       now moved to kin_cl.py
 
-class unknown(object):     
+class unknown(object):
     def __init__(self,u=sp.var('x'), mat_eqn=None):
         self.symbol = u
         self.n = 0           # index of the unk in the serial chain (1-6) 0=unset
         self.eqnlist = []    # list of kequations containing this UNK
-        self.readytosolve = False 
+        self.readytosolve = False
         self.eqntosolve = None #this has to be NONE, otherwise the None judgement in tan_solver wouldn't work
 
         self.secondeqn  = None
@@ -338,7 +338,7 @@ class unknown(object):
         self.usedfortransform = False   # if solved, has this been used for transform yet?
         self.solutions = []   # list of solutions, store final solutions
         self.argument = sp.var('a')*sp.var('b')  # argument to arcin() for example (used for generating checking code output)
-        
+
         # for nodes ranking
         self.sincos_solutions = [] # solutions from sin or cos
         self.sincos_eqnlist = []
@@ -352,23 +352,23 @@ class unknown(object):
         #self.nodelist = []   # list of solution tree nodes for this variable
         if mat_eqn != None:     #  list of kequation scontaining this unknown
             self.scan(mat_eqn)
-      
+
     def __eq__(self, other): #equal judgement, also hashing in python 3.x
         if other != None:
             return self.symbol == other.symbol
         return False
-        
-    def __hash__(self): #hash function "inherits" from symbol 
+
+    def __hash__(self): #hash function "inherits" from symbol
         return self.symbol.__hash__()
-        
+
     def __repr__(self): # string representation
         return self.symbol.__repr__()
-            
+
     # class unknown:
     def set_solved(self, R, unknowns):           # indicate that a this variable has been solved
                                                  #  and update the solution tree
         self.solved = True
-        self.readytosolve = False    
+        self.readytosolve = False
         print '\n\n'
         print 'set_solved: ', self.symbol, '      by: ', self.solvemethod
         #print '            ', self.eqntosolve
@@ -376,36 +376,36 @@ class unknown(object):
         assert(len(self.solutions) >= 1), fs
         assert(self.nsolutions > 0), fs
         print '            ', self.symbol, '=', self.solutions[0], '\n\n'
-        #print 'Robot instance.name: ', R.name      # shouldn't change!! 
+        #print 'Robot instance.name: ', R.name      # shouldn't change!!
         #########################################
         #
         #     Update Solution Tree
         #
         R.solveN += 1                 # increment solution level counter
         self.solveorder = R.solveN    # first solution starts with 1 (0 is the root)
-        
+
         curr_node = None
-        
+
         found = False
         for sol_node in R.solution_nodes:   # make sure there is a node for this var
             if sol_node.symbol == self.symbol:
                 found = True
-        
-        if not found:                
+
+        if not found:
             R.solution_nodes.append(Node(self))
             R.variables_symbols.append(self.symbol)
-        
-        # for new solution graph 
+
+        # for new solution graph
         for sol_node in R.solution_nodes:
             if sol_node.symbol == self.symbol:
                 curr_node = sol_node
-        
+
         print ' -  - - - - '
         print R.solution_nodes
         print 'Trying to find: ',  self.symbol
         print ' - - - - - '
         assert(curr_node is not None), ' Trouble finding solution tree node'
-        
+
         curr_node.solveorder = R.solveN
         curr_node.solvemethod = self.solvemethod
         curr_node.argument = self.argument
@@ -418,14 +418,14 @@ class unknown(object):
 
         if self.secondeqn is not None:
             curr_node.eqnlist.append(self.secondeqn)
-        
+
         #set solutions
-        
+
         curr_node.detect_parent(R)
         curr_node.generate_notation(R)
         #curr_node.generate_solutions(R)
         print 'finish set_solved', self.symbol
- 
+
     def scan(self,MatEqn):        # find list of kequations containing this UNK
         self.eqnlist = []   # reset eqn list
         rng = [0,1,2,3]
@@ -435,19 +435,19 @@ class unknown(object):
                 if (eqn != 0):
                     if eqn.has(self.symbol):
                         self.eqnlist.append(kc.kequation(MatEqn.Td[i,j],eqn))
-                        
+
                 eqn = MatEqn.Td[i,j]
                 if (eqn != 0):
                     if eqn.has(self.symbol):
                         #print "Equation [", eqn.string, "] has ", self.symbol
                         self.eqnlist.append(kc.kequation(MatEqn.Ts[i,j],eqn))
-                        
-            
+
+
         self.eqnlist = erank(self.eqnlist)  # sort them in place
-        
-        
+
+
 # matrix_equation class moved to kin_cl.py
-        
+
 
 
 # #
@@ -457,28 +457,28 @@ def output_solution_graph(R):
     print '========== Solution output ================'
     print '          ' + R.name
 
-    
+
     for node in R.solution_nodes:
         if node.solveorder != -1: #node is solved
-            print '\n\n', node.solveorder, node.symbol, ' by method: ', node.solvemethod, ',  ', node.nsolutions, ' solution(s)' 
+            print '\n\n', node.solveorder, node.symbol, ' by method: ', node.solvemethod, ',  ', node.nsolutions, ' solution(s)'
             print node.solution_with_notations
-        
+
     # print all edges in graph
     print '========== Solution Graph (Edges) output ================'
     for edge in R.notation_graph:
-        print edge 
+        print edge
     print '========== End Solution output ================'
-        
+
 #
 #      Generate a complete report in latex
 #
 def output_latex_solution(Robot,variables, groups):
     GRAPH = True
     ''' Print out a latex document of the solution equations. '''
-    
+
     orig_name =  Robot.name.replace('test: ','')
     fixed_name = orig_name.replace(r'_', r'\_')
-    
+
     DirName = 'LaTex/'
     defaultname = DirName + 'IK_solution.tex'
     fname = DirName + 'IK_solution_'+orig_name+'.tex'
@@ -489,10 +489,12 @@ def output_latex_solution(Robot,variables, groups):
     \today
     \end{center}
     \section{Introduction}
-    This report describes closed form inverse kinematics solutions for '''+fixed_name+r'''. 
-    The solution was automatically generated by the IK-BT package from the University of Washington Biorobotics Lab. 
-    The IK-BT package is described in XXXXXX report citation and link XXXXX.  IK-BT derives your inverse kinematics equations 
-    using {\tt Python 2.7} and the {\tt sympy} module for symbolic mathematics. 
+    This report describes closed form inverse kinematics solutions for '''+fixed_name+r'''.
+    The solution was automatically generated by the IK-BT package from the University of Washington Biorobotics Lab.
+    The IK-BT package is described in
+    \url{https://arxiv.org/abs/1711.05412}, submitted to International Journal of
+    Robotics Research, November 2017.  IK-BT derives your inverse kinematics equations
+    using {\tt Python 2.7} and the {\tt sympy} module for symbolic mathematics.
     '''
     print >> f, r'''\section{Kinematic Parameters}
     The kinematic parameters for this robot are
@@ -501,38 +503,38 @@ def output_latex_solution(Robot,variables, groups):
     print >> f, sp.latex(Robot.Mech.DH),
     print >> f, '''\end{dmath}
     '''
-    
-    
-    
-    print >>f, r'''\section{Forward Kinematic Equations} 
+
+
+
+    print >>f, r'''\section{Forward Kinematic Equations}
     The forward kinematic equations for this robot are:'''
-    
-    
+
+
     LHS = ik_lhs()
     RHS = kc.notation_squeeze(Robot.Mech.T_06)   # see kin_cl.mechanism.T_06
     print >> f, r'\begin{dmath}'
     print >> f, sp.latex(LHS) + r' =  \\'
     print >> f, sp.latex(RHS)
     print >> f, r'\end{dmath}'
-    
+
     print >> f , r'\section{Unknown Variables: }'
-    
+
     # introduce the unknowns and the solution ORDER
     print >> f ,'''The unknown variables for this robot are (in solution order): '''
     print >> f ,r'\begin{enumerate}'
-    
+
     tvars = {}
     for v in variables:
-        tvars[v]=v.solveorder        
+        tvars[v]=v.solveorder
     for v in sorted(tvars, key=tvars.get):
         tmp = '$' + sp.latex(v) + '$'
         tmp = tmp.replace(r'th_', r'\theta_')
         tmp = re.sub(r'_(\d+)',  r'_{\1}', tmp)   # get all digits of subscript into {}
         print >> f ,'\item {'+tmp+'}'
     print >> f ,r'\end{enumerate}'
-    
-    
-    
+
+
+
     # print the solutions for each variable (in DH order)
     print >> f ,r'\section{Solutions}'
     print >> f ,''' The following equations comprise the full solution set for this robot.'''
@@ -565,18 +567,18 @@ def output_latex_solution(Robot,variables, groups):
                 tmp2 = r'\\'   # line continuation for align environment
             else:
                 tmp2 = ''
-            tmp = str(eqn.LaTexOutput(ALIGN))  
-            # convert division ('/') to \frac{}{} for nicer output 
+            tmp = str(eqn.LaTexOutput(ALIGN))
+            # convert division ('/') to \frac{}{} for nicer output
             if re.search(r'/',tmp):
                  tmp = tmp.replace(r'(.+)=(.+)/(.+)', r'\1 = \frac{\2}{\3}')
             print >> f ,tmp, tmp2
-            
+
         if (ALIGN):
             print >> f ,r'\end{align}'
         else:
             print >> f ,r'\end{dmath}'
-            
- 
+
+
     ###########################################################
     #
     #   Future:  Output a graph of the solution dependencies
@@ -589,38 +591,38 @@ def output_latex_solution(Robot,variables, groups):
     \begin{verbatim}
     '''
     graph = Robot.notation_graph
-     
+
     for edge in graph:
         print >>f, edge
-        
+
     print>>f, '\end{verbatim}'
     ###########################################################
     #
     #   Output of solution sets
     #
     ###########################################################
-    
+
     print>>f, r'\section{Solution Sets}'
     print >>f, r'''
     The following are the sets of joint solutions (poses) for this manipulator:
     \begin{verbatim}
     '''
     # groups = mtch.matching_func(Robot.notation_collections, Robot.solution_nodes)
-     
+
     for g in groups:
-        print >>f, g 
-        
+        print >>f, g
+
     print>>f, '\end{verbatim}'
     f.close()
-    
+
     # copy file to default filename (processing of latex simplifier)
     #  after this step  >pdflatex ik_report_template.tex   <<JUST WORKS!>>
-    
+
     sh.copyfile(fname, defaultname)
 #
 #  ###########   End of Latex Output Section
 #
- 
+
 def erank(list_L):    # rearrange list of eqns by length
                     # by putting shortest eqns last, system will prefer to solve
                     #   shorter equations (i.e. prefer shorter solutions where two exist)
@@ -630,7 +632,7 @@ def erank(list_L):    # rearrange list of eqns by length
     sorted_ls = []
     list_d = {}
     for e in list_L:
-        count = int(sp.count_ops(e.RHS)) + int(sp.count_ops(e.LHS)) 
+        count = int(sp.count_ops(e.RHS)) + int(sp.count_ops(e.LHS))
         if count not in list_d.keys():
             list_d[count] = []
         list_d[count].append(e)
@@ -647,21 +649,21 @@ def erank(list_L):    # rearrange list of eqns by length
 if __name__ == "__main__":   # tester code for the classes in this file
 
     #j1 = joint_var(th_12)
-    
+
     sp.var('a b c d e')
-           
+
     a = sp.atan2(b,c)   # make sure this function compiles
-    
-    
+
+
     # Test .subs operator on atan2() function
-    
+
     print 'Original Function: ', a
     print 'Substitute b<-e:   ', a.subs(b,e), ' (Expect atanw(e, c))'
     assert(a.subs(b,e) == sp.atan2(e,c))
-    
+
      ###Test the Left Hand Side Generator
-    
-    m = ik_lhs() 
+
+    m = ik_lhs()
     fs = 'ik_lhs() matrix generator FAIL'
     assert (m[0,0] == sp.var('r_11')), fs
     assert (m[0,1] == sp.var('r_12')),fs
@@ -669,15 +671,15 @@ if __name__ == "__main__":   # tester code for the classes in this file
     assert (m[3,2] == 0), fs
     assert (m[3,1] == 0), fs
     assert (m[3,0] == 0), fs
-    
+
     #
     ###Test kequation class
-    
-    
+
+
     E1 = kc.kequation(0, sp.cos(d))
     E2 = kc.kequation(5, sp.sin(e))
     E3 = kc.kequation(5, d+e+5)
-    
+
     print "\n\nTesting kequation()"
     print "kequation sample: "
     print E1.LHS, " = ", E1.RHS
@@ -686,19 +688,19 @@ if __name__ == "__main__":   # tester code for the classes in this file
     assert(E1.RHS == sp.cos(d)), fs
     assert(E2.RHS == sp.sin(e)), fs
     assert(E3.RHS == d+e+5), fs
-    
-    
+
+
     print "---------testing equation print method-----"
     E1.prt()
     print "--------------"
 
-    
+
      ####Test unknown class
-    
+
     ua = unknown(a)
     ub = unknown(b)
-    
-    print "\n\nTesting unknown(symbol) (one-arg form)" 
+
+    print "\n\nTesting unknown(symbol) (one-arg form)"
     print "Unknown a: ",   ua.symbol
     fs = ' unknown object element "solved" FAIL'
     assert(ua.solved == False), fs
@@ -707,10 +709,10 @@ if __name__ == "__main__":   # tester code for the classes in this file
     ub.solved = True
     print "b is solved: ", ub.solved, ' (Expect True)'
     assert(ub.solved == True), fs
-    
+
       ##Test matrix_equation class
-    
-    
+
+
     print "\n\nTesting matrix_equation(T1,T2) class"
     T1 = ik_lhs()
     T2 = sp.zeros(5)
@@ -719,46 +721,46 @@ if __name__ == "__main__":   # tester code for the classes in this file
     T2[2,2] = sp.sin(c)
     T2[2,3] = l_1*sp.sin(d) + 2*l_2*sp.cos(d)
     T2[3,1] = c+sp.cos(c)*l_1
-    
+
     sp.pprint(T2)
-    
+
     tme = kc.matrix_equation(T1,T2)
     print ''
     print "Mat eqn 1,2: ", tme.Td[1,2], " '=' ", tme.Ts[1,2], "(not a kequation type!)"
     print ''
-    
+
     sp.var('e22 ')
-    
+
     fs = 'Matrix Equation Class, FAIL'
     assert(tme.Ts[1,1] == a), fs
     assert(tme.Td[1,1] == sp.var('r_22')), fs
     assert(tme.Ts[1,2] == a+b), fs
     assert(tme.Ts[2,2] == sp.sin(c)), fs
     assert(tme.Ts[2,3] == l_1*sp.sin(d)+2*l_2*sp.cos(d)), fs
-    
-    
+
+
     print '           Test equation sorting: '
-      
+
     e1 = kc.kequation(l_1, sp.sin(th_1) + sp.cos(th_1)*l_1)
     e2 = kc.kequation(l_2, sp.sin(th_1))
     e3 = kc.kequation(l_3, sp.sin(th_1) + sp.cos(th_1)*l_1 + sp.cos(th_3)*l_2)
     l = [e1, e2, e3]
-    
-    print 'Original List: ' 
+
+    print 'Original List: '
     for e in l:
          e.prt()
-    
+
     l= erank(l)  # should sort in place by increasing length of expression
-    
-    
-    print 'Sorted List: ' 
+
+
+    print 'Sorted List: '
     for e in l:
         e.prt()
-    
+
     assert (l == [e3, e1, e2]), ' Equation length sorting FAIL'
-    
-     
-    
+
+
+
     # unknown class hash function testing
     a = unknown(th_1)
     b = unknown(th_1)
@@ -766,12 +768,12 @@ if __name__ == "__main__":   # tester code for the classes in this file
     c.add(a)
     c.add(b)
     assert(len(c) == 1), "hashing (unknown/variable) class fail"
-    
-    
-    
+
+
+
     ###    Test Robot class
     #   Robot class is tested in updateL.py
     #
-    
-    
+
+
     print '\n\n\n        ik_classes   PASSES all tests \n\n'
