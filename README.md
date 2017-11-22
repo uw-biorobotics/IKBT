@@ -10,7 +10,18 @@ Our major contributions to automate closed-form kinematics solving are:
  
 How to cite: 
 
+Zhang, Dianmu, and Blake Hannaford. "IKBT: solving closed-form Inverse Kinematics with Behavior Tree." arXiv preprint arXiv:1711.05412 (2017).
+
 http://arxiv.org/abs/1711.05412
+
+Dependencies.
+
+You need the following to be installed to run IKBT:
+
+ * Python 2.7.x [(Python Installation)](https://edu.google.com/openonline/course-builder/docs/1.10/set-up-course-builder/check-for-python.html)
+ * Sympy python package [(Installation instructions for all OS)](https://github.com/sympy/sympy/wiki/Download-Installation)
+ * Latex package (for nice text output - highly recommended) [(Install Latex)](https://www.latex-project.org/get/)
+ 
 
 
 
