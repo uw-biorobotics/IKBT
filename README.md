@@ -9,7 +9,8 @@ A python based system for generating closed-form solutions to the manipulator in
  1.  Implementation in a modern open-source, cross-platform, programming language (Python) with minimal dependencies outside of the standard Python distribution ({\tt sympy}).
  
  
-## [Introductory Video](https://youtu.be/bLTXuNZPR5k)
+## Videos
+ * [Introductory Video](https://youtu.be/bLTXuNZPR5k)  (6min)
 
 ## How to cite: 
 
