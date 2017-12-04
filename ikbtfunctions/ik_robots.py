@@ -64,7 +64,6 @@ def robot_params(name):
             params = [l_1, l_2, l_4]
             pvals = {l_1: 2, l_2: 1, l_4: 3} # can change to values
         
-
     if(name == 'Wrist'):
         sp.var('A B C')
         
