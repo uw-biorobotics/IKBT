@@ -773,7 +773,7 @@ if __name__ == "__main__":   # tester code for the classes in this file
     for e in l:
         e.prt()
 
-    assert (l == [e3, e1, e2]), ' Equation length sorting FAIL'
+    assert (l == [e2, e1, e3]), ' Equation length sorting FAIL'
 
 
 
