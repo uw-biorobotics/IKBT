@@ -139,8 +139,10 @@ class TestIkClass(unittest.TestCase):
         e3 = kequation(l_3, sp.sin(th_1) + sp.cos(th_1)*l_1 + sp.cos(th_3)*l_2)
         l = [e1, e2, e3]
 
-        erank(l)  # should sort in place by increasing length of expression
+        l = erank(l)  # should sort in place by increasing length of expression
+                      # also erank returns a new instance of the sorted list
 
+        #print l
         self.assertEqual(l,[e2, e1, e3], ' Equation length sorting FAIL')
 
     def test_unkhash(self):
@@ -159,6 +161,10 @@ class TestSolvers(unittest.TestCase):
         return
 
 
+def run_test_IK_class():
+    suite1 = unittest.TestLoader().loadTestsFromTestCase(TestIkClass)
+    print '\n\n>>>>>>>>>>>>>>>>>>>>  Test ik_classes >>>>>>>>>>>>>>>>>>>>\n'
+    unittest.TextTestRunner(verbosity=2).run(suite1)
 
 if __name__ == '__main__':
     HTML = False
