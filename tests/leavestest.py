@@ -201,8 +201,8 @@ if __name__ == '__main__':
         #HTMLTestRunner.main()
        # output to a file
        #  Directory Name of this Project:
-        projdir = 'IK-2/' # customize to your setup
-        testfname =  projdir + 'IK-BT_testreport.html'
+        projdir = 'IKBT/tests/' # customize to your setup
+        testfname =  projdir + 'IKBT_testreport.html'
         fp = open(testfname, 'w')
 
         buffer =  StringIO.StringIO()
