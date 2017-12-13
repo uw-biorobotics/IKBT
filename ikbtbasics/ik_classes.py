@@ -603,10 +603,10 @@ def output_latex_solution(Robot,variables, groups):
     # groups = mtch.matching_func(Robot.notation_collections, Robot.solution_nodes)
 
     for g in groups:
-        print >>f, g 
-        
+        print >>f, g
+
     print>>f, '\end{verbatim}'
-    
+
     ###########################################################
     #
     #   Output of Equation Evaluated (Use for verification or debugging)
@@ -617,7 +617,7 @@ def output_latex_solution(Robot,variables, groups):
     print >>f, r'\section{Equations Used for Solutions}'
     for node in Robot.solution_nodes:
                 #print out the equations evaluated
-        # print >> f , 'Equation(s): 
+        # print >> f , 'Equation(s):
         tmp = '$' + sp.latex(node.symbol) + '$'
         tmp = tmp.replace(r'th_', r'\theta_')
         tmp = re.sub(r'_(\d+)',  r'_{\1}', tmp)   # get all digits of subscript into {} for latex
@@ -628,7 +628,7 @@ def output_latex_solution(Robot,variables, groups):
             print >>f, r'\begin{dmath}'
             print >>f, eqn.LaTexOutput()
             print >>f, r'\end{dmath}'
- 
+
     f.close()
 
     # copy file to default filename (processing of latex simplifier)
@@ -778,11 +778,18 @@ if __name__ == "__main__":   # tester code for the classes in this file
 
 
     # unknown class hash function testing
-    a = unknown(th_1)
-    b = unknown(th_1)
+    tmpv1 = unknown(th_1)
+    tmpv2 = unknown(th_1)
+    print 'a.symbol: ', tmpv1
+    print 'b.symbol: ', tmpv2
     c = set()
-    c.add(a)
-    c.add(b)
+    c.add(tmpv1)
+    c.add(tmpv2)
+    print '-------------'
+    print tmpv1.__hash__()
+    print tmpv2.__hash__()
+    print 'Length of set: ', len(c)
+    print '-------------'
     assert(len(c) == 1), "hashing (unknown/variable) class fail"
 
 
