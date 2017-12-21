@@ -27,7 +27,7 @@ import ikbtfunctions.helperfunctions as hf
 
 #
 #  Configure here for speed if jacobian is not needed
-JACOBIAN = False       #  False = disable velocity calculations for FK speed
+JACOBIAN = True       #  False = disable velocity calculations for FK speed
 
 ######################################################################
 #
