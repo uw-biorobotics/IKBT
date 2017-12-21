@@ -96,6 +96,16 @@ def Link_S(al, a, d, th):
     ])
   return t
 
+# Homogeneous transform for link based on DH parameters
+def Link_N(al, a, d, th):
+  t = np.matrix ([
+    [np.cos(th),                -np.sin(th),               0,                a],
+    [np.sin(th)*np.cos(al),  np.cos(th)*np.cos(al), -np.sin(al), -np.sin(al)*d],
+    [np.sin(th)*np.sin(al),  np.cos(th)*np.sin(al),  np.cos(al),  np.cos(al)*d],
+    [0  ,0  ,0  ,1]
+    ])
+  return t
+
 ########################################################################
 #   Declare some symbols
 #
