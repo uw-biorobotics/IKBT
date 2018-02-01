@@ -329,12 +329,13 @@ def H_inv_N(T):
 
 def ManipJacobian_S(v, w, x):
   # compute two halves of J
-  A = sp.zeros(3,6)
-  B = sp.zeros(3,6)
+  cols = len(x)
+  A = sp.zeros(3,cols)
+  B = sp.zeros(3,cols)
   a = v.jacobian(x)
   b = w.jacobian(x)
   for i in range(0,3):
-    for j in range(0,6):
+    for j in range(cols):
       A[i,j] = sp.expand(a[i,j])
       B[i,j] = sp.expand(b[i,j])
   # put the halves together

@@ -27,8 +27,10 @@ import ikbtfunctions.helperfunctions as hf
 
 #
 #  Configure here for speed if jacobian is not needed
-JACOBIAN = False       #  False = disable velocity calculations for FK speed
+JACOBIAN = True       #  False = disable velocity calculations for FK speed
 
+# joint velocities of each link (qd stands for q-dot)
+(qd_0, qd_1, qd_2, qd_3, qd_4, qd_5, qd_6) = sp.symbols(('qd_0','qd_1','qd_2','qd_3','qd_4','qd_5','qd_6'))
 ######################################################################
 #
 #   Python class for symbolic analysis of serial mechanisms
@@ -139,8 +141,6 @@ class mechanism:
             # linear velocities of each link
             (self.v_00, self.v_11, self.v_22, self.v_33, self.v_44, self.v_55, self.v_66) =           sp.symbols(('self.v_00','self.v_11','self.v_22','self.v_33','self.v_44','self.v_55','self.v_66'))
 
-            # joint velocities of each link (qd stands for q-dot)
-            (qd_0, qd_1, qd_2, qd_3, qd_4, qd_5, qd_6) = sp.symbols(('qd_0','qd_1','qd_2','qd_3','qd_4','qd_5','qd_6'))
 
         # standardize on the order "alpha N-1, a N-1, d N, theta N' for the DH table columns.
         al = 0   # Alpha_{n-1)
