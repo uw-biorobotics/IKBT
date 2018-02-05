@@ -44,7 +44,7 @@ def robot_params(name):
 
         variables =  [unknown(th_1), unknown(th_2), unknown(th_3), unknown(th_4), unknown(th_5), unknown(th_6)]
         params = [a_2, a_3, d_3, d_4]
-        pvals = {a_2:0.4138, a_3:0.0203, d_3:0.15000, d_4:0.4318}  # meters
+        pvals = {a_2:0.432, a_3:0.432, d_3:0.15000, d_4:0.0203}  # meters
         
 
     if(name == 'Chair_Helper'):                
