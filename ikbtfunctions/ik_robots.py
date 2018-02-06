@@ -33,12 +33,12 @@ def robot_params(name):
     
     if(name == 'Puma'):
         dh = sp.Matrix([
-            [  0,        0 ,   0 ,      th_1  ],
+            [  0,        0 ,  0.6 ,     th_1  ],
             [-sp.pi/2,   0 ,   0 ,      th_2  ],
             [      0 ,  a_2, d_3 ,      th_3  ],   
             [-sp.pi/2 , a_3, d_4,       th_4  ],      
-            [ sp.pi/2 ,   0,  0 ,       th_5  ],
-            [-sp.pi/2 ,   0,  0 ,       th_6  ]
+            [-sp.pi/2 ,   0,  0 ,       th_5  ],
+            [ sp.pi/2 ,   0,  0 ,       th_6  ]
             ])
         vv = [1,1,1,1,1,1]
 
