@@ -326,6 +326,11 @@ def H_inv_N(T):
 #
 #    Symbolic Jacobian Matrix
 #
+#   Params:  v = v_nn - expression for velocity of last frame 
+#            w = w_nn -        angular velocity of last frame
+#            x = vector of joint rates expressed as qd_i.  for 
+#       a 5-DOF robot enter  [qd_1, qd_2,qd_3,qd_4,qd_5]  (qd_n are pre-defined)
+#
 
 def ManipJacobian_S(v, w, x):
   # compute two halves of J
