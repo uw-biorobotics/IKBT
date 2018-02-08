@@ -23,10 +23,7 @@ from ikbtbasics.kin_cl import *
 from ikbtfunctions.helperfunctions import *
 from ikbtbasics.ik_classes import *     # special classes for Inverse kinematics in sympy
 #
-#   The famous Puma 560  (solved in Craig)
-#
-    
-    
+
 ####
 #
 #   NOTE: due to an obscure sympy bug, you cannot use numerical values in any DH position.   Use a symbolic constant
@@ -52,12 +49,14 @@ def robot_params(name):
         variables =  [unknown(th_1), unknown(th_2), unknown(th_3), unknown(th_4)]
         params = [d_2, d_3, a_3]
         pvals = {d_2:1, d_3:1,  a_3:1}  # meters
-        
-        
+   
+
+#   The famous Puma 560  (solved in Craig)
+#        
     if(name == 'Puma'):
         dh = sp.Matrix([
-            [  0      ,    0 ,  d_1 ,     th_1  ],
-            [-sp.pi/2 ,    0 ,   0 ,      th_2  ],
+            [  0      ,    0 ,  d_1 ,     th_1  ],   #  Note: Puma is used for tests so mods to this table
+            [-sp.pi/2 ,    0 ,   0 ,      th_2  ],   #  may break ikbtleaves.updateL.TestSolver007
             [      0  ,   a_2, d_3 ,      th_3  ],   
             [-sp.pi/2 ,   a_3, d_4,       th_4  ],      
             [-sp.pi/2 ,   0,  0 ,       th_5  ],
@@ -410,27 +409,7 @@ def robot_params(name):
         variables = [unknown(A), unknown(B), unknown(C)]
         params = []
         
-
-
-    if(name == 'MiniDD'):
-        #
-        #    UW BRL Mini Direct Drive Robot, 5-DOF
-        #
-        dh = sp.Matrix([
-            [    0     ,     0  , d_1   ,  0    ],
-            [ -sp.pi/2 ,     0  ,   0   , th_2  ],
-            [ -sp.pi/2 ,   l_3  ,   0   , th_3  ],
-            [ -sp.pi/2 ,     0  , l_4   , th_4  ],
-            [ -sp.pi/2 ,     0  ,   0   , th_5  ],
-            [   0      ,     0  ,   0   ,   0   ]     
-            ])
-        vv = [0,1,1,1,1]
-
-        variables = [unknown(d_1), unknown(th_2), unknown(th_3), unknown(th_4), unknown(th_5) ]
-
-        params = [l_3, l_4]
-
-
+ 
         
     if(name == 'Olson13'):
         # standardize on the order "alpha N-1, a N-1, d N, theta N' for the DH table columns.
