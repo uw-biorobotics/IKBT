@@ -419,6 +419,7 @@ def robot_params(name):
         # methods to test: m5, m3, 
         # Yb = d_1, Xb = d_2, L1 = l3, L2 = l4, L3 = l5
         dh = sp.Matrix([
+            
             [-sp.pi/2,  0.,         d_1,        sp.pi/2],
             [sp.pi/2,   0.,         d_2,        -sp.pi/2],
             [sp.pi/2,   0.,         l_3,        th_3],

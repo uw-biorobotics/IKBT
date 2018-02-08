@@ -78,7 +78,9 @@ def Num_check(x):
           (type(x[i,j]) != stype_int )  &
           (type(x[i,j]) != stype_float)):
                print 'Symbolic to Numeric Conversion Error: at least one of your symbols not converted'
-               print ' >> ', x[i,j]
+               print ' >> ',i,j
+               print type(sp.pi)
+               sp.pprint(x[i,j])
                sys.exit()
 
 #################################################################################################

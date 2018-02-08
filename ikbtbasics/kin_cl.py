@@ -327,13 +327,13 @@ class mechanism:
 
 # sample pose: {th_1: 30*deg, th_2: 45*deg}
 # sample params: {a_1: 2, l_4: 10}
-# M: a machanism
+# M: a mechanism
 
 def forward_kinematics_N(M, pose, params):
     pp = pose.copy()
     pp.update(params)    # combine the pose and the params
-    T1 = M.T_06.subs(pp)    # substitue for all symbols
-
+    T1 = sp.N(M.T_06.subs(pp))    # substitute for all symbols (including sp.pi)
+ 
     # test to make sure all symbols are substituted with numeric values
     Num_check(T1)     # this quits if fails
 
