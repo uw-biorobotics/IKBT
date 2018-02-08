@@ -104,13 +104,14 @@ class TestSolver007(unittest.TestCase):    # change TEMPLATE to unique name (2 p
         testerbt.tick('test', bb)
         L1 = bb.get('eqns_1u')
         L2 = bb.get('eqns_2u')
+        print L2[0].RHS
         # print them all out(!)
         sp.var('Px Py Pz')
         fs = 'updateL: equation list building   FAIL'
         #  these self.assertTrues are not conditional - no self.assertTrueion counting needed
         self.assertTrue(L1[0].RHS == d_3, fs)
         self.assertTrue(L1[0].LHS == -Px*sp.sin(th_1)+Py*sp.cos(th_1), fs)
-        self.assertTrue(L2[0].RHS == -a_2*sp.sin(th_2)-a_3*sp.sin(th_23)-d_4*(sp.cos(th_23)), fs)
+        self.assertTrue(L2[0].RHS == -a_2*sp.sin(th_2)-a_3*sp.sin(th_23) + d_1 - d_4*(sp.cos(th_23)), fs)
         self.assertTrue(L2[0].LHS == Pz, fs)
 
         #########################################
