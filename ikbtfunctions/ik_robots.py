@@ -26,17 +26,40 @@ from ikbtbasics.ik_classes import *     # special classes for Inverse kinematics
 #   The famous Puma 560  (solved in Craig)
 #
     
+    
+####
+#
+#   NOTE: due to an obscure sympy bug, you cannot use numerical values in any DH position.   Use a symbolic constant
+#         instead (like a_3 below), declare it in params, and give it your value in pvals
+#
+#####
 def robot_params(name):
     pvals = {}   # null for most robots
-    List = ['Puma', 'Chair_Helper', 'Wrist', 'MiniDD', 'Olson13','Stanford', 'Chair6DOF']
+    List = ['Puma', 'Chair_Helper', 'Wrist', 'MiniDD', 'Olson13','Stanford', 'Chair6DOF','Khat6DOF','Craig417']
     assert (name in List), 'robot_params(): Unknown robot, ' + name + ', Stopping'
-    
+        
+    if(name == 'Craig417'):
+        dh = sp.Matrix([
+            [    0   ,    0 ,   0 ,     th_1  ],
+            [-sp.pi/2,    0 ,   0   ,     th_2  ],
+            [ sp.pi/4 ,   0,    d_2 ,     th_3  ],   
+            [    0    ,   a_3,  d_3 ,     th_4  ],      
+            [    0    ,   0 ,   0,         0    ],      
+            [    0    ,   0 ,   0,         0    ]
+            ])
+        vv = [1,1,1,1,1,1]
+
+        variables =  [unknown(th_1), unknown(th_2), unknown(th_3), unknown(th_4)]
+        params = [d_2, d_3, a_3]
+        pvals = {d_2:1, d_3:1,  a_3:1}  # meters
+        
+        
     if(name == 'Puma'):
         dh = sp.Matrix([
-            [  0,        0 ,  0.6 ,     th_1  ],
-            [-sp.pi/2,   0 ,   0 ,      th_2  ],
-            [      0 ,  a_2, d_3 ,      th_3  ],   
-            [-sp.pi/2 , a_3, d_4,       th_4  ],      
+            [  0      ,    0 ,  d_1 ,     th_1  ],
+            [-sp.pi/2 ,    0 ,   0 ,      th_2  ],
+            [      0  ,   a_2, d_3 ,      th_3  ],   
+            [-sp.pi/2 ,   a_3, d_4,       th_4  ],      
             [-sp.pi/2 ,   0,  0 ,       th_5  ],
             [ sp.pi/2 ,   0,  0 ,       th_6  ]
             ])
@@ -44,7 +67,7 @@ def robot_params(name):
 
         variables =  [unknown(th_1), unknown(th_2), unknown(th_3), unknown(th_4), unknown(th_5), unknown(th_6)]
         params = [a_2, a_3, d_3, d_4]
-        pvals = {a_2:0.432, a_3:0.0203, d_3:0.1245, d_4:0.432}  # meters
+        pvals = {d_1:0.6,a_2:0.432, a_3:0.0203, d_3:0.1245, d_4:0.432}  # meters
         
 
     if(name == 'Chair_Helper'):                

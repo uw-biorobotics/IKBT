@@ -120,7 +120,7 @@ class mechanism:
         self.vv = varvect
         self.params = params    # constant parameters a_4 etc
         self.pvals = {}         # dict for numerical param values
-        self.jlims = np.array([
+        self.jlims = np.array([ # numerical joint limits
         [-np.pi, np.pi],
         [-np.pi, np.pi],
         [-np.pi, np.pi],
@@ -128,7 +128,7 @@ class mechanism:
         [-np.pi, np.pi],
         [-np.pi, np.pi]
         ])
-        self.jnum = np.matrix(np.zeros(36).reshape(6,6))
+        self.jnum = np.matrix(np.zeros(36).reshape(6,6))  # a place to store numerical Jacobian
 
 
     ###############  compute kinematic transforms and equations for the manipulator (including Jacobian)

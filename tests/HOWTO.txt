@@ -6,7 +6,7 @@ Unit tests:
 
 To test all the leaves (solvers), (from this directory):
 
-> cd ..  << you need to be in the project directory currently called IK-2, not /tests >>
+> cd ..  << you need to be in the project directory currently called IKBT, not /tests >>
 > python -m tests.leavestest  << no ".py">>
 
 to test the "helperfunctions":

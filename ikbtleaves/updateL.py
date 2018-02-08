@@ -70,17 +70,22 @@ class TestSolver007(unittest.TestCase):    # change TEMPLATE to unique name (2 p
         #
         #   The famous Puma 560  (solved in Craig)
         #
-
         import os as os
-        print '------------'
-        print os.getcwd()
+        print '\n------------'
+        print 'Current dir: ', os.getcwd()
+        pickname = 'fk_eqns/Puma_pickle.p'
+        if(os.path.isfile(pickname)):
+            print 'a pickle file will be used to speed up'
+        else: 
+            print 'There was no pickle file'
         print '------------'
 
         #return [dh, vv, params, pvals, variables]
         robot = 'Puma'
         [dh, vv, params, pvals, unknowns] = robot_params(robot)  # see ik_robots.py
         #def kinematics_pickle(rname, dh, constants, pvals, vv, unks, test):
-        [M, R, unk_Puma] = kinematics_pickle(robot, dh, params, pvals, vv, unknowns, False)
+        Test = True
+        [M, R, unk_Puma] = kinematics_pickle(robot, dh, params, pvals, vv, unknowns, Test)
         print 'GOT HERE: updateL robot name: ', R.name
 
         R.name = 'test: '+ robot # ??? TODO: get rid of this (but fix report)
