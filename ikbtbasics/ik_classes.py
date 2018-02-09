@@ -545,7 +545,7 @@ def output_latex_solution(Robot,variables, groups):
     # sort the nodes into solution order
     sorted_node_list = sorted(Robot.solution_nodes)
     
-    for node in Robot.solution_nodes:
+    for node in sorted_node_list:
         ALIGN = True
         tmp = '$' + sp.latex(node.symbol) + '$'
         tmp = tmp.replace(r'th_', r'\theta_')
