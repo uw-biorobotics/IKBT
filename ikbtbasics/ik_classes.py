@@ -541,7 +541,11 @@ def output_latex_solution(Robot,variables, groups):
     # print the solutions for each variable (in DH order)
     print >> f ,r'\section{Solutions}'
     print >> f ,''' The following equations comprise the full solution set for this robot.'''
-    for node in Robot.solution_nodes:
+    
+    # sort the nodes into solution order
+    sorted_node_list = sorted(Robot.solution_nodes)
+    
+    for node in sorted_node_list:
         ALIGN = True
         tmp = '$' + sp.latex(node.symbol) + '$'
         tmp = tmp.replace(r'th_', r'\theta_')
@@ -619,7 +623,10 @@ def output_latex_solution(Robot,variables, groups):
     #################################################
     # Equations evaluated (for result verification or debugging)
     print >>f, r'\section{Equations Used for Solutions}'
-    for node in Robot.solution_nodes:
+    
+
+    
+    for node in sorted_node_list:
                 #print out the equations evaluated
         # print >> f , 'Equation(s): 
         tmp = '$' + sp.latex(node.symbol) + '$'
