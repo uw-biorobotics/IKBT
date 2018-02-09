@@ -152,12 +152,12 @@ def robot_params(name):
     if(name == 'Stanford'):
         sp.var('l_4 l_6')
         dh = sp.Matrix([
-            [-sp.pi/2,   0.,         l_1,         th_1],
-            [sp.pi/2,   0.,         l_2,        th_2],
-            [0,        0.,          d_3,        -sp.pi/2],
-            [-sp.pi/2,        0.,        l_4,         th_4],
-            [sp.pi/2,     0.,         0.,         th_5],
-            [0.,     0.,         l_6,        th_6]
+            [-sp.pi/2,    0.,          l_1,    th_1],
+            [sp.pi/2,     0.,          l_2,    th_2],
+            [0,           0.,          d_3,   -sp.pi/2],
+            [-sp.pi/2,    0.,          l_4,    th_4],
+            [sp.pi/2,     0.,           0.,    th_5],
+            [0.,          0.,          l_6,    th_6]
             ])
                     
         vv = [1, 1, 0, 1, 1, 1]
