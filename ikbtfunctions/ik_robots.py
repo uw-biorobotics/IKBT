@@ -23,28 +23,50 @@ from ikbtbasics.kin_cl import *
 from ikbtfunctions.helperfunctions import *
 from ikbtbasics.ik_classes import *     # special classes for Inverse kinematics in sympy
 #
-#   The famous Puma 560  (solved in Craig)
+
+####
 #
-    
+#   NOTE: due to an obscure sympy bug, you cannot use numerical values in any DH position.   Use a symbolic constant
+#         instead (like a_3 below), declare it in params, and give it your value in pvals
+#
+#####
 def robot_params(name):
     pvals = {}   # null for most robots
-    List = ['Puma', 'Chair_Helper', 'Wrist', 'MiniDD', 'Olson13','Stanford', 'Chair6DOF']
+    List = ['Puma', 'Chair_Helper', 'Wrist', 'MiniDD', 'Olson13','Stanford', 'Chair6DOF','Khat6DOF','Craig417']
     assert (name in List), 'robot_params(): Unknown robot, ' + name + ', Stopping'
-    
+        
+    if(name == 'Craig417'):
+        dh = sp.Matrix([
+            [    0   ,    0 ,   0 ,     th_1  ],
+            [-sp.pi/2,    0 ,   0   ,     th_2  ],
+            [ sp.pi/4 ,   0,    d_2 ,     th_3  ],   
+            [    0    ,   a_3,  d_3 ,     th_4  ],      
+            [    0    ,   0 ,   0,         0    ],      
+            [    0    ,   0 ,   0,         0    ]
+            ])
+        vv = [1,1,1,1,1,1]
+
+        variables =  [unknown(th_1), unknown(th_2), unknown(th_3), unknown(th_4)]
+        params = [d_2, d_3, a_3]
+        pvals = {d_2:1, d_3:1,  a_3:1}  # meters
+   
+
+#   The famous Puma 560  (solved in Craig)
+#        
     if(name == 'Puma'):
         dh = sp.Matrix([
-            [  0,        0 ,   0 ,      th_1  ],
-            [-sp.pi/2,   0 ,   0 ,      th_2  ],
-            [      0 ,  a_2, d_3 ,      th_3  ],   
-            [-sp.pi/2 , a_3, d_4,       th_4  ],      
-            [ sp.pi/2 ,   0,  0 ,       th_5  ],
-            [-sp.pi/2 ,   0,  0 ,       th_6  ]
+            [  0      ,    0 ,  d_1 ,     th_1  ],   #  Note: Puma is used for tests so mods to this table
+            [-sp.pi/2 ,    0 ,   0 ,      th_2  ],   #  may break ikbtleaves.updateL.TestSolver007
+            [      0  ,   a_2, d_3 ,      th_3  ],   
+            [-sp.pi/2 ,   a_3, d_4,       th_4  ],      
+            [-sp.pi/2 ,   0,  0 ,       th_5  ],
+            [ sp.pi/2 ,   0,  0 ,       th_6  ]
             ])
         vv = [1,1,1,1,1,1]
 
         variables =  [unknown(th_1), unknown(th_2), unknown(th_3), unknown(th_4), unknown(th_5), unknown(th_6)]
-        params = [a_2, a_3, d_3, d_4]
-        pvals = {a_2:0.432, a_3:0.432, d_3:0.15000, d_4:0.0203}  # meters
+        params = [d_1, a_2, a_3, d_3, d_4]
+        pvals = {d_1:0.6,a_2:0.432, a_3:0.0203, d_3:0.1245, d_4:0.432}  # meters
         
 
     if(name == 'Chair_Helper'):                
@@ -130,12 +152,12 @@ def robot_params(name):
     if(name == 'Stanford'):
         sp.var('l_4 l_6')
         dh = sp.Matrix([
-            [-sp.pi/2,   0.,         l_1,         th_1],
-            [sp.pi/2,   0.,         l_2,        th_2],
-            [0,        0.,          d_3,        -sp.pi/2],
-            [-sp.pi/2,        0.,        l_4,         th_4],
-            [sp.pi/2,     0.,         0.,         th_5],
-            [0.,     0.,         l_6,        th_6]
+            [-sp.pi/2,    0.,          l_1,    th_1],
+            [sp.pi/2,     0.,          l_2,    th_2],
+            [0,           0.,          d_3,   -sp.pi/2],
+            [-sp.pi/2,    0.,          l_4,    th_4],
+            [sp.pi/2,     0.,           0.,    th_5],
+            [0.,          0.,          l_6,    th_6]
             ])
                     
         vv = [1, 1, 0, 1, 1, 1]
@@ -387,27 +409,7 @@ def robot_params(name):
         variables = [unknown(A), unknown(B), unknown(C)]
         params = []
         
-
-
-    if(name == 'MiniDD'):
-        #
-        #    UW BRL Mini Direct Drive Robot, 5-DOF
-        #
-        dh = sp.Matrix([
-            [    0     ,     0  , d_1   ,  0    ],
-            [ -sp.pi/2 ,     0  ,   0   , th_2  ],
-            [ -sp.pi/2 ,   l_3  ,   0   , th_3  ],
-            [ -sp.pi/2 ,     0  , l_4   , th_4  ],
-            [ -sp.pi/2 ,     0  ,   0   , th_5  ],
-            [   0      ,     0  ,   0   ,   0   ]     
-            ])
-        vv = [0,1,1,1,1]
-
-        variables = [unknown(d_1), unknown(th_2), unknown(th_3), unknown(th_4), unknown(th_5) ]
-
-        params = [l_3, l_4]
-
-
+ 
         
     if(name == 'Olson13'):
         # standardize on the order "alpha N-1, a N-1, d N, theta N' for the DH table columns.
@@ -417,6 +419,7 @@ def robot_params(name):
         # methods to test: m5, m3, 
         # Yb = d_1, Xb = d_2, L1 = l3, L2 = l4, L3 = l5
         dh = sp.Matrix([
+            
             [-sp.pi/2,  0.,         d_1,        sp.pi/2],
             [sp.pi/2,   0.,         d_2,        -sp.pi/2],
             [sp.pi/2,   0.,         l_3,        th_3],

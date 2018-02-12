@@ -27,7 +27,7 @@ import pykinsym as pks
 import re
 from solution_graph_v2 import *
 import matching as mtch
-from sys import exit
+import sys as sys
 import b3 as b3          # behavior trees
 import pickle
 from ikbtfunctions.helperfunctions import *
@@ -55,6 +55,7 @@ soa_expansions[th_45] = th_4 + th_5
 soa_expansions[th_56] = th_5 + th_6
 
 
+pprotocol = 2
 #
 #   retrieve forward kinematics from a pickle file if it exists.
 #      if it doesn't, compute the FK and store it in a pickle file.
@@ -62,26 +63,29 @@ def kinematics_pickle(rname, dh, constants, pvals, vv, unks, test):
     #
     #   Check for a pickle file of combined pre-computed Mech and Robot objects
     #
-
-    if test:   # for some reason in unittest/module mode, default dir is changed upward
-        os.chdir('IK-2') # correct this situation
-
+ 
     pickle_dir = 'fk_eqns/'
 
     if not os.path.isdir(pickle_dir):  # if this doesn't exist, create it.
+        print 'Creating a new pickle directory: ./'+pickle_dir
         os.mkdir(pickle_dir)
 
     name = pickle_dir + rname + '_pickle.p'
-
-    try:
-        with open(name, 'r') as pick:
-            print '\nReading pre-computed forward kinematics\n'
+ 
+    print 'kinematics pickle: trying to open ', name,' in ', os.getcwd()
+    
+    if(os.path.isfile(name)):
+        with open(name, 'rb') as pick:
+            print '\Trying to read pre-computed forward kinematics from '+name
             [m, R, unks]  = pickle.load(pick)
-    except:
+            print 'Successfully read pre-computed forward kinematics'
+    else:
+        #print 'WRONG - quitting, error: ',sys.exc_info()[0]
+        #sys.exit
         # set up mechanism object instance
         m = kc.mechanism(dh, constants, vv)
         m.pvals = pvals  # store numerical values of parameters
-        print 'Did not find stored pickle file: ', name
+        print 'Did not find VALID stored pickle file: ', name
         print "Starting Forward Kinematics"
         m.forward_kinematics()
         print "Completed Forward Kinematics"
@@ -96,7 +100,7 @@ def kinematics_pickle(rname, dh, constants, pvals, vv, unks, test):
 
         print ' Storing results'
         with open(name,'wb') as pf:
-            pickle.dump( [m, R, unks], pf)
+            pickle.dump( [m, R, unks], pf, protocol=pprotocol)
 
     return [m,R,unks]
 
@@ -117,7 +121,7 @@ def check_the_pickle(dh1, dh2):   # check that two mechanisms have identical DH 
         print     '                 Pickle file is out of date. '
         print     '                   please remove it and start again'
         print     '  -----------------------------------------------------'
-        exit
+        quit() 
 
 # retrieve thxy from thx, thy
 def find_xy(thx, thy):
@@ -537,7 +541,11 @@ def output_latex_solution(Robot,variables, groups):
     # print the solutions for each variable (in DH order)
     print >> f ,r'\section{Solutions}'
     print >> f ,''' The following equations comprise the full solution set for this robot.'''
-    for node in Robot.solution_nodes:
+    
+    # sort the nodes into solution order
+    sorted_node_list = sorted(Robot.solution_nodes)
+    
+    for node in sorted_node_list:
         ALIGN = True
         tmp = '$' + sp.latex(node.symbol) + '$'
         tmp = tmp.replace(r'th_', r'\theta_')
@@ -615,7 +623,10 @@ def output_latex_solution(Robot,variables, groups):
     #################################################
     # Equations evaluated (for result verification or debugging)
     print >>f, r'\section{Equations Used for Solutions}'
-    for node in Robot.solution_nodes:
+    
+
+    
+    for node in sorted_node_list:
                 #print out the equations evaluated
         # print >> f , 'Equation(s):
         tmp = '$' + sp.latex(node.symbol) + '$'

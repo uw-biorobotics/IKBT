@@ -11,6 +11,7 @@ A python based system for generating closed-form solutions to the manipulator in
  
 ## Videos
  * [Introductory Video](https://youtu.be/bLTXuNZPR5k)  (6min)
+ * [How to set up IKBT for your own robot arm](https://youtu.be/hXzY5vrvWkU) (6.5min)
 
 ## How to cite: 
 

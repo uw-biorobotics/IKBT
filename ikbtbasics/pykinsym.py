@@ -78,7 +78,9 @@ def Num_check(x):
           (type(x[i,j]) != stype_int )  &
           (type(x[i,j]) != stype_float)):
                print 'Symbolic to Numeric Conversion Error: at least one of your symbols not converted'
-               print ' >> ', x[i,j]
+               print ' >> ',i,j
+               print type(sp.pi)
+               sp.pprint(x[i,j])
                sys.exit()
 
 #################################################################################################
@@ -336,15 +338,21 @@ def H_inv_N(T):
 #
 #    Symbolic Jacobian Matrix
 #
+#   Params:  v = v_nn - expression for velocity of last frame 
+#            w = w_nn -        angular velocity of last frame
+#            x = vector of joint rates expressed as qd_i.  for 
+#       a 5-DOF robot enter  [qd_1, qd_2,qd_3,qd_4,qd_5]  (qd_n are pre-defined)
+#
 
 def ManipJacobian_S(v, w, x):
   # compute two halves of J
-  A = sp.zeros(3,6)
-  B = sp.zeros(3,6)
+  cols = len(x)
+  A = sp.zeros(3,cols)
+  B = sp.zeros(3,cols)
   a = v.jacobian(x)
   b = w.jacobian(x)
   for i in range(0,3):
-    for j in range(0,6):
+    for j in range(cols):
       A[i,j] = sp.expand(a[i,j])
       B[i,j] = sp.expand(b[i,j])
   # put the halves together

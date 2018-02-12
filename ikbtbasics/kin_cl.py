@@ -29,6 +29,8 @@ import ikbtfunctions.helperfunctions as hf
 #  Configure here for speed if jacobian is not needed
 JACOBIAN = True       #  False = disable velocity calculations for FK speed
 
+# joint velocities of each link (qd stands for q-dot)
+(qd_0, qd_1, qd_2, qd_3, qd_4, qd_5, qd_6) = sp.symbols(('qd_0','qd_1','qd_2','qd_3','qd_4','qd_5','qd_6'))
 ######################################################################
 #
 #   Python class for symbolic analysis of serial mechanisms
@@ -118,7 +120,7 @@ class mechanism:
         self.vv = varvect
         self.params = params    # constant parameters a_4 etc
         self.pvals = {}         # dict for numerical param values
-        self.jlims = np.array([
+        self.jlims = np.array([ # numerical joint limits
         [-np.pi, np.pi],
         [-np.pi, np.pi],
         [-np.pi, np.pi],
@@ -126,7 +128,7 @@ class mechanism:
         [-np.pi, np.pi],
         [-np.pi, np.pi]
         ])
-        self.jnum = np.matrix(np.zeros(36).reshape(6,6))
+        self.jnum = np.matrix(np.zeros(36).reshape(6,6))  # a place to store numerical Jacobian
 
 
     ###############  compute kinematic transforms and equations for the manipulator (including Jacobian)
@@ -139,8 +141,6 @@ class mechanism:
             # linear velocities of each link
             (self.v_00, self.v_11, self.v_22, self.v_33, self.v_44, self.v_55, self.v_66) =           sp.symbols(('self.v_00','self.v_11','self.v_22','self.v_33','self.v_44','self.v_55','self.v_66'))
 
-            # joint velocities of each link (qd stands for q-dot)
-            (qd_0, qd_1, qd_2, qd_3, qd_4, qd_5, qd_6) = sp.symbols(('qd_0','qd_1','qd_2','qd_3','qd_4','qd_5','qd_6'))
 
         # standardize on the order "alpha N-1, a N-1, d N, theta N' for the DH table columns.
         al = 0   # Alpha_{n-1)
@@ -327,13 +327,13 @@ class mechanism:
 
 # sample pose: {th_1: 30*deg, th_2: 45*deg}
 # sample params: {a_1: 2, l_4: 10}
-# M: a machanism
+# M: a mechanism
 
 def forward_kinematics_N(M, pose, params):
     pp = pose.copy()
     pp.update(params)    # combine the pose and the params
-    T1 = M.T_06.subs(pp)    # substitue for all symbols
-
+    T1 = sp.N(M.T_06.subs(pp))    # substitute for all symbols (including sp.pi)
+ 
     # test to make sure all symbols are substituted with numeric values
     Num_check(T1)     # this quits if fails
 
