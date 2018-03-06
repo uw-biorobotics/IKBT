@@ -65,7 +65,7 @@ def robot_params(name):
         vv = [1,1,1,1,1,1]
 
         variables =  [unknown(th_1), unknown(th_2), unknown(th_3), unknown(th_4), unknown(th_5), unknown(th_6)]
-        params = [a_2, a_3, d_3, d_4]
+        params = [d_1, a_2, a_3, d_3, d_4]
         pvals = {d_1:0.6,a_2:0.432, a_3:0.0203, d_3:0.1245, d_4:0.432}  # meters
         
 
