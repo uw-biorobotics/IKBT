@@ -108,7 +108,7 @@ pi = np.pi
                 print >>f, indent*2 + 'solvable_pose = False'
                 print >>f, indent + 'else:'
                 tmp = str(sol.LHS) + ' = ' + str(sol.RHS)
-                print >>f, indent + tmp
+                print >>f, indent*2 + tmp
             if re.search('atan', str(sol.RHS)):
                 print '  Found atan2 solution ...', sol.LHS , ' "=" ',sol.RHS
                 tmp = re.search('\((.*)\)',str(sol.RHS))
