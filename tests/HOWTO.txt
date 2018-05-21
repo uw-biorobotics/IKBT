@@ -7,7 +7,9 @@ Unit tests:
 To test all the leaves (solvers), (from this directory):
 
 > cd ..  << you need to be in the project directory currently called IKBT, not /tests >>
-> python -m tests.leavestest  << no ".py">>
+> python -m tests.leavestest
+
+<< Note: use '.' between tests and leavestest (not slash!)  also, be sure to omit '.py' >>
 
 to test the "helperfunctions":
 
@@ -34,6 +36,7 @@ If you are having trouble with a particular solver ("leaf"), you can test it ind
 > python -m ikbtleaves.sincos_solver  
 
 (for the case of sincos solver for example). 
+<< Note: use '.' between tests and leavestest (not slash!)  also, be sure to omit '.py' >>
 
 
 Testing ik_classes.py
