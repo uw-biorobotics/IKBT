@@ -36,10 +36,7 @@ A list of all DH parameters tested in the paper:
 
 We suggest you first run the Wrist since it is relatively fast:
 
- > python test_Robots_new.py Wrist 
- 
-The script test_Robots_new also tests itself by checkking that the output matches
-known correct solutions. 
+ > python ikSolver.py Wrist 
 
 To solve your own problem open the file ikbtfunctions/ik_robots.py and create an entry 
 for your robot.  You should copy an entry for an existing robot and edit it's entries. 
