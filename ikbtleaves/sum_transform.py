@@ -43,9 +43,7 @@ class sum_id(b3.Action):   ##  we should change this name since its a transform
         matr_equ = tick.blackboard.get('Tm')                # current matrix equation  
 
         unknowns = tick.blackboard.get("unknowns")
-        
-        R = tick.blackboard.get('Robot')
-        
+                
         Tmatrix = matr_equ.Ts
         
         Tmatrix_squeeze = sp.simplify(notation_squeeze(Tmatrix))
@@ -56,10 +54,6 @@ class sum_id(b3.Action):   ##  we should change this name since its a transform
             ##print out the squeezed form
             print 'sum of angles transform: squeezed test input:'
             sp.pprint(Tmatrix_squeeze)
-        
-            
-        #thxy_lookup = {th_12: [th_1, th_2], th_23:[th_2, th_3], th_34:[th_3, th_4], \
-            #th_45:[th_4, th_5], th_56:[th_5, th_6]}
             
         unkn_sums_sym = set() #keep track of joint variable symbols
         
@@ -113,7 +107,6 @@ class sum_id(b3.Action):   ##  we should change this name since its a transform
                         matr_equ.Ts = matr_equ.Ts.subs(d[thx] + d[sgn] * d[thy], th_xy) #substitute all thx +/- thy expression with th_xy
                         matr_equ.Td = matr_equ.Td.subs(d[thx] + d[sgn] * d[thy], th_xy) #substitute all thx +/- thy expression with th_xy
        
-        tick.blackboard.set('Robot', R)# add a solution node to the robot (see above)
         tick.blackboard.set("Tm", matr_equ)# we've got to keep the blackboard tags standard
         tick.blackboard.set("unknowns", unknowns)# we've got to keep the blackboard tags standard
         
