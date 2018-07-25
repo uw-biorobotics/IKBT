@@ -27,9 +27,10 @@ import b3 as b3          # behavior trees
 
 # retrieve thxy from thx, thy
 def find_xy(thx, thy):
-    # lookup table for thxy
-    thxy_lookup = {th_1: [th_12], th_2:[th_12, th_23], th_3:[th_23, th_34], \
-                    th_4:[th_34, th_45], th_5:[th_45, th_56], th_6:[th_56]}
+    # lookup table for thxy (new: 3 parallel axes for axes 2,3,4)
+    thxy_lookup = {th_1: [th_12], th_2:[th_12, th_23, th_234], th_3:[th_23, th_34, th_234], \
+                    th_4:[th_34, th_45, th_234], th_5:[th_45, th_56], th_6:[th_56], \
+                    }
     # one symbol in common is the th_xy we're looking for
     thx_s = set(thxy_lookup[thx])
     thy_s = set(thxy_lookup[thy])
@@ -70,7 +71,7 @@ class sum_id(b3.Action):   ##  we should change this name since its a transform
                 expr = Tmatrix[i, j]    
                 
             
-                sub_sin = expr.find(sp.sin(thx + sgn * thy)) #returns a subset of expressions with the quary pattern, this finds sin(thx) too
+                sub_sin = expr.find(sp.sin(thx + sgn * thy)) #returns a subset of expressions with the query pattern, this finds sin(thx) too
                 sub_cos = expr.find(sp.cos(thx + sgn * thy))
                     
                 found = False
@@ -90,7 +91,7 @@ class sum_id(b3.Action):   ##  we should change this name since its a transform
                 if found:
                     success_flag = True
                     th_xy = find_xy(d[thx], d[thy])
-                     #if not exists in the unknown list (this requires proper hashing), creat variable
+                     #if not exists in the unknown list (this requires proper hashing), create variable
                     if th_xy not in unkn_sums_sym:
                         print "found 'joint' (sumofangle) variable: "
                         print th_xy

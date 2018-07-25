@@ -43,6 +43,7 @@ import kin_cl as kc
 ((a_2, a_3)) = sp.symbols(('a_2', 'a_3'))
 sp.var('l_5 l_6')
 sp.var('th_12, th_23, th_34, th_45, th_56')
+sp.var('th_234') # handle 3-parallel axes
 sp.var('c_12 s_12 c_23 s_23 c_34 s_34 c_45 s_45 c_56 s_56 c_13 s_13')
 sp.var('x')  # super generic place holder
 soa_vars = [th_12, th_23, th_34, th_45, th_56]  # a list of the sum-of-angles variables
