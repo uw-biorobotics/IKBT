@@ -136,7 +136,8 @@ def find_xy(thx, thy):
     thxy = thxy_s.pop()
     return thxy
 
-
+#def find_sum(thx,thy):
+    # new approach for same problem as find_xy()
 
 #  Class to contain all robot info
 class Robot:
@@ -266,9 +267,9 @@ class Robot:
 
         unkn_sums_sym = set() #keep track of joint variable symbols
 
-        thx = sp.Wild('thx')
-        thy = sp.Wild('thy')
-        sgn = sp.Wild('sgn')
+        thx = sp.Wild('thx') # a theta_x term
+        thy = sp.Wild('thy') # a theta_x term
+        sgn = sp.Wild('sgn') # 1 or -1 
 
         success_flag = False
 
@@ -285,7 +286,7 @@ class Robot:
                     rhs = Meq.Ts[i,j]
 
                     for expr in [lhs, rhs]:
-                        sub_sin = expr.find(sp.sin(thx + sgn * thy)) #returns a subset of expressions with the quary pattern, this finds sin(thx) too
+                        sub_sin = expr.find(sp.sin(thx + sgn * thy)) #returns a subset of expressions with the query pattern, this finds sin(thx) too
                         sub_cos = expr.find(sp.cos(thx + sgn * thy))
 
                         found = False

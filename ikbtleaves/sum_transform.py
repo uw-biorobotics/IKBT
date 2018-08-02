@@ -26,17 +26,17 @@ from ikbtbasics.ik_classes import *     # special classes for Inverse kinematics
 import b3 as b3          # behavior trees
 
 # retrieve thxy from thx, thy
-def find_xy(thx, thy):
-    # lookup table for thxy (new: 3 parallel axes for axes 2,3,4)
-    thxy_lookup = {th_1: [th_12], th_2:[th_12, th_23, th_234], th_3:[th_23, th_34, th_234], \
-                    th_4:[th_34, th_45, th_234], th_5:[th_45, th_56], th_6:[th_56], \
-                    }
-    # one symbol in common is the th_xy we're looking for
-    thx_s = set(thxy_lookup[thx])
-    thy_s = set(thxy_lookup[thy])
-    thxy_s = thx_s.intersection(thy_s)
-    thxy = thxy_s.pop()
-    return thxy
+#def find_xy(thx, thy):
+    ## lookup table for thxy (new: 3 parallel axes for axes 2,3,4)
+    #thxy_lookup = {th_1: [th_12], th_2:[th_12, th_23, th_234], th_3:[th_23, th_34, th_234], \
+                    #th_4:[th_34, th_45, th_234], th_5:[th_45, th_56], th_6:[th_56], \
+                    #}
+    ## one symbol in common is the th_xy we're looking for
+    #thx_s = set(thxy_lookup[thx])
+    #thy_s = set(thxy_lookup[thy])
+    #thxy_s = thx_s.intersection(thy_s)
+    #thxy = thxy_s.pop()
+    #return thxy
     
 
 class sum_id(b3.Action):   ##  we should change this name since its a transform
