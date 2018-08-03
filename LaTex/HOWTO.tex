@@ -67,7 +67,7 @@ To produce your readable output, just enter
 \end{verbatim}
 The template will automatically include your most recent solution ({\tt $\backslash$input\{IK\_solution.tex\}}).  {\tt IK\_solution\_NAME.tex} is kept so that solving a new robot does not clobber your old work. 
 
-Your output will then appear as {\tt IK\_solution.pdf}.   
+Your output will then appear as {\tt ik\_report\_template.pdf} .   
 The package produces the following output sections in the Latex file:
 
 
@@ -82,7 +82,10 @@ The package produces the following output sections in the Latex file:
     \item Solutions:
     The equations for all solutions for each variable. 
     \item Solution Branching graph:
-    A graph illustrating the dependencies between solutions
+    A graph illustrating the dependencies between solutions (but so far this is 
+    only in text form).
+    \item Solution Sets:  The valid solutions (e.g. manipulator poses) for a given end effector configuration (${T_6^0}$)
+    are listed here.  
     
 \end{enumerate}
 
