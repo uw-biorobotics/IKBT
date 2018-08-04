@@ -472,7 +472,7 @@ def robot_params(name):
 
     ################## (all robots) ######################
     ##  make sure each unknown knows its position (index)
-    i = 0
+    i = 1
     for v in variables:   
         v.n = i
         i+=1

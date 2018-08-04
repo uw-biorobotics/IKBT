@@ -284,6 +284,9 @@ class Robot:
 
                     lhs = Meq.Td[i,j]
                     rhs = Meq.Ts[i,j]
+                    
+                    print '\nSum of angles: analyzing: '
+                    print lhs, ' = ', rhs
 
                     for expr in [lhs, rhs]:
                         sub_sin = expr.find(sp.sin(thx + sgn * thy)) #returns a subset of expressions with the query pattern, this finds sin(thx) too
@@ -294,28 +297,41 @@ class Robot:
                             sin_expr = sub_sin.pop()
                             d = sin_expr.match(sp.sin(thx + sgn * thy))
                             if d[thx] != 0 and d[sgn] != 0 and d[thy] != 0: #has to be joint variable
+                                print 'found sin() expression: ', sin_expr
                                 found = True
 
                         while len(sub_cos) > 0 and not found:
                             cos_expr = sub_cos.pop()
                             d = cos_expr.match(sp.cos(thx + sgn * thy))
                             if d[thx] != 0 and d[sgn] != 0 and d[thy] != 0:
+                                print 'found cos() expression: ', cos_expr
                                 found = True
 
                         if found:
                             #print 'SoA: found ', sin_expr, ' in ', expr
                             success_flag = True
-                            th_xy = find_xy(d[thx], d[thy])
+
+                            #th_xy = find_xy(d[thx], d[thy])
+                            
+                            ###  replace find_xy()
+                            # find the integer indeces of the two variables
+                            xn = get_variable_index(variables,d[thx])
+                            yn = get_variable_index(variables,d[thy])
+                            new_index = 10*xn+yn
+                            newname = 'th_' + str(new_index) 
+                            print 'newname = ', newname
                             #if not exists in the unknown list (this requires proper hashing), create variable
                             exists = False
                             for v in variables:
-                                if v.symbol == th_xy:
+                                if v.n == new_index:
                                     exists = True
                             if not exists:
+                                th_xy = sp.var(newname)
                                 print "found new 'joint' (sumofangle) variable: ", th_xy
                                 #  try moving soa equation to Tm.auxeqns
                                 #unkn_sums_sym.add(th_xy) #add into the joint variable set
                                 newjoint = unknown(th_xy)
+                                newjoint.n = 10*xn+yn  # generate e.g. 234 = 10*2 + 34
                                 newjoint.solved = False  # just to be clear
                                 variables.append(newjoint) #add it to unknowns list
                                 tmpeqn = kc.kequation(th_xy, d[thx] + d[sgn] * d[thy])
@@ -326,12 +342,29 @@ class Robot:
                             self.mequation_list[k].Td[i,j] = Meq.Td[i,j].subs(d[thx] + d[sgn] * d[thy], th_xy)
                             self.mequation_list[k].Ts[i,j] = Meq.Ts[i,j].subs(d[thx] + d[sgn] * d[thy], th_xy)
 
+                            quit()
+
+def get_variable_index(vars, symb):
+    for v in vars:
+        found = False
+        print 'get_variable_index: v[i], symb, v[i].n ',str(v.symbol),str(symb), v.n
+        if v.symbol == symb:
+            return v.n
+    if found == False: 
+        print 'Error: trying to get index of an unknown joint variable'
+        print 'symbol: ', symb, symb.n
+        print vars
+        quit()
+            
+            
+
 # class kequation()       now moved to kin_cl.py
 
 class unknown(object):
     def __init__(self,u=sp.var('x'), mat_eqn=None):
         self.symbol = u
         self.n = 0           # index of the unk in the serial chain (1-6) 0=unset
+                        #  NEW: self.n can be 23 e.g. for (th2+th3) or 234 for (th2+th3+th4)
         self.eqnlist = []    # list of kequations containing this UNK
         self.readytosolve = False
         self.eqntosolve = None #this has to be NONE, otherwise the None judgement in tan_solver wouldn't work

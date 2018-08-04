@@ -1,18 +1,51 @@
 Regarding sum of angles changes to handle 3 parallel axis case:
 
 1) there are two very similar codes which are dupes and should be unified:
-    a)  find_xy in ikbtbasics.py
-    b)  find_xy in sum_transform.py
+    a)  find_xy in ikbtbasics/ik_classes.py   ***  official version 
+    b)  find_xy in sum_transform.py           ***  DELETED
 
 2) there are two methods that use find_xy to substitue sum-of-angles.  One is in sum_transform.py
     and another is a method member of the Robot class (!)   the later is used in updateL. 
 
 We need to eliminate these redundancies so that we can fix the 3-parallel axis case.   Strategy:
 
-1) elmininate duplcated codes
+1) elmininate duplcated codes    **Check: 3-Aug-18
 2) find a new method other than the set lookup table (or maybe a lookup table with a two list input):
 
    {[th1,th2] : [ th12, th123],\\
     [th2,th3] : [th23, th 123, th234] }  etc.
 
 BH  30-Jul
+
+
+New alg:
+
+1) convert two args to strings (i.e. string having the variable NAME)  # does this require new class members?
+
+       th1 --> 'th1',   th23 --> 'th23'    etc
+
+2) separate indices (ints) from strings, 
+
+       th1 --> '1',  th23 --> '23'
+
+3) concatenate and sort. 
+
+   ['23', '1'] --> '123
+
+4) search existing unknowns for match to new variable 
+
+   'th123' --->   < already a defined unknown > or < create new unknown th123>
+   
+   
+Second approach ***
+
+1) each unknown has self.n = index of joint.    if index > 10, it means a sum of angle:
+       i.e. if self.n == 234,  self is th_234.
+       
+2) for two unknowns, a,b:
+
+   if sum is a new unknown where sum = th_a + th_b,
+   
+    sum.n = int(str(a.n)+str(b.n))
+    
+    
