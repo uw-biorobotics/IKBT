@@ -79,7 +79,7 @@ class sum_id(b3.Action):   ##  we should change this name since its a transform
                     th_xy = find_xy(d[thx], d[thy])
                      #if not exists in the unknown list (this requires proper hashing), create variable
                     if th_xy not in unkn_sums_sym:
-                        print "found NEW 'joint' (sumofangle) variable: "
+                        print "found NEW 'joint' (updated) (sumofangle) variable: "
                         print th_xy
                         #  try moving soa equation to Tm.auxeqns
                         unkn_sums_sym.add(th_xy) #add into the joint variable set

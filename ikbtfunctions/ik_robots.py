@@ -397,79 +397,10 @@ def robot_params(name):
 
         params = [a_1, l_1, a_2, a_3, l_4]
         pvals = {a_1: 1, l_1:2, a_2:4, a_3:2, l_4:5}
-    ################## (all robots) ######################
-    ##  make sure each unknown knows its position (index)
-    i = 0
-    for v in variables:   
-        v.n = i
-        i+=1
         
-    return [dh, vv, params, pvals, variables]
-   
-
-    if(name == 'Wrist'):
-        sp.var('A B C')
         
-        ###   These somewhat weird DH params give you the ZYX Euler Angles
-        #       matrix of example 4.7
-        dh = sp.Matrix([
-        [        0,    0,   0,     A  ], 
-        [ -sp.pi/2,    0,   0,    (sp.pi/2 + B)  ],   
-        [  sp.pi/2 ,   0,   0,    (sp.pi/2 + C)  ],     # must fill remaining rows with zeros
-        [ -sp.pi/2,     0,   0,   -sp.pi/2  ],
-        [      0 ,     0,   0,   0  ],
-        [      0 ,     0,   0,   0  ]
-        ])
-
-        vv = [1,1,1,1,1,1]
-        variables = [unknown(A), unknown(B), unknown(C)]
-        params = []
         
- 
         
-    if(name == 'Olson13'):
-        # standardize on the order "alpha N-1, a N-1, d N, theta N' for the DH table columns.
-        
-        # Olson 2013
-        # DOF: 6
-        # methods to test: m5, m3, 
-        # Yb = d_1, Xb = d_2, L1 = l3, L2 = l4, L3 = l5
-        dh = sp.Matrix([
-            
-            [-sp.pi/2,  0.,         d_1,        sp.pi/2],
-            [sp.pi/2,   0.,         d_2,        -sp.pi/2],
-            [sp.pi/2,   0.,         l_3,        th_3],
-            [sp.pi/2,   0.,         0.,         th_4],
-            [0.,        l_4,        0.,         th_5],
-            [sp.pi/2,   0.,         l_5,        th_6]
-            ])
-            
-        vv = [0, 0, 1, 1, 1, 1]
-        variables = [unknown(d_1), unknown(d_2), unknown(th_3), unknown(th_4), unknown(th_5), unknown(th_6)]
-        params = [l_3, l_4, l_5]
-        
-                
-
-
-    if(name == 'Stanford'):
-        sp.var('l_4 l_6')
-        dh = sp.Matrix([
-            [-sp.pi/2,   0.,         l_1,         th_1],
-            [sp.pi/2,   0.,         l_2,        th_2],
-            [0,        0.,          d_3,        -sp.pi/2],
-            [-sp.pi/2,        0.,        l_4,         th_4],
-            [sp.pi/2,     0.,         0.,         th_5],
-            [0.,     0.,         l_6,        th_6]
-            ])
-                    
-        vv = [1, 1, 0, 1, 1, 1]
-        variables = [unknown(th_1), unknown(th_2), unknown(d_3), unknown(th_4), unknown(th_5), unknown(th_6)]
-        params = [l_1, l_2, l_4, l_6]
-
-
-
-
-
     ################## (all robots) ######################
     ##  make sure each unknown knows its position (index)
     i = 1
@@ -478,6 +409,4 @@ def robot_params(name):
         i+=1
         
     return [dh, vv, params, pvals, variables]
-
-
-    
+   
