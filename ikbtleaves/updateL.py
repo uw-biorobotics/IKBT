@@ -38,7 +38,7 @@ class updateL(b3.Action):    # Set up (update) the equation lists
         R = tick.blackboard.get('Robot')   # the current matrix equation
         variables = tick.blackboard.get('unknowns')   # the current list of unknowns
 
-        R.sum_of_angles_transform(variables)
+        #R.sum_of_angles_transform(variables)  # why do this every time?
         [L1, L2, L3p] = R.scan_for_equations(variables)   # get the equation lists
 
         tick.blackboard.set('eqns_1u', L1)  # eqns w/ 1 unknown

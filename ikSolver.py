@@ -39,7 +39,7 @@ from ikbtleaves.sincos_solver import *
 from ikbtleaves.sinANDcos_solver import *
 from ikbtleaves.x2y2_solver import *
 from ikbtleaves.sub_transform import *
-from ikbtleaves.sum_transform import *
+#from ikbtleaves.sum_transform import *
 from ikbtleaves.two_eqn_m7 import *
 
 TEST_DATA_GENERATION = False
@@ -186,7 +186,7 @@ sacSol.BHdebug = SolverDebug
 # x^2 + y^2 trick from Craig (eqn 4.65)
 x2z2_Solver = x2z2_id_solve()
 x2z2_Solver.Name = 'X2Y2 id and solver'
-x2z2_Solver.BHdebug = True
+x2z2_Solver.BHdebug = False
 
 
 
@@ -205,12 +205,12 @@ sub_trans = sub_transform()
 sub_trans.Name = "Substitution Transform"
 sub_trans.BHdebug = LeafDebug
 
-sumOfAnglesT = sum_id()  # we should change name of this to 'transform'
-sumOfAnglesT.BHdebug = False
-sumOfAnglesT.Name = "Sum of Angles Transform"
+#sumOfAnglesT = sum_id()  # we should change name of this to 'transform'
+#sumOfAnglesT.BHdebug = False
+#sumOfAnglesT.Name = "Sum of Angles Transform"
 
-sumOfAnglesSolve = sum_solve()
-sumOfAnglesSolve.Name = "Sum of Angles Solve"
+#sumOfAnglesSolve = sum_solve()
+#sumOfAnglesSolve.Name = "Sum of Angles Solve"
 
 updateL = updateL()
 updateL.Name = "updateL Transform"
@@ -289,7 +289,7 @@ if (robot == 'Puma' ):  # Puma debug setup
     T = True
     F = False 
    
-    sumOfAnglesSolve.BHdebug = F
+    #sumOfAnglesSolve.BHdebug = F
    
     tanSolver.BHdebug = F
     tanID.BHdebug = F
@@ -302,7 +302,7 @@ if (robot == 'Puma' ):  # Puma debug setup
     scSolver.BHdebug = F
     
     x2z2_Solver.BHdebug = T
-    sumOfAnglesT.BHdebug = F
+    #sumOfAnglesT.BHdebug = F
 
     compDetect.BHdebug = F
     compDetect.FailAllDone = F # set it up to SUCCEED when there is more work to do. (not default)

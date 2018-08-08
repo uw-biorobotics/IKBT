@@ -163,7 +163,7 @@ class Robot:
             self.min_index = 0  # start DOF of the current chain
                                 #  min_index starts at 0 for ALL manips.
             #  max index == index of highest unsolved link variable
-            #  define indeces for DH table
+            #  define indices for DH table
             d = 2      # joint offset DH param index
             th = 3     # joint angle DH param index
             self.max_index = -99
@@ -271,96 +271,193 @@ class Robot:
         thy = sp.Wild('thy') # a theta_x term
         sgn = sp.Wild('sgn') # 1 or -1 
 
-        success_flag = False
-
+        aw = sp.Wild('aw')
+        bw = sp.Wild('bw')
+        cw = sp.Wild('cw')
+        s1 = sp.Wild('s1')
+        s2 = sp.Wild('s2')
+        
+        #k = equation number
+        #i = row, j=col
         for k in range(0,len(self.mequation_list)):
             Meq = self.mequation_list[k]  # get next matrix equation
 
             for i in [0,1,2]:   # only first three rows are interesting
                 for j in [0,1,2,3]:
-                    # simplfy with lasting effect
+                    # simplify with lasting effect (note: try sp.trigsimp() for faster????)
                     Meq.Ts[i,j] = sp.simplify(Meq.Ts[i,j])  # simplify should catch c1s2+s1c2 etc. (RHS)
                     Meq.Td[i,j] = sp.simplify(Meq.Td[i,j])  # simplify should catch c1s2+s1c2 etc. (LHS)
 
                     lhs = Meq.Td[i,j]
                     rhs = Meq.Ts[i,j]
                     
-                    #print '\nSum of angles: analyzing: '
-                    #print lhs, ' = ', rhs
 
                     for expr in [lhs, rhs]:
                         sub_sin = expr.find(sp.sin(thx + sgn * thy)) #returns a subset of expressions with the query pattern, this finds sin(thx) too
                         sub_cos = expr.find(sp.cos(thx + sgn * thy))
+                        
+                        #print '\n\nStarting sum-of-angles analysis: (k,j) ',k,j
+                        #print expr
+                        #print '--->'
+                        #print '    ',sub_sin
+                        #print '    ',sub_cos
 
-                        found = False
+                        found = False    # I found a 2-way sum-of angles
+                        found3 = False   # I found a 3-way sum-of-angles
+                        
+                        #look for sin(sum-of-angles)
                         while len(sub_sin) > 0 and not found:
                             sin_expr = sub_sin.pop()
+                            #print 'o----'
+                            print 'sin expr candidate: ', sin_expr
                             d = sin_expr.match(sp.sin(thx + sgn * thy))
+                            d1 = sin_expr.match(sp.sin(aw + bw + cw))
+                            #print d
+                            #print d1
+                            #print '----o'
                             if d[thx] != 0 and d[sgn] != 0 and d[thy] != 0: #has to be joint variable
-                                print 'found sin() expression: ', sin_expr
+                                print 'found 2-way sin() expression: ', sin_expr
                                 found = True
+                            if(len(d1) == 3):
+                                test = True
+                                for w in d1.values():
+                                    if w == 0:
+                                        test = False
+                                if test:
+                                    print 'found 3-way sin() expression: ', sin_expr
+                                    print '  ',d
+                                    print '  ',d1
+                                    print '  ',d1.values()
+                                    found3 =  True
+                                    found  =  False  # clear the 2-var version
 
-                        while len(sub_cos) > 0 and not found:
+                        # look for cos(sum-of-angles) 
+                        while (len(sub_cos) > 0  and not found):
                             cos_expr = sub_cos.pop()
+                            #print '----'
+                            print 'cos expr candidate: ', cos_expr
                             d = cos_expr.match(sp.cos(thx + sgn * thy))
-                            if d[thx] != 0 and d[sgn] != 0 and d[thy] != 0:
-                                print 'found cos() expression: ', cos_expr
+                            d1 = cos_expr.match(sp.cos(aw + bw + cw))
+                            #print d
+                            #print d1
+                            #print '----'
+                            if d[thx] != 0 and d[sgn] != 0 and d[thy] != 0: #has to be joint variable
+                                print 'found 2-way cos() expression: ', cos_expr
                                 found = True
+                            if(len(d1) == 3):
+                                test = True
+                                print 'cos: Checking d1', d1.values()
+                                for w in d1.values():
+                                    if w == 0:
+                                        print 'cos test: ',w 
+                                        test = False
+                                        break
+                                        #print 'Zero found in ',d1.values()
+                                if test:
+                                    #print 'found 3-way cos() expression: ', cos_expr
+                                    #print '  ',d
+                                    #print '  ',d1
+                                    #print '  ',d1.values()
+                                    found3 =  True
+                                    found  =  False  # clear the 2-var version
+                           
 
-                        if found:
-                            #print 'SoA: found ', sin_expr, ' in ', expr
-                            success_flag = True
-
-                            #th_xy = find_xy(d[thx], d[thy])
-                            
+                    ##  It's possible that both found and found3 can be True (if there's a 2-sum cos() and 3-sum sin() etc).
+                        #print 'Got here!!'
+                        ##  3-way sum of angles substitution and new variable creation
+                        if found3:
+                            print 'Entering found3'
+                            found = False  # block 2-way
+                            found3 = False  # reset flag
                             ###  replace find_xy()
-                            # find the integer indeces of the two variables
+                            # find the integer indices of the three variables
+                            an = get_variable_index(variables,d1[aw])
+                            bn = get_variable_index(variables,d1[bw])
+                            cn = get_variable_index(variables,d1[cw])
+                            new_index = 100*an+10*bn+cn
+                            newname = 'th_' + str(new_index) 
+                            #print 'found3, newname = ', newname
+                            print d1
+                            ##if not exists in the unknown list (this requires proper hashing), create variable
+                            exists = False
+                            for v in variables:
+                                if v.n == new_index:
+                                    exists = True
+                            if not exists:
+                                th_new = sp.var(newname)
+                                print "found new 'joint' (sumofangle) variable: (k=",k,") ", th_new
+                                #  try moving soa equation to Tm.auxeqns
+                                #unkn_sums_sym.add(th_new) #add into the joint variable set
+                                newjoint = unknown(th_new)
+                                newjoint.n = new_index  # generate e.g. 234 = 10*2 + 34
+                                newjoint.solved = False  # just to be clear
+                                variables.append(newjoint) #add it to unknowns list
+                                tmpeqn = kc.kequation(th_new, d1[aw] + d1[bw] + d1[cw])
+                                print 'sumofanglesT: appending new equation:', tmpeqn
+                                self.kequation_aux_list.append(tmpeqn)                                
+                            #substitute all thx +/- thy expression with th_new
+                            #print '\n\nsum of angles (ik_classes): Old Eqns (k=',k,') '
+                            #print Meq.Td[i,j], Meq.Ts[i,j]
+                            #
+                            # substitute new variable into the equations
+                            self.mequation_list[k].Td[i,j] = Meq.Td[i,j].subs(d1[aw] + d1[bw] + d1[cw], th_new)
+                            self.mequation_list[k].Ts[i,j] = Meq.Ts[i,j].subs(d1[aw] + d1[bw] + d1[cw], th_new)
+                            #print 'sum of angles (ik_classes): NEW Eqns'
+                            #print self.mequation_list[k].Td[i,j]
+                            #print self.mequation_list[k].Ts[i,j]
+                            #print '========'
+
+                        ##  2-way sum of angles substitution and new variable creation
+                        if found:
+                            print 'sum-of-angles: entering found:'
+                            # find the integer indices of the two variables
                             xn = get_variable_index(variables,d[thx])
                             yn = get_variable_index(variables,d[thy])
                             new_index = 10*xn+yn
                             newname = 'th_' + str(new_index) 
-                            print 'newname = ', newname
+                            #print 'found, newname = ', newname
                             #if not exists in the unknown list (this requires proper hashing), create variable
                             exists = False
                             for v in variables:
                                 if v.n == new_index:
                                     exists = True
                             if not exists:
-                                th_xy = sp.var(newname)
-                                print "found new 'joint' (sumofangle) variable: (k=",k,") ", th_xy
+                                th_new = sp.var(newname)
+                                print "found new 'joint' (sumofangle) variable: (k=",k,") ", th_new
                                 #  try moving soa equation to Tm.auxeqns
-                                #unkn_sums_sym.add(th_xy) #add into the joint variable set
-                                newjoint = unknown(th_xy)
-                                newjoint.n = 10*xn+yn  # generate e.g. 234 = 10*2 + 34
+                                #unkn_sums_sym.add(th_new) #add into the joint variable set
+                                newjoint = unknown(th_new)
+                                newjoint.n = new_index  # generate e.g. 234 = 10*2 + 34
                                 newjoint.solved = False  # just to be clear
                                 variables.append(newjoint) #add it to unknowns list
-                                tmpeqn = kc.kequation(th_xy, d[thx] + d[sgn] * d[thy])
+                                tmpeqn = kc.kequation(th_new, d[thx] + d[sgn] * d[thy])
                                 print 'sumofanglesT: appending ', tmpeqn
                                 self.kequation_aux_list.append(tmpeqn)
                                 print d[thx] + d[sgn]*d[thy]
-                            #substitute all thx +/- thy expression with th_xy
+                            #substitute all thx +/- thy expression with th_new
                             print '\n\nsum of angles (ik_classes): Old Eqns (k=',k,') '
                             print Meq.Td[i,j], Meq.Ts[i,j]
-                            self.mequation_list[k].Td[i,j] = Meq.Td[i,j].subs(d[thx] + d[sgn] * d[thy], th_xy)
-                            self.mequation_list[k].Ts[i,j] = Meq.Ts[i,j].subs(d[thx] + d[sgn] * d[thy], th_xy)
+                            self.mequation_list[k].Td[i,j] = Meq.Td[i,j].subs(d[thx] + d[sgn] * d[thy], th_new)
+                            self.mequation_list[k].Ts[i,j] = Meq.Ts[i,j].subs(d[thx] + d[sgn] * d[thy], th_new)
                             print 'sum of angles (ik_classes): NEW Eqns'
                             print self.mequation_list[k].Td[i,j]
                             print self.mequation_list[k].Ts[i,j]
-                            
-
-                            #quit()
+                        
 
 def get_variable_index(vars, symb):
     for v in vars:
         found = False
         #print 'get_variable_index: v[i], symb, v[i].n ',str(v.symbol),str(symb), v.n
         if v.symbol == symb:
+            found = True
             return v.n
-    if found == False: 
-        print 'Error: trying to get index of an unknown joint variable'
-        print 'symbol: ', symb, symb.n
-        print vars
-        quit()
+    assert(found, 'Error: trying to get index of an unknown joint variable' + str(symb))
+    #if found == False: 
+        #print 'Error: trying to get index of an unknown joint variable'
+        #print 'symbol: ', symb
+        #print vars
+        #quit()
+    return False
             
             
 
@@ -389,7 +486,7 @@ class unknown(object):
         self.sincos_eqnlist = []
         self.solvable_sincos = False
         self.tan_solutions = [] #solutions from tangent solvers
-        self.tan_eqnlist = []
+        self.tan_eqnlist = []   
         self.solvable_tan = False
         # end: nodes ranking
         self.nsolutions = 0   # number of solutions (== len(self.solutions))
