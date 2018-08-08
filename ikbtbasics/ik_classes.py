@@ -124,17 +124,17 @@ def check_the_pickle(dh1, dh2):   # check that two mechanisms have identical DH 
         print     '  -----------------------------------------------------'
         quit() 
 
-# retrieve thxy from thx, thy
-def find_xy(thx, thy):
-    # lookup table for thxy
-    thxy_lookup = {th_1: [th_12], th_2:[th_12, th_23], th_3:[th_23, th_34], \
-                    th_4:[th_34, th_45], th_5:[th_45, th_56], th_6:[th_56]}
-    # one symbol in common is the th_xy we're looking for
-    thx_s = set(thxy_lookup[thx])
-    thy_s = set(thxy_lookup[thy])
-    thxy_s = thx_s.intersection(thy_s)
-    thxy = thxy_s.pop()
-    return thxy
+## retrieve thxy from thx, thy
+#def find_xy(thx, thy):
+    ## lookup table for thxy
+    #thxy_lookup = {th_1: [th_12], th_2:[th_12, th_23], th_3:[th_23, th_34], \
+                    #th_4:[th_34, th_45], th_5:[th_45, th_56], th_6:[th_56]}
+    ## one symbol in common is the th_xy we're looking for
+    #thx_s = set(thxy_lookup[thx])
+    #thy_s = set(thxy_lookup[thy])
+    #thxy_s = thx_s.intersection(thy_s)
+    #thxy = thxy_s.pop()
+    #return thxy
 
 #def find_sum(thx,thy):
     # new approach for same problem as find_xy()
@@ -285,8 +285,8 @@ class Robot:
                     lhs = Meq.Td[i,j]
                     rhs = Meq.Ts[i,j]
                     
-                    print '\nSum of angles: analyzing: '
-                    print lhs, ' = ', rhs
+                    #print '\nSum of angles: analyzing: '
+                    #print lhs, ' = ', rhs
 
                     for expr in [lhs, rhs]:
                         sub_sin = expr.find(sp.sin(thx + sgn * thy)) #returns a subset of expressions with the query pattern, this finds sin(thx) too
@@ -327,7 +327,7 @@ class Robot:
                                     exists = True
                             if not exists:
                                 th_xy = sp.var(newname)
-                                print "found new 'joint' (sumofangle) variable: ", th_xy
+                                print "found new 'joint' (sumofangle) variable: (k=",k,") ", th_xy
                                 #  try moving soa equation to Tm.auxeqns
                                 #unkn_sums_sym.add(th_xy) #add into the joint variable set
                                 newjoint = unknown(th_xy)
@@ -339,15 +339,21 @@ class Robot:
                                 self.kequation_aux_list.append(tmpeqn)
                                 print d[thx] + d[sgn]*d[thy]
                             #substitute all thx +/- thy expression with th_xy
+                            print '\n\nsum of angles (ik_classes): Old Eqns (k=',k,') '
+                            print Meq.Td[i,j], Meq.Ts[i,j]
                             self.mequation_list[k].Td[i,j] = Meq.Td[i,j].subs(d[thx] + d[sgn] * d[thy], th_xy)
                             self.mequation_list[k].Ts[i,j] = Meq.Ts[i,j].subs(d[thx] + d[sgn] * d[thy], th_xy)
+                            print 'sum of angles (ik_classes): NEW Eqns'
+                            print self.mequation_list[k].Td[i,j]
+                            print self.mequation_list[k].Ts[i,j]
+                            
 
-                            quit()
+                            #quit()
 
 def get_variable_index(vars, symb):
     for v in vars:
         found = False
-        print 'get_variable_index: v[i], symb, v[i].n ',str(v.symbol),str(symb), v.n
+        #print 'get_variable_index: v[i], symb, v[i].n ',str(v.symbol),str(symb), v.n
         if v.symbol == symb:
             return v.n
     if found == False: 
