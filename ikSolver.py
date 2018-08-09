@@ -321,7 +321,7 @@ bb.set('eqns_1u', L1)   # eqns with one unk
 bb.set('eqns_2u', L2)   #           two unks
 bb.set('eqns_3pu', L3p)   #        three or more unks
 
-R.sum_of_angles_transform(unknowns) #get the sum of angle
+R.sum_of_angles_transform(unknowns) #get the sum of angle simplifications done
 
 bb.set('Robot', R)
 bb.set('unknowns', unknowns)
@@ -353,8 +353,12 @@ if TEST_DATA_GENERATION:
         pickle.dump( [R, unks], pf)
     quit()
 
-    
 
+print R.notation_collections
+
+#
+#  This step creates the list of solution poses (i.e. it associates
+#  the various joint solutions correctly)
 final_groups = matching.matching_func(R.notation_collections, R.solution_nodes)
 # # matching, now integrated into the latex report 
 # uncomment for debugging

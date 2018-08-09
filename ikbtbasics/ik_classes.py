@@ -95,6 +95,7 @@ def kinematics_pickle(rname, dh, constants, pvals, vv, unks, test):
         # set up Robot Object instance
         R = Robot(m, rname)              # set up IK structs etc
         R.scan_for_equations(unks)       # generate equation lists
+        # below is commented out for testing and devel of sum_of_angles_transform
         #R.sum_of_angles_transform(unks)  # find sum of angles
 
         R.generate_solution_nodes(unks) # generate solution nodes
@@ -284,6 +285,7 @@ class Robot:
 
             for i in [0,1,2]:   # only first three rows are interesting
                 for j in [0,1,2,3]:
+                    print 'Sum of Angles: eqn,row,col: ', k,i,j
                     # simplify with lasting effect (note: try sp.trigsimp() for faster????)
                     Meq.Ts[i,j] = sp.simplify(Meq.Ts[i,j])  # simplify should catch c1s2+s1c2 etc. (RHS)
                     Meq.Td[i,j] = sp.simplify(Meq.Td[i,j])  # simplify should catch c1s2+s1c2 etc. (LHS)
@@ -325,14 +327,12 @@ class Robot:
                                         test = False
                                 if test:
                                     print 'found 3-way sin() expression: ', sin_expr
-                                    print '  ',d
-                                    print '  ',d1
                                     print '  ',d1.values()
                                     found3 =  True
                                     found  =  False  # clear the 2-var version
 
                         # look for cos(sum-of-angles) 
-                        while (len(sub_cos) > 0  and not found):
+                        while (len(sub_cos) > 0  and not (found or found3)):
                             cos_expr = sub_cos.pop()
                             #print '----'
                             print 'cos expr candidate: ', cos_expr
@@ -343,18 +343,18 @@ class Robot:
                             #print '----'
                             if d[thx] != 0 and d[sgn] != 0 and d[thy] != 0: #has to be joint variable
                                 print 'found 2-way cos() expression: ', cos_expr
+                                print '2-way d1: ',d1.values()
                                 found = True
                             if(len(d1) == 3):
                                 test = True
-                                print 'cos: Checking d1', d1.values()
+                                print 'cos 3-way: Checking d1', d1.values()
                                 for w in d1.values():
                                     if w == 0:
                                         print 'cos test: ',w 
                                         test = False
                                         break
-                                        #print 'Zero found in ',d1.values()
                                 if test:
-                                    #print 'found 3-way cos() expression: ', cos_expr
+                                    print 'found 3-way cos() expression: ', cos_expr
                                     #print '  ',d
                                     #print '  ',d1
                                     #print '  ',d1.values()
@@ -376,6 +376,7 @@ class Robot:
                             cn = get_variable_index(variables,d1[cw])
                             new_index = 100*an+10*bn+cn
                             newname = 'th_' + str(new_index) 
+                            th_new = sp.var(newname)
                             #print 'found3, newname = ', newname
                             print d1
                             ##if not exists in the unknown list (this requires proper hashing), create variable
@@ -384,7 +385,6 @@ class Robot:
                                 if v.n == new_index:
                                     exists = True
                             if not exists:
-                                th_new = sp.var(newname)
                                 print "found new 'joint' (sumofangle) variable: (k=",k,") ", th_new
                                 #  try moving soa equation to Tm.auxeqns
                                 #unkn_sums_sym.add(th_new) #add into the joint variable set
@@ -402,10 +402,11 @@ class Robot:
                             # substitute new variable into the equations
                             self.mequation_list[k].Td[i,j] = Meq.Td[i,j].subs(d1[aw] + d1[bw] + d1[cw], th_new)
                             self.mequation_list[k].Ts[i,j] = Meq.Ts[i,j].subs(d1[aw] + d1[bw] + d1[cw], th_new)
-                            #print 'sum of angles (ik_classes): NEW Eqns'
-                            #print self.mequation_list[k].Td[i,j]
-                            #print self.mequation_list[k].Ts[i,j]
-                            #print '========'
+                            print 'sum of angles (ik_classes): NEW Eqns'
+                            print self.mequation_list[k].Td[i,j]
+                            print self.mequation_list[k].Ts[i,j]
+                            print '========'
+                            quit()
 
                         ##  2-way sum of angles substitution and new variable creation
                         if found:
@@ -442,6 +443,7 @@ class Robot:
                             print 'sum of angles (ik_classes): NEW Eqns'
                             print self.mequation_list[k].Td[i,j]
                             print self.mequation_list[k].Ts[i,j]
+                            quit()
                         
 
 def get_variable_index(vars, symb):
@@ -817,7 +819,7 @@ if __name__ == "__main__":   # tester code for the classes in this file
 
     sp.var('a b c d e')
 
-    a = sp.atan2(b,c)   # make sure this function compiles
+    a = sp.atan2(b,c)   # make sure this function compiles/loads
 
 
     # Test .subs operator on atan2() function
@@ -839,7 +841,6 @@ if __name__ == "__main__":   # tester code for the classes in this file
 
     #
     ###Test kequation class
-
 
     E1 = kc.kequation(0, sp.cos(d))
     E2 = kc.kequation(5, sp.sin(e))
@@ -945,7 +946,37 @@ if __name__ == "__main__":   # tester code for the classes in this file
 
     ###    Test Robot class
     #   Robot class is tested in updateL.py
+    print 'Sum of Angles testing'
     #
 
+    # Generate some SUM of Angles Kin eqns
+    dh = sp.Matrix([
+            [    0    ,    0 ,  d_1 ,     th_1  ],  # based on UR5 but simplified
+            [-sp.pi/2 ,    0 ,   0  ,     th_2  ],
+            [    0    ,   a_2,   0  ,     th_3  ],   
+            [    0    ,   a_3,   0  ,     th_4  ],      
+            [ sp.pi/2 ,   0 ,    0  ,     th_5  ],      
+            [ sp.pi/2 ,   0 ,    0  ,     th_6  ]
+            ])
+    vv = [1,1,1,1,1,1]
 
+    variables =  [unknown(th_1), unknown(th_2), unknown(th_3), unknown(th_4), unknown(th_5), unknown(th_6)]
+    params = [d_1, a_2, a_3]
+    pvals = {d_1:1, a_2:1,  a_3:1}  # meters
+    m = kc.mechanism(dh, params, vv)
+    m.pvals = pvals  # store numerical values of parameters
+    print "Starting SOA Test Forward Kinematics"
+    m.forward_kinematics()
+    print "Completed Forward Kinematics"
+    #print 'Starting Sum of Angles scan (slow!)'
+
+    # set up Robot Object instance
+    R = Robot(m, 'SOA 2,3 TEST Robot')              # set up IK structs etc
+    R.scan_for_equations(variables)       # generate equation lists
+    # below is commented out for testing and devel of sum_of_angles_transform
+    R.sum_of_angles_transform(variables)  # find sum of angles
+        
+
+    
+    
     print '\n\n\n        ik_classes   PASSES all tests \n\n'

@@ -334,10 +334,15 @@ class TestSolver010(unittest.TestCase):    # change TEMPLATE to unique name (2 p
         name = test_pickle_dir + 'Puma' + 'test_pickle.p'
         try:
             with open(name, 'r') as pick:
-                print '\nReading pre-computed forward kinematics\n'
+                print '\nReading pre-computed forward kinematics TEST info\n'
                 [R, unks]  = pickle.load(pick)
         except:  
             print '\n\n\n        Testing:  Failed to find data pickle file ... quitting()    \n\n\n'
+            # if the test pickle is missing: edit ikSolver.py
+            #    line 32: TEST_DATA_GENERATION = True
+            #    > python ikSolver.py Puma
+            #    (change line 32 back to False)
+
             quit()
         # 2)   call the function output_cpp_code(R)
 
