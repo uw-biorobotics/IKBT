@@ -308,7 +308,7 @@ class Robot:
                         found3 = False   # I found a 3-way sum-of-angles
                         
                         #look for sin(sum-of-angles)
-                        while len(sub_sin) > 0 and not found:
+                        while len(sub_sin) > 0 and not (found or found3):
                             sin_expr = sub_sin.pop()
                             #print 'o----'
                             print 'sin expr candidate: ', sin_expr
@@ -361,6 +361,7 @@ class Robot:
                                     found3 =  True
                                     found  =  False  # clear the 2-var version
                            
+                        print 'found status: ', found, found3
 
                     ##  It's possible that both found and found3 can be True (if there's a 2-sum cos() and 3-sum sin() etc).
                         #print 'Got here!!'
@@ -375,16 +376,18 @@ class Robot:
                             bn = get_variable_index(variables,d1[bw])
                             cn = get_variable_index(variables,d1[cw])
                             new_index = 100*an+10*bn+cn
-                            newname = 'th_' + str(new_index) 
-                            th_new = sp.var(newname)
-                            #print 'found3, newname = ', newname
-                            print d1
+                            newname = 'th_' + str(new_index)
+                            print 'found3, newname = ', newname
+                            print d1.values()
                             ##if not exists in the unknown list (this requires proper hashing), create variable
                             exists = False
                             for v in variables:
-                                if v.n == new_index:
+                                if v.n == new_index:   # i.e. if th_23 is aready defined
+                                    th_subval = v
                                     exists = True
-                            if not exists:
+                            if not exists: 
+                                th_new = sp.var(newname) # create iff doesn't yet exists
+                                th_subval = th_new
                                 print "found new 'joint' (sumofangle) variable: (k=",k,") ", th_new
                                 #  try moving soa equation to Tm.auxeqns
                                 #unkn_sums_sym.add(th_new) #add into the joint variable set
@@ -394,20 +397,21 @@ class Robot:
                                 variables.append(newjoint) #add it to unknowns list
                                 tmpeqn = kc.kequation(th_new, d1[aw] + d1[bw] + d1[cw])
                                 print 'sumofanglesT: appending new equation:', tmpeqn
-                                self.kequation_aux_list.append(tmpeqn)                                
+                                self.kequation_aux_list.append(tmpeqn)
                             #substitute all thx +/- thy expression with th_new
                             #print '\n\nsum of angles (ik_classes): Old Eqns (k=',k,') '
                             #print Meq.Td[i,j], Meq.Ts[i,j]
                             #
                             # substitute new variable into the equations
-                            self.mequation_list[k].Td[i,j] = Meq.Td[i,j].subs(d1[aw] + d1[bw] + d1[cw], th_new)
-                            self.mequation_list[k].Ts[i,j] = Meq.Ts[i,j].subs(d1[aw] + d1[bw] + d1[cw], th_new)
-                            print 'sum of angles (ik_classes): NEW Eqns'
+                            self.mequation_list[k].Td[i,j] = Meq.Td[i,j].subs(d1[aw] + d1[bw] + d1[cw], th_subval)
+                            self.mequation_list[k].Ts[i,j] = Meq.Ts[i,j].subs(d1[aw] + d1[bw] + d1[cw], th_subval)
+                            print 'sum of angles (ik_classes): NEW Eqns (k,i,j)',k,i,j
                             print self.mequation_list[k].Td[i,j]
+                            print ' = '
                             print self.mequation_list[k].Ts[i,j]
                             print '========'
-                            quit()
-
+                            #quit()
+ 
                         ##  2-way sum of angles substitution and new variable creation
                         if found:
                             print 'sum-of-angles: entering found:'
@@ -421,9 +425,11 @@ class Robot:
                             exists = False
                             for v in variables:
                                 if v.n == new_index:
+                                    th_subval = v
                                     exists = True
                             if not exists:
                                 th_new = sp.var(newname)
+                                th_subval = th_new
                                 print "found new 'joint' (sumofangle) variable: (k=",k,") ", th_new
                                 #  try moving soa equation to Tm.auxeqns
                                 #unkn_sums_sym.add(th_new) #add into the joint variable set
@@ -438,16 +444,19 @@ class Robot:
                             #substitute all thx +/- thy expression with th_new
                             print '\n\nsum of angles (ik_classes): Old Eqns (k=',k,') '
                             print Meq.Td[i,j], Meq.Ts[i,j]
-                            self.mequation_list[k].Td[i,j] = Meq.Td[i,j].subs(d[thx] + d[sgn] * d[thy], th_new)
-                            self.mequation_list[k].Ts[i,j] = Meq.Ts[i,j].subs(d[thx] + d[sgn] * d[thy], th_new)
+                            self.mequation_list[k].Td[i,j] = Meq.Td[i,j].subs(d[thx] + d[sgn] * d[thy], th_subval)
+                            self.mequation_list[k].Ts[i,j] = Meq.Ts[i,j].subs(d[thx] + d[sgn] * d[thy], th_subval)
                             print 'sum of angles (ik_classes): NEW Eqns'
                             print self.mequation_list[k].Td[i,j]
                             print self.mequation_list[k].Ts[i,j]
-                            quit()
+                            #quit()
                         
 
 def get_variable_index(vars, symb):
     for v in vars:
+        if v.n == 0:
+            print 'get_variable_index()/ik_classes: at least one index is not initialized for joint variables'
+            quit()
         found = False
         #print 'get_variable_index: v[i], symb, v[i].n ',str(v.symbol),str(symb), v.n
         if v.symbol == symb:
@@ -961,6 +970,11 @@ if __name__ == "__main__":   # tester code for the classes in this file
     vv = [1,1,1,1,1,1]
 
     variables =  [unknown(th_1), unknown(th_2), unknown(th_3), unknown(th_4), unknown(th_5), unknown(th_6)]
+    i=1
+    for v in variables:
+        v.n = i   # set the variable index (joint number)
+        i += 1
+        
     params = [d_1, a_2, a_3]
     pvals = {d_1:1, a_2:1,  a_3:1}  # meters
     m = kc.mechanism(dh, params, vv)
@@ -975,6 +989,28 @@ if __name__ == "__main__":   # tester code for the classes in this file
     R.scan_for_equations(variables)       # generate equation lists
     # below is commented out for testing and devel of sum_of_angles_transform
     R.sum_of_angles_transform(variables)  # find sum of angles
+    fs = 'ik_classes: sum_of_angles_transform FAILS 3-way sum'
+    
+    #  Now we test some expected RHS results
+    k = 0   # equation
+    i = 0   # row
+    j = 0   # col
+    print 'Equation term: ', R.mequation_list[k].Ts[i,j]
+    print ' desired:      -(sin(th_1)*sin(th_5) - cos(th_1)*cos(th_234)*cos(th_5))*cos(th_6) + sin(th_234)*sin(th_6)*cos(th_1)'
+    print ' diff:   ', sp.simplify(R.mequation_list[k].Ts[i,j] - -(sp.sin(th_1)*sp.sin(th_5) - sp.cos(th_1)*sp.cos(th_234)*sp.cos(th_5))*sp.cos(th_6) + sp.sin(th_234)*sp.sin(th_6)*sp.cos(th_1))
+    
+    print '\n\n'
+    assert sp.simplify(R.mequation_list[k].Ts[i,j] - -(sp.sin(th_1)*sp.sin(th_5) - sp.cos(th_1)*sp.cos(th_234)*sp.cos(th_5))*sp.cos(th_6) + sp.sin(th_234)*sp.sin(th_6)*sp.cos(th_1))== 0, fs
+    
+    #NEW Eqns (k,i,j) 5 2 3
+    #Px*sp.sin(th_234)*cos(th_1) + Py*sin(th_1)*sp.sin(th_234) + Pz*cos(th_234) - a_2*sin(th_3 + th_4) - a_3*sin(th_4) - d_1*cos(th_234)
+    sp.Vars('Px Py Pz')
+    k = 5   # equation
+    i = 2   # row
+    j = 3   # col
+    assert sp.simplify(R.mequation_list[k].Ts[i,j] - Px*sp.sin(th_234)*sp.cos(th_1) + Py*sp.sin(th_1)*sp.sin(th_234) + Pz*sp.cos(th_234) - a_2*sp.sin(th_3 + th_4) - a_3*sp.sin(th_4) - d_1*sp.cos(th_234))==0, fs
+        
+        
         
 
     
