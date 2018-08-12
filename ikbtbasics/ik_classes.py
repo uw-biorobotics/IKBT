@@ -462,7 +462,7 @@ def get_variable_index(vars, symb):
         if v.symbol == symb:
             found = True
             return v.n
-    assert(found, 'Error: trying to get index of an unknown joint variable' + str(symb))
+    assert found, 'Error: trying to get index of an unknown joint variable' + str(symb)
     #if found == False:
         #print 'Error: trying to get index of an unknown joint variable'
         #print 'symbol: ', symb
@@ -526,8 +526,8 @@ class unknown(object):
         print 'set_solved: ', self.symbol, '      by: ', self.solvemethod
         #print '            ', self.eqntosolve
         fs = 'set_solved: solutions empty '
-        assert(len(self.solutions) >= 1), fs
-        assert(self.nsolutions > 0), fs
+        assert (len(self.solutions) >= 1), fs
+        assert (self.nsolutions > 0), fs
         print '            ', self.symbol, '=', self.solutions[0], '\n\n'
         #print 'Robot instance.name: ', R.name      # shouldn't change!!
         #########################################
@@ -991,31 +991,32 @@ if __name__ == "__main__":   # tester code for the classes in this file
     R.sum_of_angles_transform(variables)  # find sum of angles
     fs = 'ik_classes: sum_of_angles_transform FAILS 3-way sum'
 
+    print '\n the variables: ', variables
+    assert len(variables) == 9, 'wrong number of variables'
+    print '\n\n'
+
     #  Now we test some expected RHS results
+    sp.var('A1 A2') # two possible answers
+
+    # Assertion 1
     k = 0   # equation
     i = 0   # row
     j = 0   # col
-    sp.var('A1 A2') # two possible answers
     A1 = R.mequation_list[k].Ts[i,j]
-    print 'Calculated Equation term: (k,i,j) ', A1
-
-    # expected correct answer
+    # expected correct answer:
     A2 = -(sp.sin(th_1)*sp.sin(th_5) - sp.cos(th_1)*sp.cos(th_234)*sp.cos(th_5))*sp.cos(th_6) + sp.sin(th_234)*sp.sin(th_6)*sp.cos(th_1)
-    print '  desired:  ',A2
-    print ' diff:   ', sp.simplify(A1-A2)
 
-    print '\n the variables: ', variables
-    print '\n\n'
     assert sp.simplify(A1-A2)== 0, fs
 
-    #NEW Eqns (k,i,j) 5 2 3
-    #Px*sp.sin(th_234)*cos(th_1) + Py*sin(th_1)*sp.sin(th_234) + Pz*cos(th_234) - a_2*sin(th_3 + th_4) - a_3*sin(th_4) - d_1*cos(th_234)
+
+    # Assertion 2
     sp.var('Px Py Pz')
     k = 5   # equation
     i = 2   # row
     j = 3   # col
     A1 =  R.mequation_list[k].Ts[i,j]
-    A2 =  Px*sp.sin(th_234)*sp.cos(th_1) + Py*sp.sin(th_1)*sp.sin(th_234) + Pz*sp.cos(th_234) - a_2*sp.sin(th_3 + th_4) - a_3*sp.sin(th_4) - d_1*sp.cos(th_234)
+    # expected correct answer:
+    A2 =  Px*sp.sin(th_234)*sp.cos(th_1) + Py*sp.sin(th_1)*sp.sin(th_234) + Pz*sp.cos(th_234) - a_2*sp.sin(th_34) - a_3*sp.sin(th_4) - d_1*sp.cos(th_234)
 
     assert sp.simplify(A1-A2)==0, fs
 
