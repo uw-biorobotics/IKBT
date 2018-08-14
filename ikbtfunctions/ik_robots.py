@@ -33,7 +33,12 @@ from ikbtbasics.ik_classes import *     # special classes for Inverse kinematics
 def robot_params(name):
     pvals = {}   # null for most robots
     List = ['UR5', 'Puma', 'Chair_Helper', 'Wrist', 'MiniDD', 'Olson13','Stanford', 'Chair6DOF','Khat6DOF','Craig417']
-    assert (name in List), 'robot_params(): Unknown robot, ' + name + ', Stopping'
+    if not (name in List):
+        print 'robot_params(): Unknown robot, ' + name 
+        print 'Here are the defined robots: '
+        for n in List:
+            print '   ', n
+        quit()
         
     if(name == 'UR5'):  #Universal Robots - test case for 3 parallel axes
         dh = sp.Matrix([
