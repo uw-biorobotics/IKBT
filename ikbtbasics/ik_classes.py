@@ -262,10 +262,11 @@ class Robot:
         return [self.l1, self.l2]
 
 
-
+    #
     # identify sum of angles terms and transform them to new variable
+    #
     def sum_of_angles_transform(self,variables):
-
+        print 'Starting sum-of-angles scan. Please be patient'
         unkn_sums_sym = set() #keep track of joint variable symbols
 
         thx = sp.Wild('thx') # a theta_x term
@@ -280,12 +281,16 @@ class Robot:
 
         #k = equation number
         #i = row, j=col
+        total_its = len(self.mequation_list) * 3 * 4  # total number of equations
+        it_number = 0
         for k in range(0,len(self.mequation_list)):
             Meq = self.mequation_list[k]  # get next matrix equation
-
             for i in [0,1,2]:   # only first three rows are interesting
                 for j in [0,1,2,3]:
-                    print 'Sum of Angles: eqn,row,col: ', k,i,j
+                    it_number += 1
+                    #print ' .. '
+                    prog_bar(it_number,total_its)
+                    #print 'Sum of Angles: eqn,row,col: ', k,i,j
                     # simplify with lasting effect (note: try sp.trigsimp() for faster????)
                     Meq.Ts[i,j] = sp.simplify(Meq.Ts[i,j])  # simplify should catch c1s2+s1c2 etc. (RHS)
                     Meq.Td[i,j] = sp.simplify(Meq.Td[i,j])  # simplify should catch c1s2+s1c2 etc. (LHS)
@@ -297,20 +302,20 @@ class Robot:
                     for expr in [lhs, rhs]:
                         found2 = found3 = False
                         matches = expr.find(sp.sin(aw+bw+cw)) | expr.find(sp.cos(aw+bw+cw))
-                        
-                        print '- -  - - -'
-                        print expr
-                        print matches
-                        
+
+                        #print '- -  - - -'
+                        #print expr
+                        #print matches
+
                         for m in matches: # analyze each match
                             d  = m.match(sp.cos(aw + bw + cw))
                             d1 = m.match(sp.sin(aw + bw + cw))
                             if d != None and d1 != None:
                                 d.update(d1)
                             if d == None and d1 != None:
-                                d = d1 
+                                d = d1
                             #  To find sum-of-angles arguments,
-                            # count number of non-zero elements among aw ... cw                           
+                            # count number of non-zero elements among aw ... cw
                             nzer = 0
                             varlist = []
                             for k1 in d.keys():
@@ -318,12 +323,12 @@ class Robot:
                                     nzer += 1
                                 else:
                                     varlist.append(d[k1])
-                            #print 'varlist: ', varlist     
+                            #print 'varlist: ', varlist
                             if len(varlist) == 2:
                                 found2 = True
-                            if len(varlist) == 3: 
+                            if len(varlist) == 3:
                                 found3 = True
-                                
+
                             if(found2 or found3):  # we've got a SOA!
 
                                 # generate index of the SOA variable
@@ -334,8 +339,8 @@ class Robot:
                                 ni = ''
                                 for c in nil:  # make into a string
                                     ni += c
-                                    
-                                print 'New index: '+ni 
+
+                                print 'New index: '+ni
                                 exists = False
                                 # has this SOA been found before?  Did we already make it?
                                 for v in variables:
@@ -355,21 +360,23 @@ class Robot:
                                     tmpeqn = kc.kequation(th_new, d[aw] + d[bw] + d[cw])
                                     print 'sumofanglesT: appending new equation:', tmpeqn
                                     self.kequation_aux_list.append(tmpeqn)
-                            
+
                                 # substitute new variable into the kinematic equations
                                 self.mequation_list[k].Td[i,j] = Meq.Td[i,j].subs(d[aw] + d[bw] + d[cw], th_subval)
                                 self.mequation_list[k].Ts[i,j] = Meq.Ts[i,j].subs(d[aw] + d[bw] + d[cw], th_subval)
-                                print 'sum of angles (ik_classes): NEW Eqns (k,i,j)',k,i,j
-                                print self.mequation_list[k].Td[i,j]
-                                print ' = '
-                                print self.mequation_list[k].Ts[i,j]
-                                print '========'
-                                
-                                
+                                #print 'sum of angles (ik_classes): NEW Eqns (k,i,j)',k,i,j
+                                #print self.mequation_list[k].Td[i,j]
+                                #print ' = '
+                                #print self.mequation_list[k].Ts[i,j]
+                                #print '========'
+
+                    #prog_bar(-1,100)  # clear the progress bar
+
                             #x = raw_input('<enter> to cont...')
-                
-                
-                
+        print 'Completed sum-of-angles scan.'
+
+
+
 
 def get_variable_index(vars, symb):
     for v in vars:
@@ -896,9 +903,9 @@ if __name__ == "__main__":   # tester code for the classes in this file
 
     params = [d_1, a_2, a_3]
     pvals = {d_1:1, a_2:1,  a_3:1}  # meters
-    
+
     robot = 'SOA Test Robot'
-        
+
     testing = False  # not using this now
     [m, R, unknowns] = kinematics_pickle(robot, dh, params, pvals, vv, variables, testing)
     print 'GOT HERE: robot name: ', R.name
@@ -908,10 +915,10 @@ if __name__ == "__main__":   # tester code for the classes in this file
 
     ##   check the pickle in case DH params were changed
     check_the_pickle(m.DH, dh)   # check that two mechanisms have identical DH params
- 
+
 
     # Below replaced by pickle code above
-    
+
     #m = kc.mechanism(dh, params, vv)
     #m.pvals = pvals  # store numerical values of parameters
     #print "Starting SOA Test Forward Kinematics"
@@ -920,9 +927,9 @@ if __name__ == "__main__":   # tester code for the classes in this file
     ##print 'Starting Sum of Angles scan (slow!)'
     # set up Robot Object instance
     #R = Robot(m, 'SOA 2,3 TEST Robot')              # set up IK structs etc
-    
-    
-    
+
+
+
     R.scan_for_equations(variables)       # generate equation lists
     # below is commented out for testing and devel of sum_of_angles_transform
     R.sum_of_angles_transform(variables)  # find sum of angles
@@ -955,7 +962,7 @@ if __name__ == "__main__":   # tester code for the classes in this file
     # expected correct answer:
     #A2 =  Px*sp.sin(th_234)*sp.cos(th_1) + Py*sp.sin(th_1)*sp.sin(th_234) + Pz*sp.cos(th_234) - a_2*sp.sin(th_34) - a_3*sp.sin(th_4) - d_1*sp.cos(th_234)
     A2 =  Px*sp.sin(th_234)*sp.cos(th_1) + Py*sp.sin(th_1)*sp.sin(th_234) + Pz*sp.cos(th_234) - a_2*sp.sin(th_34) - a_3*sp.sin(th_4) - d_1*sp.cos(th_234)
-    
+
     print '\n\n\n'
     print A1
     print A2

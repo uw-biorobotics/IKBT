@@ -142,7 +142,7 @@ tanSolver.Name = "Tangent Solver"
 
 tanSol = b3.Sequence([tanID, tanSolver])
 tanSol.Name = "TanID+Solv"
-tanSol.BHdebug =  LeafDebug
+tanSol.BHdebug =  True #LeafDebug
 
 
 algID = algebra_id()
@@ -173,11 +173,11 @@ scSol.BHdebug = SolverDebug
 # sin(th) AND cos(th) in same eqn
 sacID = sinandcos_id()
 sacID.Name = "Sin Cos ID"
-sacID.BHdebug = True
+sacID.BHdebug = False
 
 sacSolver = sinandcos_solve()
 sacSolver.Name = "Sine Cosine Solver"
-sacSolver.BHdebug = True
+sacSolver.BHdebug = False
 
 sacSol = b3.Sequence([sacID,sacSolver])
 sacSol.Name = "Sin AND Cos ID+Solve"
