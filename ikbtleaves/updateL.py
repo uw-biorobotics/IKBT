@@ -37,8 +37,8 @@ class updateL(b3.Action):    # Set up the equation lists
     def tick(self, tick):
         R = tick.blackboard.get('Robot')   # the current matrix equation
         variables = tick.blackboard.get('unknowns')   # the current list of unknowns
-
-        R.sum_of_angles_transform(variables)
+        # below was a time waster!!!
+        #R.sum_of_angles_transform(variables)
         [L1, L2, L3p] = R.scan_for_equations(variables)   # get the equation lists
 
         tick.blackboard.set('eqns_1u', L1)  # eqns w/ 1 unknown
@@ -76,7 +76,7 @@ class TestSolver007(unittest.TestCase):    # change TEMPLATE to unique name (2 p
         pickname = 'fk_eqns/Puma_pickle.p'
         if(os.path.isfile(pickname)):
             print 'a pickle file will be used to speed up'
-        else: 
+        else:
             print 'There was no pickle file'
         print '------------'
 
@@ -86,6 +86,10 @@ class TestSolver007(unittest.TestCase):    # change TEMPLATE to unique name (2 p
         #def kinematics_pickle(rname, dh, constants, pvals, vv, unks, test):
         Test = True
         [M, R, unk_Puma] = kinematics_pickle(robot, dh, params, pvals, vv, unknowns, Test)
+        print 'Starting Sum of Angle scan/transform'
+        R.sum_of_angles_transform(unknowns)
+        print 'Completed Sum of Angles scan/transform'
+
         print 'GOT HERE: updateL robot name: ', R.name
 
         R.name = 'test: '+ robot # ??? TODO: get rid of this (but fix report)
@@ -111,8 +115,14 @@ class TestSolver007(unittest.TestCase):    # change TEMPLATE to unique name (2 p
         #  these self.assertTrues are not conditional - no self.assertTrueion counting needed
         self.assertTrue(L1[0].RHS == d_3, fs)
         self.assertTrue(L1[0].LHS == -Px*sp.sin(th_1)+Py*sp.cos(th_1), fs)
-        self.assertTrue(L2[0].RHS == -a_2*sp.sin(th_2)-a_3*sp.sin(th_23) + d_1 - d_4*(sp.cos(th_23)), fs)
-        self.assertTrue(L2[0].LHS == Pz, fs)
+        print '-----'
+        for e in L2:
+            print '   ', e.RHS
+        print 'L2[0].RHS: ', L2[0].RHS
+        fs = 'Sum of Angles Transform  (2-way)   FAIL'
+        #self.assertTrue(L2[0].RHS == -a_2*sp.sin(th_2)-a_3*sp.sin(th_23) + d_1 - d_4*(sp.cos(th_23)), fs)
+        self.assertTrue(L2[1].RHS == -sp.sin(th_23)*sp.sin(th_5)*sp.cos(th_4) - sp.cos(th_23)*sp.cos(th_5), fs)
+        #self.assertTrue(L2[0].LHS == Pz, fs)
 
         #########################################
         # test R.set_solved
