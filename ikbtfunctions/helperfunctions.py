@@ -119,9 +119,9 @@ def prog_bar(l, lmax):
         return
     if l>lmax:
         l = lmax
-    n = int(40*(float(l)/float(lmax))) + 1
+    n = int(lmax*(float(l)/float(lmax))) + 1
     n2 = lmax - n
-    stringval = '='*n + '.'*n2
+    stringval = '='*n + '.'*n2 + '  x '
     percent =  int(100*l/float(lmax))
     sys.stdout.write(('\r [%2d%s] '+stringval) % (percent, '%'))
     sys.stdout.flush()
