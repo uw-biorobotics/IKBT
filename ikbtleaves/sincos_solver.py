@@ -242,8 +242,6 @@ class sincos_solve(b3.Action):    # Solve asincos equation pairs
 #   Test code
        
 class TestSolver001(unittest.TestCase):
-    # TODO: make tests work for the new version (use assigner)
-    # Done!
     def setUp(self):
         self.DB = False  # debug flag
         print '\n\n===============  Test sincos Solver  ====================='
@@ -289,25 +287,25 @@ class TestSolver001(unittest.TestCase):
         ntests = 0
         for u in unks:
             if (u.symbol == th_1):
-                ntests += 1
                 self.assertTrue(u.nsolutions == 2, fs + '[th_1 n]')
                 self.assertTrue(u.solutions[0] ==  sp.acos( (l_1-l_5)/(l_2+l_3+l_4)), fs +'[th_1]')
                 self.assertTrue(u.solutions[1] == -sp.acos( (l_1-l_5)/(l_2+l_3+l_4)), fs +'[th_1]')
+                ntests += 3
             if (u.symbol == th_2):
-                ntests += 1
                 self.assertTrue(u.solutions[0] ==  sp.acos(l_2), 'acos() solution fail')
                 self.assertTrue(u.solutions[1] == -sp.acos(l_2), 'acos() solution fail')
+                ntests += 2
             if (u.symbol == th_3):
-                ntests += 1
                 self.assertTrue(u.solutions[0] ==  sp.asin(l_1), 'asin() solution fail')
                 self.assertTrue(u.solutions[1] == -sp.asin(l_1)+sp.pi, 'asin() solution fail')
+                ntests += 2
             if (u.symbol == th_4):
-                ntests += 1
                 self.assertTrue(u.solutions[0] ==  sp.acos((l_2+5)/l_1), 'acos((a+b)/c) solution fail')
                 self.assertTrue(u.solutions[1] == -sp.acos((l_2+5)/l_1), 'acos((a+b)/c) solution fail')
+                ntests += 2
                 
                 
-        self.assertTrue(ntests == 4, ' sincos_solver.py:  Assertion count FAIL ')
+        self.assertTrue(ntests == 9, ' sincos_solver.py:  Assertion count FAIL ')
         
         #test equation lists
         L1 = bb.get('eqns_1u')
@@ -315,6 +313,8 @@ class TestSolver001(unittest.TestCase):
         fs = 'sincos: Equation Counts FAIL'
         self.assertTrue(len(L1) == 5, fs)
         self.assertTrue(len(L2) == 1, fs)
+        ntests += 2
+        print '\nPassed all ', ntests, ' asserts.'
 
 def run_test():
     suite2 = unittest.TestLoader().loadTestsFromTestCase(TestSolver001)

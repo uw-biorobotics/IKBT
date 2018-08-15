@@ -191,7 +191,8 @@ class tan_solve(b3.Action):    # Solve sin cos equation pairs
         for unk in unknowns:
             if not unk.solved:
                 unk_unsol.append(unk)
-                print 'tan_solve(): Not yet solved: ', unk.symbol
+                if(self.BHdebug):
+                    print 'tan_solve(): Not yet solved: ', unk.symbol
 
         fsolved = False
         if u.solvable_tan:
@@ -426,7 +427,8 @@ class TestSolver004(unittest.TestCase):    # change TEMPLATE to unique name (2 p
                 self.assertTrue(v.solutions[0] == sp.atan2(r_33/(l_5), (Pz-50)/l_1), fs + ' [th_23]')
                 
         self.assertTrue(ntests == 5, fs + '  assertion count failure ')
-        
+        print 'Passed: ', ntests, ' asserts'
+
         
         print '\n\n  ----------     tan solver TEST 2 --------------\n\n'
         
@@ -475,7 +477,7 @@ class TestSolver004(unittest.TestCase):    # change TEMPLATE to unique name (2 p
                 print '    ', sp.pprint (v.assumption[1])
 
         self.assertTrue(ntests == 5, 'tan_solver:   Assert count    FAIL')
-        
+        print 'Passed: ', ntests, ' asserts'
         print "global assumptions"
         print global_assumptions
         

@@ -340,7 +340,7 @@ class Robot:
                                 for c in nil:  # make into a string
                                     ni += c
 
-                                print 'New index: '+ni
+                                #print 'New index: '+ni
                                 exists = False
                                 # has this SOA been found before?  Did we already make it?
                                 for v in variables:
