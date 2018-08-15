@@ -111,7 +111,7 @@ def ik_lhs():  # generate a simple Left Hand side matrix
 #   if l<0,  clear the bar.
 #   default bar length = 40
 #
-def prog_bar(l, lmax):
+def prog_bar(l, lmax, msg = ''):
     if l<0:
         print ''
         sys.stdout.flush()
@@ -121,9 +121,9 @@ def prog_bar(l, lmax):
         l = lmax
     n = int(lmax*(float(l)/float(lmax))) + 1
     n2 = lmax - n
-    stringval = '='*n + '.'*n2 + '  x '
+    stringval = '='*n + '.'*n2 + '] '+msg
     percent =  int(100*l/float(lmax))
-    sys.stdout.write(('\r [%2d%s] '+stringval) % (percent, '%'))
+    sys.stdout.write(('\r [%2d%s] ['+stringval) % (percent, '%'))
     sys.stdout.flush()
     return
 
