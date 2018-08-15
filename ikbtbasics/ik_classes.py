@@ -289,7 +289,7 @@ class Robot:
                 for j in [0,1,2,3]:
                     it_number += 1
                     #print ' .. '
-                    prog_bar(it_number,total_its)
+                    prog_bar(it_number,total_its, 'Sum of Angles')
                     #print 'Sum of Angles: eqn,row,col: ', k,i,j
                     # simplify with lasting effect (note: try sp.trigsimp() for faster????)
                     Meq.Ts[i,j] = sp.simplify(Meq.Ts[i,j])  # simplify should catch c1s2+s1c2 etc. (RHS)
@@ -355,7 +355,7 @@ class Robot:
                                     #unkn_sums_sym.add(th_new) #add into the joint variable set
                                     newjoint = unknown(th_new)
                                     newjoint.n = int(ni)  # generate e.g. 234 = 10*2 + 34
-                                    newjoint.solved = False  # just to be clear
+                                    newjoint.solved = False  # just to be clear for count_unknowns
                                     variables.append(newjoint) #add it to unknowns list
                                     tmpeqn = kc.kequation(th_new, d[aw] + d[bw] + d[cw])
                                     print 'sumofanglesT: appending new equation:', tmpeqn

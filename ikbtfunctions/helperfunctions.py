@@ -38,9 +38,12 @@ def print_debug(label):
 
 def count_unknowns(unknowns, expr):
     n = 0
+    print 'Count unknowns:'
     for u in unknowns:
+        print u.symbol
         if(expr.has(u.symbol) and u.solved == False):
             n += 1
+    print '--count--'
     return n
 
 #return a list of unknown objects that exsits in a exper
