@@ -195,8 +195,14 @@ class Robot:
         self.l2 = [] # equations with two unknowns
         self.l3p = [] # 3 OR MORE unknowns
         sp.var('x')  #this will be used to generate 'algebraic zero'
-        assert (len(self.mequation_list) > 0), '  not enough equations '
-        for eqn in self.mequation_list:
+        elist = self.mequation_list #.append(self.kequation_aux_list)
+        elist = self.kequation_aux_list +  self.mequation_list
+        print '------------------------- elist----'
+        print elist
+        print '--------'
+        quit()
+        assert (len(elist) > 0), '  not enough equations '
+        for eqn in elist:
             lhs = eqn.Td   #4x4 matrix
             rhs = eqn.Ts  #4x4 matrix
             for i in [0,1,2,3]:
@@ -281,7 +287,8 @@ class Robot:
 
         #k = equation number
         #i = row, j=col
-        total_its = len(self.mequation_list) * 3 * 4  # total number of equations
+        nits = len(self.mequation_list) * 3 * 4 # total number of equations
+        barlen = nits/2
         it_number = 0
         for k in range(0,len(self.mequation_list)):
             Meq = self.mequation_list[k]  # get next matrix equation
@@ -289,7 +296,7 @@ class Robot:
                 for j in [0,1,2,3]:
                     it_number += 1
                     #print ' .. '
-                    prog_bar(it_number,total_its, 'Sum of Angles')
+                    prog_bar(it_number, nits, barlen, 'Sum of Angles')
                     #print 'Sum of Angles: eqn,row,col: ', k,i,j
                     # simplify with lasting effect (note: try sp.trigsimp() for faster????)
                     Meq.Ts[i,j] = sp.simplify(Meq.Ts[i,j])  # simplify should catch c1s2+s1c2 etc. (RHS)
@@ -370,7 +377,7 @@ class Robot:
                                 #print self.mequation_list[k].Ts[i,j]
                                 #print '========'
 
-                    #prog_bar(-1,100)  # clear the progress bar
+        prog_bar(-1,100,100, '')  # clear the progress bar
 
                             #x = raw_input('<enter> to cont...')
         print 'Completed sum-of-angles scan.'

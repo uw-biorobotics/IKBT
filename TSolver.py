@@ -323,14 +323,21 @@ bb.set('eqns_1u', L1)   # eqns with one unk
 bb.set('eqns_2u', L2)   #           two unks
 bb.set('eqns_3pu', L3p)   #        three or more unks
 
-print L1
+
+for L in L1:
+    print '  1: ',L
 
 print '\n\n\n'
 
-print L2
+
+for L in L2:
+    print '  2: ',L
+
 print '\n\n\n'
 
-print L3p
+
+for L in L3p:
+    print '  3+: ',L
 
 print '\n\n\n'
 quit()

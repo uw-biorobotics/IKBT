@@ -39,7 +39,6 @@ def print_debug(label):
 def count_unknowns(unknowns, expr):
     n = 0
     for u in unknowns:
-        print u.symbol
         if(expr.has(u.symbol) and u.solved == False):
             n += 1
     return n
@@ -112,19 +111,19 @@ def ik_lhs():  # generate a simple Left Hand side matrix
 #   if l<0,  clear the bar.
 #   default bar length = 40
 #
-def prog_bar(l, lmax, msg = ''):
+def prog_bar(l, lmax, length=25,  msg = ''):
     if l<0:
         print ''
         sys.stdout.flush()
 
         return
-    if l>lmax:
-        l = lmax
-    n = int(lmax*(float(l)/float(lmax))) + 1
-    n2 = lmax - n
+    
+    ratio = float(l)/float(lmax)
+    n = int(length*ratio)
+    n2 = length - n
     stringval = '='*n + '.'*n2 + '] '+msg
-    percent =  int(100*l/float(lmax))
-    sys.stdout.write(('\r [%2d%s] ['+stringval) % (percent, '%'))
+    percent =  int(100*ratio)
+    sys.stdout.write(('\r [%3d%s] ['+stringval) % (percent, '%'))
     sys.stdout.flush()
     return
 
