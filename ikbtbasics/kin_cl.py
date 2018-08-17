@@ -290,6 +290,12 @@ class mechanism:
     #    T21*T10*Td     = T23*...T_56
     #            . . .
     #    T54*T43*T32*T21*T10*Td = T56
+    #
+    #  Aug '18 - also do some more:
+    #    T10*Td*T65 = T12*T23*T34*T45  (needed for UR5)
+    #    T21*T10*Td*T65*T54 = T23*T34
+    #
+    
 
     def get_mequation_set(self):
         self.Td = hf.ik_lhs()
@@ -317,6 +323,18 @@ class mechanism:
         lhs = H_inv_S(self.T_45)*H_inv_S(self.T_34)*H_inv_S(self.T_23)*H_inv_S(self.T_12)*H_inv_S(self.T_01)*self.Td
         rhs =                                               self.T_56
         list.append(matrix_equation(lhs,rhs))
+        
+        # Aug 18 new equations added
+        
+        lhs = H_inv_S(self.T_01)*self.Td*H_inv_S(self.T_56)
+        rhs =                     self.T_12*self.T_23*self.T_34*self.T_45
+        list.append(matrix_equation(lhs,rhs))
+        
+        lhs = H_inv_S(self.T_12)*H_inv_S(self.T_01)*self.Td*H_inv_S(self.T_56)*H_inv_S(self.T_45)
+        rhs =                          self.T_23*self.T_34
+        list.append(matrix_equation(lhs,rhs))
+        
+        
         return list
 
 
