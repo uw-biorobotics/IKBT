@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-#     Small helper functions for IKBT debugging 
+#     Small helper functions for IKBT debugging
 #
  # had to separate tests form helperfunctions b/c of circular imports
  #   see tests/helpertest.py
@@ -19,8 +19,9 @@
 # 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
 
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- 
+
 import unittest
+import sys as sys
 import sympy as sp
 
 #######################################################################3
@@ -31,13 +32,13 @@ def print_status(bb, label):
     print "    --- ", label, " ---"
     print "            Solved:   " , bb.get('solutions')
     print "            Unknowns: " , bb.get('unknowns')
-    
+
 def print_debug(label):
     print label
-    
+
 def count_unknowns(unknowns, expr):
     n = 0
-    for u in unknowns: 
+    for u in unknowns:
         if(expr.has(u.symbol) and u.solved == False):
             n += 1
     return n
@@ -45,12 +46,12 @@ def count_unknowns(unknowns, expr):
 #return a list of unknown objects that exsits in a exper
 def get_unknowns(unknowns, expr):
     us = []
-    for u in unknowns: 
+    for u in unknowns:
         if(expr.has(u.symbol) and u.solved == False):
             us.append(u)
     return us
 
-# return a list of all variables in an expression which 
+# return a list of all variables in an expression which
 #    belong to a list of variables.
 
 def get_variables(variables, expr):
@@ -58,20 +59,20 @@ def get_variables(variables, expr):
     #print 'get_variables: ', expr
     for v in variables:
         #print 'get_variables: ', v.symbol
-        if(expr.has(v.symbol)):   
-            vs.append(v) 
+        if(expr.has(v.symbol)):
+            vs.append(v)
     return vs
 
-# get the varible(unknown) object by its symbol 
+# get the varible(unknown) object by its symbol
 def find_obj(th_sym, unknowns):
     for unk in unknowns:
         if unk.symbol == th_sym:
             return unk
     return None
-    
+
 
 #    TODO:   still needed????
-# find a variable higher up in the solution tree 
+# find a variable higher up in the solution tree
 #    which has been used in the current solution
 
 def find_ancestor(node, var):
@@ -86,7 +87,7 @@ def find_ancestor(node, var):
             return find_ancestor(node.parent, var)
 
 
-         
+
 def ik_lhs():  # generate a simple Left Hand side matrix
     m = sp.zeros(4)
     for i in [1,2,3]:
@@ -101,9 +102,32 @@ def ik_lhs():  # generate a simple Left Hand side matrix
     m[3,1] = 0
     m[3,2] = 0
     m[3,3] = 1
-    return m   
+    return m
 
-       
+
+#
+#  Print a progress bar.  lmax = your full job
+#                         l = your current iteration
+#   if l<0,  clear the bar.
+#   default bar length = 40
+#
+def prog_bar(l, lmax, length=25,  msg = ''):
+    if l<0:
+        print ''
+        sys.stdout.flush()
+
+        return
+    
+    ratio = float(l)/float(lmax)
+    n = int(length*ratio)
+    n2 = length - n
+    stringval = '='*n + '.'*n2 + '] '+msg
+    percent =  int(100*ratio)
+    sys.stdout.write(('\r [%3d%s] ['+stringval) % (percent, '%'))
+    sys.stdout.flush()
+    return
+
+
 #######################################################################################
 
 #  TODO:  this is no longer needed
@@ -130,16 +154,16 @@ class stack():
             return True
         else:
             return False
-        
+
     def isEmpty(self):
         if (len(self.data) == 0):
             return True
         else:
             return False
-        
+
     def Clear(self):   # erase the stack
         self.data = []
-        
+
     def push(self, data):
         if self.isFull():
             raise StackFullError()

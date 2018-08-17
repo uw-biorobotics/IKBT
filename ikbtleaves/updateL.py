@@ -33,10 +33,11 @@ from ikbtfunctions.ik_robots import *
 import b3 as b3          # behavior trees
 import pickle     # for storing pre-computed FK eqns
 
-class updateL(b3.Action):    # Set up the equation lists
+class updateL(b3.Action):    # Set up (update) the equation lists
     def tick(self, tick):
         R = tick.blackboard.get('Robot')   # the current matrix equation
         variables = tick.blackboard.get('unknowns')   # the current list of unknowns
+
         # below was a time waster!!!
         #R.sum_of_angles_transform(variables)
         [L1, L2, L3p] = R.scan_for_equations(variables)   # get the equation lists

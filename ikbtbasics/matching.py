@@ -1,21 +1,3 @@
-# Dianmu Zhang
-# matching function: gourps notations(e.g. th_1s4) 
-# into sets of notations, such as
-#
-# [
-# [th1s01, th2s01, th3_s01, th4s01 ... etc ],
-# [th1s02, th2s02, th3_s02, th4s01 ... etc ],
-# etc ....
-# ]
-#
-# which is what control softwares usually requires
-# How to use:
-# insert "final_groups = matching_func(R.notation_collectiosn,
-# R.solution_nodes)"
-# after the BT is ticked, and solution_graph is generated
-# example, in test_Robots_new.py line 351
-
-
 # Copyright 2017 University of Washington
 
 # Developed by Dianmu Zhang and Blake Hannaford
@@ -30,6 +12,26 @@
 # 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
 
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+
+# Dianmu Zhang
+# matching function: this method groups specific joint
+# solutions ('notations', e.g. th_1s4) into the correct sets:
+#
+# [
+# [th1s01, th2s01, th3_s01, th4s01 ... etc ],
+# [th1s02, th2s02, th3_s02, th4s01 ... etc ],
+# etc ....
+# ]
+#
+# which is what control software requires for correct poses
+# How to use:
+# insert "final_groups = matching_func(R.notation_collections,
+# R.solution_nodes)"
+# after the BT is ticked, and solution_graph is generated
+# example, in test_Robots_new.py line 351
 
 import unittest
 import sympy as sp
@@ -125,6 +127,9 @@ def mark_off(notation_set, solution_nodes):
 # main function of matching
 def matching_func(notation_collections, solution_nodes):
     notation_d, max_len = sort_by_length(notation_collections)
+    if(max_len) < 1:
+        print 'matching.py: bad notation collection'
+        quit()
     start_list = notation_d[max_len] # get lists with most variables
     
     final_group = set()

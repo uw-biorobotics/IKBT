@@ -23,20 +23,7 @@ from ikbtfunctions.helperfunctions import *
 from ikbtbasics.kin_cl import *
 from ikbtbasics.ik_classes import *     # special classes for Inverse kinematics in sympy
 
-import b3 as b3          # behavior trees
-
-# retrieve thxy from thx, thy
-def find_xy(thx, thy):
-    # lookup table for thxy
-    thxy_lookup = {th_1: [th_12], th_2:[th_12, th_23], th_3:[th_23, th_34], \
-                    th_4:[th_34, th_45], th_5:[th_45, th_56], th_6:[th_56]}
-    # one symbol in common is the th_xy we're looking for
-    thx_s = set(thxy_lookup[thx])
-    thy_s = set(thxy_lookup[thy])
-    thxy_s = thx_s.intersection(thy_s)
-    thxy = thxy_s.pop()
-    return thxy
-    
+import b3 as b3          # behavior trees     
 
 class sum_id(b3.Action):   ##  we should change this name since its a transform
     def tick(self, tick):
@@ -67,10 +54,10 @@ class sum_id(b3.Action):   ##  we should change this name since its a transform
             for j in range(4):
                 # need new ways to identify thx +/- thy
                 # notation_squeeze does not pick up - cases
-                expr = Tmatrix[i, j]    
+                expr = Tmatrix[i, j]   
                 
             
-                sub_sin = expr.find(sp.sin(thx + sgn * thy)) #returns a subset of expressions with the quary pattern, this finds sin(thx) too
+                sub_sin = expr.find(sp.sin(thx + sgn * thy)) #returns a subset of expressions with the query pattern, this finds sin(thx) too
                 sub_cos = expr.find(sp.cos(thx + sgn * thy))
                     
                 found = False
@@ -90,13 +77,14 @@ class sum_id(b3.Action):   ##  we should change this name since its a transform
                 if found:
                     success_flag = True
                     th_xy = find_xy(d[thx], d[thy])
-                     #if not exists in the unknown list (this requires proper hashing), creat variable
+                     #if not exists in the unknown list (this requires proper hashing), create variable
                     if th_xy not in unkn_sums_sym:
-                        print "found 'joint' (sumofangle) variable: "
+                        print "found NEW 'joint' (updated) (sumofangle) variable: "
                         print th_xy
                         #  try moving soa equation to Tm.auxeqns
                         unkn_sums_sym.add(th_xy) #add into the joint variable set
                         newjoint = unknown(th_xy)
+                        newjoint.n = int(str(d[thx].n)+str(d[thy].n)) # store new subscript
                         #newjoint.joint_eq = d[thx] + d[sgn] * d[thy]
                         unknowns.append(newjoint) #add it to unknowns list 
                         tmpeqn = kequation(th_xy, d[thx] + d[sgn] * d[thy])

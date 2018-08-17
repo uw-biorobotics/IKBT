@@ -315,13 +315,32 @@ if (robot == 'Puma' ):  # Puma debug setup
 bb = b3.Blackboard()
 
 
+R.sum_of_angles_transform(unknowns) #get the sum of angle simplifications done
+
 ##   Generate the lists of soln candidate equations from the matrix equations
 [L1, L2, L3p] = R.scan_for_equations(unknowns)  # lists of 1unk and 2unk equations
 bb.set('eqns_1u', L1)   # eqns with one unk
 bb.set('eqns_2u', L2)   #           two unks
 bb.set('eqns_3pu', L3p)   #        three or more unks
 
-R.sum_of_angles_transform(unknowns) #get the sum of angle simplifications done
+
+for L in L1:
+    print '  1: ',L
+
+print '\n\n\n'
+
+
+for L in L2:
+    print '  2: ',L
+
+print '\n\n\n'
+
+
+for L in L3p:
+    print '  3+: ',L
+
+print '\n\n\n'
+quit()
 
 bb.set('Robot', R)
 bb.set('unknowns', unknowns)
