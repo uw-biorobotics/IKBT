@@ -95,12 +95,13 @@ def kinematics_pickle(rname, dh, constants, pvals, vv, unks, test):
         # set up Robot Object instance
         R = Robot(m, rname)              # set up IK structs etc
         R.scan_for_equations(unks)       # generate equation lists
+        
         # below is commented out for testing and devel of sum_of_angles_transform
-        #R.sum_of_angles_transform(unks)  # find sum of angles
+        R.sum_of_angles_transform(unks)  # find sum of angles
 
         R.generate_solution_nodes(unks) # generate solution nodes
 
-        print ' Storing results'
+        print ' Storing kinematics pickle for '+rname + '(',+name+')'
         with open(name,'wb') as pf:
             pickle.dump( [m, R, unks], pf, protocol=pprotocol)
 
@@ -196,11 +197,11 @@ class Robot:
         self.l3p = [] # 3 OR MORE unknowns
         sp.var('x')  #this will be used to generate 'algebraic zero'
         elist = self.mequation_list #.append(self.kequation_aux_list)
-        elist = self.kequation_aux_list +  self.mequation_list
-        print '------------------------- elist----'
-        print elist
-        print '--------'
-        quit()
+        #elist = self.kequation_aux_list +  self.mequation_list
+        #print '------------------------- elist----'
+        #print elist
+        #print '--------'
+        #quit()
         assert (len(elist) > 0), '  not enough equations '
         for eqn in elist:
             lhs = eqn.Td   #4x4 matrix

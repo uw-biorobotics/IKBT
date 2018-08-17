@@ -67,7 +67,6 @@ else:
 ((a_2, a_3)) = sp.symbols(('a_2', 'a_3'))
 sp.var('Px Py Pz')
 
-# move definition of Sum-of-Angles variables to ik-classes.py so they are available everywhere
 
 ########################################################
 #
@@ -321,7 +320,9 @@ bb.set('eqns_1u', L1)   # eqns with one unk
 bb.set('eqns_2u', L2)   #           two unks
 bb.set('eqns_3pu', L3p)   #        three or more unks
 
-R.sum_of_angles_transform(unknowns) #get the sum of angle simplifications done
+# normally below stmt is in the kinematics pickle code.  uncomment this when 
+# debugging sum of angles.
+#R.sum_of_angles_transform(unknowns) #get the sum of angle simplifications done
 
 bb.set('Robot', R)
 bb.set('unknowns', unknowns)
@@ -372,8 +373,6 @@ op.output_python_code(R, final_groups)
 oc.output_cpp_code(R, final_groups)
 
 
-
-
 #################################################
 # print out all eqnuations that used to solve variables
 # uncomment for debugging
@@ -394,7 +393,9 @@ for one_unk in unks:
 # define symbols that appear in solutions
 sp.var('r_11 r_12 r_13 r_21 r_22 r_23 r_31 r_32 r_33 Px Py Pz')
 
-ntests = 0
+
+assertion_count = 0
+ 
 if(robot == 'Chair_Helper'):
     fs = 'Chair_Helper   FAIL'
     for u in unks:
@@ -402,27 +403,26 @@ if(robot == 'Chair_Helper'):
         if(u.symbol == d_1):
             ntests += 1
             assert(u.nsolutions == 1), fs+' n(d_1)'
+            asertion_count += 1
             print str(u.solutions[0])
             assert(u.solutions[0] == Pz - l_4*r_33), fs + '  [d_1]'
+            asertion_count += 1
         if(u.symbol == th_2):
             ntests += 1
             assert(u.nsolutions == 2), fs+' n(th_2)'
+            asertion_count += 1
             print str(u.solutions[0]) + ', ' + str(u.solutions[1])
             assert(u.solutions[0] ==  sp.asin((Px-l_1-l_4*r_13)/l_2) ), fs + ' [th_2a]'
+            asertion_count += 1
             assert(u.solutions[1] == -sp.asin((Px-l_1-l_4*r_13)/l_2)+sp.pi ), fs + ' [th_2b]'
+            asertion_count += 1
 
+if(assertion_count == 0):
+    print '\n         Warning: \n   No Assertions yet for ' + robot
+else: 
+    string = 'test robot '+robot
+    print '\n\n\n                            ',string,'  PASSES ', assertion_count, 'tests!  \n\n\n'
 
-ntests = 0
-##  Test Assertions
-if(robot == 'Wrist'):
-    pass
-
-fs = '\n         Warning: \n   No Assertions yet for ' + robot
-if (robot == 'Puma'):
-    print fs
-
-string = 'test robot '+robot
-
-print '\n\n\n                            ',string,'  PASSES \n\n\n'
+print 'End of solution job'
 
 

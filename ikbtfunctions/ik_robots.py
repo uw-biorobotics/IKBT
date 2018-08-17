@@ -43,16 +43,16 @@ def robot_params(name):
     if(name == 'UR5'):  #Universal Robots - test case for 3 parallel axes
         dh = sp.Matrix([
             [    0    ,    0 ,  d_1 ,     th_1  ],
-            [-sp.pi/2 ,    0 ,   0  ,     th_2  ],
+            [ sp.pi/2 ,    0 ,   0  ,     th_2  ],
             [    0    ,   a_2,   0  ,     th_3  ],   
             [    0    ,   a_3,  d_4 ,     th_4  ],      
             [ sp.pi/2 ,   0 ,   d_5 ,     th_5  ],      
-            [ sp.pi/2 ,   0 ,   d_6 ,     th_6  ]
+            [ -sp.pi/2 ,   0 ,   d_6 ,     th_6  ]
             ])
         vv = [1,1,1,1,1,1]
 
         variables =  [unknown(th_1), unknown(th_2), unknown(th_3), unknown(th_4), unknown(th_5), unknown(th_6)]
-        params = [a_2,a_3,d_1,d_3,d_4,d_5,d_6]
+        params = [a_2,a_3,d_1,d_4,d_5,d_6]
         pvals = {a_2: .425, a_3: .392, d_1:.089, d_4:.109, d_5:.095, d_6:.082}  # meters
    
      
