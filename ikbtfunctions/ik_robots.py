@@ -32,7 +32,7 @@ from ikbtbasics.ik_classes import *     # special classes for Inverse kinematics
 #####
 def robot_params(name):
     pvals = {}   # null for most robots
-    List = ['UR5', 'Puma', 'Chair_Helper', 'Wrist', 'MiniDD', 'Olson13','Stanford', 'Chair6DOF','Khat6DOF','Craig417']
+    List = ['UR5', 'Puma', 'Chair_Helper', 'Wrist', 'Arm_3', 'MiniDD', 'Olson13','Stanford', 'Chair6DOF','Khat6DOF','Craig417']
     if not (name in List):
         print 'robot_params(): Unknown robot, ' + name 
         print 'Here are the defined robots: '
@@ -40,6 +40,24 @@ def robot_params(name):
             print '   ', n
         quit()
         
+
+    if(name == 'Arm_3'):         # two link planar test (Issue #12) 
+        #
+        dh = sp.Matrix([
+        [ 0 , a_1 , 0 , th_1 ],
+        [ 0 , a_2 , 0 , th_2 ],
+        [ 0 , a_3 , 0 , th_3 ],
+        [ 0 , 0 , 0 , 0 ],
+        [ 0 , 0 , 0 , 0 ],
+        [ 0 , 0 , 0 , 0 ]
+        ])
+
+        vv = [1,1,1,0,0,0]
+        variables =  [unknown(th_1), unknown(th_2), unknown(th_3)]
+        params = [a_1, a_2, a_3]
+        pvals = {a_1:1, a_2:1, a_3:1}
+
+
     if(name == 'UR5'):  #Universal Robots - test case for 3 parallel axes
         dh = sp.Matrix([
             [    0    ,    0 ,  d_1 ,     th_1  ],

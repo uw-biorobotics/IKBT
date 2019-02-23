@@ -101,7 +101,7 @@ def kinematics_pickle(rname, dh, constants, pvals, vv, unks, test):
 
         R.generate_solution_nodes(unks) # generate solution nodes
 
-        print ' Storing kinematics pickle for '+rname + '(',+name+')'
+        print ' Storing kinematics pickle for '+rname + '('+name+')'
         with open(name,'wb') as pf:
             pickle.dump( [m, R, unks], pf, protocol=pprotocol)
 

@@ -45,12 +45,16 @@ class test_algebra_id(b3.Action):    # tester for your ID
         
         Ts[0,1] =  th_2 + l_1*l_2
         Ts[0,2] =  d_1*l_3 + l_1
+        
+        Ts[1,1] =  th_5 + th_2*l_1
+        Ts[1,2] =  0
+
 
         Ts[2,1] =  th_2 * th_3 + l_1
         Ts[2,2] =  sp.sin(th_3)
 
-        Ts[1,1] =  th_5 + th_2*l_1
-        Ts[1,2] =  0
+        Ts[3,1] = sin(th_1 + th_2)
+        Ts[3,2] = sin(th_1 + th_2 + th_3)
 
         testm = matrix_equation(Td,Ts)
 
@@ -167,7 +171,7 @@ class TestSolver002(unittest.TestCase):
         algebra_tester = b3.BehaviorTree()
         bb = b3.Blackboard()  
         bb.set('Robot', Robot())
-        setup = test_algebra_id()
+        setup = test_algebra_id()  # see top of this file
         aid   = algebra_id()
         aid.Name = 'Algebra ID'
         aid.BHdebug = self.DB

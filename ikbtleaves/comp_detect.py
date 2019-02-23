@@ -41,6 +41,10 @@ class comp_det(b3.Action):
         unks = tick.blackboard.get('unknowns')
         Tm = tick.blackboard.get('Tm')
         R  = tick.blackboard.get('Robot')
+        
+        L1 = tick.blackboard.get('eqns_1u')
+        L2 = tick.blackboard.get('eqns_2u')
+        L3 = tick.blackboard.get('eqns_3pu')
         n = 0
         ns = 0
         for u in unks:
@@ -48,7 +52,11 @@ class comp_det(b3.Action):
             if(u.solved):
                 ns += 1
         #if(self.BHdebug):
-        print '\n\n\n\n'
+        print '\n\n'
+        print 'L1: ', L1   ##  for debugging sum of angles
+        print 'L2: ', L2
+        print 'L3: ', L3
+        print '\n\n'
         print '           Completion Detector: ', n, ' variables, ', ns, ' are solved.'
         print '             solved: ',
         for u in unks:
