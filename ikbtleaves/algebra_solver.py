@@ -29,6 +29,7 @@ from ikbtbasics.ik_classes import *     # special classes for Inverse kinematics
 
 import b3 as b3          # behavior trees
 from assigner_leaf  import *
+from comp_detect import *
 
 
  
@@ -45,6 +46,7 @@ class test_algebra_id(b3.Action):    # tester for your ID
         
         Ts[0,1] =  th_2 + l_1*l_2
         Ts[0,2] =  d_1*l_3 + l_1
+        #Ts[0,3] = sp.sin(th_1)*l2 + l_1
         
         Ts[1,1] =  th_5 + th_2*l_1
         Ts[1,2] =  0
@@ -53,19 +55,26 @@ class test_algebra_id(b3.Action):    # tester for your ID
         Ts[2,1] =  th_2 * th_3 + l_1
         Ts[2,2] =  sp.sin(th_3)
 
-        Ts[3,1] = sin(th_1 + th_2)
-        Ts[3,2] = sin(th_1 + th_2 + th_3)
+        Ts[3,1] = sp.sin(th_1 + th_2)
+        Ts[3,2] = sp.sin(th_1 + th_2 + th_3)
+        
 
         testm = matrix_equation(Td,Ts)
+        sp.var('th_12 th_123 B')  # B is "known"
 
         ud1  = unknown(d_1)
+        u12 = unknown(th_12)
+        u123 = unknown(th_123)
+        uth1 = unknown(th_1)
         uth2 = unknown(th_2)
         uth3 = unknown(th_3)
         uth4 = unknown(th_4)
         uth5 = unknown(th_5)
-        variables = [ud1, uth2, uth3, uth4, uth5]
+        variables = [ud1,  uth1, uth2, uth3, uth4, uth5,u123]
 
         [L1, L2] = R.scan_Mequation(testm, variables)  # lists of 1unk and 2unk equations
+        
+        L1.append(kequation(th_123, th_1+th_2+B))
         
         # fix!!
         R.generate_solution_nodes(variables) # generate solution nodes
@@ -102,7 +111,7 @@ class algebra_id(b3.Action):    # action leaf for
                     if(self.BHdebug):
                         print 'algebra ID: Looking for unknown: ', u.symbol, ' in equation: ', 
                         print e ,
-                        print "  - ", count_unknowns(unknowns, e.RHS), " unknown"
+                        print "  - ", count_unknowns(unknowns, e.RHS), " unknown in RHS"
                     if (e.RHS.has(sp.sin(u.symbol)) or e.RHS.has(sp.cos(u.symbol)) or\
                         e.LHS.has(sp.sin(u.symbol)) or e.LHS.has(sp.cos(u.symbol))):
                         continue   # this shouldbe caught by another ID
@@ -160,7 +169,7 @@ class algebra_solve(b3.Action):    # Solve asincos equation pairs
 #  Test code:
 class TestSolver002(unittest.TestCase):
     def setUp(self):
-        self.DB = False  # debug flag
+        self.DB = True  # debug flag
         print '\n\n===============  Test algebra Solver  ====================='
         return
     
@@ -179,10 +188,14 @@ class TestSolver002(unittest.TestCase):
         ais.Name = 'Algebra Solver'
         ais.BHdebug = self.DB
         
-        asgn = assigner()
-        subtree = b3.Sequence([asgn, aid, ais])
+        compdet = comp_det()
+        compdet.Name = 'Completion Checker'
+        compdet.BHdebug = self.DB
         
-        test = b3.Sequence([setup, b3.Repeater(subtree, max_loop = 6)])          
+        asgn = assigner()
+        subtree = b3.Sequence([asgn, aid, ais,compdet])
+        
+        test = b3.Sequence([setup, b3.Repeater(subtree, max_loop = 15)])          
         algebra_tester.root = test
         
         # Run the testing BT 

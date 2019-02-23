@@ -487,10 +487,10 @@ class unknown(object):
             if sol_node.symbol == self.symbol:
                 curr_node = sol_node
 
-        print ' -  - - - - '
-        print R.solution_nodes
-        print 'Trying to find: ',  self.symbol
-        print ' - - - - - '
+        #print ' -  - - - - '
+        #print R.solution_nodes
+        #print 'Trying to solution tree node for: ',  self.symbol
+        #print ' - - - - - '
         assert(curr_node is not None), ' Trouble finding solution tree node'
 
         curr_node.solveorder = R.solveN
@@ -511,7 +511,8 @@ class unknown(object):
         curr_node.detect_parent(R)
         curr_node.generate_notation(R)
         #curr_node.generate_solutions(R)
-        print 'finish set_solved', self.symbol
+        #print 'finish set_solved', self.symbol
+        print '\n\n'
 
     def scan(self,MatEqn):        # find list of kequations containing this UNK
         self.eqnlist = []   # reset eqn list

@@ -146,7 +146,7 @@ tanSol.BHdebug =  True #LeafDebug
 
 algID = algebra_id()
 algID.Name = "Algebra ID"
-algID.BHdebug = LeafDebug
+algID.BHdebug = True #LeafDebug
 
 algSolver = algebra_solve()
 algSolver.Name = "Algebra Solver"

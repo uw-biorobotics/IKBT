@@ -36,7 +36,8 @@ def print_status(bb, label):
 def print_debug(label):
     print label
 
-def count_unknowns(unknowns, expr):
+## how many unknowns are in expr?
+def count_unknowns(unknowns, expr): 
     n = 0
     for u in unknowns:
         if(expr.has(u.symbol) and u.solved == False):
