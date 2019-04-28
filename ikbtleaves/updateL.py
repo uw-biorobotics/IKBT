@@ -117,6 +117,29 @@ class TestSolver007(unittest.TestCase):    # change TEMPLATE to unique name (2 p
         self.assertTrue(L1[0].RHS == d_3, fs)
         self.assertTrue(L1[0].LHS == -Px*sp.sin(th_1)+Py*sp.cos(th_1), fs)
         print '-----'
+        
+        #    Print out lists L1 and L2 in form of python code to make a new version that will 
+        #      not require the painful/slow Puma FK
+        
+        print 'Code excerpt: (insert at line 124!)'
+        print 'L1 = []'
+        print 'l2 = []'
+        
+        for eqn in L1:
+            s1 = eqn.LHS
+            s2 = eqn.RHS
+            print 'L1.append(kequation('+s1+', '+s2+'))'
+        for eqn in L2:
+            s1 = eqn.LHS
+            s2 = eqn.RHS
+            print 'L1.append(kequation('+s1+', '+s2+'))'
+        
+        
+        print '\n  End of code generation  \n'      
+        
+        
+        quit()
+        
         for e in L2:
             print '   ', e.RHS
         print 'L2[0].RHS: ', L2[0].RHS

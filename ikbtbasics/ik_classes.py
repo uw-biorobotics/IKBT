@@ -973,8 +973,11 @@ if __name__ == "__main__":   # tester code for the classes in this file
     A2 =  Px*sp.sin(th_234)*sp.cos(th_1) + Py*sp.sin(th_1)*sp.sin(th_234) + Pz*sp.cos(th_234) - a_2*sp.sin(th_34) - a_3*sp.sin(th_4) - d_1*sp.cos(th_234)
 
     print '\n\n\n'
-    print A1
+    print '---'
+    print A1          ##   failing to substitute 3-way SOA right now
+    print '---'
     print A2
+    print '---'
     print sp.simplify(A1-A2)
     print '\n\n\n'
     assert sp.simplify(A1-A2)==0, fs
