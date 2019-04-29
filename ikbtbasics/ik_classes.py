@@ -78,8 +78,9 @@ def kinematics_pickle(rname, dh, constants, pvals, vv, unks, test):
     if(os.path.isfile(name)):
         with open(name, 'rb') as pick:
             print '\Trying to read pre-computed forward kinematics from '+name
-            [m, R, unks]  = pickle.load(pick)
+            [m, R, unknowns]  = pickle.load(pick)
             print 'Successfully read pre-computed forward kinematics'
+            print 'pickle contained ', len(unknowns), ' unknowns'
     else:
         #print 'WRONG - quitting, error: ',sys.exc_info()[0]
         #sys.exit
@@ -100,12 +101,12 @@ def kinematics_pickle(rname, dh, constants, pvals, vv, unks, test):
         R.sum_of_angles_transform(unks)  # find sum of angles
 
         R.generate_solution_nodes(unks) # generate solution nodes
-
         print ' Storing kinematics pickle for '+rname + '('+name+')'
         with open(name,'wb') as pf:
             pickle.dump( [m, R, unks], pf, protocol=pprotocol)
+        unknowns = unks    # be sure to return updated unknown list (including SOAs)
 
-    return [m,R,unks]
+    return [m,R,unknowns]
 
 
 def check_the_pickle(dh1, dh2):   # check that two mechanisms have identical DH params
@@ -918,9 +919,10 @@ if __name__ == "__main__":   # tester code for the classes in this file
     robot = 'SOA Test Robot'
 
     testing = False  # not using this now
-    [m, R, unknowns] = kinematics_pickle(robot, dh, params, pvals, vv, variables, testing)
+    [m, R, tmpvars] = kinematics_pickle(robot, dh, params, pvals, vv, variables, testing)
     print 'GOT HERE: robot name: ', R.name
 
+    variables = tmpvars
     R.name = robot
     R.params = params
 
