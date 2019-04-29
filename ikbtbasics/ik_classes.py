@@ -757,6 +757,8 @@ def erank(list_L):    # rearrange list of eqns by length
 
 
 
+#############    main       test the library  #########################
+#
 if __name__ == "__main__":   # tester code for the classes in this file
 
     #j1 = joint_var(th_12)
@@ -937,11 +939,13 @@ if __name__ == "__main__":   # tester code for the classes in this file
     # set up Robot Object instance
     #R = Robot(m, 'SOA 2,3 TEST Robot')              # set up IK structs etc
 
+      #  below no longer needed - this is now cached in the pickle
 
-
-    R.scan_for_equations(variables)       # generate equation lists
-    # below is commented out for testing and devel of sum_of_angles_transform
-    R.sum_of_angles_transform(variables)  # find sum of angles
+    #R.scan_for_equations(variables)       # generate equation lists
+    ## below is commented out for testing and devel of sum_of_angles_transform
+    #R.sum_of_angles_transform(variables)  # find sum of angles
+    
+    
     fs = 'ik_classes: sum_of_angles_transform FAILS 3-way sum'
 
     print '\n the variables: ', variables
