@@ -110,13 +110,12 @@ def ik_lhs():  # generate a simple Left Hand side matrix
 #  Print a progress bar.  lmax = your full job
 #                         l = your current iteration
 #   if l<0,  clear the bar.
-#   default bar length = 40
+#   default bar length = 25
 #
 def prog_bar(l, lmax, length=25,  msg = ''):
-    if l<0:
-        print ''
+    if l<0: 
+        print '\n'   # clean up after
         sys.stdout.flush()
-
         return
     
     ratio = float(l)/float(lmax)
