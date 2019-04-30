@@ -277,26 +277,6 @@ class Robot:
         print 'Starting sum-of-angles scan. Please be patient'
         unkn_sums_sym = set() #keep track of joint variable symbols
 
-
-        ###  Get a list of individual unique equations
-        #k = equation number
-        #i = row, j=col
-        #indiv_mat_eqns = []
-        #for k in range(0,len(self.mequation_list)):  # contains duplicates
-            #for row in [0,1,2]:
-                #for col in [0,1,2,3]:
-                    #ieq = self.mequation_list[k].get_kequation_list()
-                    #for i in ieq:
-                        #indiv_mat_eqns.append(i)  # get next matrix equation
-        ## eliminate dupes
-        #indiv_mat_eqns = list(dict.fromkeys(indiv_mat_eqns))
-        #print 'Ive got ', len(indiv_mat_eqns), ' unique equations:'
-        #for e in indiv_mat_eqns:
-            #print ''
-            #print e
-        #quit()
-        
-
         #k = equation number
         #i = row, j=col
         nits = len(self.mequation_list) * 3 * 4 # total number of equations
@@ -308,7 +288,11 @@ class Robot:
                 for j in [0,1,2,3]:
                     it_number += 1
                     #print ' .. '
-                    prog_bar(it_number, nits, barlen, 'Sum of Angles')
+                    #prog_bar(it_number, nits, barlen, 'Sum of Angles')
+                    print 'kij: ', k,i,j
+                    if (k==5 and i==2 and j==3):
+                        print 'Got to A2 case.'
+                        
                     
                     #print 'Sum of Angles: eqn,row,col: ', k,i,j
                     # simplify with lasting effect (note: try sp.trigsimp() for faster????)
@@ -354,7 +338,9 @@ def sum_of_angles_sub(expr, variables):
     cw = sp.Wild('cw')
     s1 = sp.Wild('s1')
     s2 = sp.Wild('s2') 
-    
+
+    newjoint = None
+    tmpeqn = None
     found2 = found3 = False
     matches = expr.find(sp.sin(aw+bw+cw)) | expr.find(sp.cos(aw+bw+cw))
     #print '- -  - - -'
@@ -383,6 +369,8 @@ def sum_of_angles_sub(expr, variables):
         if len(varlist) == 3:
             found3 = True
 
+        newjoint = None
+        tmpeqn = None
         if(found2 or found3):  # we've got a SOA!
 
             # generate index of the SOA variable
@@ -817,6 +805,8 @@ if __name__ == "__main__":   # tester code for the classes in this file
     ############################################################3
     #
     #  basic sum of angles testing:
+    s = 'Basic Sum of Angles Testing'
+    print '\n\n ' + s + '\n\n'
     
     sp.var('a1 a2 a3')   # note subscripts required
     
@@ -852,6 +842,9 @@ if __name__ == "__main__":   # tester code for the classes in this file
     #   Problem-specific SOA test
     #
 
+    s = 'Problem Specific Sum of Angles Testing'
+    print '\n\n ' + s + '\n\n'
+    
     sp.var('Px Py Pz')
     unks01 =  [kc.unknown(th_1), kc.unknown(th_2), kc.unknown(th_3), kc.unknown(th_4), kc.unknown(th_5), kc.unknown(th_6)]
     i=1
@@ -888,6 +881,11 @@ if __name__ == "__main__":   # tester code for the classes in this file
     #  advanced SOA testing 
     #
     # Generate some SUM of Angles Kin eqns
+    
+    s = 'Advanced Sum of Angles Testing: DH parameters/UR5'
+    print '\n\n ' + s + '\n\n'
+    
+    
     dh = sp.Matrix([
             [    0    ,    0 ,  d_1 ,     th_1  ],  # based on UR5 but simplified
             [-sp.pi/2 ,    0 ,   0  ,     th_2  ],
@@ -947,7 +945,7 @@ if __name__ == "__main__":   # tester code for the classes in this file
 
     ####   Temp code:  manually review all the FK matrix equations(!)
     eqn = 0
-    row = 1
+    row = 2
     col = 3
     print 'Equations: '
     enbr = 0
