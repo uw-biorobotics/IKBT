@@ -288,11 +288,8 @@ class Robot:
                 for j in [0,1,2,3]:
                     it_number += 1
                     #print ' .. '
-                    #prog_bar(it_number, nits, barlen, 'Sum of Angles')
-                    print 'kij: ', k,i,j
-                    if (k==5 and i==2 and j==3):
-                        print 'Got to A2 case.'
-                        
+                    prog_bar(it_number, nits, barlen, 'Sum of Angles')
+                    #print 'kij: ', k,i,j
                     
                     #print 'Sum of Angles: eqn,row,col: ', k,i,j
                     # simplify with lasting effect (note: try sp.trigsimp() for faster????)
@@ -302,6 +299,7 @@ class Robot:
                     lhs = Meq.Td[i,j]
                     rhs = Meq.Ts[i,j]
 
+                        
                     # simplify LHS
                     lhs, newj, newe = sum_of_angles_sub(lhs, variables)
                     if newj:
@@ -391,9 +389,9 @@ def sum_of_angles_sub(expr, variables):
                     vexists = True
             newjoint = None
             tmpeqn = None
+            th_new = sp.var('th_'+ni) # create iff doesn't yet exist
+            th_subval = th_new
             if not vexists:
-                th_new = sp.var('th_'+ni) # create iff doesn't yet exist
-                th_subval = th_new
                 print ":  found new 'joint' (sumofangle) variable: ", th_new
                 #  try moving soa equation to Tm.auxeqns
                 #unkn_sums_sym.add(th_new) #add into the joint variable set
@@ -415,6 +413,7 @@ def sum_of_angles_sub(expr, variables):
             #print ' = '
             #print self.mequation_list[k].Ts[i,j]
             #print '========'
+ 
     return (expr,newjoint, tmpeqn)
 
 def get_variable_index(vars, symb):
