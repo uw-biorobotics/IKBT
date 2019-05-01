@@ -42,7 +42,8 @@ class assigner(b3.Action):
             curr = unknowns[counter]
             counter = counter + 1
             if not curr.solved:
-                print "variable on blackboard: %s"%curr.symbol
+                print "\n\nAssigner: variable on blackboard: %s"%curr.symbol
+                print '\n\n'
                 tick.blackboard.set("counter", counter)
                 tick.blackboard.set("curr_unk", curr)
                 return b3.SUCCESS
@@ -53,42 +54,3 @@ class assigner(b3.Action):
         tick.blackboard.set("curr_unk", unknowns[counter])
         return b3.SUCCESS
             #print "current location is %d"%counter
-
-
-        # curr = unknowns[counter//len(unknowns)]
-
-        # curr_round = 0
-        # while curr.solved and curr_round < len(unknowns):
-        #     counter = counter + 1
-        #     curr_round = curr_round + 1
-        #     curr = unknowns[counter//len(unknowns)]
-
-        # if found a unknown that's unsolved
-        # before looping a whole circle
-        # if not(curr.solved):
-        #     print "variable on blackboard: %s"%curr.symbol
-        #     tick.blackboard.set("counter", counter)
-        #     tick.blackboard.set("curr_unk", curr)
-        #     return b3.SUCCESS
-        # else:
-        #     return b3.FAILURE
-        # if counter >= len(unknowns):
-        #     counter = 0
-        #     while counter < len(unknowns):
-        #         if unknowns[counter].solved:
-        #             counter = counter + 1
-        #         curr = unknowns[counter]
-        #     if counter == len(unknowns):
-        #         curr = unknowns[0]
-        #tick.blackboard.set("counter", counter)
-        #tick.blackboard.set("curr_unk", curr)
-            
-        ## this scheme will put unsolved variable on the top of the list over blackboard over and over
-        # for unk in unknowns:
-            # #only load variable that's not currently on, avoid stuck situation
-            # if not unk.solved and (curr != unk): 
-                # print "variable on blackboard: %s"%unk.symbol
-                # tick.blackboard.set("curr_unk", unk)
-                # return b3.SUCCESS
-                
-        #return b3.SUCCESS

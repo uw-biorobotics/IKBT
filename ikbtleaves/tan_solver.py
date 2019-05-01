@@ -80,7 +80,8 @@ class tan_id(b3.Action):    # action leaf for ID eqns solved by atan2()
 
                 # fix the eqn, but not changing the original equation - DZ
                 tmp = e.RHS-e.LHS
-                lhs = l_1 - l_1 
+                sp.var('dummy')
+                lhs =  dummy-dummy  # x-x is not same thing as 0 (!)
                 if(not (tmp).has(u.symbol)):
                     continue        # only look at equations having the current unknown in them
                 if(self.BHdebug):
@@ -126,9 +127,10 @@ class tan_id(b3.Action):    # action leaf for ID eqns solved by atan2()
                     co = d1[Aw]/d2[Cw]   # take ratio
                     # it's not solvable if (simplified) coefficient contains unknowns, or other parts have unknowns
                 
-                    print 'tan_id: (',u.symbol,')   0 =  Aw*sin(th)+Bw , 0 = Cw*cos(th) + Dw '
-                    print 'Aw: ', d1[Aw], '   Bw: ', d1[Bw]
-                    print 'Cw: ', d2[Cw], '   Dw: ', d2[Dw]
+                    #print 
+                    #print 'tan_id: (',u.symbol,')   0 =  Aw*sin(th_XX)+Bw , 0 = Cw*cos(th_XX) + Dw '
+                    #print 'Aw: ', d1[Aw], '   Bw: ', d1[Bw]
+                    #print 'Cw: ', d2[Cw], '   Dw: ', d2[Dw]
                     
                     
                     too_many_unknowns = False

@@ -18,7 +18,7 @@
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import unittest
 import sympy as sp
-import ikbtbasics.ik_classes as ikc
+import ikbtbasics.kin_cl as kc 
 from ikbtfunctions.helperfunctions import *
 
 #####################################################################################
@@ -27,11 +27,11 @@ from ikbtfunctions.helperfunctions import *
 class TestSolver009(unittest.TestCase):    # change TEMPLATE to unique name (2 places)
     def setUp(self):
         sp.var('d_1 th_2 th_3 th_4 th_5')
-        self.ud1  = ikc.unknown(d_1)
-        self.uth2 = ikc.unknown(th_2)
-        self.uth3 = ikc.unknown(th_3)
-        self.uth4 = ikc.unknown(th_4)
-        self.uth5 = ikc.unknown(th_5)
+        self.ud1  = kc.unknown(d_1)
+        self.uth2 = kc.unknown(th_2)
+        self.uth3 = kc.unknown(th_3)
+        self.uth4 = kc.unknown(th_4)
+        self.uth5 = kc.unknown(th_5)
         self.vars = [self.ud1, self.uth2, self.uth3, self.uth4, self.uth5]
         self.expression01 = self.uth2.symbol + sp.sin(self.uth4.symbol)
         
@@ -64,7 +64,7 @@ class TestSolver009(unittest.TestCase):    # change TEMPLATE to unique name (2 p
     def test_findobj(self):
         fs = 'find_obj()  FAIL'
         self.assertTrue(find_obj(self.uth3.symbol, self.vars) == self.vars[2], fs)
-        self.assertTrue(find_obj(ikc.unknown('random_name'), self.vars) == None, fs)
+        self.assertTrue(find_obj(kc.unknown('random_name'), self.vars) == None, fs)
         return
     
     def test_get_vars(self):

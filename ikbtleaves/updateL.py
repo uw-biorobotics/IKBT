@@ -72,58 +72,107 @@ class TestSolver007(unittest.TestCase):    # change TEMPLATE to unique name (2 p
         #   The famous Puma 560  (solved in Craig)
         #
         import os as os
-        print '\n------------'
-        print 'Current dir: ', os.getcwd()
-        pickname = 'fk_eqns/Puma_pickle.p'
-        if(os.path.isfile(pickname)):
-            print 'a pickle file will be used to speed up'
-        else:
-            print 'There was no pickle file'
-        print '------------'
+        
+        PickleFK = True     # True: compute/retrieve FK    False: use hard coded equations (not yet workign)
+        
+        if PickleFK:
+            print '\n------------'
+            print 'Current dir: ', os.getcwd()
+            pickname = 'IKBT/fk_eqns/Puma_pickle.p'
+            if(os.path.isfile(pickname)):
+                print 'a pickle file will be used to speed up'
+            else:
+                print 'There was no pickle file'
+            print '------------'
 
-        #return [dh, vv, params, pvals, variables]
-        robot = 'Puma'
-        [dh, vv, params, pvals, unknowns] = robot_params(robot)  # see ik_robots.py
-        #def kinematics_pickle(rname, dh, constants, pvals, vv, unks, test):
-        Test = True
-        [M, R, unk_Puma] = kinematics_pickle(robot, dh, params, pvals, vv, unknowns, Test)
-        print 'Starting Sum of Angle scan/transform'
-        R.sum_of_angles_transform(unknowns)
-        print 'Completed Sum of Angles scan/transform'
+            #return [dh, vv, params, pvals, variables]
+            robot = 'Puma'
+            [dh, vv, params, pvals, unknowns] = robot_params(robot)  # see ik_robots.py
+            #def kinematics_pickle(rname, dh, constants, pvals, vv, unks, test):
+            Test = True
+            [M, R, unk_Puma] = kinematics_pickle(robot, dh, params, pvals, vv, unknowns, Test)
+            print 'Starting Sum of Angle scan/transform'
+            R.sum_of_angles_transform(unknowns)
+            print 'Completed Sum of Angles scan/transform'
 
-        print 'GOT HERE: updateL robot name: ', R.name
+            print 'GOT HERE: updateL robot name: ', R.name
 
-        R.name = 'test: '+ robot # ??? TODO: get rid of this (but fix report)
+            R.name = 'test: '+ robot # ??? TODO: get rid of this (but fix report)
 
-        ##   check the pickle in case DH params were changed
-        check_the_pickle(M.DH, dh)   # check that two mechanisms have identical DH params
+            ##   check the pickle in case DH params were changed
+            check_the_pickle(M.DH, dh)   # check that two mechanisms have identical DH params
 
-        testerbt = b3.BehaviorTree()
-        setup = updateL()
-        setup.BHdebug = True
-        bb = b3.Blackboard()
-        testerbt.root= b3.Sequence([setup])  # this just runs updateL - not real solver
-        bb.set('Robot',R)
-        bb.set('unknowns', unk_Puma)
+            testerbt = b3.BehaviorTree()
+            setup = updateL()
+            setup.BHdebug = True
+            bb = b3.Blackboard()
+            testerbt.root= b3.Sequence([setup])  # this just runs updateL - not real solver
+            bb.set('Robot',R)
+            bb.set('unknowns', unk_Puma)
 
-        testerbt.tick('test', bb)
-        L1 = bb.get('eqns_1u')
-        L2 = bb.get('eqns_2u')
-        print L2[0].RHS
-        # print them all out(!)
-        sp.var('Px Py Pz')
-        fs = 'updateL: equation list building   FAIL'
-        #  these self.assertTrues are not conditional - no self.assertTrueion counting needed
-        self.assertTrue(L1[0].RHS == d_3, fs)
-        self.assertTrue(L1[0].LHS == -Px*sp.sin(th_1)+Py*sp.cos(th_1), fs)
-        print '-----'
-        for e in L2:
-            print '   ', e.RHS
-        print 'L2[0].RHS: ', L2[0].RHS
+            testerbt.tick('test', bb)
+            L1 = bb.get('eqns_1u')
+            L2 = bb.get('eqns_2u')
+            print L2[0].RHS
+            # print them all out(!)
+            sp.var('Px Py Pz')
+            fs = 'updateL: equation list building   FAIL'
+            #  these self.assertTrues are not conditional - no self.assertTrueion counting needed
+            self.assertTrue(L1[0].RHS == d_3, fs)
+            self.assertTrue(L1[0].LHS == -Px*sp.sin(th_1)+Py*sp.cos(th_1), fs)
+            print '-----'
+            
+            
+            ##########################################################################################
+            #    Print out lists L1 and L2 in form of python code to make a new version that will 
+            #      not require the painful/slow Puma FK
+            
+            print 'Code excerpt: (insert at line 124!)'
+            print 'L1 = []'
+            print 'l2 = []'
+            print 'unk_Puma =', unk_Puma
+            
+            def syconv(s):               
+                a = s
+                s = s.replace('sin(', 'sp.sin(')  # for correct code generation
+                s = s.replace('cos(', 'sp.cos(')
+                #print '--->',a , '/', s 
+                return s
+            
+            for eqn in L1:
+                s1 = str(eqn.LHS)
+                s2 = str(eqn.RHS)
+                s1 = syconv(s1)
+                s2 = syconv(s2)
+                print 'L1.append(kequation('+s1+', '+s2+'))'
+            for eqn in L2:
+                s1 = str(eqn.LHS)
+                s2 = str(eqn.RHS)
+                s1 = syconv(s1)
+                s2 = syconv(s2)
+                print 'L2.append(kequation('+s1+', '+s2+'))'
+            
+        
+            print '\n  End of code generation  \n'      
+        
+        
+        if not PickleFK:  # generate same equation lists as real FK for Puma             
+            L1 = []
+            L2 = []
+            sp.var('Px Py Pz d_3 d_4')
+            unk_Puma = [th_1, th_2, th_3, th_4, th_5, th_6, th_23]
+            for i in range(len(unk_Puma)):
+                unk_Puma[i] = unknown(unk_Puma[i])  # convert these to unknowns
+            L1.append(kequation(-Px*sp.sin(th_1) + Py*sp.cos(th_1), d_3))
+            L1.append(kequation(-Px*sp.sin(th_1) + Py*sp.cos(th_1) - d_3, 0))
+            L2.append(kequation(Pz, -a_2*sp.sin(th_2) - a_3*sp.sin(th_23) + d_1 - d_4*sp.cos(th_23)))
+            L2.append(kequation(Pz - d_1, -a_2*sp.sin(th_2) - a_3*sp.sin(th_23) - d_4*sp.cos(th_23)))
+
+
         fs = 'Sum of Angles Transform  (2-way)   FAIL'
-        #self.assertTrue(L2[0].RHS == -a_2*sp.sin(th_2)-a_3*sp.sin(th_23) + d_1 - d_4*(sp.cos(th_23)), fs)
-        self.assertTrue(L2[1].RHS == -sp.sin(th_23)*sp.sin(th_5)*sp.cos(th_4) - sp.cos(th_23)*sp.cos(th_5), fs)
-        #self.assertTrue(L2[0].LHS == Pz, fs)
+        self.assertTrue(L2[0].RHS == -a_2*sp.sin(th_2)-a_3*sp.sin(th_23) + d_1 - d_4*(sp.cos(th_23)), fs)
+        self.assertTrue(L2[1].RHS == -a_2*sp.sin(th_2) - a_3*sp.sin(th_23) - d_4*sp.cos(th_23), fs)
+        self.assertTrue(L2[0].LHS == Pz, fs)
 
         #########################################
         # test R.set_solved

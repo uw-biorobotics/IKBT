@@ -156,7 +156,9 @@ class test_sum_id(b3.Action):
     
 
 # after joint varible th_xy and th_x are solved, solve th_y = th_xy - th_y  (for thxy = thx + thy)
-# 
+#  
+
+# not currently used (April2019)
 class sum_solve(b3.Action):
     def tick(self, tick):
         unknowns = tick.blackboard.get("unknowns")
@@ -216,7 +218,7 @@ class sum_solve(b3.Action):
         
         return b3.FAILURE
             
-class test_sum_solve(b3.Action):
+class test_sum_solve(b3.Action):  
     def tick(self, tick):
         unknowns = tick.blackboard.get('unknowns')
         R = tick.blackboard.get('Robot')
