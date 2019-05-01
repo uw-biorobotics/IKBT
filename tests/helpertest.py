@@ -19,7 +19,6 @@
 import unittest
 import sympy as sp
 import ikbtbasics.kin_cl as kc 
-import ikbtbasics.ik_classes as ikc
 from ikbtfunctions.helperfunctions import *
 
 #####################################################################################
