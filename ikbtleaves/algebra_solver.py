@@ -29,7 +29,7 @@ from ikbtbasics.ik_classes import *     # special classes for Inverse kinematics
 
 import b3 as b3          # behavior trees
 from assigner_leaf  import *
-from comp_detect import *
+import comp_detect as cpd
 
 
  
@@ -192,7 +192,7 @@ class TestSolver002(unittest.TestCase):
         ais.Name = 'Algebra Solver'
         ais.BHdebug = self.DB
         
-        compdet = comp_det()
+        compdet = cpd.comp_det()
         compdet.Name = 'Completion Checker'
         compdet.BHdebug = self.DB
         
