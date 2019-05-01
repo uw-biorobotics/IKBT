@@ -93,6 +93,10 @@ class algebra_id(b3.Action):    # action leaf for
         unknowns = tick.blackboard.get('unknowns')   # the current list of unknowns
         
         one_unk = tick.blackboard.get('eqns_1u')
+        if(len(one_unk)==0):   # algebra-solver can only work on one-unknown equations
+            print 'algebra_id: there are no one-unknown equations'
+            return b3.FAILURE
+        
         two_unk = tick.blackboard.get('eqns_2u')
         R = tick.blackboard.get('Robot')
             

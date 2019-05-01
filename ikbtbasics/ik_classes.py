@@ -152,6 +152,9 @@ class Robot:
         self.params = []  # constant dh params such as l_4 etc.
         self.solution_nodes = []  # first one is the root, by solve order
         self.variables_symbols = []
+        #
+        #   "notations" means specifically labeled solution variables such as
+        #          th_1s2  (theta-1, solution 2)
         self.notation_graph = set() #solution nodes notation graph
         self.notation_collections = [] #solution notations divided into subgroups
 

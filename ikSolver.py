@@ -128,8 +128,8 @@ SolverDebug = False
 ###add in new nodes:assigner and rank node#############
 asgn = assigner()
 asgn.Name = "Assigner"
-rk = rank()
-rk.Name = "Rank Node"
+rankNode = rank()
+rankNode.Name = "Rank Node"
 #######################################################
 tanID = tan_id()
 tanID.Name = 'Tangent ID'
@@ -150,7 +150,7 @@ algID.BHdebug = True #LeafDebug
 
 algSolver = algebra_solve()
 algSolver.Name = "Algebra Solver"
-algSolver.BHdebug = LeafDebug
+algSolver.BHdebug = True
 
 algSol = b3.Sequence([algID, algSolver])
 algSol.Name = "Algebra ID and Solve"
@@ -224,14 +224,12 @@ compDetect.BHdebug = True
 #   Higher level BT nodes here
 #
 
-sc_tan = b3.Sequence([b3.OrNode([tanSol, scSol]), rk])
+sc_tan = b3.Sequence([b3.OrNode([tanSol, scSol]), rankNode])
 
 
 # this is the current working version
 # it's also possible to build customized BT
 worktools = b3.Priority([algSol, sc_tan, Simu_Eqn_Sol, sacSol, x2z2_Solver])
-
-
 
 subtree = b3.RepeatUntilSuccess(b3.Sequence([asgn, worktools]), 6)
 solveRoutine = b3.Sequence([sub_trans, subtree,  updateL, compDetect])
