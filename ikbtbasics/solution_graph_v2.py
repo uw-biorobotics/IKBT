@@ -171,7 +171,7 @@ class Node:
                     
 
         else:    # Non-root node
-            # (find the deepest level of parents and) get *product* of parents
+            # (find the deepest level of parents and) get product of parents
             # getting the product is safe here because we already
             # trimmed the infeasible pairs from last step (redundency detection)
             parents_notation_list = []

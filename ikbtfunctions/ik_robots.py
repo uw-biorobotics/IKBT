@@ -32,7 +32,7 @@ from ikbtbasics.ik_classes import *     # special classes for Inverse kinematics
 #####
 def robot_params(name):
     pvals = {}   # null for most robots
-    List = ['UR5', 'Puma', 'Chair_Helper', 'ArmRobo', 'Wrist', 'Arm_3', 'MiniDD', 'Olson13','Stanford', 'Chair6DOF','Khat6DOF','Craig417']
+    List = ['UR5', 'Puma', 'Chair_Helper', 'Wrist', 'MiniDD', 'Olson13','Stanford', 'Chair6DOF','Khat6DOF','Craig417']
     if not (name in List):
         print 'robot_params(): Unknown robot, ' + name 
         print 'Here are the defined robots: '
@@ -40,46 +40,6 @@ def robot_params(name):
             print '   ', n
         quit()
         
-    if(name == 'ArmRobo'):    # submitted by issue #15
-
-        # standardize on the order "alpha N-1, a N-1, d N, theta N' for the DH table columns.
-        
-        # Olson 2013
-        # DOF: 6
-        # methods to test: m5, m3, 
-        # Yb = d_1, Xb = d_2, L1 = l3, L2 = l4, L3 = l5
-        dh = sp.Matrix([
-            [sp.pi/2,    0.,       l_2,              th_1],
-            [0,         l_1,        0.,              th_2],
-            [sp.pi/2,    0.,        0.,              th_3],
-            [-sp.pi/2,   0.,       l_3,              th_4],
-            [sp.pi/2,    0.,        0.,              th_5],
-            [0,          0.,       d_6,                0.]
-            ])
-            
-        vv = [1, 1, 1, 1, 1, 0]
-        variables = [unknown(th_1), unknown(th_2), unknown(th_3), unknown(th_4), unknown(th_5), unknown(d_6)]
-        params = [l_1, l_2, l_3]
-        pvals = {l_1: 0.19681, l_2: 0.251, l_3:0.145423}
-#Big thanks for your help, really appreciate it.      
-
-    if(name == 'Arm_3'):         # two link planar test (Issue #12) 
-        #
-        dh = sp.Matrix([
-        [ 0 , a_1 , 0 , th_1 ],
-        [ 0 , a_2 , 0 , th_2 ],
-        [ 0 , a_3 , 0 , th_3 ],
-        [ 0 , 0 , 0 , 0 ],
-        [ 0 , 0 , 0 , 0 ],
-        [ 0 , 0 , 0 , 0 ]
-        ])
-
-        vv = [1,1,1,0,0,0]
-        variables =  [unknown(th_1), unknown(th_2), unknown(th_3)]
-        params = [a_1, a_2, a_3]
-        pvals = {a_1:1, a_2:1, a_3:1}
-
-
     if(name == 'UR5'):  #Universal Robots - test case for 3 parallel axes
         dh = sp.Matrix([
             [    0    ,    0 ,  d_1 ,     th_1  ],
