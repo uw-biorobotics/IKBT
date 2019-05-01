@@ -96,11 +96,12 @@ def kinematics_pickle(rname, dh, constants, pvals, vv, unks, test):
         # set up Robot Object instance
         R = Robot(m, rname)              # set up IK structs etc
         R.scan_for_equations(unks)       # generate equation lists
-        
+
         # below is commented out for testing and devel of sum_of_angles_transform
         R.sum_of_angles_transform(unks)  # find sum of angles
 
         R.generate_solution_nodes(unks) # generate solution nodes
+
         print ' Storing kinematics pickle for '+rname + '('+name+')'
         with open(name,'wb') as pf:
             pickle.dump( [m, R, unks], pf, protocol=pprotocol)

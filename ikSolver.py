@@ -4,7 +4,7 @@
 
 # Copyright 2017 University of Washington
 
-# Developed by Dianmu Zhang and Blake Hannaford 
+# Developed by Dianmu Zhang and Blake Hannaford
 # BioRobotics Lab, University of Washington
 
 # Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -29,7 +29,7 @@ import b3 as b3          # behavior trees
 import ikbtfunctions.helperfunctions as hf
 import ikbtfunctions.output_python as op
 import ikbtfunctions.output_cpp as oc
-from ikbtfunctions.ik_robots import * 
+from ikbtfunctions.ik_robots import *
 from ikbtbasics import *
 from ikbtleaves.assigner_leaf import assigner
 from ikbtleaves.rank_leaf import rank
@@ -74,7 +74,7 @@ sp.var('Px Py Pz')
 
 
 ########################################################    NEW Style robot param setups
- 
+
 #  Very basic Test
 
 Rs = ['C-Arm', 'Gomez', 'Puma', 'Chair_Helper', 'Khat6DOF', 'Wrist', 'MiniDD', 'RavenII']
@@ -84,19 +84,19 @@ if len(argv) == 1:  # no argument - use default
     #robot = 'Puma'
     #robot = 'Chair_Helper'
     #robot = 'Khat6DOF'
-    robot = 'Wrist' 
-    
+    robot = 'Wrist'
+
 elif len(argv) == 2:
-    robot = str(argv[1]) 
-        
+    robot = str(argv[1])
+
 print ''
 print ''
 print '             Working on '+robot
 print ''
 print ''
 
-#   Get the robot model 
-[dh, vv, params, pvals, unknowns] = robot_params(robot)  # see ik_robots.py 
+#   Get the robot model
+[dh, vv, params, pvals, unknowns] = robot_params(robot)  # see ik_robots.py
 
 #
 #     Set up robot equations for further solution by BT
@@ -114,11 +114,11 @@ R.params = params
 ##   check the pickle in case DH params were changed
 dhp = M.DH
 check_the_pickle(dhp, dh)   # check that two mechanisms have identical DH params
- 
+
 ####################################################################################
 ##
 #                                   Set up the BT Leaves
-# 
+#
 #
 ikbt = b3.BehaviorTree()
 
@@ -168,7 +168,7 @@ scSolver.BHdebug =  LeafDebug
 scSol = b3.Sequence([scID,scSolver])
 scSol.Name = "SinCos ID+Solve"
 scSol.BHdebug = SolverDebug
- 
+
 # sin(th) AND cos(th) in same eqn
 sacID = sinandcos_id()
 sacID.Name = "Sin Cos ID"
@@ -181,7 +181,7 @@ sacSolver.BHdebug = False
 sacSol = b3.Sequence([sacID,sacSolver])
 sacSol.Name = "Sin AND Cos ID+Solve"
 sacSol.BHdebug = SolverDebug
- 
+
 # x^2 + y^2 trick from Craig (eqn 4.65)
 x2z2_Solver = x2z2_id_solve()
 x2z2_Solver.Name = 'X2Y2 id and solver'
@@ -199,7 +199,7 @@ Simu_Eqn_Sol = b3.Sequence([SimuEqnID, SimuEqnSolve])
  #
  #  Equation Transforms
  #
- 
+
 sub_trans = sub_transform()
 sub_trans.Name = "Substitution Transform"
 sub_trans.BHdebug = LeafDebug
@@ -214,10 +214,10 @@ sub_trans.BHdebug = LeafDebug
 updateL = updateL()
 updateL.Name = "updateL Transform"
 updateL.BHdebug = False
-  
+
 
 compDetect = comp_det()
-compDetect.Name = "Completion Detect" 
+compDetect.Name = "Completion Detect"
 compDetect.BHdebug = True
 
 #           ONE BT TO RULE THEM ALL!
@@ -236,36 +236,36 @@ solveRoutine = b3.Sequence([sub_trans, subtree,  updateL, compDetect])
 
 topnode = b3.RepeatUntilSuccess(solveRoutine, 7) #max 10 loops
 
-ikbt.root = topnode 
+ikbt.root = topnode
 
 logdir = 'logs/'
-       
+
 if not os.path.isdir(logdir):  # if this doesn't exist, create it.
     os.mkdir(logdir)
 
 #
 #     Logging setup
-#    
+#
 if(robot == 'MiniDD'):
 
     ikbt.log_flag = 2  # log exits:  1=SUCCESS only, 2=BOTH S,F
     ikbt.log_file = open(logdir + 'BT_MiniDD_node_log.txt', 'w')
     ikbt.log_file.write('MiniDD Solution Node Log\n')
-    
+
     scSol.BHdebug = False
     scID.BHdebug = False
     scSolver.BHdebug = False
-    
+
     tanSol.BHdebug = False
-    
+
 if(robot == 'Chair_Helper'):
-    
+
     ikbt.log_flag = 2  # log exits:  1=SUCCESS only, 2=BOTH S,F
     ikbt.log_file = open(logdir + 'BT_ChHelper_node_log.txt', 'w')
     ikbt.log_file.write('Robot Solution Node Log\n')
 
 
-if(robot == 'Wrist'):    
+if(robot == 'Wrist'):
     ikbt.log_flag = 2  # log exits:  1=SUCCESS only, 2=BOTH S,F
     ikbt.log_file = open(logdir + 'BT_Wrist_node_log.txt', 'w')
     ikbt.log_file.write('Robot Solution Node Log\n')
@@ -275,29 +275,29 @@ if(robot == 'Wrist'):
     tanSol.BHdebug = False
     tanSolver.BHdebug = False
     #tanID.BHdebug = True
-    
-    
-    
+
+
+
 if (robot == 'Puma' ):  # Puma debug setup
     ikbt.log_flag = 2  # log exits:  1=SUCCESS only, 2=BOTH S,F
     ikbt.log_file = open(logdir + 'BT_Puma_node_log.txt', 'w')
-    ikbt.log_file.write('Puma Node Log --\n') 
-    
+    ikbt.log_file.write('Puma Node Log --\n')
+
     T = True
-    F = False 
-   
+    F = False
+
     #sumOfAnglesSolve.BHdebug = F
-   
+
     tanSolver.BHdebug = F
     tanID.BHdebug = F
-    
+
     sacSol.BHdebug = F
     sacID.BHdebug = F
     sacSolver.BHdebug = F
     scSol.BHdebug = F
     scID.BHdebug = F
     scSolver.BHdebug = F
-    
+
     x2z2_Solver.BHdebug = T
     #sumOfAnglesT.BHdebug = F
 
@@ -305,7 +305,7 @@ if (robot == 'Puma' ):  # Puma debug setup
     compDetect.FailAllDone = F # set it up to SUCCEED when there is more work to do. (not default)
     algID.BHdebug = F
     algSolver.BHdebug = F
-    tanSol.BHdebug = F 
+    tanSol.BHdebug = F
 #
 #    Set up the blackboard for solution
 #
@@ -318,7 +318,7 @@ bb.set('eqns_1u', L1)   # eqns with one unk
 bb.set('eqns_2u', L2)   #           two unks
 bb.set('eqns_3pu', L3p)   #        three or more unks
 
-# normally below stmt is in the kinematics pickle code.  uncomment this when 
+# normally below stmt is in the kinematics pickle code.  uncomment this when
 # debugging sum of angles.
 #R.sum_of_angles_transform(unknowns) #get the sum of angle simplifications done
 
@@ -346,7 +346,7 @@ R = bb.get('Robot')
 if TEST_DATA_GENERATION:
     # Now we're going to save some results for use in tests.
     print ' Storing results for test use'
-    test_pickle_dir = 'Test_pickles/'       
+    test_pickle_dir = 'Test_pickles/'
     name = test_pickle_dir + R.name + 'test_pickle.p'
     with open(name,'wb') as pf:
         pickle.dump( [R, unks], pf)
@@ -359,7 +359,7 @@ print R.notation_collections
 #  This step creates the list of solution poses (i.e. it associates
 #  the various joint solutions correctly)
 final_groups = matching.matching_func(R.notation_collections, R.solution_nodes)
-# # matching, now integrated into the latex report 
+# # matching, now integrated into the latex report
 # uncomment for debugging
 
 # print "sorted final notation groups"
@@ -393,7 +393,8 @@ sp.var('r_11 r_12 r_13 r_21 r_22 r_23 r_31 r_32 r_33 Px Py Pz')
 
 
 assertion_count = 0
- 
+ntests = 1
+
 if(robot == 'Chair_Helper'):
     fs = 'Chair_Helper   FAIL'
     for u in unks:
@@ -401,25 +402,26 @@ if(robot == 'Chair_Helper'):
         if(u.symbol == d_1):
             ntests += 1
             assert(u.nsolutions == 1), fs+' n(d_1)'
-            asertion_count += 1
+            assertion_count += 1
             print str(u.solutions[0])
             assert(u.solutions[0] == Pz - l_4*r_33), fs + '  [d_1]'
-            asertion_count += 1
+            assertion_count += 1
         if(u.symbol == th_2):
             ntests += 1
             assert(u.nsolutions == 2), fs+' n(th_2)'
-            asertion_count += 1
+            assertion_count += 1
             print str(u.solutions[0]) + ', ' + str(u.solutions[1])
             assert(u.solutions[0] ==  sp.asin((Px-l_1-l_4*r_13)/l_2) ), fs + ' [th_2a]'
-            asertion_count += 1
+            assertion_count += 1
             assert(u.solutions[1] == -sp.asin((Px-l_1-l_4*r_13)/l_2)+sp.pi ), fs + ' [th_2b]'
-            asertion_count += 1
+            assertion_count += 1
 
 if(assertion_count == 0):
     print '\n         Warning: \n   No Assertions yet for ' + robot
-else: 
+else:
     string = 'test robot '+robot
-    print '\n\n\n                            ',string,'  PASSES ', assertion_count, 'tests!  \n\n\n'
+    print '\n\n\n                            ',string,'  PASSES ', assertion_count, 'assertions!'
+    print '                                  passed ',ntests,' tests \n\n\n'
 
 print 'End of solution job'
 

@@ -1,3 +1,12 @@
+21-Feb-19:    Following are open issues:
+  *   simple planar 3-link "Arm_3" fails to properly manage 3-way sum of angles
+  *   python -m ikbtleaves.sum_transform   FAILS
+  *   find_xy function (see below) is commented out in ik_classes()(@*)!_#)%%?)
+  *   SofAngles fails some previous test cases in the comprehensive test included in updateL.py
+
+-----------------------------
+August 2018 (just prior to releasing the UR5 Fix)
+--
 Regarding sum of angles changes to handle 3 parallel axis case:
 
 1) there are two very similar codes which are dupes and should be unified:
