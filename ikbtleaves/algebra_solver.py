@@ -195,7 +195,7 @@ class TestSolver002(unittest.TestCase):
         asgn = assigner()
         subtree = b3.Sequence([asgn, aid, ais,compdet])
         
-        test = b3.Sequence([setup, b3.Repeater(subtree, max_loop = 15)])          
+        test = b3.Sequence([setup, b3.Repeater(subtree, max_loop = 5)])          
         algebra_tester.root = test
         
         # Run the testing BT 
