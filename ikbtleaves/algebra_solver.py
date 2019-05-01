@@ -225,6 +225,7 @@ class TestSolver002(unittest.TestCase):
                 self.assertFalse(u.solved, fs)
 
         self.assertTrue(ntests == 3, ' Algebra solver:  assertion count error --- FAIL')
+        print 'Algebra solver PASSED ', ntests, ' assertions.'
 ##  write tester code which runs if this file is run directly instead
 ##    of "imported".
 
