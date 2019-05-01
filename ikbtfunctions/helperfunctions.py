@@ -36,8 +36,7 @@ def print_status(bb, label):
 def print_debug(label):
     print label
 
-## how many unknowns are in expr?
-def count_unknowns(unknowns, expr): 
+def count_unknowns(unknowns, expr):
     n = 0
     for u in unknowns:
         if(expr.has(u.symbol) and u.solved == False):
@@ -110,12 +109,13 @@ def ik_lhs():  # generate a simple Left Hand side matrix
 #  Print a progress bar.  lmax = your full job
 #                         l = your current iteration
 #   if l<0,  clear the bar.
-#   default bar length = 25
+#   default bar length = 40
 #
 def prog_bar(l, lmax, length=25,  msg = ''):
-    if l<0: 
-        print '\n'   # clean up after
+    if l<0:
+        print ''
         sys.stdout.flush()
+
         return
     
     ratio = float(l)/float(lmax)

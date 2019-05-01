@@ -39,19 +39,17 @@ class test_sub_transform(b3.Action):    # tester for your ID
         #test_number = tick.blackboard.get('test_number') # if present
         R = tick.blackboard.get('Robot')
         
-        sp.var('a b c d e f g')
+        sp.var('a b c d')
         # set up bb data for testing  
         Td = ik_lhs() 
         Ts = sp.zeros(4)
 
         Ts[1,1] =  sp.sin(th_1)*sp.cos(th_2)+sp.sin(th_5)
         Ts[1,2] =  sp.sin(th_1)*sp.cos(th_2)
-        Ts[2,1] =  a+b+c+d 
-        Ts[2,2] =  a+b+c # for using sum of angles identities
+        Ts[2,1] =  a+b+c+d
+        Ts[2,2] =  a+b+c
         Ts[2,3] =  a*b+c
         Ts[2,0] =  a
-        Ts[0,0] =  e+f+g
-        Ts[0,1] = sp.sin(e+f+g)
 
         testm = matrix_equation(Td,Ts)
 
@@ -59,14 +57,11 @@ class test_sub_transform(b3.Action):    # tester for your ID
         ub = unknown(b)
         uc = unknown(c)
         ud = unknown(d)
-        ue = unknown(e)
-        uf = unknown(f)
-        ug = unknown(g)
         uth2 = unknown(th_2)
         uth3 = unknown(th_3)
         uth4 = unknown(th_4)
         uth5 = unknown(th_5)
-        variables = [ua,ub,uc,ud,ue,uf,ug,uth2, uth3, uth4, uth5]
+        variables = [ua,ub,uc,ud,uth2, uth3, uth4, uth5]
 
         R.mequation_list = [testm]
         [L1, L2] = R.scan_Mequation(testm, variables)  # lists of 1unk and 2unk equations
@@ -191,7 +186,7 @@ class TestSolver006(unittest.TestCase):    # change TEMPLATE to unique name (2 p
     def runTest(self):
         self.test_subber()
             
-    def test_subber(self):
+    def test_subber(self):        
         sub_tester = b3.BehaviorTree()
         bb = b3.Blackboard()  
         bb.set('Robot', Robot())
@@ -208,15 +203,14 @@ class TestSolver006(unittest.TestCase):    # change TEMPLATE to unique name (2 p
         R = bb.get('Robot')
         Tm = R.mequation_list[0]   # for a single test as above
         
-        sp.var('a b c d r_11 r_23 r_31 r_33 r_43 ')
+        sp.var('a b c d r_23 r_31 r_33 r_43')
         fs = " sub_transform FAIL"
         self.assertTrue(Tm.Ts[1,1]== r_23+sp.sin(th_5), fs)
         self.assertTrue(Tm.Ts[1,2]== sp.sin(th_1)*sp.cos(th_2), fs)
         self.assertTrue(Tm.Ts[2,1]== d+r_33, fs)
         self.assertTrue(Tm.Ts[2,3]== b*r_31+c, fs)
         self.assertTrue(Tm.Ts[2,0]==a, fs)
-        self.assertTrue(Tm.Ts[0,1]==sp.sin(r_11), fs)
-        print '\n\n        Passed 6 assertions\n\n'
+
 
 #
 #    Can run your test from command line by invoking this file
