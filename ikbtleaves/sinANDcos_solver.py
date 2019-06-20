@@ -111,7 +111,7 @@ class sinandcos_id(b3.Action):    # action leaf for sincosid
 
         if (not u.solved):  # only if not already solved!
           for e in one_unk:  # only look at the eqns with one unknowns
-              print "Looking for unknown: ", u.symbol, " in equation: ", 
+              #print "Looking for unknown: ", u.symbol, " in equation: ", 
               print e
               
               tmp = e.RHS-e.LHS

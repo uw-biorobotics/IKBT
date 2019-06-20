@@ -149,8 +149,8 @@ class Node:
                 self.sol_notations.add(self.symbol)
                 R.notation_graph.add(Edge(self.symbol, -1))
                 R.notation_collections.append([self.symbol])
-                print '//////////////////////// 1 sol'
-                print 'curr: ', self.symbol
+                #print '//////////////////////// 1 sol'
+                #print 'generate_notation: curr: ', self.symbol
                 self.solution_with_notations[self.symbol] = kc.kequation(\
                         self.symbol, self.solutions[0])
                 self.arguments[self.symbol] = self.argument
@@ -164,8 +164,8 @@ class Node:
 
                     curr_solution = self.solutions[i-1]
                     self.solution_with_notations[curr] = kc.kequation(curr, curr_solution)
-                    print '//////////////////////// > 1 sol'
-                    print 'curr: ', curr
+                    #print '//////////////////////// > 1 sol'
+                    #print 'curr: ', curr
                     print self.argument
                     self.arguments[curr] = self.argument # simple because root
                     
