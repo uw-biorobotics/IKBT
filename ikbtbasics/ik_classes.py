@@ -208,6 +208,11 @@ class Robot:
         #print '--------'
         #quit()
         assert (len(elist) > 0), '  not enough equations '
+        #i=0
+        #for e in self.kequation_aux_list:
+            #elist[0][3][i] = e  # HACK: put aux eqns into row 4 Meqn[0]
+            #print 'scan_for_equns: putting ', e, 'into eqn'
+            #i+=1
         for eqn in elist:
             lhs = eqn.Td   #4x4 matrix
             rhs = eqn.Ts  #4x4 matrix
@@ -305,13 +310,14 @@ class Robot:
 
                         
                     # simplify LHS
-                    lhs, newj, newe = sum_of_angles_sub(lhs, variables)
+                    
+                    lhs, newj, newe = sum_of_angles_sub(self, lhs, variables)
                     if newj:
                         variables.append(newj)
                     if newe:
                         self.kequation_aux_list.append(newe)
                     # simplify RHS
-                    rhs, newj, newe= sum_of_angles_sub(rhs, variables)
+                    rhs, newj, newe= sum_of_angles_sub(self, rhs, variables)
                     if newj:
                         variables.append(newj)
                     if newe:
@@ -331,7 +337,7 @@ class Robot:
 #   substitute th_23 for th_2+th_3 etc.
 # (april: separate out for easier testing)
 
-def sum_of_angles_sub(expr, variables):   
+def sum_of_angles_sub(R, expr, variables):   
     thx = sp.Wild('thx') # a theta_x term
     thy = sp.Wild('thy') # a theta_x term
     sgn = sp.Wild('sgn') # 1 or -1
@@ -405,8 +411,8 @@ def sum_of_angles_sub(expr, variables):
                 variables.append(newjoint) #add it to unknowns list
                 tmpeqn = kc.kequation(th_new, d[aw] + d[bw] + d[cw])
                 print 'sum_of_angles_sub: created new equation:', tmpeqn
-                
-                #self.kequation_aux_list.append(tmpeqn)
+                # add this new equation to the Robot aux list
+                R.kequation_aux_list.append(tmpeqn)
 
             # substitute new variable into the kinematic equations  ((WHY twice??))
             #self.mequation_list[k].Td[i,j] = Meq.Td[i,j].subs(d[aw] + d[bw] + d[cw], th_subval)
@@ -417,7 +423,10 @@ def sum_of_angles_sub(expr, variables):
             #print ' = '
             #print self.mequation_list[k].Ts[i,j]
             #print '========'
- 
+    if tmpeqn is not None:
+        print 'sum_of_angles_sub: Ive found a new SOA equation, ', tmpeqn
+    #else:
+        #print '>>m>>m>>m I didnt find a new SOA equation'
     return (expr,newjoint, tmpeqn)
 
 def get_variable_index(vars, symb):

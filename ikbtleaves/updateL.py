@@ -41,7 +41,18 @@ class updateL(b3.Action):    # Set up (update) the equation lists
         # below was a time waster!!!
         #R.sum_of_angles_transform(variables)
         [L1, L2, L3p] = R.scan_for_equations(variables)   # get the equation lists
-
+        # aux equation (e.g. th_45 = th_4+th+5
+        for e in R.kequation_aux_list:
+            sp.var('x')
+            e1 = kequation(x-x, e.LHS-e.RHS)  # simplified form
+            cu = count_unknowns(variables, e1.RHS)
+            if cu == 1:
+                L1.append(e1)
+            elif cu == 2:
+                L2.append(e1)
+            elif cu == 3:
+                L3p.append(e1)
+        
         tick.blackboard.set('eqns_1u', L1)  # eqns w/ 1 unknown
         tick.blackboard.set('eqns_2u', L2)  # eqns w/ 2 unknowns
         tick.blackboard.set('eqns_3pu', L3p)  # eqns w/ 3 unknowns

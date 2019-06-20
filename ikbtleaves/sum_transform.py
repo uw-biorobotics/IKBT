@@ -25,84 +25,102 @@ from ikbtbasics.ik_classes import *     # special classes for Inverse kinematics
 
 import b3 as b3          # behavior trees     
 
+#
+#   NOT USED  Jun 19!!! --> reactivated in ikSolver
+#
+
 class sum_id(b3.Action):   ##  we should change this name since its a transform
     def tick(self, tick):
-        matr_equ = tick.blackboard.get('Tm')                # current matrix equation  
+        R = tick.blackboard.get('Robot')  
+        #matr_equ = tick.blackboard.get('Tm')                # current matrix equation  
 
+        L1 = tick.blackboard.get('eqns_1u')  # eqns w/ 1 unknown
+        L2 = tick.blackboard.get('eqns_2u')  # eqns w/ 2 unknowns
+        L3p = tick.blackboard.get('eqns_3pu')  # eqns w/ 3 unknowns
         unknowns = tick.blackboard.get("unknowns")
                 
-        Tmatrix = matr_equ.Ts
-        
-        Tmatrix_squeeze = sp.simplify(notation_squeeze(Tmatrix))
-        
-        if(self.BHdebug):
-            #print 'sum of angles transform: input: '
-            #sp.pprint(matr_equ.Ts)
-            ##print out the squeezed form
-            print 'sum of angles transform: squeezed test input:'
-            sp.pprint(Tmatrix_squeeze)
-            
-        unkn_sums_sym = set() #keep track of joint variable symbols
-        
-        thx = sp.Wild('thx')
-        thy = sp.Wild('thy')
-        sgn = sp.Wild('sgn')
-        
-        success_flag = False
-        
-        for i in range(3):
-            for j in range(4):
-                # need new ways to identify thx +/- thy
-                # notation_squeeze does not pick up - cases
-                expr = Tmatrix[i, j]   
                 
+        for matr_equ in R.mequation_list:
             
-                sub_sin = expr.find(sp.sin(thx + sgn * thy)) #returns a subset of expressions with the query pattern, this finds sin(thx) too
-                sub_cos = expr.find(sp.cos(thx + sgn * thy))
+            Tmatrix = matr_equ
+            
+            #print 'sum_transform.py: working on ', Tmatrix
+            #Tmatrix_squeeze = sp.simplify(notation_squeeze(Tmatrix))
+            
+            #if(self.BHdebug):
+                ##print 'sum of angles transform: input: '
+                ##sp.pprint(matr_equ.Ts)
+                ###print out the squeezed form
+                #print 'sum of angles transform: squeezed test input:'
+                #sp.pprint(Tmatrix_squeeze)
+                
+            unkn_sums_sym = set() #keep track of joint variable symbols
+            
+            thx = sp.Wild('thx')
+            thy = sp.Wild('thy')
+            sgn = sp.Wild('sgn')
+            
+            success_flag = False
+            
+            Tmlist = Tmatrix.get_kequation_list() # convert to list of equns
+            for Teqn in Tmlist:   
+                for expr in [Teqn.LHS, Teqn.RHS]:
+                        # need new ways to identify thx +/- thy
+                        # notation_squeeze does not pick up - cases
+                        #eLHS = expr.LHS
+                        #eRHS = expr.RHS
+    
+                        
+                        #print 'sum_of_angles_ID: ', expr 
                     
-                found = False
-                while len(sub_sin) > 0 and not found:
-                    sin_expr = sub_sin.pop()
-                    d = sin_expr.match(sp.sin(thx + sgn * thy))
-                    if d[thx] != 0 and d[sgn] != 0 and d[thy] != 0: #has to be joint variable
-                        found = True
+                        sub_sin = expr.find(sp.sin(thx + sgn * thy)) #returns a subset of expressions with the query pattern, this finds sin(thx) too
+                        sub_cos = expr.find(sp.cos(thx + sgn * thy))
+                            
+                        found = False
+                        while len(sub_sin) > 0 and not found:
+                            sin_expr = sub_sin.pop()
+                            d = sin_expr.match(sp.sin(thx + sgn * thy))
+                            if d[thx] != 0 and d[sgn] != 0 and d[thy] != 0: #has to be joint variable
+                                found = True
 
-                    
-                while len(sub_cos) > 0 and not found:
-                    cos_expr = sub_cos.pop()
-                    d = cos_expr.match(sp.cos(thx + sgn * thy))
-                    if d[thx] != 0 and d[sgn] != 0 and d[thy] != 0:
-                        found = True
-                    
-                if found:
-                    success_flag = True
-                    th_xy = find_xy(d[thx], d[thy])
-                     #if not exists in the unknown list (this requires proper hashing), create variable
-                    if th_xy not in unkn_sums_sym:
-                        print "found NEW 'joint' (updated) (sumofangle) variable: "
-                        print th_xy
-                        #  try moving soa equation to Tm.auxeqns
-                        unkn_sums_sym.add(th_xy) #add into the joint variable set
-                        newjoint = unknown(th_xy)
-                        newjoint.n = int(str(d[thx].n)+str(d[thy].n)) # store new subscript
-                        #newjoint.joint_eq = d[thx] + d[sgn] * d[thy]
-                        unknowns.append(newjoint) #add it to unknowns list 
-                        tmpeqn = kequation(th_xy, d[thx] + d[sgn] * d[thy])
-                        print 'sumofanglesT: appending ', tmpeqn
-                        matr_equ.auxeqns.append(tmpeqn)
-                        print d[thx] + d[sgn]*d[thy]
-                        #Tmatrix = Tmatrix.subs(d[thx] + d[sgn] * d[thy], th_xy) #substitute all thx +/- thy expression with th_xy
-                        matr_equ.Ts = matr_equ.Ts.subs(d[thx] + d[sgn] * d[thy], th_xy) #substitute all thx +/- thy expression with th_xy
-                        matr_equ.Td = matr_equ.Td.subs(d[thx] + d[sgn] * d[thy], th_xy) #substitute all thx +/- thy expression with th_xy
-       
-        tick.blackboard.set("Tm", matr_equ)# we've got to keep the blackboard tags standard
+                            
+                        while len(sub_cos) > 0 and not found:
+                            cos_expr = sub_cos.pop()
+                            d = cos_expr.match(sp.cos(thx + sgn * thy))
+                            if d[thx] != 0 and d[sgn] != 0 and d[thy] != 0:
+                                found = True
+                            
+                        if found:
+                            success_flag = True
+                            th_xy = find_xy(d[thx], d[thy])
+                            #if not exists in the unknown list (this requires proper hashing), create variable
+                            if th_xy not in unkn_sums_sym:
+                                print "found NEW 'joint' (updated) (sumofangle) variable: "
+                                print th_xy
+                                #  try moving soa equation to Tm.auxeqns
+                                unkn_sums_sym.add(th_xy) #add into the joint variable set
+                                newjoint = unknown(th_xy)
+                                newjoint.n = int(str(d[thx].n)+str(d[thy].n)) # store new subscript
+                                #newjoint.joint_eq = d[thx] + d[sgn] * d[thy]
+                                unknowns.append(newjoint) #add it to unknowns list 
+                                tmpeqn = kequation(th_xy, d[thx] + d[sgn] * d[thy])
+                                print 'sumofanglesT: appending ', tmpeqn
+                                # store the SOA aux equation 
+                                R.kequation_aux_list.append(tmpeqn)
+                                print d[thx] + d[sgn]*d[thy]
+                                #substitute all thx +/- thy expression with th_xy
+                                matr_equ.Ts = matr_equ.Ts.subs(d[thx] + d[sgn] * d[thy], th_xy)
+                                matr_equ.Td = matr_equ.Td.subs(d[thx] + d[sgn] * d[thy], th_xy) 
+        
+        tick.blackboard.set('Robot', R)
         tick.blackboard.set("unknowns", unknowns)# we've got to keep the blackboard tags standard
         
-        if(success_flag):
-            return b3.SUCCESS  # when does this ID return FAILURE????
-        else:
-            return b3.FAILURE
-        
+        #if(success_flag):
+            #return b3.SUCCESS  # when does this ID return FAILURE????
+        #else:
+            #return b3.FAILURE
+        return b3.SUCCESS
+    
 class test_sum_id(b3.Action):
     
     # new test not based on a complete robot 
@@ -149,7 +167,7 @@ class test_sum_id(b3.Action):
         Tm = matrix_equation(Td,Ts)
             #write on blackboard
         tick.blackboard.set("Robot", Robot())
-        tick.blackboard.set("Tm", Tm)
+        tick.blackboard.set("Tm", Tm)   # obsolete !
         tick.blackboard.set("unknowns", variables)     
         return b3.SUCCESS
 

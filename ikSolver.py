@@ -39,7 +39,7 @@ from ikbtleaves.sincos_solver import *
 from ikbtleaves.sinANDcos_solver import *
 from ikbtleaves.x2y2_solver import *
 from ikbtleaves.sub_transform import *
-#from ikbtleaves.sum_transform import *
+from ikbtleaves.sum_transform import *
 from ikbtleaves.two_eqn_m7 import *
 
 TEST_DATA_GENERATION = False
@@ -141,16 +141,16 @@ tanSolver.Name = "Tangent Solver"
 
 tanSol = b3.Sequence([tanID, tanSolver])
 tanSol.Name = "TanID+Solv"
-tanSol.BHdebug =  True #LeafDebug
+tanSol.BHdebug =  LeafDebug
 
 
 algID = algebra_id()
 algID.Name = "Algebra ID"
-algID.BHdebug = True #LeafDebug
+algID.BHdebug = LeafDebug
 
 algSolver = algebra_solve()
 algSolver.Name = "Algebra Solver"
-algSolver.BHdebug = True
+algSolver.BHdebug = False
 
 algSol = b3.Sequence([algID, algSolver])
 algSol.Name = "Algebra ID and Solve"
@@ -204,9 +204,10 @@ sub_trans = sub_transform()
 sub_trans.Name = "Substitution Transform"
 sub_trans.BHdebug = LeafDebug
 
-#sumOfAnglesT = sum_id()  # we should change name of this to 'transform'
-#sumOfAnglesT.BHdebug = False
-#sumOfAnglesT.Name = "Sum of Angles Transform"
+# Sum of angles solving replaced by algebra node but still must ID
+sumOfAnglesID = sum_id()  # we should change name of this to 'transform'
+sumOfAnglesID.BHdebug = False
+sumOfAnglesID.Name = "Sum of Angles ID"
 
 #sumOfAnglesSolve = sum_solve()
 #sumOfAnglesSolve.Name = "Sum of Angles Solve"
@@ -231,7 +232,8 @@ sc_tan = b3.Sequence([b3.OrNode([tanSol, scSol]), rankNode])
 # it's also possible to build customized BT
 worktools = b3.Priority([algSol, sc_tan, Simu_Eqn_Sol, sacSol, x2z2_Solver])
 
-subtree = b3.RepeatUntilSuccess(b3.Sequence([asgn, worktools]), 6)
+#  we have to ID the SOA cases to generate equations for algSol to work on SOA variables
+subtree = b3.RepeatUntilSuccess(b3.Sequence([asgn, sumOfAnglesID, worktools]), 6)
 solveRoutine = b3.Sequence([sub_trans, subtree,  updateL, compDetect])
 
 topnode = b3.RepeatUntilSuccess(solveRoutine, 7) #max 10 loops
@@ -244,68 +246,73 @@ if not os.path.isdir(logdir):  # if this doesn't exist, create it.
     os.mkdir(logdir)
 
 #
-#     Logging setup
-#
-if(robot == 'MiniDD'):
+#     Logging setup    ###   Enable these for future debugging
+##
+#if(robot == 'MiniDD'):
 
-    ikbt.log_flag = 2  # log exits:  1=SUCCESS only, 2=BOTH S,F
-    ikbt.log_file = open(logdir + 'BT_MiniDD_node_log.txt', 'w')
-    ikbt.log_file.write('MiniDD Solution Node Log\n')
+    #ikbt.log_flag = 2  # log exits:  1=SUCCESS only, 2=BOTH S,F
+    #ikbt.log_file = open(logdir + 'BT_MiniDD_node_log.txt', 'w')
+    #ikbt.log_file.write('MiniDD Solution Node Log\n')
 
-    scSol.BHdebug = False
-    scID.BHdebug = False
-    scSolver.BHdebug = False
+    #scSol.BHdebug = False
+    #scID.BHdebug = False
+    #scSolver.BHdebug = False
 
-    tanSol.BHdebug = False
+    #tanSol.BHdebug = False
 
-if(robot == 'Chair_Helper'):
+#if(robot == 'Chair_Helper'):
 
-    ikbt.log_flag = 2  # log exits:  1=SUCCESS only, 2=BOTH S,F
-    ikbt.log_file = open(logdir + 'BT_ChHelper_node_log.txt', 'w')
-    ikbt.log_file.write('Robot Solution Node Log\n')
-
-
-if(robot == 'Wrist'):
-    ikbt.log_flag = 2  # log exits:  1=SUCCESS only, 2=BOTH S,F
-    ikbt.log_file = open(logdir + 'BT_Wrist_node_log.txt', 'w')
-    ikbt.log_file.write('Robot Solution Node Log\n')
-    #print ' ----------------------------   INITIAL KINEMATIC EQUATION ----------------------'
-    #print R.mequation_list[0]   # print the classic matrix equation
-    #print ' --------------------------------------------------------------------------------'
-    tanSol.BHdebug = False
-    tanSolver.BHdebug = False
-    #tanID.BHdebug = True
+    #ikbt.log_flag = 2  # log exits:  1=SUCCESS only, 2=BOTH S,F
+    #ikbt.log_file = open(logdir + 'BT_ChHelper_node_log.txt', 'w')
+    #ikbt.log_file.write('Robot Solution Node Log\n')
 
 
+#if(robot == 'Wrist'):
+    #ikbt.log_flag = 2  # log exits:  1=SUCCESS only, 2=BOTH S,F
+    #ikbt.log_file = open(logdir + 'BT_Wrist_node_log.txt', 'w')
+    #ikbt.log_file.write('Robot Solution Node Log\n')
+    ##print ' ----------------------------   INITIAL KINEMATIC EQUATION ----------------------'
+    ##print R.mequation_list[0]   # print the classic matrix equation
+    ##print ' --------------------------------------------------------------------------------'
+    #tanSol.BHdebug = False
+    #tanSolver.BHdebug = False
+    ##tanID.BHdebug = True
 
-if (robot == 'Puma' ):  # Puma debug setup
-    ikbt.log_flag = 2  # log exits:  1=SUCCESS only, 2=BOTH S,F
-    ikbt.log_file = open(logdir + 'BT_Puma_node_log.txt', 'w')
-    ikbt.log_file.write('Puma Node Log --\n')
 
-    T = True
-    F = False
 
-    #sumOfAnglesSolve.BHdebug = F
+#if (robot == 'Olson13' ):  # Puma debug setup
+    #ikbt.log_flag = 2  # log exits:  1=SUCCESS only, 2=BOTH S,F
+    #ikbt.log_file = open(logdir + 'Olson_node_log.txt', 'w')
+    #ikbt.log_file.write('Olson Node Log --\n')
 
-    tanSolver.BHdebug = F
-    tanID.BHdebug = F
+#if (robot == 'Puma' ):  # Puma debug setup
+    #ikbt.log_flag = 2  # log exits:  1=SUCCESS only, 2=BOTH S,F
+    #ikbt.log_file = open(logdir + 'BT_Puma_node_log.txt', 'w')
+    #ikbt.log_file.write('Puma Node Log --\n')
 
-    sacSol.BHdebug = F
-    sacID.BHdebug = F
-    sacSolver.BHdebug = F
-    scSol.BHdebug = F
-    scID.BHdebug = F
-    scSolver.BHdebug = F
+    #T = True
+    #F = False
 
-    x2z2_Solver.BHdebug = T
-    #sumOfAnglesT.BHdebug = F
+    ##sumOfAnglesSolve.BHdebug = F
 
-    compDetect.BHdebug = F
-    compDetect.FailAllDone = F # set it up to SUCCEED when there is more work to do. (not default)
-    algID.BHdebug = F
-    algSolver.BHdebug = F
-    tanSol.BHdebug = F
+    #tanSolver.BHdebug = F
+    #tanID.BHdebug = F
+
+    #sacSol.BHdebug = F
+    #sacID.BHdebug = F
+    #sacSolver.BHdebug = F
+    #scSol.BHdebug = F
+    #scID.BHdebug = F
+    #scSolver.BHdebug = F
+
+    #x2z2_Solver.BHdebug = T
+    #sumOfAnglesID.BHdebug = T
+
+    #compDetect.BHdebug = F
+    #compDetect.FailAllDone = F # set it up to SUCCEED when there is more work to do. (not default)
+    #algID.BHdebug = F
+    #algSolver.BHdebug = F
+    #tanSol.BHdebug = F
 #
 #    Set up the blackboard for solution
 #

@@ -43,7 +43,7 @@ class assigner(b3.Action):
             counter = counter + 1
             if not curr.solved:
                 print "\n\nAssigner: variable on blackboard: %s"%curr.symbol
-                print '\n\n'
+                #print '\n\n'
                 tick.blackboard.set("counter", counter)
                 tick.blackboard.set("curr_unk", curr)
                 return b3.SUCCESS

@@ -218,7 +218,7 @@ class matrix_equation:
         self.Td = sp.zeros(4)  # LHS (T desired)
         self.Ts = sp.zeros(4)  # RHS (T symbolic)
         ## init 5x5 matrix of kequation() objects
-        self.auxeqns = []   # aux equations such as th12 = th_1 + th_2 (!)
+        #self.auxeqns = []   # aux equations such as th12 = th_1 + th_2 (!)
         for i in range(0,3):  # just first 3 rows
             for j in range(0,4):  # all 4 cols
                 self.Td[i,j] = Td[i,j]
