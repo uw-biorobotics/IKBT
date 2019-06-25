@@ -156,28 +156,33 @@ class unknown(object):
         for sol_node in R.solution_nodes:   # make sure there is a node for this var
             if sol_node.symbol == self.symbol:
                 found = True
+                print 'set_solved: Found existing node: ', sol_node
 
         if not found:
-            R.solution_nodes.append(Node(self))
+            n = Node(self)
+            R.solution_nodes.append(n)
+            print ' Generated node: ', type(n)
             R.variables_symbols.append(self.symbol)
-
+            
         # for new solution graph
         for sol_node in R.solution_nodes:
             if sol_node.symbol == self.symbol:
                 curr_node = sol_node
-
+                print 'set_solved: Using  existing node: ', curr_node
+                
         #print ' -  - - - - '
         #print R.solution_nodes
         #print 'Trying to solution tree node for: ',  self.symbol
         #print ' - - - - - '
         assert(curr_node is not None), ' Trouble finding solution tree node'
-
+        print 'current node is: ', curr_node
         curr_node.solveorder = R.solveN
         curr_node.solvemethod = self.solvemethod
         curr_node.argument = self.argument
         curr_node.nsolutions = self.nsolutions
         curr_node.solutions = self.solutions
         curr_node.assumption = self.assumption
+        curr_node.solution_with_notations = {}  # shouldn't be necessary(??)
 
         # set the equations
         curr_node.eqnlist.append(self.eqntosolve)
@@ -597,11 +602,25 @@ class TestSolver008(unittest.TestCase):    # change TEMPLATE to unique name (2 p
 #      - or - call your TestSolverTEMPLATE()  from elsewhere
 #
 
+##if __name__ == "__main__":
+
+    ##print '\n\n===============  Test kin_cl nodes====================='
+    ##testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver008)  # replace TEMPLATE
+    ##unittest.TextTestRunner(verbosity=2).run(testsuite)
+    ##unittest.main()
+
+
+def run_test():
+    print '\n\n===============  Test kin_cl.py ====================='
+    testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver008)  # replace TEMPLATE
+    unittest.TextTestRunner(verbosity=2).run(testsuite)
+
 if __name__ == "__main__":
 
-    print '\n\n===============  Test kin_cl nodes====================='
-    #testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver008)  # replace TEMPLATE
-    #unittest.TextTestRunner(verbosity=2).run(testsuite)
-    unittest.main()
+    print '\n\n===============  Test kin_cl.py ====================='
+    testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver008)  # replace TEMPLATE
+    unittest.TextTestRunner(verbosity=2).run(testsuite)
+    #unittest.main()
+
 
 

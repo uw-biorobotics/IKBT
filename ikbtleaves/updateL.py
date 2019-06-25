@@ -102,9 +102,9 @@ class TestSolver007(unittest.TestCase):    # change TEMPLATE to unique name (2 p
             #def kinematics_pickle(rname, dh, constants, pvals, vv, unks, test):
             Test = True
             [M, R, unk_Puma] = kinematics_pickle(robot, dh, params, pvals, vv, unknowns, Test)
-            print 'Starting Sum of Angle scan/transform'
-            R.sum_of_angles_transform(unknowns)
-            print 'Completed Sum of Angles scan/transform'
+            #print 'Starting Sum of Angle scan/transform'
+            #R.sum_of_angles_transform(unknowns)
+            #print 'Completed Sum of Angles scan/transform'
 
             print 'GOT HERE: updateL robot name: ', R.name
 
