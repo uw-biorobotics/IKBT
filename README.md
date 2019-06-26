@@ -1,11 +1,20 @@
 # IKBT
-A python based system for generating closed-form solutions to the manipulator inverse kinematics problem. 
+A python based system for generating closed-form solutions to the manipulator inverse kinematics problem using
+behavior trees for action selection. 
 
-## NEW:  Aug 2018
+# Current News
+
+## May 2019  
+BH is working on a new implementation of the solution graph and generating the list of solutions (much trickier that it seems
+at first!).   I've taken this work to a private repo fork to decluter this page, but will merge and commit shortly. 
+This work is aimed at issues \#15 and \#18.  Thanks to you new issue posters!
+
+##  Aug 2018
 Sum-of-Angles transform now works for the case of three angles (corresponds to three parallel axes in the 
 mechanism).   IKBT can now solve the UR5 and similar robots!
 
 
+# IKBT Overview
 ## Our contributions to automate closed-form kinematics solving are:
  1. We built an autonomous inverse kinematics solver (IKBT) using a behavior tree to organize solution algorithms. 
  1. We incorporated knowledge frequently used (by human experts) when solving inverse kinematics into a behavior tree. These rule-based solvers applicable to any serial-chain, non-redundant, robot arm.
@@ -14,10 +23,11 @@ mechanism).   IKBT can now solve the UR5 and similar robots!
  1.  Implementation in a modern open-source, cross-platform, programming language (Python) with minimal dependencies outside of the standard Python distribution ({\tt sympy}).
  
  
-## Videos
+# Videos
  * [Introductory Video](https://youtu.be/bLTXuNZPR5k)  (6min)
  * [How to set up IKBT for your own robot arm](https://youtu.be/hXzY5vrvWkU) (6.5min)
 
+# Details
 ## How to cite: 
 
 Zhang, Dianmu, and Blake Hannaford. "IKBT: solving closed-form Inverse Kinematics with Behavior Tree." arXiv preprint arXiv:1711.05412 (2017).

@@ -42,6 +42,8 @@ from math import sqrt
 from math import atan2
 from math import cos
 from math import sin
+from math import acos
+from math import asin
 
 pi = np.pi
 

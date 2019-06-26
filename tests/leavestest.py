@@ -202,7 +202,7 @@ if __name__ == '__main__':
        # output to a file
        #  Directory Name of this Project:
         projdir = 'IKBT/tests/' # customize to your setup
-        projdir = 'ikbtrefactor/tests/' # customize to your setup
+        #projdir = 'ikbtrefactor/tests/' # customize to your setup
         testfname =  projdir + 'IKBT_testreport.html'
         fp = open(testfname, 'w')
 
