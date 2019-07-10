@@ -4,6 +4,9 @@ behavior trees for action selection.
 
 # Current News
 
+## July 2019
+Work aimed at \#15 and \#18 is still ongoing (it's tough!).  But a few smaller bugs have been fixed which are now in the 'testing' branch.   Please try that branch and post issues. THX.
+
 ## May 2019  
 BH is working on a new implementation of the solution graph and generating the list of solutions (much trickier that it seems
 at first!).   I've taken this work to a private repo fork to decluter this page, but will merge and commit shortly. 
