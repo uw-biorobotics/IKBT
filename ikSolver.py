@@ -141,12 +141,12 @@ tanSolver.Name = "Tangent Solver"
 
 tanSol = b3.Sequence([tanID, tanSolver])
 tanSol.Name = "TanID+Solv"
-tanSol.BHdebug =  True #LeafDebug
+tanSol.BHdebug =  LeafDebug
 
 
 algID = algebra_id()
 algID.Name = "Algebra ID"
-algID.BHdebug = True #LeafDebug
+algID.BHdebug = LeafDebug
 
 algSolver = algebra_solve()
 algSolver.Name = "Algebra Solver"

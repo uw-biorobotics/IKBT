@@ -231,6 +231,8 @@ class matrix_equation:
         for i in range(0,3):     # only 3 rows are interesting
             for j in range(0,4):  # all 4 cols are interesting
                 list.append(kequation(self.Td[i,j], self.Ts[i,j]))
+        for e in self.auxeqns:  # also return any SOA eqns
+            list.append(e)
         return list
     def __repr__(self):
         print '\n  - - - \n'

@@ -1,4 +1,11 @@
 Feb 2020:  Users reporting UR5 broken on master. 
+
+>> 3-Feb:   solution of UR5 working. just some extra variables in the output: eg th_23 
+    which have solutionmethod = "*none* and no solution equations.
+    need to prune nodes by nodes.solutionmethod
+    
+    ----------------------------------------
+
      New branch RepairUR5Regression which is newest commit which works with ARM & UR5.
      
      ** UR5 doesn't solve trival eqns like   th_4 = th_234-th2-th3

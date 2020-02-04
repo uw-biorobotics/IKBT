@@ -129,16 +129,16 @@ def check_the_pickle(dh1, dh2):   # check that two mechanisms have identical DH 
         quit()
 
 ## retrieve thxy from thx, thy
-#def find_xy(thx, thy):
-    ## lookup table for thxy
-    #thxy_lookup = {th_1: [th_12], th_2:[th_12, th_23], th_3:[th_23, th_34], \
-                    #th_4:[th_34, th_45], th_5:[th_45, th_56], th_6:[th_56]}
-    ## one symbol in common is the th_xy we're looking for
-    #thx_s = set(thxy_lookup[thx])
-    #thy_s = set(thxy_lookup[thy])
-    #thxy_s = thx_s.intersection(thy_s)
-    #thxy = thxy_s.pop()
-    #return thxy
+def find_xy(thx, thy):
+    # lookup table for thxy
+    thxy_lookup = {th_1: [th_12], th_2:[th_12, th_23], th_3:[th_23, th_34], \
+                    th_4:[th_34, th_45], th_5:[th_45, th_56], th_6:[th_56]}
+    # one symbol in common is the th_xy we're looking for
+    thx_s = set(thxy_lookup[thx])
+    thy_s = set(thxy_lookup[thy])
+    thxy_s = thx_s.intersection(thy_s)
+    thxy = thxy_s.pop()
+    return thxy
 
 #def find_sum(thx,thy):
     # new approach for same problem as find_xy()
@@ -162,7 +162,11 @@ class Robot:
         self.min_index = 0
         self.max_index = 0
         self.mequation_list = []        # all the 4x4 Matrix FK equations
-        self.kequation_aux_list = []    # kequations: such as eg th_23 = th_2+th_3
+        #self.kequation_aux_list = []    # kequations: such as eg th_23 = th_2+th_3
+        
+        # a place to store discovered sum of angles equations
+        self.SOA_eqns = kc.matrix_equation()  # embedd these inside a 4x4 equation for 
+                                        # downstream compatibility: use SOA_eqns.auxeqns.append(neweqn)
 
         if(Mech != None):    # in testing situations we only need a "Robot" to keep track of solutions above
             self.Mech = Mech
@@ -201,12 +205,13 @@ class Robot:
         self.l2 = [] # equations with two unknowns
         self.l3p = [] # 3 OR MORE unknowns
         sp.var('x')  #this will be used to generate 'algebraic zero'
-        elist = self.mequation_list #.append(self.kequation_aux_list)
-        #elist = self.kequation_aux_list +  self.mequation_list
+        #elist = self.mequation_list.append(self.kequation_aux_list)
+        elist = self.mequation_list
         #print '------------------------- elist----'
         #print elist
-        #print '--------'
-        #quit()
+        print '-------- (aux eqns):'
+        print self.SOA_eqns.auxeqns
+        print '--------'
         assert (len(elist) > 0), '  not enough equations '
         for eqn in elist:
             lhs = eqn.Td   #4x4 matrix
@@ -231,7 +236,8 @@ class Robot:
 
                         if e1 not in self.l3p:
                             self.l3p.append(e1)    # only append if not already there
-        for e in self.kequation_aux_list:
+        #Process the SOA equations
+        for e in self.SOA_eqns.auxeqns:
             lhs = e.LHS
             rhs = e.RHS
             n = count_unknowns(variables, lhs) + count_unknowns(variables, rhs)
@@ -289,7 +295,7 @@ class Robot:
         for k in range(0,len(self.mequation_list)):  # contains duplicates
             Meq = self.mequation_list[k]  # get next matrix equation
             for i in [0,1,2]:   # only first three rows are interesting
-                for j in [0,1,2,3]:
+                for j in [0,1,2,3]:  # but check all 4 columns
                     it_number += 1
                     #print ' .. '
                     prog_bar(it_number, nits, barlen, 'Sum of Angles')
@@ -305,13 +311,13 @@ class Robot:
 
                         
                     # simplify LHS
-                    lhs, newj, newe = sum_of_angles_sub(lhs, variables)
+                    lhs, newj, newe = sum_of_angles_sub(self,lhs, variables)
                     if newj:
                         variables.append(newj)
                     if newe:
                         self.kequation_aux_list.append(newe)
                     # simplify RHS
-                    rhs, newj, newe= sum_of_angles_sub(rhs, variables)
+                    rhs, newj, newe= sum_of_angles_sub(self, rhs, variables)
                     if newj:
                         variables.append(newj)
                     if newe:
@@ -331,7 +337,7 @@ class Robot:
 #   substitute th_23 for th_2+th_3 etc.
 # (april: separate out for easier testing)
 
-def sum_of_angles_sub(expr, variables):   
+def sum_of_angles_sub(R, expr, variables):   
     thx = sp.Wild('thx') # a theta_x term
     thy = sp.Wild('thy') # a theta_x term
     sgn = sp.Wild('sgn') # 1 or -1
@@ -340,7 +346,6 @@ def sum_of_angles_sub(expr, variables):
     cw = sp.Wild('cw')
     s1 = sp.Wild('s1')
     s2 = sp.Wild('s2') 
-
     newjoint = None
     tmpeqn = None
     found2 = found3 = False
@@ -405,9 +410,14 @@ def sum_of_angles_sub(expr, variables):
                 variables.append(newjoint) #add it to unknowns list
                 tmpeqn = kc.kequation(th_new, d[aw] + d[bw] + d[cw])
                 print 'sum_of_angles_sub: created new equation:', tmpeqn
-                
-                #self.kequation_aux_list.append(tmpeqn)
-
+                #
+                #   Add the def of this SOA to list:  eg  th23 = th2+th3
+                #   BUT  it needs to be embedded into a 4x4 mequation so
+                #    that solvers can scan it properly
+                R.SOA_eqns.auxeqns.append(tmpeqn)
+            
+            
+            
             # substitute new variable into the kinematic equations  ((WHY twice??))
             #self.mequation_list[k].Td[i,j] = Meq.Td[i,j].subs(d[aw] + d[bw] + d[cw], th_subval)
             #self.mequation_list[k].Ts[i,j] = Meq.Ts[i,j].subs(d[aw] + d[bw] + d[cw], th_subval)
@@ -418,7 +428,7 @@ def sum_of_angles_sub(expr, variables):
             #print self.mequation_list[k].Ts[i,j]
             #print '========'
  
-    return (expr,newjoint, tmpeqn)
+    return (expr, newjoint, tmpeqn)
 
 def get_variable_index(vars, symb):
     for v in vars:
