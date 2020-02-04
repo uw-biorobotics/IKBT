@@ -192,8 +192,10 @@ class Robot:
     def generate_solution_nodes(self, unknowns):
         '''generate solution nodes'''
         for unk in unknowns:
-            self.solution_nodes.append(Node(unk))
-            self.variables_symbols.append(unk.symbol)
+            if unk.solvemethod != '*None*':    # this means the unk was not used at all in solution 
+                                              #  typically SOA unknowns like th_23
+                self.solution_nodes.append(Node(unk))
+                self.variables_symbols.append(unk.symbol)
 
         print self.solution_nodes
         print self.variables_symbols
@@ -549,38 +551,39 @@ def output_latex_solution(Robot,variables, groups):
     sorted_node_list = sorted(Robot.solution_nodes)
 
     for node in sorted_node_list:
-        ALIGN = True
-        tmp = '$' + sp.latex(node.symbol) + '$'
-        tmp = tmp.replace(r'th_', r'\theta_')
-        tmp = re.sub(r'_(\d+)',  r'_{\1}', tmp)   # get all digits of subscript into {} for latex
-        print >> f ,r'\subsection{'+tmp+' }'
-        print >> f , 'Solution Method: ', node.solvemethod
+        if node.solvemethod != '*None*':   # skip variables (typically extra SOA's) that are not used.
+            ALIGN = True
+            tmp = '$' + sp.latex(node.symbol) + '$'
+            tmp = tmp.replace(r'th_', r'\theta_')
+            tmp = re.sub(r'_(\d+)',  r'_{\1}', tmp)   # get all digits of subscript into {} for latex
+            print >> f ,r'\subsection{'+tmp+' }'
+            print >> f , 'Solution Method: ', node.solvemethod
 
 
 
 
-        if (ALIGN):
-            print >> f ,r'\begin{align}'
-        else:
-            print >> f ,r'\begin{dmath}'
-        i=0
-        nsolns = len(node.solution_with_notations.values())
-        for eqn in node.solution_with_notations.values():
-            i += 1
-            if ALIGN and (i < nsolns):
-                tmp2 = r'\\'   # line continuation for align environment
+            if (ALIGN):
+                print >> f ,r'\begin{align}'
             else:
-                tmp2 = ''
-            tmp = str(eqn.LaTexOutput(ALIGN))
-            # convert division ('/') to \frac{}{} for nicer output
-            if re.search(r'/',tmp):
-                 tmp = tmp.replace(r'(.+)=(.+)/(.+)', r'\1 = \frac{\2}{\3}')
-            print >> f ,tmp, tmp2
+                print >> f ,r'\begin{dmath}'
+            i=0
+            nsolns = len(node.solution_with_notations.values())
+            for eqn in node.solution_with_notations.values():
+                i += 1
+                if ALIGN and (i < nsolns):
+                    tmp2 = r'\\'   # line continuation for align environment
+                else:
+                    tmp2 = ''
+                tmp = str(eqn.LaTexOutput(ALIGN))
+                # convert division ('/') to \frac{}{} for nicer output
+                if re.search(r'/',tmp):
+                    tmp = tmp.replace(r'(.+)=(.+)/(.+)', r'\1 = \frac{\2}{\3}')
+                print >> f ,tmp, tmp2
 
-        if (ALIGN):
-            print >> f ,r'\end{align}'
-        else:
-            print >> f ,r'\end{dmath}'
+            if (ALIGN):
+                print >> f ,r'\end{align}'
+            else:
+                print >> f ,r'\end{dmath}'
 
 
     ###########################################################
@@ -630,6 +633,8 @@ def output_latex_solution(Robot,variables, groups):
 
 
     for node in sorted_node_list:
+        if node.solvemethod == '*None*':  # skip unused SOA vars. 
+            continue
                 #print out the equations evaluated
         # print >> f , 'Equation(s):
         tmp = '$' + sp.latex(node.symbol) + '$'

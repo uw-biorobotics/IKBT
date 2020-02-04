@@ -155,7 +155,7 @@ def matching_func(notation_collections, solution_nodes):
             # go through the pential groups
             # merge when find match
             for pten_group in potential_groups:
-                print "currently at: %s"%pten_group
+                #print "currently at: %s"%pten_group
                 group_to_add = set(pten_group)
                 # if there's overlapping, merge
                 for single_notation in start:
