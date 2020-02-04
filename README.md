@@ -1,7 +1,7 @@
 # IKBT
 A python based system for generating closed-form solutions to the manipulator inverse kinematics problem using
 behavior trees for action selection. 
-Solutions are fully symbolic and are output as LaTex, Pyton, and C++.
+Solutions are fully symbolic and are output as LaTex, Python, and C++.
 
 # Current News
 

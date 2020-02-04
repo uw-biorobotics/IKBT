@@ -1,3 +1,10 @@
+Feb 2020:  Users reporting UR5 broken on master. 
+     New branch RepairUR5Regression which is newest commit which works with ARM & UR5.
+     
+     
+     
+---------------------------------
+ 
 May 2019:    "Arm_3"
   *  This arm now works ... mostly.   The Latex report has a couple of gaps but still produces a workable solution.
   *  Still 2 open issues with ArmRobo and Lori.
