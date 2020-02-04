@@ -1,7 +1,8 @@
 Feb 2020:  Users reporting UR5 broken on master. 
      New branch RepairUR5Regression which is newest commit which works with ARM & UR5.
      
-     
+     ** UR5 doesn't solve trival eqns like   th_4 = th_234-th2-th3
+        -- make sure SOA definition equations are included during solver scanning of eqn lists. 
      
 ---------------------------------
  
