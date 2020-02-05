@@ -5,6 +5,10 @@ Solutions are fully symbolic and are output as LaTex, Python, and C++.
 
 # Current News
 
+## Feb 2020
+BH has fixed the UR5 regression - it now works again and solution output no longer shows sum-of-angles variables that are not needed in the actual solution.   
+Use branch **RepairUR5Regression** for latest and greatest version. 
+
 ## July 2019
 Work aimed at \#15 and \#18 is still ongoing (it's tough!).  But a few smaller bugs have been fixed which are now in the 'testing' branch.   Please try that branch and post issues. THX.
 
