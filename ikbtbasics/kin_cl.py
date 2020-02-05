@@ -22,6 +22,8 @@ import numpy as np
 
 from pykinsym import *
 
+from solution_graph_v2 import *
+
 import ikbtfunctions.helperfunctions as hf
 
 
