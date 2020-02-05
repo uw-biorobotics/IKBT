@@ -37,9 +37,10 @@ mechanism).   IKBT can now solve the UR5 and similar robots!
 # Details
 ## How to cite: 
 
-Zhang, Dianmu, and Blake Hannaford. "IKBT: solving closed-form Inverse Kinematics with Behavior Tree." arXiv preprint arXiv:1711.05412 (2017).
+Zhang, Dianmu, and Blake Hannaford. "IKBT: solving symbolic inverse kinematics with behavior tree." Journal of Artificial Intelligence Research 65 (2019): 457-486.  [Link](https://www.jair.org/index.php/jair/article/view/11592)
 
-http://arxiv.org/abs/1711.05412
+Zhang, Dianmu, and Blake Hannaford. "IKBT: solving closed-form Inverse Kinematics with Behavior Tree." arXiv preprint arXiv:1711.05412 (2017).
+[Link](http://arxiv.org/abs/1711.05412)
 
 ## Installation Dependencies
 
