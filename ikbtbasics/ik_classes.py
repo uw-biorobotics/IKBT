@@ -23,17 +23,17 @@ import sympy as sp
 import shutil as sh
 import os as os
 #import numpy as np
-import pykinsym as pks
+import ikbtbasics.pykinsym as pks
 import re
-from solution_graph_v2 import *
-import matching as mtch
+from ikbtbasics.solution_graph_v2 import *
+import ikbtbasics.matching as mtch
 import sys as sys
 import b3 as b3          # behavior trees
 import pickle
 from ikbtfunctions.helperfunctions import *
 import ikbtfunctions.graph2latex as gl
 #from kin_cl import *
-import kin_cl as kc
+import ikbtbasics.kin_cl as kc
 
 
 # generic variables for any manipulator
@@ -68,30 +68,30 @@ def kinematics_pickle(rname, dh, constants, pvals, vv, unks, test):
     pickle_dir = 'fk_eqns/'
 
     if not os.path.isdir(pickle_dir):  # if this doesn't exist, create it.
-        print 'Creating a new pickle directory: ./'+pickle_dir
+        print('Creating a new pickle directory: ./'+pickle_dir)
         os.mkdir(pickle_dir)
 
     name = pickle_dir + rname + '_pickle.p'
 
-    print 'kinematics pickle: trying to open ', name,' in ', os.getcwd()
+    print('kinematics pickle: trying to open ', name,' in ', os.getcwd())
 
     if(os.path.isfile(name)):
         with open(name, 'rb') as pick:
-            print '\Trying to read pre-computed forward kinematics from '+name
+            print('\Trying to read pre-computed forward kinematics from '+name)
             [m, R, unknowns]  = pickle.load(pick)
-            print 'Successfully read pre-computed forward kinematics'
-            print 'pickle contained ', len(unknowns), ' unknowns'
+            print('Successfully read pre-computed forward kinematics')
+            print('pickle contained ', len(unknowns), ' unknowns')
     else:
         #print 'WRONG - quitting, error: ',sys.exc_info()[0]
         #sys.exit
         # set up mechanism object instance
         m = kc.mechanism(dh, constants, vv)
         m.pvals = pvals  # store numerical values of parameters
-        print 'Did not find VALID stored pickle file: ', name
-        print "Starting Forward Kinematics"
+        print('Did not find VALID stored pickle file: ', name)
+        print("Starting Forward Kinematics")
         m.forward_kinematics()
-        print "Completed Forward Kinematics"
-        print 'Starting Sum of Angles scan (slow!)'
+        print("Completed Forward Kinematics")
+        print('Starting Sum of Angles scan (slow!)')
 
         # set up Robot Object instance
         R = Robot(m, rname)              # set up IK structs etc
@@ -102,7 +102,7 @@ def kinematics_pickle(rname, dh, constants, pvals, vv, unks, test):
 
         R.generate_solution_nodes(unks) # generate solution nodes
 
-        print ' Storing kinematics pickle for '+rname + '('+name+')'
+        print(' Storing kinematics pickle for '+rname + '('+name+')')
         with open(name,'wb') as pf:
             pickle.dump( [m, R, unks], pf, protocol=pprotocol)
         unknowns = unks    # be sure to return updated unknown list (including SOAs)
@@ -113,7 +113,7 @@ def kinematics_pickle(rname, dh, constants, pvals, vv, unks, test):
 def check_the_pickle(dh1, dh2):   # check that two mechanisms have identical DH params
     flag = False
     if (dh1.shape[0] != dh2.shape[0]):
-        print   '   Wrong number of rows!'
+        print('   Wrong number of rows!')
         flag = True
     else:
         for r in range(0,dh1.shape[0]):
@@ -121,11 +121,12 @@ def check_the_pickle(dh1, dh2):   # check that two mechanisms have identical DH 
                 if(dh1[r,c] != dh2[r,c]):
                     flag = True
     if(flag):
-        print '\n\n  -----------------------------------------------------'
-        print     '                    DH parameters Differ '
-        print     '                 Pickle file is out of date. '
-        print     '                   please remove it and start again'
-        print     '  -----------------------------------------------------'
+        print('''\n\n -----------------------------------------------------
+                    DH parameters Differ
+                 Pickle file is out of date. 
+                   please remove it and start again
+  -----------------------------------------------------
+  ''')
         quit()
 
 ## retrieve thxy from thx, thy
@@ -183,7 +184,7 @@ class Robot:
             #
             #  build up the equations to solve:
             self.mequation_list = Mech.get_mequation_set()  # all the Matrix FK equations
-            print 'ik_classes: length Robot.mequation_list: ', len(self.mequation_list)
+            print('ik_classes: length Robot.mequation_list: ', len(self.mequation_list))
 
     def generate_solution_nodes(self, unknowns):
         '''generate solution nodes'''
@@ -191,8 +192,8 @@ class Robot:
             self.solution_nodes.append(Node(unk))
             self.variables_symbols.append(unk.symbol)
 
-        print self.solution_nodes
-        print self.variables_symbols
+        print(self.solution_nodes)
+        print(self.variables_symbols)
 
     # get lists of unsolved equations having 1 and 2 unks
     # class Robot:
@@ -283,7 +284,7 @@ class Robot:
     # identify sum of angles terms and transform them to new variable
     #
     def sum_of_angles_transform(self,variables):
-        print 'Starting sum-of-angles scan. Please be patient'
+        print('Starting sum-of-angles scan. Please be patient')
         unkn_sums_sym = set() #keep track of joint variable symbols
 
         #k = equation number
@@ -329,7 +330,7 @@ class Robot:
         prog_bar(-1,100,100, '')  # clear the progress bar
 
                             #x = raw_input('<enter> to cont...')
-        print 'Completed sum-of-angles scan.'
+        print('Completed sum-of-angles scan.')
 
 
 ##################
@@ -402,7 +403,7 @@ def sum_of_angles_sub(R, expr, variables):
             th_new = sp.var('th_'+ni) # create iff doesn't yet exist
             th_subval = th_new
             if not vexists:
-                print ":  found new 'joint' (sumofangle) variable: ", th_new
+                print(":  found new 'joint' (sumofangle) variable: ", th_new)
                 #  try moving soa equation to Tm.auxeqns
                 #unkn_sums_sym.add(th_new) #add into the joint variable set
                 newjoint = kc.unknown(th_new)
@@ -410,7 +411,7 @@ def sum_of_angles_sub(R, expr, variables):
                 newjoint.solved = False  # just to be clear for count_unknowns
                 variables.append(newjoint) #add it to unknowns list
                 tmpeqn = kc.kequation(th_new, d[aw] + d[bw] + d[cw])
-                print 'sum_of_angles_sub: created new equation:', tmpeqn
+                print('sum_of_angles_sub: created new equation:', tmpeqn)
                 # add this new equation to the Robot aux list
                 R.kequation_aux_list.append(tmpeqn)
 
@@ -424,7 +425,7 @@ def sum_of_angles_sub(R, expr, variables):
             #print self.mequation_list[k].Ts[i,j]
             #print '========'
     if tmpeqn is not None:
-        print 'sum_of_angles_sub: Ive found a new SOA equation, ', tmpeqn
+        print('sum_of_angles_sub: Ive found a new SOA equation, ', tmpeqn)
     #else:
         #print '>>m>>m>>m I didnt find a new SOA equation'
     return (expr,newjoint, tmpeqn)
@@ -432,7 +433,7 @@ def sum_of_angles_sub(R, expr, variables):
 def get_variable_index(vars, symb):
     for v in vars:
         if v.n == 0:
-            print 'get_variable_index()/ik_classes: at least one index is not initialized for joint variables (or is 0!)'
+            print('get_variable_index()/ik_classes: at least one index is not initialized for joint variables (or is 0!)')
             quit()
         found = False
         #print 'get_variable_index: v[i], symb, v[i].n ',str(v.symbol),str(symb), v.n
@@ -460,20 +461,20 @@ def get_variable_index(vars, symb):
 #   Print text-based solution graph
 #
 def output_solution_graph(R):
-    print '========== Solution output ================'
-    print '          ' + R.name
+    print('========== Solution output ================')
+    print('          ' + R.name)
 
 
     for node in R.solution_nodes:
         if node.solveorder != -1: #node is solved
-            print '\n\n', node.solveorder, node.symbol, ' by method: ', node.solvemethod, ',  ', node.nsolutions, ' solution(s)'
-            print node.solution_with_notations
+            print('\n\n', node.solveorder, node.symbol, ' by method: ', node.solvemethod, ',  ', node.nsolutions, ' solution(s)')
+            print(node.solution_with_notations)
 
     # print all edges in graph
-    print '========== Solution Graph (Edges) output ================'
+    print('========== Solution Graph (Edges) output ================')
     for edge in R.notation_graph:
-        print edge
-    print '========== End Solution output ================'
+        print(edge)
+    print('========== End Solution output ================')
 
 #
 #      Generate a complete report in latex
@@ -489,7 +490,7 @@ def output_latex_solution(Robot,variables, groups):
     defaultname = DirName + 'IK_solution.tex'
     fname = DirName + 'IK_solution_'+orig_name+'.tex'
     f = open(fname, 'w')
-    print >> f , r'''
+    print(operator.rshift(f) , r'''
     \begin{center}
     \section*{Inverse Kinematic Solution for ''' + fixed_name + r'''}
     \today
@@ -500,33 +501,33 @@ def output_latex_solution(Robot,variables, groups):
     The IK-BT package is described in
     \url{https://arxiv.org/abs/1711.05412}.  IK-BT derives your inverse kinematics equations
     using {\tt Python 2.7} and the {\tt sympy} module for symbolic mathematics.
-    '''
-    print >> f, r'''\section{Kinematic Parameters}
+    ''')
+    print(operator.rshift(f), r'''\section{Kinematic Parameters}
     The kinematic parameters for this robot are
     \[ \left [ \alpha_{i-1}, \quad a_{i-1}, \quad d_i, \quad \theta_i \right  ] \]
-    \begin{dmath}''',
-    print >> f, sp.latex(Robot.Mech.DH),
-    print >> f, '''\end{dmath}
-    '''
+    \begin{dmath}'''),
+    print(operator.rshift(f), sp.latex(Robot.Mech.DH)),
+    print(operator.rshift(f), '''\end{dmath}
+    ''')
 
 
 
-    print >>f, r'''\section{Forward Kinematic Equations}
-    The forward kinematic equations for this robot are:'''
+    print(operator.rshift(f), r'''\section{Forward Kinematic Equations}
+    The forward kinematic equations for this robot are:''')
 
 
     LHS = ik_lhs()
     RHS = kc.notation_squeeze(Robot.Mech.T_06)   # see kin_cl.mechanism.T_06
-    print >> f, r'\begin{dmath}'
-    print >> f, sp.latex(LHS) + r' =  \\'
-    print >> f, sp.latex(RHS)
-    print >> f, r'\end{dmath}'
+    print(operator.rshift(f), r'\begin{dmath}')
+    print(operator.rshift(f), sp.latex(LHS) + r' =  \\')
+    print(operator.rshift(f), sp.latex(RHS))
+    print(operator.rshift(f), r'\end{dmath}')
 
-    print >> f , r'\section{Unknown Variables: }'
+    print(operator.rshift(f) , r'\section{Unknown Variables: }')
 
     # introduce the unknowns and the solution ORDER
-    print >> f ,'''The unknown variables for this robot are (in solution order): '''
-    print >> f ,r'\begin{enumerate}'
+    print(operator.rshift(f) ,'''The unknown variables for this robot are (in solution order): ''')
+    print(operator.rshift(f) ,r'\begin{enumerate}')
 
     tvars = {}
     for v in variables:
@@ -535,14 +536,14 @@ def output_latex_solution(Robot,variables, groups):
         tmp = '$' + sp.latex(v) + '$'
         tmp = tmp.replace(r'th_', r'\theta_')
         tmp = re.sub(r'_(\d+)',  r'_{\1}', tmp)   # get all digits of subscript into {}
-        print >> f ,'\item {'+tmp+'}'
-    print >> f ,r'\end{enumerate}'
+        print(operator.rshift(f) ,'\item {'+tmp+'}')
+    print(operator.rshift(f) ,r'\end{enumerate}')
 
 
 
     # print the solutions for each variable (in DH order)
-    print >> f ,r'\section{Solutions}'
-    print >> f ,''' The following equations comprise the full solution set for this robot.'''
+    print(operator.rshift(f) ,r'\section{Solutions}')
+    print(operator.rshift(f) ,''' The following equations comprise the full solution set for this robot.''')
 
     # sort the nodes into solution order
     sorted_node_list = sorted(Robot.solution_nodes)
@@ -552,16 +553,16 @@ def output_latex_solution(Robot,variables, groups):
         tmp = '$' + sp.latex(node.symbol) + '$'
         tmp = tmp.replace(r'th_', r'\theta_')
         tmp = re.sub(r'_(\d+)',  r'_{\1}', tmp)   # get all digits of subscript into {} for latex
-        print >> f ,r'\subsection{'+tmp+' }'
-        print >> f , 'Solution Method: ', node.solvemethod
+        print(operator.rshift(f) ,r'\subsection{'+tmp+' }')
+        print(operator.rshift(f) , 'Solution Method: ', node.solvemethod)
 
 
 
 
         if (ALIGN):
-            print >> f ,r'\begin{align}'
+            print(operator.rshift(f) ,r'\begin{align}')
         else:
-            print >> f ,r'\begin{dmath}'
+            print(operator.rshift(f) ,r'\begin{dmath}')
         i=0
         nsolns = len(node.solution_with_notations.values())
         for eqn in node.solution_with_notations.values():
@@ -574,12 +575,12 @@ def output_latex_solution(Robot,variables, groups):
             # convert division ('/') to \frac{}{} for nicer output
             if re.search(r'/',tmp):
                  tmp = tmp.replace(r'(.+)=(.+)/(.+)', r'\1 = \frac{\2}{\3}')
-            print >> f ,tmp, tmp2
+            print(operator.rshift(f) ,tmp, tmp2)
 
         if (ALIGN):
-            print >> f ,r'\end{align}'
+            print(operator.rshift(f) ,r'\end{align}')
         else:
-            print >> f ,r'\end{dmath}'
+            print(operator.rshift(f) ,r'\end{dmath}')
 
 
     ###########################################################
@@ -588,34 +589,34 @@ def output_latex_solution(Robot,variables, groups):
     #            (not a tree!)
     #
     ###########################################################
-    print>>f, r'\section{Solution Graph (Edges)}'
-    print >>f, r'''
+    printoperator.rshift(f), r'\section{Solution Graph (Edges)}'
+    print(operator.rshift(f), r'''
     The following is the abstract representation of solution graph for this manipulator (nodes with parent -1 are roots):
     \begin{verbatim}
-    '''
+    ''')
     graph = Robot.notation_graph
 
     for edge in graph:
-        print >>f, edge
+        print(operator.rshift(f), edge)
 
-    print>>f, '\end{verbatim}'
+    printoperator.rshift(f), '\end{verbatim}'
     ###########################################################
     #
     #   Output of solution sets
     #
     ###########################################################
 
-    print>>f, r'\section{Solution Sets}'
-    print >>f, r'''
+    printoperator.rshift(f), r'\section{Solution Sets}'
+    print(operator.rshift(f), r'''
     The following are the sets of joint solutions (poses) for this manipulator:
     \begin{verbatim}
-    '''
+    ''')
     # groups = mtch.matching_func(Robot.notation_collections, Robot.solution_nodes)
 
     for g in groups:
-        print >>f, g
+        print(operator.rshift(f), g)
 
-    print>>f, '\end{verbatim}'
+    printoperator.rshift(f), '\end{verbatim}'
 
     ###########################################################
     #
@@ -624,23 +625,23 @@ def output_latex_solution(Robot,variables, groups):
     ###########################################################
     #################################################
     # Equations evaluated (for result verification or debugging)
-    print >>f, r'\section{Equations Used for Solutions}'
+    print(operator.rshift(f), r'\section{Equations Used for Solutions}')
 
 
 
     for node in sorted_node_list:
                 #print out the equations evaluated
-        # print >> f , 'Equation(s):
+        # print operator.rshift(f) , 'Equation(s):
         tmp = '$' + sp.latex(node.symbol) + '$'
         tmp = tmp.replace(r'th_', r'\theta_')
         tmp = re.sub(r'_(\d+)',  r'_{\1}', tmp)   # get all digits of subscript into {} for latex
-        print >> f ,r'\subsection{'+tmp+' }'
-        print >> f , 'Solution Method: ', node.solvemethod
+        print(operator.rshift(f) ,r'\subsection{'+tmp+' }')
+        print(operator.rshift(f) , 'Solution Method: ', node.solvemethod)
 
         for eqn in node.eqnlist:
-            print >>f, r'\begin{dmath}'
-            print >>f, eqn.LaTexOutput()
-            print >>f, r'\end{dmath}'
+            print(operator.rshift(f), r'\begin{dmath}')
+            print(operator.rshift(f), eqn.LaTexOutput())
+            print(operator.rshift(f), r'\end{dmath}')
 
     f.close()
 
@@ -688,8 +689,8 @@ if __name__ == "__main__":   # tester code for the classes in this file
 
     # Test .subs operator on atan2() function
 
-    print 'Original Function: ', a
-    print 'Substitute b<-e:   ', a.subs(b,e), ' (Expect atanw(e, c))'
+    print('Original Function: ', a)
+    print('Substitute b<-e:   ', a.subs(b,e), ' (Expect atanw(e, c))')
     assert(a.subs(b,e) == sp.atan2(e,c))
 
      ###Test the Left Hand Side Generator
@@ -710,9 +711,9 @@ if __name__ == "__main__":   # tester code for the classes in this file
     E2 = kc.kequation(5, sp.sin(e))
     E3 = kc.kequation(5, d+e+5)
 
-    print "\n\nTesting kequation()"
-    print "kequation sample: "
-    print E1.LHS, " = ", E1.RHS
+    print("\n\nTesting kequation()")
+    print("kequation sample: ")
+    print(E1.LHS, " = ", E1.RHS)
     fs = ' kequation method FAIL'
     assert(E1.LHS == 0), fs
     assert(E1.RHS == sp.cos(d)), fs
@@ -720,9 +721,9 @@ if __name__ == "__main__":   # tester code for the classes in this file
     assert(E3.RHS == d+e+5), fs
 
 
-    print "---------testing equation print method-----"
+    print("---------testing equation print method-----")
     E1.prt()
-    print "--------------"
+    print("--------------")
 
 
      ####Test unknown class
@@ -730,20 +731,20 @@ if __name__ == "__main__":   # tester code for the classes in this file
     ua = kc.unknown(a)
     ub = kc.unknown(b)
 
-    print "\n\nTesting unknown(symbol) (one-arg form)"
-    print "Unknown a: ",   ua.symbol
+    print("\n\nTesting unknown(symbol) (one-arg form)")
+    print("Unknown a: ",   ua.symbol)
     fs = ' unknown object element "solved" FAIL'
     assert(ua.solved == False), fs
-    print "a is solved: ", ua.solved , ' (Expect False)'
-    print "Unknown b: ",   ub.symbol
+    print("a is solved: ", ua.solved , ' (Expect False)')
+    print("Unknown b: ",   ub.symbol)
     ub.solved = True
-    print "b is solved: ", ub.solved, ' (Expect True)'
+    print("b is solved: ", ub.solved, ' (Expect True)')
     assert(ub.solved == True), fs
 
       ##Test matrix_equation class
 
 
-    print "\n\nTesting matrix_equation(T1,T2) class"
+    print("\n\nTesting matrix_equation(T1,T2) class")
     T1 = ik_lhs()
     T2 = sp.zeros(5)
     T2[1,1] = a   # note: a = atan2(b,c) above
@@ -755,9 +756,9 @@ if __name__ == "__main__":   # tester code for the classes in this file
     sp.pprint(T2)
 
     tme = kc.matrix_equation(T1,T2)
-    print ''
-    print "Mat eqn 1,2: ", tme.Td[1,2], " '=' ", tme.Ts[1,2], "(not a kequation type!)"
-    print ''
+    print('')
+    print("Mat eqn 1,2: ", tme.Td[1,2], " '=' ", tme.Ts[1,2], "(not a kequation type!)")
+    print('')
 
     sp.var('e22 ')
 
@@ -769,21 +770,21 @@ if __name__ == "__main__":   # tester code for the classes in this file
     assert(tme.Ts[2,3] == l_1*sp.sin(d)+2*l_2*sp.cos(d)), fs
 
 
-    print '           Test equation sorting: '
+    print('           Test equation sorting: ')
 
     e1 = kc.kequation(l_1, sp.sin(th_1) + sp.cos(th_1)*l_1)
     e2 = kc.kequation(l_2, sp.sin(th_1))
     e3 = kc.kequation(l_3, sp.sin(th_1) + sp.cos(th_1)*l_1 + sp.cos(th_3)*l_2)
     l = [e1, e2, e3]
 
-    print 'Original List: '
+    print('Original List: ')
     for e in l:
          e.prt()
 
     l= erank(l)  # should sort in place by increasing length of expression
 
 
-    print 'Sorted List: '
+    print('Sorted List: ')
     for e in l:
         e.prt()
 
@@ -794,23 +795,23 @@ if __name__ == "__main__":   # tester code for the classes in this file
     # unknown class hash function testing
     tmpv1 = kc.unknown(th_1)
     tmpv2 = kc.unknown(th_1)
-    print 'a.symbol: ', tmpv1
-    print 'b.symbol: ', tmpv2
+    print('a.symbol: ', tmpv1)
+    print('b.symbol: ', tmpv2)
     c = set()
     c.add(tmpv1)
     c.add(tmpv2)
-    print '-------------'
-    print tmpv1.__hash__()
-    print tmpv2.__hash__()
-    print 'Length of set: ', len(c)
-    print '-------------'
+    print('-------------')
+    print(tmpv1.__hash__())
+    print(tmpv2.__hash__())
+    print('Length of set: ', len(c))
+    print('-------------')
     assert(len(c) == 1), "hashing (unknown/variable) class fail"
 
 
 
     ###    Test Robot class
     #   Robot class is tested in updateL.py
-    print 'Sum of Angles testing'
+    print('Sum of Angles testing')
     #
     
     
@@ -818,7 +819,7 @@ if __name__ == "__main__":   # tester code for the classes in this file
     #
     #  basic sum of angles testing:
     s = 'Basic Sum of Angles Testing'
-    print '\n\n ' + s + '\n\n'
+    print('\n\n ' + s + '\n\n')
     
     sp.var('a1 a2 a3')   # note subscripts required
     
@@ -835,10 +836,10 @@ if __name__ == "__main__":   # tester code for the classes in this file
     term1a, newj, newe = sum_of_angles_sub(term1, vars01)
     fs = ' new equation not correctly established'
     assert str(newj.symbol) == 'th_12', fs
-    print 'new eqn', newe
+    print('new eqn', newe)
     term2a, newj, newe = sum_of_angles_sub(term2, vars01)
     assert str(newj.symbol) == 'th_123', fs
-    print 'new eqn', newe
+    print('new eqn', newe)
     
     #print 'Initial Test: '
     #print term1, ' --> ', term1a
@@ -855,7 +856,7 @@ if __name__ == "__main__":   # tester code for the classes in this file
     #
 
     s = 'Problem Specific Sum of Angles Testing'
-    print '\n\n ' + s + '\n\n'
+    print('\n\n ' + s + '\n\n')
     
     sp.var('Px Py Pz')
     unks01 =  [kc.unknown(th_1), kc.unknown(th_2), kc.unknown(th_3), kc.unknown(th_4), kc.unknown(th_5), kc.unknown(th_6)]
@@ -872,14 +873,14 @@ if __name__ == "__main__":   # tester code for the classes in this file
     if newj:
         unks01.append(newj)
     if newe:
-        print ' NEW Equation: ', newe
+        print(' NEW Equation: ', newe)
         
-    print '---'
-    print eqnterm
-    print '---'
-    print term2
-    print '---'
-    print 'new unknown list: ', unks01
+    print('---')
+    print(eqnterm)
+    print('---')
+    print(term2)
+    print('---')
+    print('new unknown list: ', unks01)
     
     fs = 'FAIL problem specific SOA tests'
     assert str(term2) == 'Px*sin(th_234)*cos(th_1) + Py*sin(th_1)*sin(th_234) + Pz*cos(th_234) - a_2*sin(th_34) - a_3*sin(th_4) - d_1*cos(th_234)', fs
@@ -895,7 +896,7 @@ if __name__ == "__main__":   # tester code for the classes in this file
     # Generate some SUM of Angles Kin eqns
     
     s = 'Advanced Sum of Angles Testing: DH parameters/UR5'
-    print '\n\n ' + s + '\n\n'
+    print('\n\n ' + s + '\n\n')
     
     
     dh = sp.Matrix([
@@ -921,7 +922,7 @@ if __name__ == "__main__":   # tester code for the classes in this file
 
     testing = False  # not using this now
     [m, R, tmpvars] = kinematics_pickle(robot, dh, params, pvals, vv, variables, testing)
-    print 'GOT HERE: robot name: ', R.name
+    print('GOT HERE: robot name: ', R.name)
 
     variables = tmpvars
     R.name = robot
@@ -930,9 +931,9 @@ if __name__ == "__main__":   # tester code for the classes in this file
     ##   check the pickle in case DH params were changed
     check_the_pickle(m.DH, dh)   # check that two mechanisms have identical DH params
 
-    print '\n the variables: ', variables
+    print('\n the variables: ', variables)
     assert len(variables) == 9, 'wrong number of variables'
-    print '\n\n'
+    print('\n\n')
 
     # Below replaced by pickle code above
 
@@ -959,12 +960,12 @@ if __name__ == "__main__":   # tester code for the classes in this file
     eqn = 0
     row = 2
     col = 3
-    print 'Equations: '
+    print('Equations: ')
     enbr = 0
     for eqn in R.mequation_list:
-        print enbr, ':  ', eqn.Td[row,col], '    =    ', eqn.Ts[row,col]
+        print(enbr, ':  ', eqn.Td[row,col], '    =    ', eqn.Ts[row,col])
         enbr += 1
-    print '\n\n\n'
+    print('\n\n\n')
     ####
 
 
@@ -982,14 +983,14 @@ if __name__ == "__main__":   # tester code for the classes in this file
 
 
 
-    print '\n\n\n'
-    print '--- (round 1)'
-    print A1          ##   failing to substitute 3-way SOA right now
-    print '---'
-    print A2
-    print '---'
-    print sp.simplify(A1-A2)
-    print '\n\n\n'
+    print('\n\n\n')
+    print('--- (round 1)')
+    print(A1)         ##   failing to substitute 3-way SOA right now
+    print('---')
+    print(A2)
+    print('---')
+    print(sp.simplify(A1-A2))
+    print('\n\n\n')
     
     fs = 'ik_classes: sum_of_angles_transform FAILS 3-way sum'
     assert sp.simplify(A1-A2)== 0, fs+' 001'
@@ -1005,15 +1006,15 @@ if __name__ == "__main__":   # tester code for the classes in this file
     #A2 =  Px*sp.sin(th_234)*sp.cos(th_1) + Py*sp.sin(th_1)*sp.sin(th_234) + Pz*sp.cos(th_234) - a_2*sp.sin(th_34) - a_3*sp.sin(th_4) - d_1*sp.cos(th_234)
     A2 =  Px*sp.sin(th_234)*sp.cos(th_1) + Py*sp.sin(th_1)*sp.sin(th_234) + Pz*sp.cos(th_234) - a_2*sp.sin(th_34) - a_3*sp.sin(th_4) - d_1*sp.cos(th_234)
 
-    print '\n\n\n'
-    print '--- (round 2)'
-    print A1          ##   failing to substitute 3-way SOA right now
-    print '---'
-    print A2
-    print '---'
-    print sp.simplify(A1-A2)
-    print '\n\n\n'
+    print('\n\n\n')
+    print('--- (round 2)')
+    print(A1)         ##   failing to substitute 3-way SOA right now
+    print('---')
+    print(A2)
+    print('---')
+    print(sp.simplify(A1-A2))
+    print('\n\n\n')
     assert sp.simplify(A1-A2)==0, fs+' 002'
 
 
-    print '\n\n\n        ik_classes   PASSES all tests \n\n'
+    print('\n\n\n        ik_classes   PASSES all tests \n\n')

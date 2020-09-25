@@ -95,8 +95,8 @@ class sum_id(b3.Action):   ##  we should change this name since its a transform
                             th_xy = find_xy(d[thx], d[thy])
                             #if not exists in the unknown list (this requires proper hashing), create variable
                             if th_xy not in unkn_sums_sym:
-                                print "found NEW 'joint' (updated) (sumofangle) variable: "
-                                print th_xy
+                                print("found NEW 'joint' (updated) (sumofangle) variable: ")
+                                print(th_xy)
                                 #  try moving soa equation to Tm.auxeqns
                                 unkn_sums_sym.add(th_xy) #add into the joint variable set
                                 newjoint = unknown(th_xy)
@@ -104,10 +104,10 @@ class sum_id(b3.Action):   ##  we should change this name since its a transform
                                 #newjoint.joint_eq = d[thx] + d[sgn] * d[thy]
                                 unknowns.append(newjoint) #add it to unknowns list 
                                 tmpeqn = kequation(th_xy, d[thx] + d[sgn] * d[thy])
-                                print 'sumofanglesT: appending ', tmpeqn
+                                print('sumofanglesT: appending ', tmpeqn)
                                 # store the SOA aux equation 
                                 R.kequation_aux_list.append(tmpeqn)
-                                print d[thx] + d[sgn]*d[thy]
+                                print(d[thx] + d[sgn]*d[thy])
                                 #substitute all thx +/- thy expression with th_xy
                                 matr_equ.Ts = matr_equ.Ts.subs(d[thx] + d[sgn] * d[thy], th_xy)
                                 matr_equ.Td = matr_equ.Td.subs(d[thx] + d[sgn] * d[thy], th_xy) 
@@ -194,7 +194,7 @@ class sum_solve(b3.Action):
         if len(Tm.auxeqns) > 0:
             for e in Tm.auxeqns:
                 #d = unk.joint_eq.match(thx + sgn * thy)
-                print e
+                print(e)
                 d = e.RHS.match(thx + sgn * thy)
                 
                 unka = find_obj(d[thx], unknowns)
@@ -202,9 +202,9 @@ class sum_solve(b3.Action):
                 unkb = find_obj(d[thy], unknowns)
                 #print unkb
                 if unka == None:
-                    print "variable %s doesn't exist" %(d[thx])
+                    print("variable %s doesn't exist" %(d[thx]))
                 elif unkb == None:
-                    print "variable %s doesn't exist" %(d[thy])
+                    print("variable %s doesn't exist" %(d[thy]))
                 else:
 
                     if unka.solved and (not unkb.solved):
@@ -215,8 +215,8 @@ class sum_solve(b3.Action):
                         solvedtag = True
                         
                         if self.BHdebug:
-                            print "I'm solving %s from joint variable %s" % (unkb.symbol, e.LHS)
-                            print "solution: %s" % sol
+                            print("I'm solving %s from joint variable %s" % (unkb.symbol, e.LHS))
+                            print("solution: %s" % sol)
                         
                     elif unkb.solved and (not unka.solved):
                         sol = e.LHS - d[sgn] *unkb.symbol
@@ -226,8 +226,8 @@ class sum_solve(b3.Action):
                         solvedtag = True
                         
                         if self.BHdebug:
-                            print "I'm solving %s from joint variable %s" % (unka.symbol, e.LHS)
-                            print "solution: %s" % sol
+                            print("I'm solving %s from joint variable %s" % (unka.symbol, e.LHS))
+                            print("solution: %s" % sol)
         #tick.blackboard.set('test_id', test_id)
         tick.blackboard.set('unknowns', unknowns)
         tick.blackboard.set('Robot', R)
@@ -265,7 +265,7 @@ if __name__ == "__main__":
     
     if testNum==1:
 
-        print '\n\n\n         - - -       Sum of Angles Test 1        - - -\n\n'
+        print('\n\n\n         - - -       Sum of Angles Test 1        - - -\n\n')
 
         ik_tester.root = test
 
@@ -276,15 +276,15 @@ if __name__ == "__main__":
 
         unknowns = bb.get("unknowns")
 
-        print "----------"
-        print "test results"
+        print("----------")
+        print("test results")
 
-        print "found sum of angles: "
+        print("found sum of angles: ")
         for unkn in unknowns:
             if unkn.n == 0:
-                print unkn
+                print(unkn)
                 
-        print "new T matrix"
+        print("new T matrix")
 
         m = bb.get("Tm")
         sp.pprint(m.Ts)
@@ -305,18 +305,18 @@ if __name__ == "__main__":
         A = sp.expand(A)
         B = sp.expand(B)
         
-        print ' - - -LHS: - - '
-        print         A
-        print ' - - - - - '
-        print ' - - -RHS: - - '
-        print       B
-        print ' - - - - - '
+        print(' - - -LHS: - - ')
+        print(A)
+        print(' - - - - - ')
+        print(' - - -RHS: - - ')
+        print(B)
+        print(' - - - - - ')
         assert (A==B), ' Special A==B assert'
     
     testNum = 2
     
     if testNum == 2:
-        print '\n\n\n         - - -       Sum of Angles Test 2        - - -\n\n'
+        print('\n\n\n         - - -       Sum of Angles Test 2        - - -\n\n')
 
         s_solve = sum_solve()
         s_solve.BHdebug = True
@@ -336,8 +336,8 @@ if __name__ == "__main__":
        
         for unk in unknowns:
             if unk.solved:
-                print unk.symbol
-                print unk.solutions
+                print(unk.symbol)
+                print(unk.solutions)
                 
         test_id = bb2.get('test_id')
         fs = 'Sum-of-Angles solver failed'
@@ -355,6 +355,6 @@ if __name__ == "__main__":
             assert (unknowns[2].solutions[0] == -th_2 + th_23), fs2 #th_3 = th_23 - th_2
             assert (unknowns[3].solutions[0] == th_45 + th_5), fs2 #th_4 = th_45 + th5
             
-    print '\n\n\n             Sum Transform + Solver Passes ALL tests \n\n'
+    print('\n\n\n             Sum Transform + Solver Passes ALL tests \n\n')
     
     

@@ -112,7 +112,7 @@ class sinandcos_id(b3.Action):    # action leaf for sincosid
         if (not u.solved):  # only if not already solved!
           for e in one_unk:  # only look at the eqns with one unknowns
               #print "Looking for unknown: ", u.symbol, " in equation: ", 
-              print e
+              print(e)
               
               tmp = e.RHS-e.LHS
               lhs = l_1 - l_1
@@ -130,8 +130,8 @@ class sinandcos_id(b3.Action):    # action leaf for sincosid
                   d[Cw] = es - d[Aw]*sp.sin(u.symbol) - d[Bw]*sp.cos(u.symbol)
 
                   if(self.BHdebug):
-                      print 'Sin AND Cos identifying: ', es
-                      print 'Aw: ', d[Aw], ' Bw: ', d[Bw], ' Cw: ', d[Cw]
+                      print('Sin AND Cos identifying: ', es)
+                      print('Aw: ', d[Aw], ' Bw: ', d[Bw], ' Cw: ', d[Cw])
                   
                   if not d[Cw].has(u.symbol):
                       u.readytosolve = True
@@ -164,9 +164,9 @@ class sinandcos_solve(b3.Action):    # Solve asincos equation pairs
        if(not u.solved):                
             if (u.readytosolve) and (u.solvemethod == "sinANDcos"):
                 if(self.BHdebug): 
-                  print "\nsinANDcos solver: I'm working on: ", u.symbol
-                  print "  Using: ", 
-                  print u.eqntosolve
+                  print("\nsinANDcos solver: I'm working on: ", u.symbol)
+                  print("  Using: ", )
+                  print(u.eqntosolve)
 
                 l1  = u.eqntosolve.LHS
                 rhs = u.eqntosolve.RHS
@@ -175,10 +175,10 @@ class sinandcos_solve(b3.Action):    # Solve asincos equation pairs
                 C = A*sp.sin(u.symbol) + B*sp.cos(u.symbol) - rhs
 
                 if self.BHdebug:
-                  print "\n find the A, B ,C"
-                  print A
-                  print B
-                  print C
+                  print("\n find the A, B ,C")
+                  print(A)
+                  print(B)
+                  print(C)
 
                 # lhs = l1- C
 
@@ -209,9 +209,9 @@ class sinandcos_solve(b3.Action):    # Solve asincos equation pairs
                 u.nsolutions = 2
                 u.set_solved(R,unknowns)
                 if(self.BHdebug):
-                    print 'I think I solved ', u.symbol
+                    print('I think I solved ', u.symbol)
                     sp.pprint(u.solutions)
-                    print ''
+                    print('')
 #
        tick.blackboard.set('curr_unk', u)
        tick.blackboard.set('Robot', R)
@@ -225,7 +225,7 @@ class sinandcos_solve(b3.Action):    # Solve asincos equation pairs
 class TestSolver003(unittest.TestCase):
     def setUp(self):
         self.DB = False  # debug flag
-        print '\n\n===============  Test sinANDcos Solver  =================='
+        print('\n\n===============  Test sinANDcos Solver  ==================')
         return
     
     def runTest(self):
@@ -257,8 +257,8 @@ class TestSolver003(unittest.TestCase):
         fs = ' sin AND cos solver FAIL'
         ntests = 0
         for u in unkns:
-            print u.symbol
-            print u.solutions
+            print(u.symbol)
+            print(u.solutions)
             if(u.symbol == th_1):
                 ntests += 1
                 self.assertTrue(u.solved, fs)
@@ -285,7 +285,7 @@ class TestSolver003(unittest.TestCase):
         self.assertTrue(ntests == 4, 'sinANDcos_solver:    Assert count fail       FAIL')
  
 def run_test():
-    print '\n\n===============  Test sinANDcos_solver.py ====================='
+    print('\n\n===============  Test sinANDcos_solver.py =====================')
     testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver003)  # replace TEMPLATE 
     unittest.TextTestRunner(verbosity=2).run(testsuite)
         

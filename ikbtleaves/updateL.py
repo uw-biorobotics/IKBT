@@ -87,14 +87,14 @@ class TestSolver007(unittest.TestCase):    # change TEMPLATE to unique name (2 p
         PickleFK = True     # True: compute/retrieve FK    False: use hard coded equations (not yet workign)
         
         if PickleFK:
-            print '\n------------'
-            print 'Current dir: ', os.getcwd()
+            print('\n------------')
+            print('Current dir: ', os.getcwd())
             pickname = 'IKBT/fk_eqns/Puma_pickle.p'
             if(os.path.isfile(pickname)):
-                print 'a pickle file will be used to speed up'
+                print('a pickle file will be used to speed up')
             else:
-                print 'There was no pickle file'
-            print '------------'
+                print('There was no pickle file')
+            print('------------')
 
             #return [dh, vv, params, pvals, variables]
             robot = 'Puma'
@@ -106,7 +106,7 @@ class TestSolver007(unittest.TestCase):    # change TEMPLATE to unique name (2 p
             #R.sum_of_angles_transform(unknowns)
             #print 'Completed Sum of Angles scan/transform'
 
-            print 'GOT HERE: updateL robot name: ', R.name
+            print('GOT HERE: updateL robot name: ', R.name)
 
             R.name = 'test: '+ robot # ??? TODO: get rid of this (but fix report)
 
@@ -124,24 +124,24 @@ class TestSolver007(unittest.TestCase):    # change TEMPLATE to unique name (2 p
             testerbt.tick('test', bb)
             L1 = bb.get('eqns_1u')
             L2 = bb.get('eqns_2u')
-            print L2[0].RHS
+            print(L2[0].RHS)
             # print them all out(!)
             sp.var('Px Py Pz')
             fs = 'updateL: equation list building   FAIL'
             #  these self.assertTrues are not conditional - no self.assertTrueion counting needed
             self.assertTrue(L1[0].RHS == d_3, fs)
             self.assertTrue(L1[0].LHS == -Px*sp.sin(th_1)+Py*sp.cos(th_1), fs)
-            print '-----'
+            print('-----')
             
             
             ##########################################################################################
             #    Print out lists L1 and L2 in form of python code to make a new version that will 
             #      not require the painful/slow Puma FK
             
-            print 'Code excerpt: (insert at line 124!)'
-            print 'L1 = []'
-            print 'l2 = []'
-            print 'unk_Puma =', unk_Puma
+            print('Code excerpt: (insert at line 124!)')
+            print('L1 = []')
+            print('l2 = []')
+            print('unk_Puma =', unk_Puma)
             
             def syconv(s):               
                 a = s
@@ -155,16 +155,16 @@ class TestSolver007(unittest.TestCase):    # change TEMPLATE to unique name (2 p
                 s2 = str(eqn.RHS)
                 s1 = syconv(s1)
                 s2 = syconv(s2)
-                print 'L1.append(kequation('+s1+', '+s2+'))'
+                print('L1.append(kequation('+s1+', '+s2+'))')
             for eqn in L2:
                 s1 = str(eqn.LHS)
                 s2 = str(eqn.RHS)
                 s1 = syconv(s1)
                 s2 = syconv(s2)
-                print 'L2.append(kequation('+s1+', '+s2+'))'
+                print('L2.append(kequation('+s1+', '+s2+'))')
             
         
-            print '\n  End of code generation  \n'      
+            print('\n  End of code generation  \n'      )
         
         
         if not PickleFK:  # generate same equation lists as real FK for Puma             
@@ -215,13 +215,13 @@ class TestSolver007(unittest.TestCase):    # change TEMPLATE to unique name (2 p
 #
 
 def run_test():
-    print '\n\n===============  Test updateL.py ====================='
+    print('\n\n===============  Test updateL.py =====================')
     testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver007)  # replace TEMPLATE
     unittest.TextTestRunner(verbosity=2).run(testsuite)
 
 if __name__ == "__main__":
 
-    print '\n\n===============  Test updateL.py ====================='
+    print('\n\n===============  Test updateL.py =====================')
     testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver007)  # replace TEMPLATE
     unittest.TextTestRunner(verbosity=2).run(testsuite)
     #unittest.main()

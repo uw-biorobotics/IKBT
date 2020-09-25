@@ -29,12 +29,12 @@ import sympy as sp
 #    Some helper functions
 #
 def print_status(bb, label):
-    print "    --- ", label, " ---"
-    print "            Solved:   " , bb.get('solutions')
-    print "            Unknowns: " , bb.get('unknowns')
+    print("    --- ", label, " ---")
+    print("            Solved:   " , bb.get('solutions'))
+    print("            Unknowns: " , bb.get('unknowns'))
 
 def print_debug(label):
-    print label
+    print(label)
 
 ## how many unknowns are in expr?
 def count_unknowns(unknowns, expr): 
@@ -78,7 +78,7 @@ def find_obj(th_sym, unknowns):
 
 def find_ancestor(node, var):
     if node.parent.root:
-        print "find_ancestor: never found a solved variable in the solution tree !", var.symbol
+        print("find_ancestor: never found a solved variable in the solution tree !", var.symbol)
         assert(False), 'caller (set_solved) tried to register a solution with unknown in it!'
         return 0
     else:
@@ -114,7 +114,7 @@ def ik_lhs():  # generate a simple Left Hand side matrix
 #
 def prog_bar(l, lmax, length=25,  msg = ''):
     if l<0: 
-        print '\n'   # clean up after
+        print('\n')   # clean up after
         sys.stdout.flush()
         return
     

@@ -28,8 +28,8 @@ from ikbtbasics.kin_cl import *
 from ikbtbasics.ik_classes import *     # special classes for Inverse kinematics in sympy
 
 import b3 as b3          # behavior trees
-from assigner_leaf  import *
-import comp_detect as cpd
+from ikbtleaves.assigner_leaf  import *
+import ikbtleaves.comp_detect as cpd
 
 
  
@@ -94,16 +94,16 @@ class algebra_id(b3.Action):    # action leaf for
         
         one_unk = tick.blackboard.get('eqns_1u')
         if(len(one_unk)==0):   # algebra-solver can only work on one-unknown equations
-            print 'algebra_id: there are no one-unknown equations'
+            print('algebra_id: there are no one-unknown equations')
             return b3.FAILURE
         
         two_unk = tick.blackboard.get('eqns_2u')
         R = tick.blackboard.get('Robot')
             
         if(self.BHdebug):
-            print "\nrunning: ", self.Name
-            print ' eqns w/ one unk: ', len(one_unk)
-            print ' eqns w/ two unk: ', len(two_unk)
+            print("\nrunning: ", self.Name)
+            print(' eqns w/ one unk: ', len(one_unk))
+            print(' eqns w/ two unk: ', len(two_unk))
             
     
         u = tick.blackboard.get('curr_unk')
@@ -113,9 +113,9 @@ class algebra_id(b3.Action):    # action leaf for
         if (not u.solved):  # only if not already solved!
                 for e in one_unk:
                     if(self.BHdebug):
-                        print 'algebra ID: Looking for unknown: ', u.symbol, ' in equation: ', 
-                        print e ,
-                        print "  - ", count_unknowns(unknowns, e.RHS), " unknown in RHS"
+                        print('algebra ID: Looking for unknown: ', u.symbol, ' in equation: ', )
+                        print(e ,)
+                        print("  - ", count_unknowns(unknowns, e.RHS), " unknown in RHS")
                     if (e.RHS.has(sp.sin(u.symbol)) or e.RHS.has(sp.cos(u.symbol)) or\
                         e.LHS.has(sp.sin(u.symbol)) or e.LHS.has(sp.cos(u.symbol))):
                         continue   # this shouldbe caught by another ID
@@ -151,9 +151,9 @@ class algebra_solve(b3.Action):    # Solve asincos equation pairs
           
        if u.readytosolve:
            if(self.BHdebug):
-                        print "I'm trying to solve: ", u.symbol
-                        print "  Using: ", 
-                        print u.eqntosolve  
+                        print("I'm trying to solve: ", u.symbol)
+                        print("  Using: ", )
+                        print(u.eqntosolve  )
            if u.solvemethod == "algebra":
 
                Aw = sp.Wild("Aw")
@@ -174,7 +174,7 @@ class algebra_solve(b3.Action):    # Solve asincos equation pairs
 class TestSolver002(unittest.TestCase):
     def setUp(self):
         self.DB = True  # debug flag
-        print '\n\n===============  Test algebra Solver  ====================='
+        print('\n\n===============  Test algebra Solver  =====================')
         return
     
     def runTest(self):
@@ -210,14 +210,14 @@ class TestSolver002(unittest.TestCase):
         unk = bb.get('unknowns')        
         fs = ' algebra solver FAIL'
         sp.var(' r_13 r_12')  # elements of the rotation matrix portion of Td
-        print '\n\n              Results: \n\n'
+        print('\n\n              Results: \n\n')
         ntests = 0
         for u in unk:
             if(u.symbol == d_1):
                 ntests += 1
                 self.assertTrue(u.solved, fs)
                 self.assertTrue(u.nsolutions == 1, fs)
-                print 'Soln: ', u.solutions[0]
+                print('Soln: ', u.solutions[0])
                 self.assertTrue(u.solutions[0] == (r_13-l_1)/(l_3))
             if(u.symbol == th_2):
                 ntests += 1
@@ -229,7 +229,7 @@ class TestSolver002(unittest.TestCase):
                 self.assertFalse(u.solved, fs)
 
         self.assertTrue(ntests == 3, ' Algebra solver:  assertion count error --- FAIL')
-        print 'Algebra solver PASSED ', ntests, ' assertions.'
+        print('Algebra solver PASSED ', ntests, ' assertions.')
 ##  write tester code which runs if this file is run directly instead
 ##    of "imported".
 
@@ -241,13 +241,13 @@ class TestSolver002(unittest.TestCase):
 #
 
 def run_test():
-    print '\n\n===============  Test NAME_HERE nodes====================='
+    print('\n\n===============  Test NAME_HERE nodes=====================')
     testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver002)  # replace TEMPLATE 
     unittest.TextTestRunner(verbosity=2).run(testsuite)
 
 if __name__ == "__main__":
     
-    print '\n\n===============  Test NAME_HERE nodes====================='
+    print('\n\n===============  Test NAME_HERE nodes=====================')
     testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver002)  # replace TEMPLATE 
     unittest.TextTestRunner(verbosity=2).run(testsuite)
    

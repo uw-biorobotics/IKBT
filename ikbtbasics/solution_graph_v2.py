@@ -19,9 +19,9 @@
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import unittest
 import sympy as sp
-from ik_classes import *
-import kin_cl as kc
-from matching import *
+from ikbtbasics.ik_classes import *
+import ikbtbasics.kin_cl as kc
+from ikbtbasics.matching import *
 import itertools as itt
 
 ((th_1, th_2, th_3, th_4, th_5, th_6)) = sp.symbols(('th_1', 'th_2', 'th_3', 'th_4', 'th_5', 'th_6'))
@@ -115,7 +115,7 @@ class Node:
     def detect_parent(self, R):
         if not len(self.solutions) == 0:
             eqn = self.solutions[0] #solutions is a list of keqn
-            print eqn
+            print(eqn)
             elements = eqn.atoms(sp.Symbol) # get only symbol elements
             for elem in elements:
                 if elem in R.variables_symbols: #swap possible_unkns to unknows symbols
@@ -166,7 +166,7 @@ class Node:
                     self.solution_with_notations[curr] = kc.kequation(curr, curr_solution)
                     #print '//////////////////////// > 1 sol'
                     #print 'curr: ', curr
-                    print self.argument
+                    print(self.argument)
                     self.arguments[curr] = self.argument # simple because root
                     
 
@@ -245,10 +245,10 @@ class Node:
                             rhs = rhs.subs(parent.symbol, curr_parent)
                             tmp_arg = self.argument.subs(parent.symbol, curr_parent) # also sub the arg
                         except:
-                            print "problmematic step: ", parent.symbol
-                            print "solution: ", rhs
-                            print "parents notations"
-                            print parents_notation_list
+                            print("problmematic step: ", parent.symbol)
+                            print("solution: ", rhs)
+                            print("parents notations")
+                            print(parents_notation_list)
 
                     R.notation_collections.append(expr_notation_list)
                         #parents_notations.remove(curr_parent) 
@@ -285,7 +285,7 @@ class Edge:
 class SolutionGraphV2Tests(unittest.TestCase):
     # the tests were designed for v1 (independent module), not suitable for v2
     def test_mock(self):
-        print "place holder for real test: solution_graph_v2"
+        print("place holder for real test: solution_graph_v2")
     # def test_find_parent(self):
         # '''test detect_parent: th_2 depends on th_1'''
         # R = Robot()
@@ -438,7 +438,7 @@ if __name__ == '__main__':
     #notation_graph = set()
     #unittest.main() 
     
-    print '\n\n===============  Test solution_graph_v2 ====================='
+    print('\n\n===============  Test solution_graph_v2 =====================')
     #testsuite = unittest.TestLoader().loadTestsFromTestCase(SolutionGraphV2Tests)  # replace TEMPLATE 
     #unittest.TextTestRunner(verbosity=2).run(testsuite)
     unittest.main()

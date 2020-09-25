@@ -67,8 +67,8 @@ class simu_id(b3.Action):
                         eqn_list.append(e_flat)
 
             if self.BHdebug:
-                print "potential list: "
-                print eqn_list
+                print("potential list: ")
+                print(eqn_list)
 
             for i in range(len(eqn_list)):
                 e_flat = eqn_list[i]
@@ -79,9 +79,9 @@ class simu_id(b3.Action):
                 d1[Bw] = e_flat.coeff(sp.cos(curr_unk.symbol))
 
                 if self.BHdebug:
-                    print "considering eqn: ", e_flat
-                    print "d1 content (a, b)"
-                    print d1[Aw], '\n',d1[Bw]
+                    print("considering eqn: ", e_flat)
+                    print("d1 content (a, b)")
+                    print(d1[Aw], '\n',d1[Bw])
 
                 eq1 = e_flat
                 for j in range(i+1, len(eqn_list)):
@@ -94,23 +94,23 @@ class simu_id(b3.Action):
                     d2[Bw] = -e_flat.coeff(sp.sin(curr_unk.symbol))
 
                     if self.BHdebug:
-                        print "considering eqn: ", e_flat
-                        print "d2 content (a, b)"
-                        print d2[Aw],'\n',d2[Bw]
+                        print("considering eqn: ", e_flat)
+                        print("d2 content (a, b)")
+                        print(d2[Aw],'\n',d2[Bw])
 
                     eq2 = e_flat
                     if (d1[Aw] == d2[Aw] or d1[Aw] == -d2[Aw]) \
                         and (d1[Bw] == d2[Bw] or d1[Bw] == -d2[Bw]):
                         found = True
                         if self.BHdebug:
-                            print "found two equ two unknown"
-                            print eq1
-                            print eq2
+                            print("found two equ two unknown")
+                            print(eq1)
+                            print(eq2)
                     # it's also possible the order is reversed
                     # if that's the case, swap
                     elif (d1[Aw] == d2[Bw] or d1[Aw] == -d2[Bw]) \
                         and (d1[Bw] == d2[Aw] or d1[Bw] == -d2[Aw]):
-                        print "reverse order"
+                        print("reverse order")
                         found = True
                         temp = eq1
                         eq1 = eq2
@@ -146,7 +146,7 @@ class simu_solver(b3.Action):
 
 
         if C == 0 and D == 0:
-            print "Simultaneous Eqn Unsuccessful: divded by 0"
+            print("Simultaneous Eqn Unsuccessful: divded by 0")
             return b3.FAILURE
 
 
@@ -165,7 +165,7 @@ class simu_solver(b3.Action):
 class TestSolverm7(unittest.TestCase):
     def setUp(self):
         self.DB = False  # debug flag
-        print '\n\n===============  Test sincos Solver  ====================='
+        print('\n\n===============  Test sincos Solver  =====================')
         return
     
     def runTest(self):
@@ -210,7 +210,7 @@ class TestSolverm7(unittest.TestCase):
         ik_tester.tick("testing two_eqn_m7", bb)
 
         curr = bb.get('curr_unk')
-        print curr.solutions
+        print(curr.solutions)
                 
 def run_test():
     suite2 = unittest.TestLoader().loadTestsFromTestCase(TestSolverm7)

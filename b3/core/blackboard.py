@@ -49,9 +49,9 @@ class Blackboard(object):
         if (type(a) == type(memory[key])):
            memory[key] += value
         else:
-	  print type(memory[key])
-	  print type(a)
-	  print "Blackboard increment error - must be an int"
-	  quit()
+          print(type(memory[key]))
+          print(type(a))
+          print("Blackboard increment error - must be an int")
+          quit()
     
       

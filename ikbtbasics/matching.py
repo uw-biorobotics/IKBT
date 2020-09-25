@@ -35,9 +35,9 @@
 
 import unittest
 import sympy as sp
-from ik_classes import *
-import kin_cl as kc
-from solution_graph_v2 import *
+from ikbtbasics.ik_classes import *
+import ikbtbasics.kin_cl as kc
+from ikbtbasics.solution_graph_v2 import *
 
 # find subset contains certain symbol
 def find_subset(notation_collections, symbol):
@@ -64,8 +64,8 @@ def sort_by_length(notation_collections):
             if len(subset) > max_len:
                 max_len = len(subset)
         except:
-            print "problematic step"
-            print subset
+            print("problematic step")
+            print(subset)
         
     return notation_d, max_len
     
@@ -128,7 +128,7 @@ def mark_off(notation_set, solution_nodes):
 def matching_func(notation_collections, solution_nodes):
     notation_d, max_len = sort_by_length(notation_collections)
     if(max_len) < 1:
-        print 'matching.py: bad notation collection'
+        print('matching.py: bad notation collection')
         quit()
     start_list = notation_d[max_len] # get lists with most variables
     
@@ -142,8 +142,8 @@ def matching_func(notation_collections, solution_nodes):
             return notation_d[max_len]
         else:
             # check off the list
-            print "looking missing pieces for: "
-            print start
+            print("looking missing pieces for: ")
+            print(start)
 
             check_list, goals, contained = mark_off(start, solution_nodes)
             # find groups contains the target   
@@ -155,7 +155,7 @@ def matching_func(notation_collections, solution_nodes):
             # go through the pential groups
             # merge when find match
             for pten_group in potential_groups:
-                print "currently at: %s"%pten_group
+                print("currently at: %s"%pten_group)
                 group_to_add = set(pten_group)
                 # if there's overlapping, merge
                 for single_notation in start:
@@ -182,13 +182,13 @@ def matching_func(notation_collections, solution_nodes):
                                                 no_conflict= False
                         # if none of the symbols clashes
                         if no_conflict:
-                            print "no conflicts"
+                            print("no conflicts")
                                 
 
                         if has_new_sym and no_conflict:
-                            print "merging (1)"
-                            print pten_group
-                            print "\n"
+                            print("merging (1)")
+                            print(pten_group)
+                            print("\n")
                             new_set = new_set.union(group_to_add)
                             check_list, goals, contained = mark_off(new_set, solution_nodes)
                             #print "current goals: %s"%goals
@@ -213,9 +213,9 @@ def matching_func(notation_collections, solution_nodes):
                                 no_repeats = False
 
                     if countains_unmarked and no_repeats:
-                        print "merging (2)"
-                        print pten_group
-                        print "\n"
+                        print("merging (2)")
+                        print(pten_group)
+                        print("\n")
                         new_set = new_set.union(group_to_add)
                         check_list, goals, countained = mark_off(new_set, solution_nodes)
 
@@ -225,9 +225,9 @@ def matching_func(notation_collections, solution_nodes):
                     sorted_ls = sort_variables(new_list, solution_nodes)
                     sorted_tp = tuple(sorted_ls)
                     final_group.add(sorted_tp)
-                    print "sorted finished list:"
-                    print sorted_ls
-                    print "\n"
+                    print("sorted finished list:")
+                    print(sorted_ls)
+                    print("\n")
                     
 
                     break

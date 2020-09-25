@@ -47,18 +47,18 @@ TEST_DATA_GENERATION = False
 sp.init_printing()
 
 if not TEST_DATA_GENERATION:
-    print ""
-    print "          Running IK solution "
-    print ""
-    print ""
+    print("")
+    print("          Running IK solution ")
+    print("")
+    print("")
 else:
-    print '-'*50
-    print ""
-    print "          Generating IKBT TEST DATA only "
-    print ""
-    print "          (for production: line 32: TEST_DATA_GENERATION = False)"
-    print ""
-    print '-'*50
+    print('-'*50)
+    print("")
+    print("          Generating IKBT TEST DATA only ")
+    print("")
+    print("          (for production: line 32: TEST_DATA_GENERATION = False)")
+    print("")
+    print('-'*50)
 
 # generic variables for any maniplator
 ((th_1, th_2, th_3, th_4, th_5, th_6)) = sp.symbols(('th_1', 'th_2', 'th_3', 'th_4', 'th_5', 'th_6'))
@@ -89,11 +89,11 @@ if len(argv) == 1:  # no argument - use default
 elif len(argv) == 2:
     robot = str(argv[1])
 
-print ''
-print ''
-print '             Working on '+robot
-print ''
-print ''
+print('')
+print('')
+print('             Working on '+robot)
+print('')
+print('')
 
 #   Get the robot model
 [dh, vv, params, pvals, unknowns] = robot_params(robot)  # see ik_robots.py
@@ -106,7 +106,7 @@ print ''
 
 testing = False
 [M, R, unknowns] = kinematics_pickle(robot, dh, params, pvals, vv, unknowns, testing)
-print 'GOT HERE: robot name: ', R.name
+print('GOT HERE: robot name: ', R.name)
 
 R.name = robot
 R.params = params
@@ -341,7 +341,7 @@ bb.set('unknowns', unknowns)
 
 
 #  Off we go: tick the BT
-print "Ticking IK BT for ", R.name, " -------------------------\n\n"
+print("Ticking IK BT for ", R.name, " -------------------------\n\n")
 
 ikbt.tick("Test a full solver", bb)
 
@@ -352,7 +352,7 @@ R = bb.get('Robot')
 
 if TEST_DATA_GENERATION:
     # Now we're going to save some results for use in tests.
-    print ' Storing results for test use'
+    print(' Storing results for test use')
     test_pickle_dir = 'Test_pickles/'
     name = test_pickle_dir + R.name + 'test_pickle.p'
     with open(name,'wb') as pf:
@@ -360,7 +360,7 @@ if TEST_DATA_GENERATION:
     quit()
 
 
-print R.notation_collections
+print(R.notation_collections)
 
 #
 #  This step creates the list of solution poses (i.e. it associates
@@ -382,12 +382,12 @@ oc.output_cpp_code(R, final_groups)
 # print out all eqnuations that used to solve variables
 # uncomment for debugging
 
-print "equations evaluated"
+print("equations evaluated")
 for one_unk in unks:
-    print one_unk.symbol
-    print one_unk.eqntosolve
-    print one_unk.secondeqn
-    print '\n'
+    print(one_unk.symbol)
+    print(one_unk.eqntosolve)
+    print(one_unk.secondeqn)
+    print('\n')
 
 
 #
@@ -405,31 +405,31 @@ ntests = 1
 if(robot == 'Chair_Helper'):
     fs = 'Chair_Helper   FAIL'
     for u in unks:
-        print '\n Asserting: ', u.symbol, ' = ',
+        print('\n Asserting: ', u.symbol, ' = '),
         if(u.symbol == d_1):
             ntests += 1
             assert(u.nsolutions == 1), fs+' n(d_1)'
             assertion_count += 1
-            print str(u.solutions[0])
+            print(str(u.solutions[0]))
             assert(u.solutions[0] == Pz - l_4*r_33), fs + '  [d_1]'
             assertion_count += 1
         if(u.symbol == th_2):
             ntests += 1
             assert(u.nsolutions == 2), fs+' n(th_2)'
             assertion_count += 1
-            print str(u.solutions[0]) + ', ' + str(u.solutions[1])
+            print(str(u.solutions[0]) + ', ' + str(u.solutions[1]))
             assert(u.solutions[0] ==  sp.asin((Px-l_1-l_4*r_13)/l_2) ), fs + ' [th_2a]'
             assertion_count += 1
             assert(u.solutions[1] == -sp.asin((Px-l_1-l_4*r_13)/l_2)+sp.pi ), fs + ' [th_2b]'
             assertion_count += 1
 
 if(assertion_count == 0):
-    print '\n         Warning: \n   No Assertions yet for ' + robot
+    print('\n         Warning: \n   No Assertions yet for ' + robot)
 else:
     string = 'test robot '+robot
-    print '\n\n\n                            ',string,'  PASSES ', assertion_count, 'assertions!'
-    print '                                  passed ',ntests,' tests \n\n\n'
+    print('\n\n\n                            ',string,'  PASSES ', assertion_count, 'assertions!')
+    print('                                  passed ',ntests,' tests \n\n\n')
 
-print 'End of solution job'
+print('End of solution job')
 
 

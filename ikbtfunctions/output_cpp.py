@@ -39,18 +39,18 @@ class cpp_output:
             # correct exponential operators for squaring:   x**2 --> x*x
             #     (** is not valid C++)
             if re.search(r'\*\*', l):
-                print 'fixing exponential ** notation'
+                print('fixing exponential ** notation')
                 r = re.compile(r'(\w+)\*\*2')
                 s2 = r.sub(r'\1*\1',l)
                 r = re.compile(r'([a-z]{3}\([^\)]+?\))\*\*2')  #  sin(x)**2 or cos(x)**2
                 l = r.sub(r'\1*\1', s2)  # substitute --> x*x
-            print >>self.f,  self.indent*self.level + l
+            print(operator.rshift(self.f),  self.indent*self.level + l)
         
     def push(self):
         self.level += 1
-        print >>self.f,  self.indent*self.level + '{'
+        print(operator.rshift(self.f),  self.indent*self.level + '{')
     def pop(self):
-        print >>self.f,  self.indent*self.level + '}'
+        print(operator.rshift(self.f),  self.indent*self.level + '}')
         self.level -= 1
 
 def output_cpp_code(Robot, solution_groups):
@@ -201,14 +201,14 @@ int False = 0;
             #
             trig = False
             
-            print '\n\nStudying node: ', node.symbol, ' solution ', solno
-            print 'solvemethod: ', node.solvemethod
-            print ' LHS: ', str(sol.LHS)
-            print ' RHS: ', solrhs
-            print 
-            print 'argument: ', node.argument
-            print 'solarg:   ', node.arguments[sol.LHS]
-            print '\n\n'
+            print('\n\nStudying node: ', node.symbol, ' solution ', solno)
+            print('solvemethod: ', node.solvemethod)
+            print(' LHS: ', str(sol.LHS))
+            print(' RHS: ', solrhs)
+            print()
+            print('argument: ', node.argument)
+            print('solarg:   ', node.arguments[sol.LHS])
+            print('\n\n')
             
             c.line('// solvemethod: ' + node.solvemethod )
             c.line('//    argument: ' + str(node.argument )  )
@@ -217,7 +217,7 @@ int False = 0;
                trig = True
             
             if(trig):
-               print '  Found asin/acos solution ...', sol.LHS , ' "=" ',sol.RHS
+               print('  Found asin/acos solution ...', sol.LHS , ' "=" ',sol.RHS)
                c.line('// Arcsin() or Arccos() based solution:')
                c.line('argument = '+str(node.arguments[sol.LHS])+';')
                c.line('if (solvable_pose && fabs(argument) > 1)')
@@ -238,7 +238,7 @@ int False = 0;
                c.line(str(sol.LHS) + ' = ' + solrhs + ';')
             
             if node.solvemethod == 'x2z2':
-                print 'x2z2 output: ', node.argument
+                print('x2z2 output: ', node.argument)
                 c.line('// "x2z2" based solution:')
                 #c.line('argument = '+str(node.arguments[str(sol.LHS)])+';')
                 c.line('argument = '+str(node.arguments[(sol.LHS)])+';')
@@ -246,7 +246,7 @@ int False = 0;
             
             
             if node.solvemethod == 'simultaneous eqn':
-                print 'x2z2 output: ', node.argument
+                print('x2z2 output: ', node.argument)
                 c.line('// simultaneous equations - based solution:')
                 #c.line('argument = '+str(node.arguments[str(sol.LHS)])+';')
                 c.line('argument = '+str(node.arguments[(sol.LHS)])+';')
@@ -274,10 +274,10 @@ int False = 0;
     for g in solution_groups:
         gs = []
         for t in g:
-            print 'g: ', g, 't: ', t
+            print('g: ', g, 't: ', t)
             gs.append(str(t))
             
-        #print >>f, gs.sort # in place
+        #print operator.rshift(f), gs.sort # in place
         grp_lists.append(gs)
         
     c.line('//(note trailing commas allowed in C++\n')
@@ -334,10 +334,10 @@ class TestSolver010(unittest.TestCase):    # change TEMPLATE to unique name (2 p
         name = test_pickle_dir + 'Puma' + 'test_pickle.p'
         try:
             with open(name, 'r') as pick:
-                print '\nReading pre-computed forward kinematics TEST info\n'
+                print('\nReading pre-computed forward kinematics TEST info\n')
                 [R, unks]  = pickle.load(pick)
         except:  
-            print '\n\n\n        Testing:  Failed to find data pickle file ... quitting()    \n\n\n'
+            print('\n\n\n        Testing:  Failed to find data pickle file ... quitting()    \n\n\n')
             # if the test pickle is missing: edit ikSolver.py
             #    line 32: TEST_DATA_GENERATION = True
             #    > python ikSolver.py Puma
@@ -352,7 +352,7 @@ class TestSolver010(unittest.TestCase):    # change TEMPLATE to unique name (2 p
         
         # 3)   assertions
         
-        print 'cpp output file completed'
+        print('cpp output file completed')
         
         #    3.1)   Open CPP output file
         #    3.2)   use assertions to check some lines. 
@@ -371,7 +371,7 @@ class TestSolver010(unittest.TestCase):    # change TEMPLATE to unique name (2 p
 
 if __name__ == "__main__":
     
-    print '\n\n===============  Test output_cpp_code() ====================='
+    print('\n\n===============  Test output_cpp_code() =====================')
     testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver010)  # replace TEMPLATE 
     unittest.TextTestRunner(verbosity=2).run(testsuite)
     #unittest.main()
