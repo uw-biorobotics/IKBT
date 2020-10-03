@@ -1,4 +1,4 @@
-!/usr/bin/python
+#!/usr/bin/python
 #
 #     Test for full IK solutions of know robot(s)
 
@@ -36,18 +36,18 @@ TEST_DATA_GENERATION = False
 sp.init_printing()
 
 if not TEST_DATA_GENERATION:
-    print ""
-    print "          Running IK solution "
-    print ""
-    print ""
+    print("")
+    print("          Running IK solution ")
+    print("")
+    print("")
 else:
-    print '-'*50
-    print ""
-    print "          Generating IKBT TEST DATA only "
-    print ""
-    print "          (for production: line 32: TEST_DATA_GENERATION = False)"
-    print ""
-    print '-'*50
+    print('-'*50)
+    print("")
+    print("          Generating IKBT TEST DATA only ")
+    print("")
+    print("          (for production: line 32: TEST_DATA_GENERATION = False)")
+    print("")
+    print('-'*50)
 
 # generic variables for any maniplator
 ((th_1, th_2, th_3, th_4, th_5, th_6)) = sp.symbols(('th_1', 'th_2', 'th_3', 'th_4', 'th_5', 'th_6'))
@@ -94,7 +94,7 @@ if use_pickle:
     # using pickle
     testing = False
     [M, R, unknowns] = kinematics_pickle(robot, dh, params, pvals, vv, unknowns, testing)
-    print 'GOT HERE: robot name: ', R.name
+    print('GOT HERE: robot name: ', R.name)
 
     M.forward_kinematics()
 else:
@@ -102,4 +102,4 @@ else:
     m = kc.mechanism(dh, params, vv)
     m.pvals = pvals  # store numerical values of parameters
     m.forward_kinematics()
-    print "Completed Forward Kinematics"
+    print("Completed Forward Kinematics")
