@@ -44,13 +44,13 @@ class cpp_output:
                 s2 = r.sub(r'\1*\1',l)
                 r = re.compile(r'([a-z]{3}\([^\)]+?\))\*\*2')  #  sin(x)**2 or cos(x)**2
                 l = r.sub(r'\1*\1', s2)  # substitute --> x*x
-            print(self.indent*self.level + l, file=f)
+            print(self.indent*self.level + l, file=self.f)
         
     def push(self):
         self.level += 1
-        print(self.indent*self.level + '{', file=f)
+        print(self.indent*self.level + '{', file=self.f)
     def pop(self):
-        print(self.indent*self.level + '}', file=f)
+        print(self.indent*self.level + '}', file=self.f)
         self.level -= 1
 
 def output_cpp_code(Robot, solution_groups):
