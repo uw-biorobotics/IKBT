@@ -92,7 +92,7 @@ class TestSolver009(unittest.TestCase):    # change TEMPLATE to unique name (2 p
 
 if __name__ == "__main__":
     
-    print '\n\n===============  Test helperfunctions ====================='
+    print('\n\n===============  Test helperfunctions =====================')
     testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver009)  # replace TEMPLATE 
     unittest.TextTestRunner(verbosity=2).run(testsuite)
    

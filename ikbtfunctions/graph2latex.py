@@ -102,12 +102,12 @@ def tikz_place_children(n,f):
         #TO DO: silence this on the console for better output
         print('Place children: ', n)
         if len(n.parents)> 0: # must have a parent else its root!
-            print(operator.rshift(f), 'child { node {$' + sp.latex(n.symbol).replace(r'th_', r'\theta_') + '$}  ')
+            print('child { node {$' + sp.latex(n.symbol).replace(r'th_', r'\theta_') + '$}  ', file=f)
         for c in n.children:
-            print(operator.rshift(f), '   ',)
+            print('   ', file=f)
             tikz_place_children(c,f)
         if len(n.parents) > 0:
-            print(operator.rshift(f), '}')
+            print('}', file=f)
 
 def tikz_place_edge(from_node, to_node, label,control_string = ''):
     #\path[->] (S3) edge [bend left] node {a} (S1);
@@ -119,25 +119,25 @@ def tikz_closepicture():
 
 if __name__ == "__main__":
     f = open('test_graph.tex','w')
-    print(operator.rshift(f), '''\\documentclass[letterpaper]{article}
+    print('''\\documentclass[letterpaper]{article}
 
 % Uncomment for bibliog.
 %\\bibliographystyle{unsrt}
 
 \\usepackage{graphicx}
 \\usepackage{lineno}
-\\usepackage{amsmath} ''')
-    print(operator.rshift(f), tikz_setup())
-    print(operator.rshift(f), r'\begin{document} \section{}')
-    print(operator.rshift(f), '%  move above stuff before \begin{document}')
-    print(operator.rshift(f), tikz_startpicture())
-    print(operator.rshift(f), tikz_place_node('N1', '$N_1$',''))
-    print(operator.rshift(f), tikz_place_node('N2', '$N_2$','right =of N1'))
-    print(operator.rshift(f), tikz_place_node('N3', '$N_3$','below =of N1'))
-    print(operator.rshift(f), tikz_place_node('N4', '$N_4$','below =of N2'))
-    print(operator.rshift(f), tikz_place_edge('N2', 'N3', '$\pm\sqrt{x}$',''))
-    print(operator.rshift(f), tikz_place_edge('N1', 'N3', 'atan2()', 'bend right'))
-    print(operator.rshift(f), tikz_place_edge('N3', 'N4', 'asin()', 'bend right'))
-    print(operator.rshift(f), tikz_closepicture())
-    print(operator.rshift(f), r'\end{document}')
+\\usepackage{amsmath} ''', file=f)
+    print(tikz_setup(), file=f)
+    print(r'\begin{document} \section{}', file=f)
+    print('%  move above stuff before \begin{document}', file=f)
+    print(tikz_startpicture(), file=f)
+    print(tikz_place_node('N1', '$N_1$',''), file=f)
+    print(tikz_place_node('N2', '$N_2$','right =of N1'), file=f)
+    print(tikz_place_node('N3', '$N_3$','below =of N1'), file=f)
+    print(tikz_place_node('N4', '$N_4$','below =of N2'), file=f)
+    print(tikz_place_edge('N2', 'N3', '$\pm\sqrt{x}$',''), file=f)
+    print(tikz_place_edge('N1', 'N3', 'atan2()', 'bend right'), file=f)
+    print(tikz_place_edge('N3', 'N4', 'asin()', 'bend right'), file=f)
+    print(tikz_closepicture(), file=f)
+    print(r'\end{document}', file=f)
     

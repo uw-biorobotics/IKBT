@@ -44,13 +44,13 @@ class cpp_output:
                 s2 = r.sub(r'\1*\1',l)
                 r = re.compile(r'([a-z]{3}\([^\)]+?\))\*\*2')  #  sin(x)**2 or cos(x)**2
                 l = r.sub(r'\1*\1', s2)  # substitute --> x*x
-            print(operator.rshift(self.f),  self.indent*self.level + l)
+            print(self.indent*self.level + l, file=f)
         
     def push(self):
         self.level += 1
-        print(operator.rshift(self.f),  self.indent*self.level + '{')
+        print(self.indent*self.level + '{', file=f)
     def pop(self):
-        print(operator.rshift(self.f),  self.indent*self.level + '}')
+        print(self.indent*self.level + '}', file=f)
         self.level -= 1
 
 def output_cpp_code(Robot, solution_groups):
@@ -277,7 +277,7 @@ int False = 0;
             print('g: ', g, 't: ', t)
             gs.append(str(t))
             
-        #print operator.rshift(f), gs.sort # in place
+        #print(gs.sort, file=f) # in place
         grp_lists.append(gs)
         
     c.line('//(note trailing commas allowed in C++\n')

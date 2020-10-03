@@ -121,7 +121,7 @@ def prog_bar(l, lmax, length=25,  msg = ''):
     ratio = float(l)/float(lmax)
     n = int(length*ratio)
     n2 = length - n
-    stringval = '='*n + '.'*n2 + '] '+msg
+    stringval = '='*n + '.'*int(n2) + '] '+msg
     percent =  int(100*ratio)
     sys.stdout.write(('\r [%3d%s] ['+stringval) % (percent, '%'))
     sys.stdout.flush()

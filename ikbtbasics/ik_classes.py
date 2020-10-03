@@ -35,7 +35,6 @@ import ikbtfunctions.graph2latex as gl
 #from kin_cl import *
 import ikbtbasics.kin_cl as kc
 
-
 # generic variables for any manipulator
 ((th_1, th_2, th_3, th_4, th_5, th_6)) = sp.symbols(('th_1', 'th_2', 'th_3', 'th_4', 'th_5', 'th_6'))
 ((d_1, d_2, d_3, d_4, d_5, d_6)) = sp.symbols(('d_1', 'd_2', 'd_3', 'd_4', 'd_5', 'd_6'))
@@ -490,7 +489,7 @@ def output_latex_solution(Robot,variables, groups):
     defaultname = DirName + 'IK_solution.tex'
     fname = DirName + 'IK_solution_'+orig_name+'.tex'
     f = open(fname, 'w')
-    print(operator.rshift(f) , r'''
+    print(r'''
     \begin{center}
     \section*{Inverse Kinematic Solution for ''' + fixed_name + r'''}
     \today
@@ -502,32 +501,32 @@ def output_latex_solution(Robot,variables, groups):
     \url{https://arxiv.org/abs/1711.05412}.  IK-BT derives your inverse kinematics equations
     using {\tt Python 2.7} and the {\tt sympy} module for symbolic mathematics.
     ''')
-    print(operator.rshift(f), r'''\section{Kinematic Parameters}
+    print(r'''\section{Kinematic Parameters}
     The kinematic parameters for this robot are
     \[ \left [ \alpha_{i-1}, \quad a_{i-1}, \quad d_i, \quad \theta_i \right  ] \]
     \begin{dmath}'''),
-    print(operator.rshift(f), sp.latex(Robot.Mech.DH)),
-    print(operator.rshift(f), '''\end{dmath}
+    print(sp.latex(Robot.Mech.DH)),
+    print('''\end{dmath}
     ''')
 
 
 
-    print(operator.rshift(f), r'''\section{Forward Kinematic Equations}
+    print(r'''\section{Forward Kinematic Equations}
     The forward kinematic equations for this robot are:''')
 
 
     LHS = ik_lhs()
     RHS = kc.notation_squeeze(Robot.Mech.T_06)   # see kin_cl.mechanism.T_06
-    print(operator.rshift(f), r'\begin{dmath}')
-    print(operator.rshift(f), sp.latex(LHS) + r' =  \\')
-    print(operator.rshift(f), sp.latex(RHS))
-    print(operator.rshift(f), r'\end{dmath}')
+    print(r'\begin{dmath}', file=f)
+    print(sp.latex(LHS) + r' =  \\', file=f)
+    print(sp.latex(RHS), file=f)
+    print(r'\end{dmath}', file=f)
 
-    print(operator.rshift(f) , r'\section{Unknown Variables: }')
+    print(r'\section{Unknown Variables: }', file=f)
 
     # introduce the unknowns and the solution ORDER
-    print(operator.rshift(f) ,'''The unknown variables for this robot are (in solution order): ''')
-    print(operator.rshift(f) ,r'\begin{enumerate}')
+    print('''The unknown variables for this robot are (in solution order): ''', file=f)
+    print(r'\begin{enumerate}', file=f)
 
     tvars = {}
     for v in variables:
@@ -536,14 +535,14 @@ def output_latex_solution(Robot,variables, groups):
         tmp = '$' + sp.latex(v) + '$'
         tmp = tmp.replace(r'th_', r'\theta_')
         tmp = re.sub(r'_(\d+)',  r'_{\1}', tmp)   # get all digits of subscript into {}
-        print(operator.rshift(f) ,'\item {'+tmp+'}')
-    print(operator.rshift(f) ,r'\end{enumerate}')
+        print('\item {'+tmp+'}', file=f)
+    print(r'\end{enumerate}', file=f)
 
 
 
     # print the solutions for each variable (in DH order)
-    print(operator.rshift(f) ,r'\section{Solutions}')
-    print(operator.rshift(f) ,''' The following equations comprise the full solution set for this robot.''')
+    print(r'\section{Solutions}', file=f)
+    print(''' The following equations comprise the full solution set for this robot.''', file=f)
 
     # sort the nodes into solution order
     sorted_node_list = sorted(Robot.solution_nodes)
@@ -553,16 +552,16 @@ def output_latex_solution(Robot,variables, groups):
         tmp = '$' + sp.latex(node.symbol) + '$'
         tmp = tmp.replace(r'th_', r'\theta_')
         tmp = re.sub(r'_(\d+)',  r'_{\1}', tmp)   # get all digits of subscript into {} for latex
-        print(operator.rshift(f) ,r'\subsection{'+tmp+' }')
-        print(operator.rshift(f) , 'Solution Method: ', node.solvemethod)
+        print(r'\subsection{'+tmp+' }', file=f)
+        print( 'Solution Method: ', node.solvemethod, file=f)
 
 
 
 
         if (ALIGN):
-            print(operator.rshift(f) ,r'\begin{align}')
+            print(r'\begin{align}', file=f)
         else:
-            print(operator.rshift(f) ,r'\begin{dmath}')
+            print(r'\begin{dmath}', file=f)
         i=0
         nsolns = len(node.solution_with_notations.values())
         for eqn in node.solution_with_notations.values():
@@ -575,12 +574,12 @@ def output_latex_solution(Robot,variables, groups):
             # convert division ('/') to \frac{}{} for nicer output
             if re.search(r'/',tmp):
                  tmp = tmp.replace(r'(.+)=(.+)/(.+)', r'\1 = \frac{\2}{\3}')
-            print(operator.rshift(f) ,tmp, tmp2)
+            print(tmp, tmp2, file=f)
 
         if (ALIGN):
-            print(operator.rshift(f) ,r'\end{align}')
+            print(r'\end{align}', file=f)
         else:
-            print(operator.rshift(f) ,r'\end{dmath}')
+            print(r'\end{dmath}', file=f)
 
 
     ###########################################################
@@ -589,34 +588,34 @@ def output_latex_solution(Robot,variables, groups):
     #            (not a tree!)
     #
     ###########################################################
-    printoperator.rshift(f), r'\section{Solution Graph (Edges)}'
-    print(operator.rshift(f), r'''
+    print(r'\section{Solution Graph (Edges)}', file=f)
+    print(r'''
     The following is the abstract representation of solution graph for this manipulator (nodes with parent -1 are roots):
     \begin{verbatim}
-    ''')
+    ''', file=f)
     graph = Robot.notation_graph
 
     for edge in graph:
-        print(operator.rshift(f), edge)
+        print(edge, file=f)
 
-    printoperator.rshift(f), '\end{verbatim}'
+    print('\end{verbatim}', file=f)
     ###########################################################
     #
     #   Output of solution sets
     #
     ###########################################################
 
-    printoperator.rshift(f), r'\section{Solution Sets}'
-    print(operator.rshift(f), r'''
+    print(r'\section{Solution Sets}', file=f)
+    print(r'''
     The following are the sets of joint solutions (poses) for this manipulator:
     \begin{verbatim}
-    ''')
+    ''', file=f)
     # groups = mtch.matching_func(Robot.notation_collections, Robot.solution_nodes)
 
     for g in groups:
-        print(operator.rshift(f), g)
+        print(g, file=f)
 
-    printoperator.rshift(f), '\end{verbatim}'
+    print('\end{verbatim}', file=f)
 
     ###########################################################
     #
@@ -625,23 +624,23 @@ def output_latex_solution(Robot,variables, groups):
     ###########################################################
     #################################################
     # Equations evaluated (for result verification or debugging)
-    print(operator.rshift(f), r'\section{Equations Used for Solutions}')
+    print(r'\section{Equations Used for Solutions}', file=f)
 
 
 
     for node in sorted_node_list:
                 #print out the equations evaluated
-        # print operator.rshift(f) , 'Equation(s):
+        # print  'Equation(s):
         tmp = '$' + sp.latex(node.symbol) + '$'
         tmp = tmp.replace(r'th_', r'\theta_')
         tmp = re.sub(r'_(\d+)',  r'_{\1}', tmp)   # get all digits of subscript into {} for latex
-        print(operator.rshift(f) ,r'\subsection{'+tmp+' }')
-        print(operator.rshift(f) , 'Solution Method: ', node.solvemethod)
+        print(r'\subsection{'+tmp+' }', file=f)
+        print('Solution Method: ', node.solvemethod, file=f)
 
         for eqn in node.eqnlist:
-            print(operator.rshift(f), r'\begin{dmath}')
-            print(operator.rshift(f), eqn.LaTexOutput())
-            print(operator.rshift(f), r'\end{dmath}')
+            print(r'\begin{dmath}', file=f)
+            print(eqn.LaTexOutput(), file=f)
+            print(r'\end{dmath}', file=f)
 
     f.close()
 
