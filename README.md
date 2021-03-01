@@ -4,6 +4,9 @@ behavior trees for action selection.
 
 # Current News
 
+## March 2021
+Upgraded to Python3 (mostly just adding parens to print statements and new python3-sympy).  New "main" branch for more respectful terminology.
+
 ## Feb 2020
 BH has fixed the UR5 regression - it now works again and solution output no longer shows sum-of-angles variables that are not needed in the actual solution.   
 Use branch **RepairUR5Regression** for latest and greatest version. 
