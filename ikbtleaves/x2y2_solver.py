@@ -103,7 +103,7 @@ class test_x2z2(b3.Action):    # tester for your ID
             u.n = i
             i+=1    
 
-        print 'Testing x2z2solver with Puma Kinematics'
+        print('Testing x2z2solver with Puma Kinematics')
         # read kinematic model from pickle file / or compute it from scratch
         [M, R, variables ] = kinematics_pickle(robot, dh, params_puma, vv, variables )
         
@@ -141,11 +141,11 @@ class x2z2_id_solve(b3.Action):    #  This time we combine into a single ID/Solv
         u = tick.blackboard.get('curr_unk')
         
         if(self.BHdebug):
-            print "x2z2, running: ", self.Name
-            print 'len(3p): ', len(more_unk)
-            print 'len(2): ', len(two_unk)
-            print 'len(1): ', len(one_unk)
-            print "currently looking at: ", u.symbol
+            print("x2z2, running: ", self.Name)
+            print('len(3p): ', len(more_unk))
+            print('len(2): ', len(two_unk))
+            print('len(1): ', len(one_unk))
+            print("currently looking at: ", u.symbol)
             #sp.pprint(Tm.Ts) 
         
         solved = False    
@@ -170,8 +170,8 @@ class x2z2_id_solve(b3.Action):    #  This time we combine into a single ID/Solv
 
             
         if (self.BHdebug):
-            print "found potential eqn list: ", len(eqn_ls)
-            print eqn_ls
+            print("found potential eqn list: ", len(eqn_ls))
+            print(eqn_ls)
             
         
         for i in range(len(eqn_ls)):
@@ -184,10 +184,10 @@ class x2z2_id_solve(b3.Action):    #  This time we combine into a single ID/Solv
                 l2 = eqn2.LHS
                 
                 if (self.BHdebug):
-                    print "currently evaluating: "
-                    print eqn1
-                    print eqn2
-                    print "\n"
+                    print("currently evaluating: ")
+                    print(eqn1)
+                    print(eqn2)
+                    print("\n")
                     
                 temp_l = l1*l1 + l2*l2
                 temp_l = temp_l.simplify()
@@ -204,7 +204,7 @@ class x2z2_id_solve(b3.Action):    #  This time we combine into a single ID/Solv
                 
 
                     if count_unknowns(unknowns, temp_r) == 1:
-                        print "found eqn for x2y2!"
+                        print("found eqn for x2y2!")
                         found = True
                 if found:
                     break
@@ -212,7 +212,7 @@ class x2z2_id_solve(b3.Action):    #  This time we combine into a single ID/Solv
                 break
 
         if not found:
-            print "x2y2 did not find suitable eqns"
+            print("x2y2 did not find suitable eqns")
             return b3.FAILURE
         
         # find the current unknown
@@ -220,11 +220,11 @@ class x2z2_id_solve(b3.Action):    #  This time we combine into a single ID/Solv
             if temp_r.has(u.symbol):
                 unknown = u
                 unk = u.symbol
-                if self.BHdebug: print ' The unknown variable is: ', unk
+                if self.BHdebug: print(' The unknown variable is: ', unk)
             
         if not unknown.solved:
             if (temp_r.has(sp.sin(unk)) and temp_r.has(sp.cos(unk))):
-                    print "x2z2: found sin and cos terms" 
+                    print("x2z2: found sin and cos terms" )
                     Aw = sp.Wild("Aw")
                     Bw = sp.Wild("Bw")
                     Cw = sp.Wild("Cw")
@@ -237,16 +237,16 @@ class x2z2_id_solve(b3.Action):    #  This time we combine into a single ID/Solv
 
                     d = rhs.match(Aw*sp.sin(unk)+Bw*sp.cos(unk)- Cw)
                     if(self.BHdebug):
-                            print 'x2z2: Sin AND Cos processing: ', rhs
+                            print('x2z2: Sin AND Cos processing: ', rhs)
                             if(d is not None):
-                                print  'Aw: ', d[Aw], ' Bw: ', d[Bw], ' Cw: ', d[Cw]
+                                print('Aw: ', d[Aw], ' Bw: ', d[Bw], ' Cw: ', d[Cw])
                             else:
-                                print 'Parse not successful'
+                                print('Parse not successful')
                     if(d is None):
-                        print "x2z2_solve:  Somethings Wrong!"
+                        print("x2z2_solve:  Somethings Wrong!")
                         return b3.FAILURE
                     else:        
-                        print "I'm working up a solution for ", unknown 
+                        print("I'm working up a solution for ", unknown )
                         #lhs = temp_l - d[Cw]
 
                         A = d[Aw]
@@ -260,9 +260,9 @@ class x2z2_id_solve(b3.Action):    #  This time we combine into a single ID/Solv
                         #  generate the solutions
                 
                         if(self.BHdebug):
-                            print 'I think I solved ', unknown.symbol
+                            print('I think I solved ', unknown.symbol)
                             sp.pprint(unknown.solutions)
-                            print ''
+                            print('')
                             
                         #unknown.solutions.append(sp.asin(lhs/r1)-sp.atan2(A,B))
                         #unknown.solutions.append(sp.pi - sp.asin(lhs/r1)-sp.atan2(A,B))
@@ -305,9 +305,9 @@ if __name__ == '__main__':
     test = b3.Sequence([x2z2_setup, x2z2_work])
     ik_tester.root = test
     
-    print ''
-    print '              = = =    Test No 1    = = = '
-    print ''
+    print('')
+    print('              = = =    Test No 1    = = = ')
+    print('')
     bb.set('test_number', 1)
     ik_tester.tick("test x2z2 solver (1)", bb)
     
@@ -316,14 +316,14 @@ if __name__ == '__main__':
     fs = 'x2z2 id/solver Test 1 FAIL'
     ntests = 0
     for u in unkns:
-        print u.symbol
-        print u.solutions
+        print(u.symbol)
+        print(u.solutions)
         if(u.symbol == th_3):
             ntests += 1
             assert(u.nsolutions == 2), fs
-            print u.solutions[0]
-            print ' '
-            print u.solutions[1]
+            print(u.solutions[0])
+            print(' ')
+            print(u.solutions[1])
             
             # These are complicated solutions!!
     #         SolA =  sp.asin((-a_2**2 - a_3**2 - d_4**2 + Px**2*sp.cos(th_1)**2 + Px*Py*sp.sin(2*th_1) + Py**2*sp.sin(th_1)**2 + Pz**2)/sp.sqrt(4*a_2**2*a_3**2 + 4*a_2**2*d_4**2)) - sp.atan2(2*a_2*a_3, -2*a_2*d_4)
@@ -336,9 +336,9 @@ if __name__ == '__main__':
     # assert(ntests == 1), 'x2z2_solver:   Test 1 assert count                FAIL'
 
     
-    print ''
-    print '              = = =    Test No 2    = = = '
-    print ''
+    print('')
+    print('              = = =    Test No 2    = = = ')
+    print('')
     
     bb = b3.Blackboard()         # clear the previous bb
     bb.set('test_number', 2)
@@ -349,12 +349,12 @@ if __name__ == '__main__':
     fs = 'x2z2 id/solver Test 2 (Puma)   FAIL'
     ntests = 0
     for u in unkns:
-        print u.symbol
-        print u.solutions
+        print(u.symbol)
+        print(u.solutions)
         if(u.symbol == th_3):
             ntests += 1
             assert(u.nsolutions == 2), fs
-            print u.solutions[0]
+            print(u.solutions[0])
             c1 = sp.cos(th_1)
             s1 = sp.sin(th_1)
             term2 = sp.asin((Px**2*c1**2 + Px*Py*sp.sin(2*th_1) + Py**2*s1**2 + Pz**2 - a_2**2 - a_3**2 - d_4**2)/sp.sqrt(4*a_2**2*a_3**2 + 4*a_2**2*d_4**2)) - sp.atan2(2*a_2*a_3, -2*a_2*d_4)
@@ -363,10 +363,10 @@ if __name__ == '__main__':
                 Py**2*s1**2 + Pz**2 - a_2**2 - a_3**2 - d_4**2)/sp.sqrt(4*a_2**2*a_3**2 + 4*a_2**2*d_4**2)) - sp.atan2(2*a_2*a_3, -2*a_2*d_4) + sp.pi
             
             assert (u.solutions[0] == term2 ),fs + ' th_3'
-            print ' '
+            print(' ')
             assert (u.solutions[1] == term2a),fs + ' th_3a'
     assert(ntests == 1), 'x2z2_solver:   Test 2 assert count                FAIL'
 
-    print '\n\n              x2z2 ID/Solve   PASSES  all tests\n\n'
+    print('\n\n              x2z2 ID/Solve   PASSES  all tests\n\n')
     
     

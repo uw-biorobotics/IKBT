@@ -54,7 +54,7 @@ def approx_N(a,b,verbose):
   if(np.abs(a-b) < thr):
     return True
   if(verbose):
-    print 'approx = False [',a,b,']',
+    print('approx = False [',a,b,']'),
   return False
 
 # move angles into the range -pi to +pi
@@ -77,9 +77,9 @@ def Num_check(x):
           (type(x[i,j]) != stype_m_one)  &
           (type(x[i,j]) != stype_int )  &
           (type(x[i,j]) != stype_float)):
-               print 'Symbolic to Numeric Conversion Error: at least one of your symbols not converted'
-               print ' >> ',i,j
-               print type(sp.pi)
+               print('Symbolic to Numeric Conversion Error: at least one of your symbols not converted')
+               print(' >> ',i,j)
+               print(type(sp.pi))
                sp.pprint(x[i,j])
                sys.exit()
 

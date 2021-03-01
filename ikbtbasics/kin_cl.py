@@ -20,7 +20,7 @@ import re   # regular expressions for output conversions
 import sympy as sp
 import numpy as np
 
-from pykinsym import *
+from ikbtbasics.pykinsym import *
 
 import ikbtfunctions.helperfunctions as hf
 
@@ -51,7 +51,7 @@ class kequation:
         self.string = str(LHS) + ' = '+ str(RHS)
 
     def prt(self):
-        print self.LHS, ' = ', self.RHS
+        print(self.LHS, ' = ', self.RHS)
     #string representation of equations (so other module can print out the equ, instead of a pointer)
     def __repr__(self):
         return "%s = %s" % (self.LHS, self.RHS)
@@ -135,13 +135,13 @@ class unknown(object):
                                                  #  and update the solution tree
         self.solved = True
         self.readytosolve = False
-        print '\n\n'
-        print 'set_solved: ', self.symbol, '      by: ', self.solvemethod
+        print('\n\n')
+        print('set_solved: ', self.symbol, '      by: ', self.solvemethod)
         #print '            ', self.eqntosolve
         fs = 'set_solved: solutions empty '
         assert (len(self.solutions) >= 1), fs
         assert (self.nsolutions > 0), fs
-        print '            ', self.symbol, '=', self.solutions[0], '\n\n'
+        print('            ', self.symbol, '=', self.solutions[0], '\n\n')
         #print 'Robot instance.name: ', R.name      # shouldn't change!!
         #########################################
         #
@@ -156,26 +156,26 @@ class unknown(object):
         for sol_node in R.solution_nodes:   # make sure there is a node for this var
             if sol_node.symbol == self.symbol:
                 found = True
-                print 'set_solved: Found existing node: ', sol_node
+                print('set_solved: Found existing node: ', sol_node)
 
         if not found:
             n = Node(self)
             R.solution_nodes.append(n)
-            print ' Generated node: ', type(n)
+            print(' Generated node: ', type(n))
             R.variables_symbols.append(self.symbol)
             
         # for new solution graph
         for sol_node in R.solution_nodes:
             if sol_node.symbol == self.symbol:
                 curr_node = sol_node
-                print 'set_solved: Using  existing node: ', curr_node
+                print('set_solved: Using  existing node: ', curr_node)
                 
         #print ' -  - - - - '
         #print R.solution_nodes
         #print 'Trying to solution tree node for: ',  self.symbol
         #print ' - - - - - '
         assert(curr_node is not None), ' Trouble finding solution tree node'
-        print 'current node is: ', curr_node
+        print('current node is: ', curr_node)
         curr_node.solveorder = R.solveN
         curr_node.solvemethod = self.solvemethod
         curr_node.argument = self.argument
@@ -196,7 +196,7 @@ class unknown(object):
         curr_node.generate_notation(R)
         #curr_node.generate_solutions(R)
         #print 'finish set_solved', self.symbol
-        print '\n\n'
+        print('\n\n')
 
     def scan(self,MatEqn):        # find list of kequations containing this UNK
         self.eqnlist = []   # reset eqn list
@@ -238,9 +238,9 @@ class matrix_equation:
                 list.append(kequation(self.Td[i,j], self.Ts[i,j]))
         return list
     def __repr__(self):
-        print '\n  - - - \n'
+        print('\n  - - - \n')
         sp.pprint(notation_squeeze(self.Td))
-        print ' = '
+        print(' = ')
         sp.pprint(notation_squeeze(self.Ts))
         return ' '
 
@@ -510,7 +510,7 @@ class TestSolver008(unittest.TestCase):    # change TEMPLATE to unique name (2 p
 
         sp.var('h l_1 l_3 l_4')
         self.DB = False  # debug flag
-        print '===============  Test kin_cl library  ====================='
+        print('===============  Test kin_cl library  =====================')
         return
 
     # def tearDown(self):
@@ -524,11 +524,11 @@ class TestSolver008(unittest.TestCase):    # change TEMPLATE to unique name (2 p
     def a_test_kequation(self):   # another kequation test in ik_classes
         e1 = kequation(th_2, sp.sin(th_1)*l_1 + sp.sqrt(l_4))
         e2 = kequation(th_2, sp.sin(th_1)*l_1 / sp.sqrt(l_4))
-        print '>>-----------------------------<<'
-        print e1
-        print e1.LaTexOutput()
-        print e1.LaTexOutput(True)
-        print '>>-----------------------------<<'
+        print('>>-----------------------------<<')
+        print(e1)
+        print(e1.LaTexOutput())
+        print(e1.LaTexOutput(True))
+        print('>>-----------------------------<<')
         fs = 'kequation LaTex output  FAIL'
         self.assertTrue(e1.LaTexOutput() == r'\theta_{2} = l_{1} \sin{\left (\theta_{1} \right )} + \sqrt{l_{4}}', fs)
         self.assertTrue(e1.LaTexOutput(True) == r'\theta_{2} &= l_{1} \sin{\left (\theta_{1} \right )} + \sqrt{l_{4}}', fs + ' (align)')
@@ -536,11 +536,11 @@ class TestSolver008(unittest.TestCase):    # change TEMPLATE to unique name (2 p
 #\theta_{2} = l_{1} \sin{\left (\theta_{1} \right )} + \sqrt{l_{4}}
 #\theta_{2} &= l_{1} \sin{\left (\theta_{1} \right )} + \sqrt{l_{4}}
 
-        print '>>-----------------------------<<'
-        print e2
-        print e2.LaTexOutput()
-        print e2.LaTexOutput(True)
-        print '>>-----------------------------<<'
+        print('>>-----------------------------<<')
+        print(e2)
+        print(e2.LaTexOutput())
+        print(e2.LaTexOutput(True))
+        print('>>-----------------------------<<')
 
         return
 
@@ -565,7 +565,7 @@ class TestSolver008(unittest.TestCase):    # change TEMPLATE to unique name (2 p
 
         M.forward_kinematics()
 
-        print ' - - - '
+        print(' - - - ')
         m = M.T_01*M.T_12
         sp.pprint(notation_squeeze(m))
 
@@ -590,7 +590,7 @@ class TestSolver008(unittest.TestCase):    # change TEMPLATE to unique name (2 p
 
 
         if(JACOBIAN and False):    # reactivate this later
-            print ' --- Numerical Jacobian ---'
+            print(' --- Numerical Jacobian ---')
             pose = {th_1: 20*deg, th_2:45*deg, th_3:15*deg, th_4:-21.7*deg}
             M.Jacobian_N(pose)
 
@@ -611,13 +611,13 @@ class TestSolver008(unittest.TestCase):    # change TEMPLATE to unique name (2 p
 
 
 def run_test():
-    print '\n\n===============  Test kin_cl.py ====================='
+    print('\n\n===============  Test kin_cl.py =====================')
     testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver008)  # replace TEMPLATE
     unittest.TextTestRunner(verbosity=2).run(testsuite)
 
 if __name__ == "__main__":
 
-    print '\n\n===============  Test kin_cl.py ====================='
+    print('\n\n===============  Test kin_cl.py =====================')
     testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver008)  # replace TEMPLATE
     unittest.TextTestRunner(verbosity=2).run(testsuite)
     #unittest.main()

@@ -36,18 +36,18 @@ TEST_DATA_GENERATION = False
 sp.init_printing()
 
 if not TEST_DATA_GENERATION:
-    print ""
-    print "          Running IK solution "
-    print ""
-    print ""
+    print("")
+    print("          Running IK solution ")
+    print("")
+    print("")
 else:
-    print '-'*50
-    print ""
-    print "          Generating IKBT TEST DATA only "
-    print ""
-    print "          (for production: line 32: TEST_DATA_GENERATION = False)"
-    print ""
-    print '-'*50
+    print('-'*50)
+    print("")
+    print("          Generating IKBT TEST DATA only ")
+    print("")
+    print("          (for production: line 32: TEST_DATA_GENERATION = False)")
+    print("")
+    print('-'*50)
 
 # generic variables for any maniplator
 ((th_1, th_2, th_3, th_4, th_5, th_6)) = sp.symbols(('th_1', 'th_2', 'th_3', 'th_4', 'th_5', 'th_6'))
@@ -90,22 +90,22 @@ pvals = {l_3: 5, l_4:2}
 m = kc.mechanism(dh, params, vv)
 m.pvals = pvals  # store numerical values of parameters
 m.forward_kinematics()
-print "Completed Forward Kinematics"
-print m.T_06
+print("Completed Forward Kinematics")
+print(m.T_06)
 
-print '\n\n\n\n'
+print('\n\n\n\n')
 sp.pprint(notation_squeeze(m.T_06))
 
-print ' w33'
+print(' w33')
 sp.pprint(notation_squeeze(m.w_33))
-print '-------------'
+print('-------------')
 
-print ' w55'
+print(' w55')
 sp.pprint(notation_squeeze(m.w_55))
-print '-------------'
+print('-------------')
 
-print ' v55'
+print(' v55')
 sp.pprint(notation_squeeze(m.v_55)) 
 
 
-print ManipJacobian_S(m.v_33, m.w_33, [th_1,th_2, th_3])
+print(ManipJacobian_S(m.v_33, m.w_33, [th_1,th_2, th_3]))

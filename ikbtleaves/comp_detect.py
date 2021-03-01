@@ -47,10 +47,10 @@ class comp_det(b3.Action):
             L1 = tick.blackboard.get('eqns_1u')
             L2 = tick.blackboard.get('eqns_2u')
             L3 = tick.blackboard.get('eqns_3pu')
-            print '\n'
-            print 'L1: ', L1   ##  for debugging sum of angles
-            print 'L2: ', L2
-            print 'L3: ', L3
+            print('\n')
+            print('L1: ', L1)   ##  for debugging sum of angles
+            print('L2: ', L2)
+            print('L3: ', L3)
             
         n = 0
         ns = 0
@@ -58,14 +58,14 @@ class comp_det(b3.Action):
             n += 1
             if(u.solved):
                 ns += 1
-        print '\n\n'
-        print '           Completion Detector: ', n, ' variables, ', ns, ' are solved.'
-        print '             solved: ',
+        print('\n\n')
+        print('           Completion Detector: ', n, ' variables, ', ns, ' are solved.')
+        print('             solved: ',)
         for u in unks:
             if(u.solved):
                 str = '{} ({});  '.format(u.symbol, u.solvemethod)
-                print str,                
-        print '\n\n\n'
+                print(str,                )
+        print('\n\n\n')
         time.sleep(2)  # for easier reading/ stopping
             
             
@@ -85,9 +85,9 @@ class comp_det(b3.Action):
             DONEComplete   = b3.SUCCESS
             DONEIncomplete = b3.FAILURE
         if(n == ns):
-            print ""
-            print " Solution Complete!!"
-            print ""
+            print("")
+            print(" Solution Complete!!")
+            print("")
             return DONEComplete  # we have solved all vars
         else:
             return DONEIncomplete # we still have unsolved vars

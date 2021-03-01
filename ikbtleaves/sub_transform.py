@@ -71,10 +71,10 @@ class test_sub_transform(b3.Action):    # tester for your ID
         R.mequation_list = [testm]
         [L1, L2] = R.scan_Mequation(testm, variables)  # lists of 1unk and 2unk equations
         
-        print ' INITIAL  Ts:'
+        print(' INITIAL  Ts:')
         Tm = R.mequation_list[0]   # for a single test as above
         sp.pprint(Tm.Ts)
-        print ''
+        print('')
         
         
         
@@ -96,14 +96,14 @@ class sub_transform(b3.Action):    # action leaf for
         unknowns = tick.blackboard.get('unknowns')   # the current list of unknowns
         R = tick.blackboard.get('Robot')   # the current robot instance
         if(self.BHdebug):
-            print "running: ", self.Name
-            print 'number of matrix equations: ', len(R.mequation_list)
-            print 'first matrix equation: ', R.mequation_list[0]
-            print 'number of input equations: ', len(R.mequation_list[0].get_kequation_list())
-            print "unknowns:"
+            print("running: ", self.Name)
+            print('number of matrix equations: ', len(R.mequation_list))
+            print('first matrix equation: ', R.mequation_list[0])
+            print('number of input equations: ', len(R.mequation_list[0].get_kequation_list()))
+            print("unknowns:")
             for u in unknowns:
-                print u.symbol, ', solved: ',u.solved
-            print ''
+                print(u.symbol, ', solved: ',u.solved)
+            print('')
             
         #   We're going to look at the first N equations in the mequation_list
         N = 1   #  were only looking at first 2 matrix equations (at least for now)          
@@ -130,30 +130,30 @@ class sub_transform(b3.Action):    # action leaf for
                             # substitute with e1 or -e1      ####################################3    *******    adapt ".has" to both LHS and RHS??
                             if((e1 != e2) and e2 != z and e2.has(e1)):  # we found a substitution
                                 if(self.BHdebug):
-                                    print ''
-                                    print self.Name, ' found a sub transform (+)'
-                                    print e1, ' / ',  e2
-                                    print 'new: ', e2, ' = ',  e2.subs(e1, e2) 
+                                    print('')
+                                    print(self.Name, ' found a sub transform (+)')
+                                    print(e1, ' / ',  e2)
+                                    print('new: ', e2, ' = ',  e2.subs(e1, e2) )
                                 nold = count_unknowns(unknowns, e2)
                                 new = e2.subs(e1, R.mequation_list[m].Td[k,l])   # substitute
                                 nnew = count_unknowns(unknowns, new)
                                 if(self.BHdebug):
-                                    print 'Unknowns: old/new:', nold, '/', nnew
-                                    print 'Prop Sub: ', e2, '/', new
+                                    print('Unknowns: old/new:', nold, '/', nnew)
+                                    print('Prop Sub: ', e2, '/', new)
                                 if(nnew < nold):
                                     R.mequation_list[m].Ts[i,j] = new
                                     found = True
                                         
                             elif((e1 != e2) and e2 != z and e2.has(-e1)):  # we found a substitution -e1
                                 if(self.BHdebug):
-                                    print self.Name, ' found a (-) sub transform'
-                                    print e1, '/',  e2
+                                    print(self.Name, ' found a (-) sub transform')
+                                    print(e1, '/',  e2)
                                 nold = count_unknowns(unknowns, e2)
                                 new = e2.subs(-e1, -R.mequation_list[m].Td[k,l])   # substitute with -e1
                                 nnew = count_unknowns(unknowns, new)
                                 if(self.BHdebug):
-                                    print 'Unknowns: old/new:', nold, '/', nnew
-                                    print 'Prop Sub: ', e2, '/', new
+                                    print('Unknowns: old/new:', nold, '/', nnew)
+                                    print('Prop Sub: ', e2, '/', new)
                                 if(nnew < nold):
                                     R.mequation_list[m].Ts[i,j] = new
                                     found = True
@@ -185,7 +185,7 @@ class sub_transform(b3.Action):    # action leaf for
 class TestSolver006(unittest.TestCase):    # change TEMPLATE to unique name (2 places)
     def setUp(self):
         self.DB = False  # debug flag
-        print '===============  Test sub_transform.py  ====================='
+        print('===============  Test sub_transform.py  =====================')
         return
     
     def runTest(self):
@@ -216,7 +216,7 @@ class TestSolver006(unittest.TestCase):    # change TEMPLATE to unique name (2 p
         self.assertTrue(Tm.Ts[2,3]== b*r_31+c, fs)
         self.assertTrue(Tm.Ts[2,0]==a, fs)
         self.assertTrue(Tm.Ts[0,1]==sp.sin(r_11), fs)
-        print '\n\n        Passed 6 assertions\n\n'
+        print('\n\n        Passed 6 assertions\n\n')
 
 #
 #    Can run your test from command line by invoking this file
@@ -224,13 +224,13 @@ class TestSolver006(unittest.TestCase):    # change TEMPLATE to unique name (2 p
 #      - or - call your TestSolverTEMPLATE()  from elsewhere
 #
 def run_test():
-    print '\n\n===============  Test sub_transform nodes====================='
+    print('\n\n===============  Test sub_transform nodes=====================')
     testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver006)  # replace TEMPLATE 
     unittest.TextTestRunner(verbosity=2).run(testsuite)
     
 if __name__ == "__main__":
     
-    print '\n\n===============  Test sub_transform nodes====================='
+    print('\n\n===============  Test sub_transform nodes=====================')
     testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver006)  # replace TEMPLATE 
     unittest.TextTestRunner(verbosity=2).run(testsuite)
            

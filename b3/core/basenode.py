@@ -39,12 +39,11 @@ class BaseNode(object):
     # BH  estimate local success probability    
     def prob(self):
       if self.N_ticks > 0:
-	self.Ps = float(self.N_success) / float(self.N_ticks)
-	#print "P(s) = ", self.Ps
-	return self.Ps
+        self.Ps = float(self.N_success) / float(self.N_ticks)
+        #print "P(s) = ", self.Ps
+        return self.Ps
       else:
-	return 0.1
-	  
+        return 0.1
     
     # BH get Utility for this node   
     def get_Utility(self):
@@ -58,7 +57,7 @@ class BaseNode(object):
       if(self.Utility_Mode == "NEG_COST"):
            self.Utility = self.prob() * (-1) * self.Cost
       return self.Utility
-	    
+
     # BH get Utility for this node  CONDITIONED on STATE  
     def get_Utility2(self):     #  for now use on Leafs only      
       if(self.Utility_Mode == "RATIO"):
@@ -71,29 +70,29 @@ class BaseNode(object):
       if(self.Utility_Mode == "NEG_COST"):
           self.Utility = self.prob_state()[self.state] * (-1) * self.Cost
       return self.Utility
-	
+
     # BH 
     def get_state(self, bb):    # update your own state -- need to overlay this
-        print self.Name , ": trying to update external sensing state -- not yet defined"
+        print(self.Name , ": trying to update external sensing state -- not yet defined")
         quit()
         
     # BH  estimate local success probability    
     def prob_state(self):
         p = [0.0,0.0,0.0,0.0]
         for i in range(0,len(p)):
-	   if self.N_tik2[i] > 0:
-  	      p[i] = float(self.N_suc2[i]) / float(self.N_tik2[i]) 
-  	   else:
-	      p[i] = 0.5
+           if self.N_tik2[i] > 0:
+             p[i] = float(self.N_suc2[i]) / float(self.N_tik2[i]) 
+           else:
+             p[i] = 0.5
         if(0):
             s = "{:4.2} {:4.2} {:4.2} {:4.2} ".format(p[0],p[1],p[2],p[3])
-            print self.Name,"prob_state(): ",s
+            print(self.Name,"prob_state(): ",s)
             s = "{:4} {:4} {:4} {:4} ".format(self.N_suc2[0],self.N_suc2[1],self.N_suc2[2],self.N_suc2[3])
-            print self.Name,"N Success:    ",s    
+            print(self.Name,"N Success:    ",s)
             s = "{:4} {:4} {:4} {:4} ".format(self.N_tik2[0],self.N_tik2[1],self.N_tik2[2],self.N_tik2[3])
-            print self.Name,"N tik2:       ",s
-	#print self.Name, p
-	return p
+            print(self.Name,"N tik2:       ",s)
+        #print self.Name, p
+        return p
       
     # BH reset the probability counters
     def p_reset(self):
@@ -108,13 +107,13 @@ class BaseNode(object):
       #  report your stats
       
     def report_stats(self):
-      print '\n\n',self.Name,'    Statistics'
-      print 'N_ticks:            ',self.N_ticks
-      print 'N_ticks_all:        ',self.N_ticks_all
-      print 'N_success:          ',self.N_success
-      print 'prob                ',self.prob()
-      print 'Cost:               ',self.Cost
-      print 'Utility:            ',self.get_Utility()
+      print('\n\n',self.Name,'    Statistics')
+      print('N_ticks:            ',self.N_ticks)
+      print('N_ticks_all:        ',self.N_ticks_all)
+      print('N_success:          ',self.N_success)
+      print('prob                ',self.prob())
+      print('Cost:               ',self.Cost)
+      print('Utility:            ',self.get_Utility())
           
     @property
     def name(self):
@@ -147,7 +146,7 @@ class BaseNode(object):
         tick._tick_node(self)
         #self.N_ticks += 1   # used to have this but caused double ticks
         if(self.BHdebug == 1):
-            print 'basenode: ', self.Name, " ticked "
+            print('basenode: ', self.Name, " ticked ")
         #BH count the ticks
         self.N_ticks_all += 1
         status = self.tick(tick)
@@ -156,9 +155,9 @@ class BaseNode(object):
         
         if(self.BHdebug == 1):
             if(status == b3.SUCCESS):
-                print "basenode: ", self.Name, " SUCCESS "
+                print("basenode: ", self.Name, " SUCCESS ")
             elif(status == b3.FAILURE):
-                print "basenode: ", self.Name, " FAIL"
+                print("basenode: ", self.Name, " FAIL")
         
         # BH keep track of successful ticks
         if(status == b3.SUCCESS):

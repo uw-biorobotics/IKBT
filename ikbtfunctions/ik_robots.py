@@ -34,10 +34,10 @@ def robot_params(name):
     pvals = {}   # null for most robots
     List = ['UR5', 'Puma', 'Chair_Helper', 'Brad', 'ArmRobo', 'Wrist', 'Arm_3', 'MiniDD', 'Olson13','Stanford', 'Chair6DOF','Khat6DOF','Craig417']
     if not (name in List):
-        print 'robot_params(): Unknown robot, ' + name 
-        print 'Here are the defined robots: '
+        print('robot_params(): Unknown robot, ' + name )
+        print('Here are the defined robots: ')
         for n in List:
-            print '   ', n
+            print('   ', n)
         quit()
         
     if(name == 'ArmRobo'):    # submitted by issue #15
@@ -247,7 +247,7 @@ def robot_params(name):
         # Sims 2011,
         # DOF: 5
         # methods to test: m5, m3, m4, m6
-        print "looking at Sims11"
+        print("looking at Sims11")
         sp.var('l_1 l_2 l_3')
         dh = sp.Matrix([
             [0.,        0.,         d_1,        0.],

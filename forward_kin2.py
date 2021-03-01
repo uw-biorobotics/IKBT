@@ -1,4 +1,4 @@
-!/usr/bin/python
+#!/usr/bin/python3
 #
 #     Test for full IK solutions of know robot(s)
 
@@ -36,18 +36,18 @@ TEST_DATA_GENERATION = False
 sp.init_printing()
 
 if not TEST_DATA_GENERATION:
-    print ""
-    print "          Running IK solution "
-    print ""
-    print ""
+    print("")
+    print("          Running IK solution ")
+    print("")
+    print("")
 else:
-    print '-'*50
-    print ""
-    print "          Generating IKBT TEST DATA only "
-    print ""
-    print "          (for production: line 32: TEST_DATA_GENERATION = False)"
-    print ""
-    print '-'*50
+    print('-'*50)
+    print("")
+    print("          Generating IKBT TEST DATA only ")
+    print("")
+    print("          (for production: line 32: TEST_DATA_GENERATION = False)")
+    print("")
+    print('-'*50)
 
 # generic variables for any maniplator
 ((th_1, th_2, th_3, th_4, th_5, th_6)) = sp.symbols(('th_1', 'th_2', 'th_3', 'th_4', 'th_5', 'th_6'))
@@ -76,11 +76,11 @@ if len(argv) == 1:  # no argument - use default
 elif len(argv) == 2:
     robot = str(argv[1]) 
         
-print ''
-print ''
-print '             Working on '+robot
-print ''
-print ''
+print('')
+print('')
+print('             Working on '+robot)
+print('')
+print('')
 
 #   Get the robot model 
 [dh, vv, params, pvals, unknowns] = robot_params(robot)  # see ik_robots.py 

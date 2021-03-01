@@ -39,7 +39,7 @@ from ikbtbasics import ik_classes
 #from ik_classes import *
 
 import b3 as b3          # behavior trees
-from assigner_leaf  import *
+from ikbtleaves.assigner_leaf  import *
 
  
 class test_sincos_id(b3.Action):    # tester for sincos ID    
@@ -107,9 +107,9 @@ class sincos_id(b3.Action):    # action leaf for sincosid
         two_unk = tick.blackboard.get('eqns_2u')
 
         if(self.BHdebug):
-           print "sincosID, running: ", self.Name
-           print 'working with ',len(one_unk), '1-unk equations and'
-           print '             ',len(two_unk), '2-unk equations.'
+           print("sincosID, running: ", self.Name)
+           print('working with ',len(one_unk), '1-unk equations and')
+           print('             ',len(two_unk), '2-unk equations.')
            
         # identify equations where one equation can be solved by
         #        arcsin() or arccos()
@@ -119,15 +119,15 @@ class sincos_id(b3.Action):    # action leaf for sincosid
         if (not u.solvable_sincos) and (not u.solved):
             for e in one_unk:  
                 if(self.BHdebug):
-                    print "Looking for unknown: ", u.symbol, " in equation: ", 
+                    print("Looking for unknown: ", u.symbol, " in equation: ", )
                     e.prt()
-                    print "  which has one unknown(s)"
+                    print("  which has one unknown(s)")
                 if (e.RHS.has(sp.sin(u.symbol)) or e.LHS.has(sp.sin(u.symbol)) ) \
                     and (e.RHS.has(sp.cos(u.symbol)) or e.LHS.has(sp.cos(u.symbol))):
                     continue   # this shouldbe caught by another ID
                 if e.RHS.has(sp.sin(u.symbol)) or e.LHS.has(sp.sin(u.symbol)):   # we found  X = Asin(x)
                     if(self.BHdebug):
-                        print 'I found an sin() equation to ID: ', e
+                        print('I found an sin() equation to ID: ', e)
                     u.eqntosolve = e
                     u.solvemethod = "arcsin"
                     found = True
@@ -135,7 +135,7 @@ class sincos_id(b3.Action):    # action leaf for sincosid
                     
                 if e.RHS.has(sp.cos(u.symbol)) or e.LHS.has(sp.cos(u.symbol)):   # we found X = Acos(x)
                     if(self.BHdebug):
-                        print 'I found an cos() equation to ID: ', e
+                        print('I found an cos() equation to ID: ', e)
                     u.eqntosolve = e
                     u.solvemethod = "arccos"
                     found = True
@@ -162,13 +162,13 @@ class sincos_solve(b3.Action):    # Solve asincos equation pairs
         u = tick.blackboard.get("curr_unk")
         unknowns = tick.blackboard.get("unknowns")
         #for u in unknowns:
-        print 'sincos: checking ', u.symbol
+        print('sincos: checking ', u.symbol)
         #self.BHdebug = True
         if u.solvable_sincos:
             if(self.BHdebug):
-                print "Trying to solve: ", u.symbol
-                print "  Using the ", u.solvemethod, " on:"
-                print u.eqntosolve
+                print("Trying to solve: ", u.symbol)
+                print("  Using the ", u.solvemethod, " on:")
+                print(u.eqntosolve)
 
             # parse the equation RHS 
             terms = [sp.sin(u.symbol), sp.cos(u.symbol)]
@@ -195,16 +195,16 @@ class sincos_solve(b3.Action):    # Solve asincos equation pairs
                 u.sincos_eqnlist.append(u.eqntosolve)
                 u.nsolutions = 2 
                 if(self.BHdebug):
-                    print 'I think I solved ', u.symbol
+                    print('I think I solved ', u.symbol)
                     sp.pprint(u.solutions)
-                    print ''
+                    print('')
                 #u.set_solved(R,unknowns)
                 solvedanything = True
                 
             elif u.solvemethod == "arccos":
                 d   = rhs.match(Aw*sp.cos(u.symbol)+Bw)  
                 if(d is None):
-                    print "sincos_solve (arccos branch):  Somethings Wrong!"
+                    print("sincos_solve (arccos branch):  Somethings Wrong!")
                     return b3.FAILURE                    
                 else:        
                     A = d[Aw]
@@ -225,9 +225,9 @@ class sincos_solve(b3.Action):    # Solve asincos equation pairs
                     
                     u.nsolutions = 2
                     if(self.BHdebug):
-                        print 'I think I solved ', u.symbol
+                        print('I think I solved ', u.symbol)
                         sp.pprint(u.solutions)
-                        print ''
+                        print('')
                     #u.set_solved(R,unknowns)
                     solvedanything = True
         if(solvedanything):
@@ -244,7 +244,7 @@ class sincos_solve(b3.Action):    # Solve asincos equation pairs
 class TestSolver001(unittest.TestCase):
     def setUp(self):
         self.DB = False  # debug flag
-        print '\n\n===============  Test sincos Solver  ====================='
+        print('\n\n===============  Test sincos Solver  =====================')
         return
     
     def runTest(self):
@@ -314,7 +314,7 @@ class TestSolver001(unittest.TestCase):
         self.assertTrue(len(L1) == 5, fs)
         self.assertTrue(len(L2) == 1, fs)
         ntests += 2
-        print '\nPassed all ', ntests, ' asserts.'
+        print('\nPassed all ', ntests, ' asserts.')
 
 def run_test():
     suite2 = unittest.TestLoader().loadTestsFromTestCase(TestSolver001)

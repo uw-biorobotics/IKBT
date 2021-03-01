@@ -34,9 +34,9 @@ from ikbtfunctions.helperfunctions import *
 from ikbtbasics.kin_cl import *
 from ikbtbasics.ik_classes import *     # special classes for Inverse kinematics in sympy
 
-from updateL import *
-from comp_detect import *
-from assigner_leaf  import *
+from ikbtleaves.updateL import *
+from ikbtleaves.comp_detect import *
+from ikbtleaves.assigner_leaf  import *
 from sympy.assumptions.assume import global_assumptions
 
 import b3 as b3          # behavior trees
@@ -60,9 +60,9 @@ class tan_id(b3.Action):    # action leaf for ID eqns solved by atan2()
         two_unk = tick.blackboard.get('eqns_2u')
             
         if(self.BHdebug):
-            print "running: ", self.Name," , input RHS:"
+            print("running: ", self.Name," , input RHS:")
             ulen= len(unknowns)
-            print 'tan_id working on', ulen ,' unknowns:'
+            print('tan_id working on', ulen ,' unknowns:')
         # identify unknowns in T where one equation can be solved by
         #          arctan(y,x)
         found = False
@@ -85,10 +85,10 @@ class tan_id(b3.Action):    # action leaf for ID eqns solved by atan2()
                 if(not (tmp).has(u.symbol)):
                     continue        # only look at equations having the current unknown in them
                 if(self.BHdebug):
-                    print "\n\n  tan_id:        Looking for unknown: ", u.symbol, " in equation: ", 
-                    print e 
-                    print "  which has ", count_unknowns(unknowns, e.RHS), " unknown(s) in RHS"
-                    print "     and    ", count_unknowns(unknowns, e.LHS), " unknown(s) in LHS"
+                    print("\n\n  tan_id:        Looking for unknown: ", u.symbol, " in equation: ", )
+                    print(e )
+                    print("  which has ", count_unknowns(unknowns, e.RHS), " unknown(s) in RHS")
+                    print("     and    ", count_unknowns(unknowns, e.LHS), " unknown(s) in LHS")
             
                 if (tmp.has(sp.sin(u.symbol)) and tmp.has(sp.cos(u.symbol))):
                     continue   # this should be caught by sinANDcos solver
@@ -107,20 +107,20 @@ class tan_id(b3.Action):    # action leaf for ID eqns solved by atan2()
                 estst = (es.RHS - es.LHS).collect(terms)  # get all the sin(th)s collected
                 d1 = estst.match(Aw*sp.sin(u.symbol) + Bw)
                 if self.BHdebug: 
-                    print '---'
-                    print "\nsin equ: "
-                    print u.eqntosolve
-                    print "\nsin(): coefficients are : "
-                    print d1[Aw] 
-                    print '---'
+                    print('---')
+                    print("\nsin equ: ")
+                    print(u.eqntosolve)
+                    print("\nsin(): coefficients are : ")
+                    print(d1[Aw] )
+                    print('---')
                 for ec in cos_eqn:  
                     ectst = (ec.RHS - ec.LHS).collect(terms)  # get all the cos(th)s collected
                     d2 = ectst.match(Cw*sp.cos(u.symbol) + Dw)
                     if self.BHdebug: 
-                        print "\ncos equ: "
-                        print u.secondeqn
-                        print "\ncos(): coefficients"
-                        print d2[Cw]          
+                        print("\ncos equ: ")
+                        print(u.secondeqn)
+                        print("\ncos(): coefficients")
+                        print(d2[Cw]          )
                     
                     # check some things about potential solvable equations
                     assert(d1 is not None and d2 is not None), 'somethings wrong!'
@@ -145,25 +145,25 @@ class tan_id(b3.Action):    # action leaf for ID eqns solved by atan2()
                         u.secondeqn = kc.kequation(0, ectst)
                         u.readytosolve = True 
                         # u.eqntosolve and secondeqn are already set up above 
-                        print 'tan_id:  able to solve', u.symbol
+                        print('tan_id:  able to solve', u.symbol)
                         if count_unknowns(unknowns, co) > 0: #cancellable unsolved term, add the nonzero assumption
                             global_assumptions.add(sp.Q.nonzero(d2[Cw]))                            
                         u.solvemethod = "atan2(y,x)"
                         u.solvable_tan = True
                         
                     if(self.BHdebug and u.readytosolve):
-                        print '\n              tan_id: Identified Solution: ', u.symbol
+                        print('\n              tan_id: Identified Solution: ', u.symbol)
                         e1tmp = u.eqntosolve.RHS + u.eqntosolve.LHS 
                         e2tmp = u.secondeqn.RHS + u.secondeqn.LHS
-                        print '                       ', u.eqntosolve, '  (', count_unknowns(unknowns, e1tmp), 'unks)'
+                        print('                       ', u.eqntosolve, '  (', count_unknowns(unknowns, e1tmp), 'unks)')
                         for u in get_unknowns(unknowns, e1tmp):
-                            print u.symbol, 
-                        print''
-                        print '                       ', u.secondeqn, '  (', count_unknowns(unknowns, e2tmp), 'unks)'
+                            print(u.symbol, )
+                        print('')
+                        print('                       ', u.secondeqn, '  (', count_unknowns(unknowns, e2tmp), 'unks)')
                         for u in get_unknowns(unknowns, e1tmp):
-                            print u.symbol, 
-                        print''
-                        print ''
+                            print(u.symbol, )
+                        print('')
+                        print('')
                     if found:
                         break
                 if found:
@@ -194,23 +194,23 @@ class tan_solve(b3.Action):    # Solve sin cos equation pairs
             if not unk.solved:
                 unk_unsol.append(unk)
                 if(self.BHdebug):
-                    print 'tan_solve(): Not yet solved: ', unk.symbol
+                    print('tan_solve(): Not yet solved: ', unk.symbol)
 
         fsolved = False
         if u.solvable_tan:
             if(self.BHdebug):
-                print "tan_solve: I'm trying to solve: ", u.symbol
-                print "  Using tangent() and 2 eqns:" 
-                print u.eqntosolve
-                print u.secondeqn
+                print("tan_solve: I'm trying to solve: ", u.symbol)
+                print("  Using tangent() and 2 eqns:" )
+                print(u.eqntosolve)
+                print(u.secondeqn)
             
             fs = "tan_solve:  Somethings Wrong!"
             
             try:
                 x  = u.eqntosolve.LHS
             except:
-                print "problematic step: %s"%u.symbol
-                print u.eqntosolve
+                print("problematic step: %s"%u.symbol)
+                print(u.eqntosolve)
                 
             rhs = u.eqntosolve.RHS
             Aw = sp.Wild("Aw")
@@ -229,7 +229,7 @@ class tan_solve(b3.Action):    # Solve sin cos equation pairs
             assert(count_unknowns(unknowns, d2[Bw])==0), fs
 
             #construct solutions
-            print 'tan_solver Denominators: ', d[Aw], d2[Aw]
+            print('tan_solver Denominators: ', d[Aw], d2[Aw])
 
             co = d[Aw]/d2[Aw] #coefficients of Y and X
             Y = x-d[Bw]
@@ -333,7 +333,7 @@ class test_tan_id(b3.Action):    # tester for your ID
             Ts[1,0] = -r_13*sp.sin(th_2) - r_33*sp.cos(th_2)
             
         else:
-            print 'tan_solver:   UNKNOWN TEST NUMBER: ', test_number
+            print('tan_solver:   UNKNOWN TEST NUMBER: ', test_number)
             return b3.FAILURE
 
         testm = matrix_equation(Td,Ts)
@@ -361,7 +361,7 @@ class TestSolver004(unittest.TestCase):    # change TEMPLATE to unique name (2 p
     DB = False
     def setUp(self):
         self.DB = False  # debug flag
-        print '===============  Test tan solver  ====================='
+        print('===============  Test tan solver  =====================')
         return
     
     def runTest(self):
@@ -389,7 +389,7 @@ class TestSolver004(unittest.TestCase):    # change TEMPLATE to unique name (2 p
         ik_tester.root= b3.Sequence([tan_setup, repeats])
         sp.var('r_11 r_12 r_13 r_21 r_22 r_23  r_31 r_32 r_33  Px Py Pz') # needed for test results 
         
-        print '\n\n  ----------     tan solver TEST 1 --------------\n\n'
+        print('\n\n  ----------     tan solver TEST 1 --------------\n\n')
         bb.set('test_number',1) # go to test 1
         ik_tester.tick("tan_id test", bb)    
         
@@ -402,7 +402,7 @@ class TestSolver004(unittest.TestCase):    # change TEMPLATE to unique name (2 p
             if(v.symbol == th_5):
                 self.assertTrue(v.solved == False, fs) 
             if(self.DB):
-                print '\n--------------------      ', v.symbol
+                print('\n--------------------      ', v.symbol)
             if(self.DB and v.solved):
                 sp.pprint (v.solutions[0])
                 if(v.nsolutions == 2):
@@ -429,10 +429,10 @@ class TestSolver004(unittest.TestCase):    # change TEMPLATE to unique name (2 p
                 self.assertTrue(v.solutions[0] == sp.atan2(r_33/(l_5), (Pz-50)/l_1), fs + ' [th_23]')
                 
         self.assertTrue(ntests == 5, fs + '  assertion count failure ')
-        print 'Passed: ', ntests, ' asserts'
+        print('Passed: ', ntests, ' asserts')
 
         
-        print '\n\n  ----------     tan solver TEST 2 --------------\n\n'
+        print('\n\n  ----------     tan solver TEST 2 --------------\n\n')
         
         bb2 = b3.Blackboard()
         bb2.set('test_number',2) # go to test 2
@@ -441,14 +441,14 @@ class TestSolver004(unittest.TestCase):    # change TEMPLATE to unique name (2 p
         
         #   Test the results 
         variables = bb2.get('unknowns')
-        print '>> Test 2 Asserts'
+        print('>> Test 2 Asserts')
 
         fs = 'tan_solver test 2 FAIL'
         fs2 = 'wrong assumption' 
         ntests = 0
         for v in variables: 
             if v.solved: 
-                print '\n--------------------      ', v.symbol
+                print('\n--------------------      ', v.symbol)
                 sp.pprint (v.solutions[0])
                 if(v.nsolutions == 2):
                     sp.pprint(v.solutions[1])            
@@ -474,14 +474,14 @@ class TestSolver004(unittest.TestCase):    # change TEMPLATE to unique name (2 p
                 #self.assertTrue(v.solved, fs + ' [th_6]')
                 self.assertTrue(v.solutions[0] == sp.atan2( -r_33, r_31), fs)
                 self.assertTrue(v.solutions[1] == sp.atan2(r_33, -r_31), fs)
-                print 'Assumptions for ', v.symbol                # should set assumptions if canceling an unk.
-                print '    ', sp.pprint (v.assumption[0]) 
-                print '    ', sp.pprint (v.assumption[1])
+                print('Assumptions for ', v.symbol)               # should set assumptions if canceling an unk.
+                print('    ', sp.pprint (v.assumption[0]) )
+                print('    ', sp.pprint (v.assumption[1]))
 
         self.assertTrue(ntests == 5, 'tan_solver:   Assert count    FAIL')
-        print 'Passed: ', ntests, ' asserts'
-        print "global assumptions"
-        print global_assumptions
+        print('Passed: ', ntests, ' asserts')
+        print("global assumptions")
+        print(global_assumptions)
         
 
 
@@ -493,12 +493,12 @@ class TestSolver004(unittest.TestCase):    # change TEMPLATE to unique name (2 p
 
 
 def run_test():
-    print '\n\n===============  Test tan_solver.py ====================='
+    print('\n\n===============  Test tan_solver.py =====================')
     testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver004)  # replace TEMPLATE 
     unittest.TextTestRunner(verbosity=2).run(testsuite)
 
 if __name__ == "__main__":
-    print '\n\n===============  Test tan_solver.py ====================='
+    print('\n\n===============  Test tan_solver.py =====================')
     testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver004)  # replace TEMPLATE 
     unittest.TextTestRunner(verbosity=2).run(testsuite)
     #unittest.main()

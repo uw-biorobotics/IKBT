@@ -41,7 +41,7 @@ pi = np.pi
 # Code to solve the unknowns
 def ikin_Wrist(T):
     if(T.shape != (4,4)):
-        print "bad input to "+funcname
+        print("bad input to "+funcname)
         quit()
 #define the input vars
     r_11 = T[0,0]
@@ -145,10 +145,10 @@ if __name__ == "__main__":
 
     i = 0
     for sol in sol_list:
-        print ''
-        print 'Solution ', i
+        print('')
+        print('Solution ', i)
         i+=1
-        print sol
+        print(sol)
 
 #########3 try to plug back into FK model
 
@@ -165,7 +165,7 @@ robot = 'Wrist'
 
 testing = False
 [M, R, unknowns] = kinematics_pickle(robot, dh, params, pvals, vv, unknowns, testing)
-print 'GOT HERE: robot name: ', R.name
+print('GOT HERE: robot name: ', R.name)
 
 R.name = robot
 R.params = params
@@ -181,14 +181,14 @@ for sol in sol_list:
     pose = {A : sol[0], B : sol[1], C : sol[2]}
     T2 = forward_kinematics_N(M, pose, M.pvals)
     maxe = -9999999.99
-    print '- - - - - '
-    print T2-T1
-    print '- - - - - '
+    print('- - - - - ')
+    print(T2-T1)
+    print('- - - - - ')
     for k in [0,1,2,3]:
         for j in [0,1,2]:
             e = T1[k,j]-T2[k,j]
             #print '<<',e,'>>'
             if np.abs(e) > maxe:
                 maxe = np.abs(e)
-    print 'Solution ',i,': ', maxe
+    print('Solution ',i,': ', maxe)
     i += 1

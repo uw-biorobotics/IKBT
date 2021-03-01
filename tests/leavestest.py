@@ -20,7 +20,7 @@
 
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import StringIO
+from io import StringIO
 
 import unittest
 import sys
@@ -163,7 +163,7 @@ class TestSolvers(unittest.TestCase):
 
 def run_test_IK_class():
     suite1 = unittest.TestLoader().loadTestsFromTestCase(TestIkClass)
-    print '\n\n>>>>>>>>>>>>>>>>>>>>  Test ik_classes >>>>>>>>>>>>>>>>>>>>\n'
+    print('\n\n>>>>>>>>>>>>>>>>>>>>  Test ik_classes >>>>>>>>>>>>>>>>>>>>\n')
     unittest.TextTestRunner(verbosity=2).run(suite1)
 
 if __name__ == '__main__':
@@ -173,7 +173,7 @@ if __name__ == '__main__':
             HTML = True
             sys.argv = sys.argv[:-1] # delete html arg (but rest go to HTMLTestRunner)
         else:
-            print >> sys.stderr, 'invalid arguments: ', sys.argv
+            print('invalid arguments: ', sys.argv, file=sys.stderr)
             quit()
 
     #####################################################################
@@ -190,12 +190,12 @@ if __name__ == '__main__':
     suite3 = unittest.TestLoader().loadTestsFromTestCase(TestSolver006)  # sub_transform.py
     suite3.addTest(TestSolver007())   # updateL.py  # updating matrix equation lists
     if(not HTML):
-        print '\n\n>>>>>>>>>>>>>>>>>>>>  Test ik_classes >>>>>>>>>>>>>>>>>>>>\n'
+        print('\n\n>>>>>>>>>>>>>>>>>>>>  Test ik_classes >>>>>>>>>>>>>>>>>>>>\n')
         unittest.TextTestRunner(verbosity=2).run(suite1)
-        print '\n\n>>>>>>>>>>>>>>>>>>>>  Test ID/Solver nodes>>>>>>>>>>>>>>>>>>>>\n'
+        print('\n\n>>>>>>>>>>>>>>>>>>>>  Test ID/Solver nodes>>>>>>>>>>>>>>>>>>>>\n')
         unittest.TextTestRunner(verbosity=2).run(suite2)
-        print '\n\n>>>>>>>>>>>>>>>>>>>>  Test transforms and misc nodes >>>>>>>>>>>>>>>>>>>>\n'
-        print ' (please be patient - slower tests)'
+        print('\n\n>>>>>>>>>>>>>>>>>>>>  Test transforms and misc nodes >>>>>>>>>>>>>>>>>>>>\n')
+        print(' (please be patient - slower tests)')
         unittest.TextTestRunner(verbosity=2).run(suite3)
     else:
         #HTMLTestRunner.main()
@@ -203,30 +203,30 @@ if __name__ == '__main__':
        #  Directory Name of this Project:
         projdir = 'IKBT/tests/' # customize to your setup
         #projdir = 'ikbtrefactor/tests/' # customize to your setup
-        testfname =  projdir + 'IKBT_testreport.html'
+        testfname =  'IKBT_testreport.html'
         fp = open(testfname, 'w')
 
-        buffer =  StringIO.StringIO()
+        buffer =  StringIO()
 
         #print '\n     Opening for html output: '+testfname+'\n'
-        print '\n     Opening StringIO() \n'
+        print('\n     Opening StringIO() \n')
         html_runner = HTMLTestRunner.HTMLTestRunner(buffer,
                     title='IK-BT unit tests',
                     description='IK-BT Unit test results.'
                     )
 
-        print '\n\n>>>>>>>>>>>>>>>>>>>>  Test ik_classes >>>>>>>>>>>>>>>>>>>>\n'
+        print('\n\n>>>>>>>>>>>>>>>>>>>>  Test ik_classes >>>>>>>>>>>>>>>>>>>>\n')
         html_runner.title = 'IK-BT Kinematics Classes'
         html_runner.run(suite1)
-        print '\n\n>>>>>>>>>>>>>>>>>>>>  Test ID/Solver nodes>>>>>>>>>>>>>>>>>>>>\n'
+        print('\n\n>>>>>>>>>>>>>>>>>>>>  Test ID/Solver nodes>>>>>>>>>>>>>>>>>>>>\n')
         html_runner.title = 'IK-BT Solvers (leaves)'
         html_runner.run(suite2)
-        print '\n\n>>>>>>>>>>>>>>>>>>>>  Test transforms and misc nodes >>>>>>>>>>>>>>>>>>>>\n'
-        print ' (please be patient - slower tests)'
+        print('\n\n>>>>>>>>>>>>>>>>>>>>  Test transforms and misc nodes >>>>>>>>>>>>>>>>>>>>\n')
+        print(' (please be patient - slower tests)')
         html_runner.title = 'IK-BT Transforms'
         html_runner.run(suite3)
-        print >>fp, ' ****************************'
-        print >>fp, buffer.getvalue()
+        print(' ****************************', file=fp)
+        print(buffer.getvalue(), file=fp)
         fp.close()
 
 
