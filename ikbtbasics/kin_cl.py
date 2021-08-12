@@ -530,8 +530,8 @@ class TestSolver008(unittest.TestCase):    # change TEMPLATE to unique name (2 p
         print(e1.LaTexOutput(True))
         print('>>-----------------------------<<')
         fs = 'kequation LaTex output  FAIL'
-        self.assertTrue(e1.LaTexOutput() == r'\theta_{2} = l_{1} \sin{\left (\theta_{1} \right )} + \sqrt{l_{4}}', fs)
-        self.assertTrue(e1.LaTexOutput(True) == r'\theta_{2} &= l_{1} \sin{\left (\theta_{1} \right )} + \sqrt{l_{4}}', fs + ' (align)')
+        self.assertTrue(e1.LaTexOutput() == r'\theta_{2} = l_{1} \sin{\left(\theta_{1} \right)} + \sqrt{l_{4}}', fs)
+        self.assertTrue(e1.LaTexOutput(True) == r'\theta_{2} &= l_{1} \sin{\left(\theta_{1} \right)} + \sqrt{l_{4}}', fs + ' (align)')
 
 #\theta_{2} = l_{1} \sin{\left (\theta_{1} \right )} + \sqrt{l_{4}}
 #\theta_{2} &= l_{1} \sin{\left (\theta_{1} \right )} + \sqrt{l_{4}}

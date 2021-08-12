@@ -1,18 +1,3 @@
-# Copyright 2017 University of Washington
-
-# Developed by Dianmu Zhang and Blake Hannaford
-# BioRobotics Lab, University of Washington
-
-# Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
-
-# 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
-
-# 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
-
-# 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
-
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
 """
 A TestRunner for use with the Python unit testing framework. It
 generates a HTML report to show the result at a glance.
@@ -643,7 +628,7 @@ class HTMLTestRunner(Template_mixin):
         test(result)
         self.stopTime = datetime.datetime.now()
         self.generateReport(test, result)
-        print('\nTime Elapsed: %s' % (self.stopTime-self.startTime), file=sys.stderr)
+        print ('\nTime Elapsed: %s' % (self.stopTime-self.startTime), file=sys.stderr)
         return result
 
 
@@ -654,7 +639,7 @@ class HTMLTestRunner(Template_mixin):
         classes = []
         for n,t,o,e in result_list:
             cls = t.__class__
-            if cls not in rmap:
+            if not cls in rmap.keys():
                 rmap[cls] = []
                 classes.append(cls)
             rmap[cls].append((n,t,o,e))
@@ -776,23 +761,20 @@ class HTMLTestRunner(Template_mixin):
         tmpl = has_output and self.REPORT_TEST_WITH_OUTPUT_TMPL or self.REPORT_TEST_NO_OUTPUT_TMPL
 
         # o and e should be byte string because they are collected from stdout and stderr?
-        """
-        if isinstance(o,str):
-            # TODO: some problem with 'string_escape': it escape \n and mess up formating
-            # uo = unicode(o.encode('string_escape'))
-            uo = bytes(o).decode('latin-1')
-        else:
-            uo = o
-        if isinstance(e,str):
-            # TODO: some problem with 'string_escape': it escape \n and mess up formating
-            # ue = unicode(e.encode('string_escape'))
-            ue = e.decode('latin-1')
-        else:
-            ue = e
-        """
-        uo = o
+        #if isinstance(o,str):
+            ## TODO: some problem with 'string_escape': it escape \n and mess up formating
+            ## uo = unicode(o.encode('string_escape'))
+            #uo = o.decode('latin-1')
+        #else:
+            #uo = o
+        #if isinstance(e,str):
+            ## TODO: some problem with 'string_escape': it escape \n and mess up formating
+            ## ue = unicode(e.encode('string_escape'))
+            #ue = e.decode('latin-1')
+        #else:
+            #ue = e
         ue = e
-
+        uo = o
         script = self.REPORT_TEST_OUTPUT_TMPL % dict(
             id = tid,
             output = saxutils.escape(uo+ue),
@@ -842,3 +824,4 @@ main = TestProgram
 
 if __name__ == "__main__":
     main(module=None)
+

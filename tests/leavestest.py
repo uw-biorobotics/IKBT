@@ -24,7 +24,7 @@ from io import StringIO   # new way to import for Python recent vintage
 
 import unittest
 import sys
-import HTMLTestRunner
+from tests import HTMLTestRunner
 import os as os
 
 import sympy as sp
@@ -35,7 +35,7 @@ sys.path.append('../')
 sys.path.append('../ikbtfunctions')   # allow this test to go 'up' to project main dir.
 
 from ikbtfunctions.helperfunctions import *
-from helpertest import *    # had to separate tests form helperfunctions b/c of circular imports
+from tests.helpertest import *    # had to separate tests form helperfunctions b/c of circular imports
 
 from ikbtbasics.kin_cl import *
 from ikbtbasics.ik_classes import *     # special classes for Inverse kinematics in sympy
@@ -200,12 +200,14 @@ if __name__ == '__main__':
     else:
         #HTMLTestRunner.main()
        # output to a file
-       #  Directory Name of this Project:
-        projdir = 'IKBT/tests/' # customize to your setup
-        #projdir = 'ikbtrefactor/tests/' # customize to your setup
-        testfname =  'IKBT_testreport.html'
-        fp = open(testfname, 'w')
-
+        projdir = 'IKBT/'
+        testfname =  projdir + 'IKBT_testreport.html'
+        try:
+            fp = open(testfname, 'w')
+        except:
+            print('leavestest.py: Trouble opening file ',testname)
+            quit()
+            
         buffer =  StringIO()
 
         #print '\n     Opening for html output: '+testfname+'\n'
