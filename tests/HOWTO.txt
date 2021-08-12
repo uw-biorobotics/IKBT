@@ -18,7 +18,10 @@ to test the "helperfunctions":
 
 HTML test report output:
 
-"leavestest" can generate a nice HTML summary of the results using the package HTMLTestRunner.py by Wai Yip Tung.  to generate an html test report:
+"leavestest" can generate a nice HTML summary of the results using the package HTMLTestRunner.py by Wai Yip Tung.  
+(http://tungwaiyip.info/software/HTMLTestRunner.html)
+
+to generate an html test report:
 
 
 > cd .. 
