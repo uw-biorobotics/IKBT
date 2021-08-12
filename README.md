@@ -3,7 +3,8 @@ A python based system for generating closed-form solutions to the manipulator in
 behavior trees for action selection. 
 
 # Current News
-
+## July 2021
+Unit test programs were broken for python3.  This is now fixed.  Test programs work and all pass.
 ## March 2021
 Upgraded to Python3 (mostly just adding parens to print statements and new python3-sympy).  New "main" branch for more respectful terminology.
 
