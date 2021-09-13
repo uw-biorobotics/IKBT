@@ -259,6 +259,15 @@ def H_inv_S(T):
 
 ###################### Numerical functions
 
+#  translate along a Numeric vector
+def Trans4_N(v):
+  T = np.eye(4)
+  T[0,3] = v[0]
+  T[1,3] = v[1]
+  T[2,3] = v[2]
+  return T
+##  The cannonical rotation matrices
+
 ##  The cannonical rotation matrices
 
 def RotX_N(t):
