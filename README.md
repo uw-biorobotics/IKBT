@@ -4,9 +4,9 @@ behavior trees for action selection.
 Solutions are fully symbolic and are output as LaTex, Python, and C++.
 
 # Current News
-## Sept 2021
+## Sept 2021  Version 2.0
 At long last the 3-way sum of angles feature is upgraded to python3 and merged into main branch.
-All tests are passing, UR5 and Puma both solve all unknowns.   USE THIS BRANCH.
+All tests are passing, UR5 and Puma both solve all unknowns.   USE MAIN BRANCH.
 
 ## July 2021
 Unit test programs were broken for python3.  This is now fixed.  Test programs work and all pass.
