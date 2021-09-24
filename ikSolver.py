@@ -29,7 +29,8 @@ import b3 as b3          # behavior trees
 import ikbtfunctions.helperfunctions as hf
 import ikbtfunctions.output_python as op
 import ikbtfunctions.output_cpp as oc
-from ikbtfunctions.ik_robots import *
+from ikbtfunctions.ik_robots import *   # a bunch of robot models: probs to solve
+
 from ikbtbasics import *
 from ikbtleaves.assigner_leaf import assigner
 from ikbtleaves.rank_leaf import rank
@@ -40,6 +41,7 @@ from ikbtleaves.sinANDcos_solver import *
 from ikbtleaves.x2y2_solver import *
 from ikbtleaves.sub_transform import *
 #from ikbtleaves.sum_transform import *  # replaced by sum_id() + Algebra node.
+from ikbtleaves.sum_id import *      # detect and sub sum-of-angles
 from ikbtleaves.two_eqn_m7 import *
 
 TEST_DATA_GENERATION = False

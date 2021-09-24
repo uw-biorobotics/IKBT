@@ -24,10 +24,7 @@ from ikbtbasics.kin_cl import *
 from ikbtbasics.ik_classes import *     # special classes for Inverse kinematics in sympy
 
 import b3 as b3          # behavior trees     
-
-#
-#   NOT USED  Jun 19!!! --> reactivated in ikSolver
-#
+ 
 
 class sum_id(b3.Action):   ##  we should change this name since its a transform
     def tick(self, tick):
@@ -56,7 +53,7 @@ class sum_id(b3.Action):   ##  we should change this name since its a transform
                 
             unkn_sums_sym = set() #keep track of joint variable symbols
             
-            thx = sp.Wild('thx')
+            thx = sp.Wild('thx')   # sympy wildcards for template matching
             thy = sp.Wild('thy')
             sgn = sp.Wild('sgn')
             
@@ -91,6 +88,7 @@ class sum_id(b3.Action):   ##  we should change this name since its a transform
                                 found = True
                             
                         if found:
+                            print('test: found:', expr)
                             success_flag = True
                             th_xy = find_xy(d[thx], d[thy])
                             #if not exists in the unknown list (this requires proper hashing), create variable
@@ -100,7 +98,10 @@ class sum_id(b3.Action):   ##  we should change this name since its a transform
                                 #  try moving soa equation to Tm.auxeqns
                                 unkn_sums_sym.add(th_xy) #add into the joint variable set
                                 newjoint = unknown(th_xy)
-                                newjoint.n = int(str(d[thx].n)+str(d[thy].n)) # store new subscript
+                                # extract subscripts from SOA variables to get combined variable
+                                #   ([3:] eliminates 'th_' from string name)
+                                #print('test: .n ',str(d[thx])[3:], str(d[thy])[3:])
+                                newjoint.n = int(str(d[thx])[3:]+str(d[thy])[3:]) # store new subscript
                                 #newjoint.joint_eq = d[thx] + d[sgn] * d[thy]
                                 unknowns.append(newjoint) #add it to unknowns list 
                                 tmpeqn = kequation(th_xy, d[thx] + d[sgn] * d[thy])
@@ -124,7 +125,7 @@ class sum_id(b3.Action):   ##  we should change this name since its a transform
 class test_sum_id(b3.Action):
     
     # new test not based on a complete robot 
-    #   (simpler to understnand what is correct output)
+    #   (simpler to understand what is correct output)
     #
     def tick(self, tick):
         variables = []
