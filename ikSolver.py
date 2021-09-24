@@ -39,7 +39,7 @@ from ikbtleaves.sincos_solver import *
 from ikbtleaves.sinANDcos_solver import *
 from ikbtleaves.x2y2_solver import *
 from ikbtleaves.sub_transform import *
-from ikbtleaves.sum_transform import *
+#from ikbtleaves.sum_transform import *  # replaced by sum_id() + Algebra node.
 from ikbtleaves.two_eqn_m7 import *
 
 TEST_DATA_GENERATION = False

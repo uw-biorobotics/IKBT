@@ -255,6 +255,12 @@ class test_sum_solve(b3.Action):
         return b3.SUCCESS
 
 if __name__ == "__main__":
+    
+    print('The bad news:  This node is broken')
+    print('The good news: This node is not currently used!')
+    quit()
+    
+    
     ik_tester = b3.BehaviorTree()
 
     s1 = sum_id()
