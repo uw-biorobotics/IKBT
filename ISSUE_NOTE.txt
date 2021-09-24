@@ -1,3 +1,18 @@
+Feb 2020:  Users reporting UR5 broken on master. 
+
+>> 3-Feb:   solution of UR5 working. just some extra variables in the output: eg th_23 
+    which have solutionmethod = "*none* and no solution equations.
+    need to prune nodes by nodes.solutionmethod
+    
+    ----------------------------------------
+
+     New branch RepairUR5Regression which is newest commit which works with ARM & UR5.
+     
+     ** UR5 doesn't solve trival eqns like   th_4 = th_234-th2-th3
+        -- make sure SOA definition equations are included during solver scanning of eqn lists. 
+     
+---------------------------------
+ 
 May 2019:    "Arm_3"
   *  This arm now works ... mostly.   The Latex report has a couple of gaps but still produces a workable solution.
   *  Still 2 open issues with ArmRobo and Lori.

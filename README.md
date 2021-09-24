@@ -1,12 +1,17 @@
 # IKBT
 A python based system for generating closed-form solutions to the manipulator inverse kinematics problem using
 behavior trees for action selection. 
+Solutions are fully symbolic and are output as LaTex, Python, and C++.
 
 # Current News
 ## July 2021
 Unit test programs were broken for python3.  This is now fixed.  Test programs work and all pass.
 ## March 2021
 Upgraded to Python3 (mostly just adding parens to print statements and new python3-sympy).  New "main" branch for more respectful terminology.
+
+## Feb 2020
+BH has fixed the UR5 regression - it now works again and solution output no longer shows sum-of-angles variables that are not needed in the actual solution.   
+Use branch **RepairUR5Regression** for latest and greatest version. 
 
 ## Feb 2020
 BH has fixed the UR5 regression - it now works again and solution output no longer shows sum-of-angles variables that are not needed in the actual solution.   
@@ -37,6 +42,7 @@ mechanism).   IKBT can now solve the UR5 and similar robots!
 # Videos
  * [Introductory Video](https://youtu.be/bLTXuNZPR5k)  (6min)
  * [How to set up IKBT for your own robot arm](https://youtu.be/hXzY5vrvWkU) (6.5min)
+
 
 # Details
 ## How to cite: 

@@ -42,7 +42,7 @@ import ikbtbasics.kin_cl as kc
 ((a_2, a_3)) = sp.symbols(('a_2', 'a_3'))
 sp.var('l_5 l_6')
 sp.var('th_12, th_23, th_34, th_45, th_56')
-sp.var('th_234') # handle 3-parallel axes
+sp.var('th_123,th_234,th_345,th_456')
 sp.var('c_12 s_12 c_23 s_23 c_34 s_34 c_45 s_45 c_56 s_56 c_13 s_13')
 sp.var('x')  # super generic place holder
 soa_vars = [th_12, th_23, th_34, th_45, th_56]  # a list of the sum-of-angles variables
@@ -53,7 +53,10 @@ soa_expansions[th_23] = th_2 + th_3
 soa_expansions[th_34] = th_3 + th_4
 soa_expansions[th_45] = th_4 + th_5
 soa_expansions[th_56] = th_5 + th_6
-
+soa_expansions[th_123] = th_1 + th_2 + th_3
+soa_expansions[th_234] = th_2 + th_3 + th_4
+soa_expansions[th_345] = th_3 + th_4 + th_5
+soa_expansions[th_456] = th_4 + th_5 + th_6
 
 pprotocol = 2
 #
@@ -129,16 +132,30 @@ def check_the_pickle(dh1, dh2):   # check that two mechanisms have identical DH 
         quit()
 
 ## retrieve thxy from thx, thy
-#def find_xy(thx, thy):
-    ## lookup table for thxy
-    #thxy_lookup = {th_1: [th_12], th_2:[th_12, th_23], th_3:[th_23, th_34], \
-                    #th_4:[th_34, th_45], th_5:[th_45, th_56], th_6:[th_56]}
-    ## one symbol in common is the th_xy we're looking for
-    #thx_s = set(thxy_lookup[thx])
-    #thy_s = set(thxy_lookup[thy])
-    #thxy_s = thx_s.intersection(thy_s)
-    #thxy = thxy_s.pop()
-    #return thxy
+def find_xy(thx, thy):
+    # lookup table for thxy
+    print('test: find_xy:',thx, thy)
+    thxy_lookup = {
+                   th_1:[th_12, th_123], 
+                   th_2:[th_12, th_23, th_123, th_234], 
+                   th_3:[th_23, th_34, th_123, th_234, th_345], 
+                   th_4:[th_34, th_45, th_234, th_345, th_456], 
+                   th_5:[th_45, th_56, th_345, th_456], 
+                   th_6:[th_56, th_456]
+                   }
+    # add 3-way SOA's to thxy_lookup
+    thxy_lookup[th_12] = [th_123]
+    thxy_lookup[th_23] = [th_123,th_234]
+    thxy_lookup[th_34] = [th_234,th_345]
+    thxy_lookup[th_45] = [th_345,th_456]
+    thxy_lookup[th_56] = [th_456]
+    
+    # one symbol in common is the th_xy we're looking for
+    thx_s = set(thxy_lookup[thx])
+    thy_s = set(thxy_lookup[thy])
+    thxy_s = thx_s.intersection(thy_s)
+    thxy = thxy_s.pop()
+    return thxy
 
 #def find_sum(thx,thy):
     # new approach for same problem as find_xy()
@@ -163,6 +180,10 @@ class Robot:
         self.max_index = 0
         self.mequation_list = []        # all the 4x4 Matrix FK equations
         self.kequation_aux_list = []    # kequations: such as eg th_23 = th_2+th_3
+        
+        # a place to store discovered sum of angles equations
+        self.SOA_eqns = kc.matrix_equation()  # embed these inside a 4x4 equation for 
+                                        # downstream compatibility: use SOA_eqns.auxeqns.append(neweqn)
 
         if(Mech != None):    # in testing situations we only need a "Robot" to keep track of solutions above
             self.Mech = Mech
@@ -188,8 +209,10 @@ class Robot:
     def generate_solution_nodes(self, unknowns):
         '''generate solution nodes'''
         for unk in unknowns:
-            self.solution_nodes.append(Node(unk))
-            self.variables_symbols.append(unk.symbol)
+            if unk.solvemethod != '*None*':    # this means the unk was not used at all in solution 
+                                              #  typically SOA unknowns like th_23
+                self.solution_nodes.append(Node(unk))
+                self.variables_symbols.append(unk.symbol)
 
         print(self.solution_nodes)
         print(self.variables_symbols)
@@ -201,12 +224,13 @@ class Robot:
         self.l2 = [] # equations with two unknowns
         self.l3p = [] # 3 OR MORE unknowns
         sp.var('x')  #this will be used to generate 'algebraic zero'
-        elist = self.mequation_list #.append(self.kequation_aux_list)
-        #elist = self.kequation_aux_list +  self.mequation_list
+        #elist = self.mequation_list.append(self.kequation_aux_list)
+        elist = self.mequation_list
         #print '------------------------- elist----'
         #print elist
-        #print '--------'
-        #quit()
+        print ('-------- (aux eqns):')
+        print (self.SOA_eqns.auxeqns)
+        print ('--------')
         assert (len(elist) > 0), '  not enough equations '
         #i=0
         #for e in self.kequation_aux_list:
@@ -236,7 +260,8 @@ class Robot:
 
                         if e1 not in self.l3p:
                             self.l3p.append(e1)    # only append if not already there
-        for e in self.kequation_aux_list:
+        #Process the SOA equations
+        for e in self.SOA_eqns.auxeqns:
             lhs = e.LHS
             rhs = e.RHS
             n = count_unknowns(variables, lhs) + count_unknowns(variables, rhs)
@@ -294,7 +319,7 @@ class Robot:
         for k in range(0,len(self.mequation_list)):  # contains duplicates
             Meq = self.mequation_list[k]  # get next matrix equation
             for i in [0,1,2]:   # only first three rows are interesting
-                for j in [0,1,2,3]:
+                for j in [0,1,2,3]:  # but check all 4 columns
                     it_number += 1
                     #print ' .. '
                     prog_bar(it_number, nits, barlen, 'Sum of Angles')
@@ -310,8 +335,9 @@ class Robot:
 
                         
                     # simplify LHS
-                    
+                     
                     lhs, newj, newe = sum_of_angles_sub(self, lhs, variables)
+ 
                     if newj:
                         variables.append(newj)
                     if newe:
@@ -346,7 +372,6 @@ def sum_of_angles_sub(R, expr, variables):
     cw = sp.Wild('cw')
     s1 = sp.Wild('s1')
     s2 = sp.Wild('s2') 
-
     newjoint = None
     tmpeqn = None
     found2 = found3 = False
@@ -411,9 +436,13 @@ def sum_of_angles_sub(R, expr, variables):
                 variables.append(newjoint) #add it to unknowns list
                 tmpeqn = kc.kequation(th_new, d[aw] + d[bw] + d[cw])
                 print('sum_of_angles_sub: created new equation:', tmpeqn)
-                # add this new equation to the Robot aux list
-                R.kequation_aux_list.append(tmpeqn)
-
+                 
+                #
+                #   Add the def of this SOA to list:  eg  th23 = th2+th3
+                #   BUT  it needs to be embedded into a 4x4 mequation so
+                #    that solvers can scan it properly
+                R.SOA_eqns.auxeqns.append(tmpeqn)
+            
             # substitute new variable into the kinematic equations  ((WHY twice??))
             #self.mequation_list[k].Td[i,j] = Meq.Td[i,j].subs(d[aw] + d[bw] + d[cw], th_subval)
             #self.mequation_list[k].Ts[i,j] = Meq.Ts[i,j].subs(d[aw] + d[bw] + d[cw], th_subval)
@@ -425,10 +454,8 @@ def sum_of_angles_sub(R, expr, variables):
             #print '========'
     if tmpeqn is not None:
         print('sum_of_angles_sub: Ive found a new SOA equation, ', tmpeqn)
-    #else:
-        #print '>>m>>m>>m I didnt find a new SOA equation'
-    return (expr,newjoint, tmpeqn)
-
+    return (expr, newjoint, tmpeqn)
+ 
 def get_variable_index(vars, symb):
     for v in vars:
         if v.n == 0:
@@ -547,40 +574,37 @@ def output_latex_solution(Robot,variables, groups):
     # sort the nodes into solution order
     sorted_node_list = sorted(Robot.solution_nodes)
 
-    for node in sorted_node_list:
-        ALIGN = True
-        tmp = '$' + sp.latex(node.symbol) + '$'
-        tmp = tmp.replace(r'th_', r'\theta_')
-        tmp = re.sub(r'_(\d+)',  r'_{\1}', tmp)   # get all digits of subscript into {} for latex
-        print(r'\subsection{'+tmp+' }', file=f)
-        print( 'Solution Method: ', node.solvemethod, file=f)
-
-
-
-
-        if (ALIGN):
-            print(r'\begin{align}', file=f)
-        else:
-            print(r'\begin{dmath}', file=f)
-        i=0
-        nsolns = len(node.solution_with_notations.values())
-        for eqn in node.solution_with_notations.values():
-            i += 1
-            if ALIGN and (i < nsolns):
-                tmp2 = r'\\'   # line continuation for align environment
+    for node in sorted_node_list: 
+        if node.solvemethod != '*None*':   # skip variables (typically extra SOA's) that are not used.
+            ALIGN = True
+            tmp = '$' + sp.latex(node.symbol) + '$'
+            tmp = tmp.replace(r'th_', r'\theta_')
+            tmp = re.sub(r'_(\d+)',  r'_{\1}', tmp)   # get all digits of subscript into {} for latex
+            print(r'\subsection{'+tmp+' }', file=f)
+            print( 'Solution Method: ', node.solvemethod, file=f)
+            
+            if (ALIGN):
+                print(r'\begin{align}', file=f)
             else:
-                tmp2 = ''
-            tmp = str(eqn.LaTexOutput(ALIGN))
-            # convert division ('/') to \frac{}{} for nicer output
-            if re.search(r'/',tmp):
-                 tmp = tmp.replace(r'(.+)=(.+)/(.+)', r'\1 = \frac{\2}{\3}')
-            print(tmp, tmp2, file=f)
+                print(r'\begin{dmath}', file=f)
+            i=0
+            nsolns = len(node.solution_with_notations.values())
+            for eqn in node.solution_with_notations.values():
+                i += 1
+                if ALIGN and (i < nsolns):
+                    tmp2 = r'\\'   # line continuation for align environment
+                else:
+                    tmp2 = ''
+                tmp = str(eqn.LaTexOutput(ALIGN))
+                # convert division ('/') to \frac{}{} for nicer output
+                if re.search(r'/',tmp):
+                    tmp = tmp.replace(r'(.+)=(.+)/(.+)', r'\1 = \frac{\2}{\3}')
+                print(tmp, tmp2, file=f)
 
-        if (ALIGN):
-            print(r'\end{align}', file=f)
-        else:
-            print(r'\end{dmath}', file=f)
-
+            if (ALIGN):
+                print(r'\end{align}', file=f)
+            else:
+                print(r'\end{dmath}', file=f)
 
     ###########################################################
     #
@@ -629,6 +653,8 @@ def output_latex_solution(Robot,variables, groups):
 
 
     for node in sorted_node_list:
+        if node.solvemethod == '*None*':  # skip unused SOA vars. 
+            continue
                 #print out the equations evaluated
         # print  'Equation(s):
         tmp = '$' + sp.latex(node.symbol) + '$'
@@ -832,11 +858,14 @@ if __name__ == "__main__":   # tester code for the classes in this file
    
     term1 = sp.sin(a1+a2)
     term2 = sp.sin(a1+a2+a3)
-    term1a, newj, newe = sum_of_angles_sub(term1, vars01)
+    # normally sum_of_angles_sub is used in the context of a Robot Object
+    #  (which holds results).  So lets make one:
+    rtest = Robot()
+    term1a, newj, newe = sum_of_angles_sub(rtest,term1, vars01)
     fs = ' new equation not correctly established'
     assert str(newj.symbol) == 'th_12', fs
     print('new eqn', newe)
-    term2a, newj, newe = sum_of_angles_sub(term2, vars01)
+    term2a, newj, newe = sum_of_angles_sub(rtest,term2, vars01)
     assert str(newj.symbol) == 'th_123', fs
     print('new eqn', newe)
     
@@ -868,7 +897,7 @@ if __name__ == "__main__":   # tester code for the classes in this file
 
     eqnterm = Px*sp.sin(th_2 + th_3 + th_4)*sp.cos(th_1) + Py*sp.sin(th_1)*sp.sin(th_2 + th_3 + th_4) + Pz*sp.cos(th_2 + th_3 + th_4) - a_2*sp.sin(th_3 + th_4) - a_3*sp.sin(th_4) - d_1*sp.cos(th_2 + th_3 + th_4)
     
-    term2, newj, newe = sum_of_angles_sub(eqnterm, unks01)
+    term2, newj, newe = sum_of_angles_sub(rtest,eqnterm, unks01)
     if newj:
         unks01.append(newj)
     if newe:
@@ -977,14 +1006,12 @@ if __name__ == "__main__":   # tester code for the classes in this file
     i = 0   # row
     j = 0   # col
     A1 = R.mequation_list[k].Ts[i,j]
-    # expected correct answer:
+    # expected correct answer: (contains a 3-way SOA: th_234)
     A2 = -(sp.sin(th_1)*sp.sin(th_5) - sp.cos(th_1)*sp.cos(th_234)*sp.cos(th_5))*sp.cos(th_6) + sp.sin(th_234)*sp.sin(th_6)*sp.cos(th_1)
-
-
 
     print('\n\n\n')
     print('--- (round 1)')
-    print(A1)         ##   failing to substitute 3-way SOA right now
+    print(A1)         
     print('---')
     print(A2)
     print('---')
