@@ -32,7 +32,7 @@ from ikbtbasics.ik_classes import *     # special classes for Inverse kinematics
 #####
 def robot_params(name):
     pvals = {}   # null for most robots
-    List = ['UR5', 'Puma', 'Chair_Helper', 'Brad', 'ArmRobo', 'Wrist', 'Arm_3', 'MiniDD', 'Olson13','Stanford', 'Chair6DOF','Khat6DOF','Craig417']
+    List = ['UR5', 'Puma', 'Chair_Helper', 'Brad', 'Sims11','ArmRobo', 'Wrist', 'Arm_3', 'MiniDD', 'Olson13','Stanford', 'Chair6DOF','Khat6DOF','Craig417']
     if not (name in List):
         print('robot_params(): Unknown robot, ' + name )
         print('Here are the defined robots: ')
