@@ -527,19 +527,19 @@ def output_latex_solution(Robot,variables, groups):
     The IK-BT package is described in
     \url{https://arxiv.org/abs/1711.05412}.  IK-BT derives your inverse kinematics equations
     using {\tt Python 2.7} and the {\tt sympy} module for symbolic mathematics.
-    ''')
+    '''.file=f)
     print(r'''\section{Kinematic Parameters}
     The kinematic parameters for this robot are
     \[ \left [ \alpha_{i-1}, \quad a_{i-1}, \quad d_i, \quad \theta_i \right  ] \]
     \begin{dmath}'''),
     print(sp.latex(Robot.Mech.DH)),
     print('''\end{dmath}
-    ''')
+    ''',file=f)
 
 
 
     print(r'''\section{Forward Kinematic Equations}
-    The forward kinematic equations for this robot are:''')
+    The forward kinematic equations for this robot are:''',file=f)
 
 
     LHS = ik_lhs()
