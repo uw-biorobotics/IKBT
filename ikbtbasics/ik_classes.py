@@ -531,7 +531,7 @@ def output_latex_solution(Robot,variables, groups):
     print(r'''\section{Kinematic Parameters}
     The kinematic parameters for this robot are
     \[ \left [ \alpha_{i-1}, \quad a_{i-1}, \quad d_i, \quad \theta_i \right  ] \]
-    \begin{dmath}'''),
+    \begin{dmath}''', file=f),
     print(sp.latex(Robot.Mech.DH)),
     print('''\end{dmath}
     ''',file=f)
