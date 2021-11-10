@@ -528,11 +528,13 @@ def output_latex_solution(Robot,variables, groups):
     \url{https://arxiv.org/abs/1711.05412}.  IK-BT derives your inverse kinematics equations
     using {\tt Python 2.7} and the {\tt sympy} module for symbolic mathematics.
     ''',file=f)
+    
+    
     print(r'''\section{Kinematic Parameters}
     The kinematic parameters for this robot are
     \[ \left [ \alpha_{i-1}, \quad a_{i-1}, \quad d_i, \quad \theta_i \right  ] \]
     \begin{dmath}''', file=f),
-    print(sp.latex(Robot.Mech.DH)),
+    print(sp.latex(Robot.Mech.DH),file=f),
     print('''\end{dmath}
     ''',file=f)
 
@@ -546,7 +548,14 @@ def output_latex_solution(Robot,variables, groups):
     RHS = kc.notation_squeeze(Robot.Mech.T_06)   # see kin_cl.mechanism.T_06
     print(r'\begin{dmath}', file=f)
     print(sp.latex(LHS) + r' =  \\', file=f)
-    print(sp.latex(RHS), file=f)
+    COLUMNS = True
+    if COLUMNS:
+        for c in range(4):
+            print('Column ',c,file=f)
+            print(sp.latex(RHS[:,c]),file=f)
+            print(r'\\',file=f)
+    else:
+        print(sp.latex(RHS), file=f)
     print(r'\end{dmath}', file=f)
 
     print(r'\section{Unknown Variables: }', file=f)
@@ -668,6 +677,26 @@ def output_latex_solution(Robot,variables, groups):
             print(eqn.LaTexOutput(), file=f)
             print(r'\end{dmath}', file=f)
 
+
+    ###########################################################################
+    #Appendix:
+    #
+    #   Output Jacobian Matrix, J66
+    #
+    ############################################################################
+    if True:
+        print(r'''\newpage 
+\section{Jacobian Matrix}
+
+''', file = f)
+        
+        j66result = kc.notation_squeeze(Robot.Mech.J66)
+            
+        print(r'\begin{dmath}', file=f)
+        print(r'^6J_6  = \\', file=f)
+        print(sp.latex(j66result), file=f)
+        print(r'\end{dmath}', file=f)
+        
     f.close()
 
     # copy file to default filename (processing of latex simplifier)

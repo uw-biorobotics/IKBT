@@ -32,7 +32,21 @@ from ikbtbasics.ik_classes import *     # special classes for Inverse kinematics
 #####
 def robot_params(name):
     pvals = {}   # null for most robots
-    List = ['UR5', 'Puma', 'Chair_Helper', 'Brad', 'Sims11','ArmRobo', 'Wrist', 'Arm_3', 'MiniDD', 'Olson13','Stanford', 'Chair6DOF','Khat6DOF','Craig417']
+    List = [ 'UR5', 
+            'Puma', 
+            'Chair_Helper', 
+            'Brad', 
+            'Sims11',
+            'ArmRobo', 
+            'Wrist', 
+            'Arm_3', 
+            'MiniDD', 
+            'Olson13',
+            'Stanford', 
+            'Chair6DOF',  # below not solvable yet
+            'Khat6DOF',    
+            'Craig417',  ]
+    
     if not (name in List):
         print('robot_params(): Unknown robot, ' + name )
         print('Here are the defined robots: ')
@@ -40,6 +54,9 @@ def robot_params(name):
             print('   ', n)
         quit()
         
+        
+         
+         
     if(name == 'ArmRobo'):    # submitted by issue #15
 
         # standardize on the order "alpha N-1, a N-1, d N, theta N' for the DH table columns.
@@ -227,21 +244,21 @@ def robot_params(name):
                 
 
 
-    if(name == 'Stanford'):
+    if(name == 'Stanford'):  
         sp.var('l_4 l_6')
-        dh = sp.Matrix([
-            [-sp.pi/2,    0.,          l_1,    th_1],
+        dh = sp.Matrix([   # Alpha's Corrected  10-Nov-21(!)
+            [0 ,          0.,          l_1,    th_1],
             [sp.pi/2,     0.,          l_2,    th_2],
-            [0,           0.,          d_3,   -sp.pi/2],
-            [-sp.pi/2,    0.,          l_4,    th_4],
-            [sp.pi/2,     0.,           0.,    th_5],
-            [0.,          0.,          l_6,    th_6]
+            [sp.pi/2,     0.,          d_3,       0 ],
+            [0 ,          0.,           0,    th_4],
+            [-sp.pi/2,    0.,           0.,    th_5],
+            [sp.pi/2.,    0.,           0,    th_6]
             ])
                     
         vv = [1, 1, 0, 1, 1, 1]
         variables = [unknown(th_1), unknown(th_2), unknown(d_3), unknown(th_4), unknown(th_5), unknown(th_6)]
-        params = [l_1, l_2, l_4, l_6]
-        pvals = {l_1:1, l_2: 2, l_4:4, l_6:3}
+        params = [l_1, l_2, ]
+        pvals = {l_1:1, l_2: 2}
         
     if(name=='Sims11'):
         # Sims 2011,
