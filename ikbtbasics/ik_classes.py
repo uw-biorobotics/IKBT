@@ -551,7 +551,7 @@ def output_latex_solution(Robot,variables, groups):
     COLUMNS = True
     if COLUMNS:
         for c in range(4):
-            print('Column ',c,file=f)
+            print(r'\mathrm{'+'Column  {:}'.format(c)+r'}', file=f)
             print(sp.latex(RHS[:,c]),file=f)
             print(r'\\',file=f)
     else:
