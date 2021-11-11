@@ -157,8 +157,8 @@ class x2z2_id_solve(b3.Action):    #  This time we combine into a single ID/Solv
         
         # for debugging Puma, comment out for others
         # note: x2y2 is very costly, and less likely to be used
-        if not u.symbol == th_3:
-            return b3.FAILURE
+        #if not u.symbol == th_3:
+            #return b3.FAILURE
 
             
         for e in (two_unk): # only two-unk list is enough
