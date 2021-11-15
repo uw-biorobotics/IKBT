@@ -129,9 +129,15 @@ class test_x2z2(b3.Action):    # tester for your ID
     
         return b3.SUCCESS
 
+
 class x2z2_id_solve(b3.Action):    #  This time we combine into a single ID/Solve leaf 
-    
+    def __init__(self):
+        super().__init__()             
+        self.SolvedOneFlag = False      # turn off this expensive leaf after it has worked once
+
     def tick(self, tick):
+        if self.SolvedOneFlag:           #  we will only get lucky with this method once (HACK!)
+            return b3.FAILURE
         unknowns = tick.blackboard.get('unknowns')   # the current list of unknowns
         R = tick.blackboard.get('Robot')
         one_unk = tick.blackboard.get('eqns_1u')
@@ -155,10 +161,12 @@ class x2z2_id_solve(b3.Action):    #  This time we combine into a single ID/Solv
 
         eqn_ls = []
         
-        # for debugging Puma, comment out for others
+
         # note: x2y2 is very costly, and less likely to be used
-        #if not u.symbol == th_3:
-            #return b3.FAILURE
+        #  This is a hack exploiting it seems to be needed only for
+        #   Theta_3 on the Puma robot
+        if not u.symbol == th_3 or u.symbol == th_2 :
+            return b3.FAILURE
 
             
         for e in (two_unk): # only two-unk list is enough
@@ -281,6 +289,7 @@ class x2z2_id_solve(b3.Action):    #  This time we combine into a single ID/Solv
         tick.blackboard.set('Robot', R)
         tick.blackboard.set('unknowns',unknowns)   # the current list of unknowns
         if solved:
+            self.SolvedOneFlag = True
             return b3.SUCCESS
         else:
             return b3.FAILURE
