@@ -98,9 +98,9 @@ pi = np.pi
 #
 
     ''', file=f)
-    print(indent + 'print " Caution - this code has no solution checking."', file=f)
-    print(indent + 'print "in case of domain errors, change the test position / orientation "', file=f)
-    print(indent + 'print " to a pose reachable by your specific robot"', file=f)
+    print(indent + 'print ( " Caution - this code has no solution checking.")', file=f)
+    print(indent + 'print ("in case of domain errors, change the test position / orientation ")', file=f)
+    print(indent + 'print ( " to a pose reachable by your specific robot")', file=f)
     print(indent + '', file=f)
     print(indent + 'solvable_pose = True', file=f)
     print(indent + '''
