@@ -62,10 +62,6 @@ pi = np.pi
     par_decl_str = tmp
 
 
-    print('#  Declare the parameters', file=f)
-    print(par_decl_str, file=f)
-
-
     nlist = Robot.solution_nodes
     nlist.sort( ) # sort by solution order
 
@@ -77,7 +73,7 @@ pi = np.pi
 # Code to solve the unknowns ''', file=f)
     print('def', funcname +'(T):', file=f) # no indent
     print(indent+'if(T.shape != (4,4)):', file=f)
-    print(indent*2 + 'print "bad input to "+funcname', file=f)
+    print(indent*2 + 'print ( "bad input to "+funcname'+')', file=f)
     print(indent*2 + 'quit()', file=f)
     print('''#define the input vars 
     r_11 = T[0,0]
@@ -98,6 +94,11 @@ pi = np.pi
 #
 
     ''', file=f)
+    
+    print('#  Declare the parameters', file=f)
+    print(par_decl_str, file=f)
+
+
     print(indent + 'print ( " Caution - this code has no solution checking.")', file=f)
     print(indent + 'print ("in case of domain errors, change the test position / orientation ")', file=f)
     print(indent + 'print ( " to a pose reachable by your specific robot")', file=f)
