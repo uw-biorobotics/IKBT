@@ -691,11 +691,21 @@ def output_latex_solution(Robot,variables, groups):
 ''', file = f)
         
         j66result = kc.notation_squeeze(Robot.Mech.J66)
-            
+        cols = j66result.shape[1]
+        
         print(r'\begin{dmath}', file=f)
         print(r'^6J_6  = \\', file=f)
-        print(sp.latex(j66result), file=f)
+        
+        COLUMNS = True
+        if COLUMNS:
+            for c in range(cols):
+                print(r'\mathrm{'+ r'Column \quad {:}'.format(c)+r'}\\', file=f)
+                print(sp.latex(j66result[:,c]),file=f)
+                print(r'\\',file=f)
+        else:
+            print(sp.latex(j66result), file=f)
         print(r'\end{dmath}', file=f)
+        
         
     f.close()
 
