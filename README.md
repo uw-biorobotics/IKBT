@@ -4,6 +4,17 @@ behavior trees for action selection.
 Solutions are fully symbolic and are output as LaTex, Python, and C++.
 
 # Current News
+
+## Nov 2021
+We've accumulated experience from many installations with the help of students in 
+ECE 543 (University of Washington).  One issue that came up is that with python 3.6.X 
+something fails in the complex graph of imports.  This works fine with python 3.8.X.
+We haven't attempted to fix this. 
+
+Recent commits to **main** have corrected some remaining python 2 hangovers in Latex outout
+and python output (even python 3 code can *generate* pytyon 2 print statements!).
+
+
 ## Sept 2021  Version 2.0
 At long last the 3-way sum of angles feature is upgraded to python3 and merged into main branch.
 All tests are passing, UR5 and Puma both solve all unknowns.   USE MAIN BRANCH.
