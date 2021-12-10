@@ -30,6 +30,7 @@ import ikbtfunctions.helperfunctions as hf
 import ikbtfunctions.output_python as op
 import ikbtfunctions.output_cpp as oc
 from ikbtfunctions.ik_robots import *   # a bunch of robot models: probs to solve
+import ikbtfunctions.outputLatex as ol
 
 from ikbtbasics import *
 from ikbtleaves.assigner_leaf import assigner
@@ -375,7 +376,7 @@ final_groups = matching.matching_func(R.notation_collections, R.solution_nodes)
 # for a_set in final_groups:
 #    print a_set
 output_solution_graph(R)
-output_latex_solution(R,unks, final_groups)
+ol.output_latex_solution(R,unks, final_groups)
 op.output_python_code(R, final_groups)
 oc.output_cpp_code(R, final_groups)
 
