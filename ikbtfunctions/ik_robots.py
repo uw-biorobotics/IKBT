@@ -32,7 +32,8 @@ from ikbtbasics.ik_classes import *     # special classes for Inverse kinematics
 #####
 def robot_params(name):
     pvals = {}   # null for most robots
-    List = [ 'UR5', 
+    List = ['ICP5p5_A21','KR16',
+            'UR5', 
             'Puma', 
             'Chair_Helper', 
             'Brad', 
@@ -45,7 +46,9 @@ def robot_params(name):
             'Stanford', 
             'Chair6DOF',  # below not solvable yet
             'Khat6DOF',    
-            'Craig417',  ]
+            'Craig417', 
+            'KawasakiRS05L',
+            'KawasakiRS007L']
     
     if not (name in List):
         print('robot_params(): Unknown robot, ' + name )
@@ -55,7 +58,70 @@ def robot_params(name):
         quit()
         
         
+####################################################3
+    if(name == 'KR16'):         # two link planar test (Issue #12) 
+        #
+        dh = sp.Matrix([
+        [       0  ,   0 , l_1 , th_1 ],
+        [  sp.pi/2 , a_1 ,   0 , th_2 ],
+        [       0  , a_2 ,   0 , th_3 ],
+        [  sp.pi/2 , a_3 , l_3 , th_4 ],
+        [ -sp.pi/2 ,   0 ,   0 , th_5],
+        [  sp.pi/2 ,   0 , l_4 , th_6 ]
+        ])
+
+        vv = [1,1,1,1,1,1]
+        variables =  [unknown(th_1), unknown(th_2), unknown(th_3), unknown(th_4), unknown(th_5), unknown(th_6)]
+        params = [a_1, a_2, a_3, l_1, l_2, l_3, l_4]
+        pvals = {a_1:1, a_2:1, a_3:1, l_1:1,l_2:1,l_3:1,l_4:1}
+        
+############################################################
          
+
+        
+    if(name == 'ICP5p5_A21'):
+        
+         dh = sp.Matrix([
+             [0,         0,      0,  th_1 ],
+             [0,       l_1,    d_2,  0    ],
+             [sp.pi/2,   0,    l_2,  th_3 ],
+             [-sp.pi/2, l_3,     0,  th_4 ],
+             [0,         0,      0,  0 ],
+             [0,         0,      0,  0] 
+             ] )
+         vv = [1, 0, 1, 1, 1, 1]
+         variables = [unknown(th_1), unknown(d_2), unknown(th_3), unknown(th_4)]
+         params = [ l_1, l_2, l_3]
+         pvals = {l_1: 295 , l_2: 105 , l_3: 330}
+        
+        
+    if(name == 'KawasakiRS05L'):
+        
+         dh = sp.Matrix([
+             [0,        0,      0,  th_1 ],
+             [sp.pi/2,  l_2,    0,  th_2 ],
+             [0,        l_3,    0,  th_3 ],
+             [-sp.pi/2, l_4,    0,  th_4 ],
+             [-sp.pi/2, 0,    l_5,  th_5 ],
+             [sp.pi/2,  0,      0,  th_6 ] ])
+         vv = [1, 1, 1, 1, 1, 1]
+         variables = [unknown(th_1), unknown(th_2), unknown(th_3), unknown(th_4), unknown(th_5), unknown(th_6)]
+         params = [ l_1, l_2, l_3, l_4, l_5]
+         pvals = {l_1: 295 , l_2: 105 , l_3: 330, l_4: 80, l_5: 410}
+         
+    if(name == 'KawasakiRS007L'):
+        
+         dh = sp.Matrix([
+             [0,        0,     l_1,  th_1 ],
+             [sp.pi/2,  0,      0,  th_2 ],
+             [0,        l_2,    0,  th_3 ],
+             [ sp.pi/2, 0,    l_3,  th_4 ],
+             [-sp.pi/2, 0,      0,  th_5 ],
+             [ sp.pi/2, 0,      0,  th_6 ] ])
+         vv = [1, 1, 1, 1, 1, 1]
+         variables = [unknown(th_1), unknown(th_2), unknown(th_3), unknown(th_4), unknown(th_5), unknown(th_6)]
+         params = [ l_1,l_2, l_3]
+         pvals = {l_1: 360 ,l_2:355,  l_3: 375}
          
     if(name == 'ArmRobo'):    # submitted by issue #15
 
