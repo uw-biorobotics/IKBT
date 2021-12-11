@@ -27,10 +27,10 @@ import b3 as b3          # behavior trees
 
 # local modules
 import ikbtfunctions.helperfunctions as hf
+import ikbtfunctions.output_latex as ol
 import ikbtfunctions.output_python as op
 import ikbtfunctions.output_cpp as oc
-from ikbtfunctions.ik_robots import *   # a bunch of robot models: probs to solve
-import ikbtfunctions.outputLatex as ol
+from   ikbtfunctions.ik_robots import *  
 
 from ikbtbasics import *
 from ikbtleaves.assigner_leaf import assigner

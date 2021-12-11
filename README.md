@@ -5,6 +5,17 @@ Solutions are fully symbolic and are output as LaTex, Python, and C++.
 
 # Current News
 
+## Dec 2021
+* Latex output has been refactored.   New Latex procedure is simplified as follows:
+  1) run IKBT
+  2) cd LaTex
+  3) pdflatex ik_solutions_ROBOTNAME.tex 
+  
+* A new top-level is provided to do Forward Kinematics and Jacobian matrix only. 
+  1) python fkOnly.py ROBOTNAME
+  2) cd LaTex
+  3) pdflatex fk_equations_ROBOTNAME.tex 
+  
 ## Nov 2021
 We've accumulated experience from many installations with the help of students in 
 ECE 543 (University of Washington).  One issue that came up is that with python 3.6.X 

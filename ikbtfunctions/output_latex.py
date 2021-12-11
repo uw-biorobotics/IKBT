@@ -108,7 +108,7 @@ def output_latex_solution(Robot,variables, groups):
     from the University of Washington Biorobotics Lab.
     The IK-BT package is described in
     \url{https://arxiv.org/abs/1711.05412}.  
-    IK-BT derives your inverse kinematics equations
+    IK-BT derives your  equations
     using {\tt Python 3.8} and the {\tt sympy 1.9} module for symbolic mathematics.
     '''
     
@@ -217,25 +217,28 @@ def output_latex_solution(Robot,variables, groups):
     ####################  List the edges of the solution graph
     
     edgesection = r'\section{Solution Graph (Edges)} '+eol  +  r'''
-The following is the abstract representation of solution graph for this manipulator (nodes with parent -1 are roots):
+The following is the abstract representation of solution graph for this manipulator (nodes with parent -1 are roots).  Future: graphic representation. :
 \begin{verbatim}
 '''
     
     graph = Robot.notation_graph
 
     i = 0
-    sepstr = ''
+    sameline = '     '
+    sepstr = sameline
+    print('test: Starting Graph output')
     for edge in graph:
         i+=1
         if i%2==0:
             sepstr = eol
         elif i>1:
-            sepstr = '    '
+            sepstr = sameline
+        print('test: edge + sepstr: [',str(edge)+sepstr,']')
         edgesection+= str(edge)+ sepstr
         
-    edgesection += r'\end{verbatim} '+eol
+    edgesection +=  r'\end{verbatim} '+eol
     
-    LF.sections.append(edgesection.splitlines())
+    LF.sections.append(edgesection)
     
     
     ####################  Solution Sets
