@@ -7,3 +7,8 @@ t.*
 *report.html
 .directory
 *.npy
+*.log
+*.aux
+*.pdf
+*.out
+*.tex
