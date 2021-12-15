@@ -90,7 +90,7 @@ class test_x2z2(b3.Action):    # tester for your ID
         #   The famous Puma 560  (solved in Craig)
         # 
         robot = 'Puma'
-        [dh_Puma560, vv_Puma,  params_puma, unk_Puma] = robot_params('Puma') 
+        [dh_Puma560, vv_Puma,  params_puma, pvals_puma, unk_Puma] = robot_params('Puma') 
              
         dh = dh_Puma560
         vv = vv_Puma
@@ -318,6 +318,8 @@ if __name__ == '__main__':
     print('              = = =    Test No 1    = = = ')
     print('')
     bb.set('test_number', 1)
+    bb.set('curr_unk', unknown(th_3)) 
+    
     ik_tester.tick("test x2z2 solver (1)", bb)
     
     unkns = bb.get("unknowns")
