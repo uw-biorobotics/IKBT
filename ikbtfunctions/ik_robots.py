@@ -34,7 +34,7 @@ def robot_params(name):
     pvals = {}   # null for most robots
     List = ['ICP5p5_A21','KR16',
             'UR5', 
-            'Puma', 
+            'Puma', 'Pumaoffset',
             'Chair_Helper', 
             'Brad', 
             'Sims11',
@@ -221,13 +221,31 @@ def robot_params(name):
             [      0  ,   a_2, d_3 ,      th_3  ],   
             [-sp.pi/2 ,   a_3, d_4,       th_4  ],      
             [-sp.pi/2 ,   0,  0 ,       th_5  ],
-            [ sp.pi/2 ,   0,  0 ,       th_6  ]
+            [ sp.pi/2 ,   0,    0,       th_6  ]   # d_6= 0 simplifies the math
             ])
         vv = [1,1,1,1,1,1]
 
         variables =  [unknown(th_1), unknown(th_2), unknown(th_3), unknown(th_4), unknown(th_5), unknown(th_6)]
         params = [d_1, a_2, a_3, d_3, d_4]
         pvals = {d_1:0.6,a_2:0.432, a_3:0.0203, d_3:0.1245, d_4:0.432}  # meters
+        
+
+#   The famous Puma 560  (solved in Craig)
+#        
+    if(name == 'Pumaoffset'):
+        dh = sp.Matrix([
+            [  0      ,    0 ,  d_1 ,     th_1  ],   #  Note: Puma is used for tests so mods to this table
+            [-sp.pi/2 ,    0 ,   0 ,      th_2  ],   #  may break ikbtleaves.updateL.TestSolver007
+            [      0  ,   a_2, d_3 ,      th_3  ],   
+            [-sp.pi/2 ,   a_3, d_4,       th_4  ],      
+            [-sp.pi/2 ,   0,  0 ,       th_5  ],
+            [ sp.pi/2 ,   0,  d_6,       th_6  ]
+            ])
+        vv = [1,1,1,1,1,1]
+
+        variables =  [unknown(th_1), unknown(th_2), unknown(th_3), unknown(th_4), unknown(th_5), unknown(th_6)]
+        params = [d_1, a_2, a_3, d_3, d_4,d_6]
+        pvals = {d_1:0.6,a_2:0.432, a_3:0.0203, d_3:0.1245, d_4:0.432,d_6:0.25}  # meters
         
 
     if(name == 'Chair_Helper'):                
