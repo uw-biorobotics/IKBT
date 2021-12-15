@@ -318,7 +318,8 @@ if __name__ == '__main__':
     print('              = = =    Test No 1    = = = ')
     print('')
     bb.set('test_number', 1)
-    bb.set('curr_unk', unknown(th_3)) 
+    #bb.set('curr_unk', unknown(th_3)) 
+    bb.set('curr_unk', unknown(th_23)) 
     
     ik_tester.tick("test x2z2 solver (1)", bb)
     
@@ -337,12 +338,20 @@ if __name__ == '__main__':
             print(u.solutions[1])
             
             # These are complicated solutions!!
-    #         SolA =  sp.asin((-a_2**2 - a_3**2 - d_4**2 + Px**2*sp.cos(th_1)**2 + Px*Py*sp.sin(2*th_1) + Py**2*sp.sin(th_1)**2 + Pz**2)/sp.sqrt(4*a_2**2*a_3**2 + 4*a_2**2*d_4**2)) - sp.atan2(2*a_2*a_3, -2*a_2*d_4)
+            SolA =  sp.asin((-a_2**2 - a_3**2 - d_4**2 + Px**2*sp.cos(th_1)**2 + Px*Py*sp.sin(2*th_1) + Py**2*sp.sin(th_1)**2 + Pz**2)/sp.sqrt(4*a_2**2*a_3**2 + 4*a_2**2*d_4**2)) - sp.atan2(2*a_2*a_3, -2*a_2*d_4)
             
-    #         SolB = -sp.asin((-a_2**2 - a_3**2 - d_4**2 + Px**2*sp.cos(th_1)**2 + Px*Py*sp.sin(2*th_1) + Py**2*sp.sin(th_1)**2 + Pz**2)/sp.sqrt(4*a_2**2*a_3**2 + 4*a_2**2*d_4**2)) - sp.atan2(2*a_2*a_3, -2*a_2*d_4) + sp.pi
+            SolB = -sp.asin((-a_2**2 - a_3**2 - d_4**2 + Px**2*sp.cos(th_1)**2 + Px*Py*sp.sin(2*th_1) + Py**2*sp.sin(th_1)**2 + Pz**2)/sp.sqrt(4*a_2**2*a_3**2 + 4*a_2**2*d_4**2)) - sp.atan2(2*a_2*a_3, -2*a_2*d_4) + sp.pi
             
-    #         assert(sp.expand(u.solutions[0]) ==  sp.expand(SolA)), fs
-    #         assert(sp.expand(u.solutions[1]) ==  sp.expand(SolB)), fs
+            ##############3  debugging
+            print('==========================================')
+            print(SolA)
+            print('= = = = = = = = = = = = = = = ')
+            print(u.solutions[0])
+            print('==========================================')
+            ##########################           
+            
+            assert(sp.expand(u.solutions[0]) ==  sp.expand(SolA)), fs
+            assert(sp.expand(u.solutions[1]) ==  sp.expand(SolB)), fs
     
     # assert(ntests == 1), 'x2z2_solver:   Test 1 assert count                FAIL'
 
