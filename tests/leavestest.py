@@ -191,7 +191,7 @@ if __name__ == '__main__':
     suite2.addTest(TestSolver002())  # algebra_solver.py
     suite2.addTest(TestSolver003())  # sinANDcos_solver.py
     suite2.addTest(TestSolver004())  # tan_solver.py
-    suite3.addTest(TestSolver010())   # x2y2_solver.py
+    suite2.addTest(TestSolver010())   # x2y2_solver.py
     
     # misc tests
     suite3 = unittest.TestLoader().loadTestsFromTestCase(TestSolver006)  # sub_transform.py
