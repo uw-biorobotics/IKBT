@@ -66,6 +66,7 @@ def kinematics_pickle(rname, dh, constants, pvals, vv, unks, test):
     #
     #   Check for a pickle file of combined pre-computed Mech and Robot objects
     #
+    #  TODO: refactor code to get rid of unused "test" argument
 
     pickle_dir = 'fk_eqns/'
 

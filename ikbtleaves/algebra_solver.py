@@ -242,13 +242,13 @@ class TestSolver002(unittest.TestCase):
 #
 
 def run_test():
-    print('\n\n===============  Test NAME_HERE nodes=====================')
+    print('\n\n===============  Test algebra solver =====================')
     testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver002)  # replace TEMPLATE 
     unittest.TextTestRunner(verbosity=2).run(testsuite)
 
 if __name__ == "__main__":
     
-    print('\n\n===============  Test NAME_HERE nodes=====================')
+    print('\n\n===============  Test algebra solver =====================')
     testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver002)  # replace TEMPLATE 
     unittest.TextTestRunner(verbosity=2).run(testsuite)
    

@@ -46,6 +46,8 @@ from ikbtleaves.sincos_solver import *
 from ikbtleaves.tan_solver import *
 from ikbtleaves.sub_transform import *
 from ikbtleaves.updateL import *
+from ikbtleaves.x2y2_solver import *
+
 
 import b3 as b3          # behavior trees
 
@@ -178,17 +180,23 @@ if __name__ == '__main__':
 
     #####################################################################
     # set up the test suites
+    #
+    #   Tests of basic classes
     suite1 = unittest.TestLoader().loadTestsFromTestCase(TestIkClass)
     suite1.addTest(TestSolver008())   # kin_cl.py   # basic kinematics classes
     suite1.addTest(TestSolver009())   # helperfunctions.py
 
+    # test the leaves (id/solvers)
     suite2 = unittest.TestLoader().loadTestsFromTestCase(TestSolver001)  # sincos_solver.py
     suite2.addTest(TestSolver002())  # algebra_solver.py
     suite2.addTest(TestSolver003())  # sinANDcos_solver.py
     suite2.addTest(TestSolver004())  # tan_solver.py
-     # TestSolver005 deprecated
+    suite3.addTest(TestSolver010())   # x2y2_solver.py
+    
+    # misc tests
     suite3 = unittest.TestLoader().loadTestsFromTestCase(TestSolver006)  # sub_transform.py
     suite3.addTest(TestSolver007())   # updateL.py  # updating matrix equation lists
+    
     if(not HTML):
         print('\n\n>>>>>>>>>>>>>>>>>>>>  Test ik_classes >>>>>>>>>>>>>>>>>>>>\n')
         unittest.TextTestRunner(verbosity=2).run(suite1)

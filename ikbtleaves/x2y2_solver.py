@@ -43,6 +43,7 @@ class test_x2z2(b3.Action):    # tester for your ID
     assert(test_number in [1, 2]), ' BAD TEST NUMBER'
     
     if(test_number == 1):
+        #  Simplistic test in which we
         # just set up bb data for testing  (not really a test!)
         Td = ik_lhs()      # basic LHS template for TEST
         Ts = sp.zeros(4)
@@ -85,7 +86,9 @@ class test_x2z2(b3.Action):    # tester for your ID
         tick.blackboard.set('Robot',R)
         return b3.SUCCESS
     
-    if(test_number == 2):              
+    if(test_number == 2):
+        # tests in the context of the full Puma solution
+        #
         #
         #   The famous Puma 560  (solved in Craig)
         # 
@@ -237,7 +240,7 @@ class x2z2_id_solve(b3.Action):    #  This time we combine into a single ID/Solv
             if temp_r.has(u.symbol):
                 unknown = u
                 unk = u.symbol
-                if self.BHdebug: print(' The unknown variable is: ', unk)
+                if self.BHdebug: print('x2y2: The unknown variable is: ', unk)
             
         if not unknown.solved:
             if (temp_r.has(sp.sin(unk)) and temp_r.has(sp.cos(unk))):
@@ -296,104 +299,130 @@ class x2z2_id_solve(b3.Action):    #  This time we combine into a single ID/Solv
         else:
             return b3.FAILURE
        
- 
    
-       
-#  put in test code here.  See sinANDcos.py for example
+#######################################################################
+#  Test code:
+class TestSolver010(unittest.TestCase):
+    def setUp(self):
+        self.DB = True  # debug flag
+        print('\n\n===============  Test x2z2 Solver  =====================')
+        return
+    
+    def runTest(self):
+        self.test_x2z2()
+            
+    def test_x2z2(self): 
+        ik_tester = b3.BehaviorTree()  # two leaves to 1) setup test 2) carry out test
+        bb = b3.Blackboard()
+        
+        ###   A BT node to set everything up for tests
+        x2z2_setup = test_x2z2()     # fcn can set up test 2 ways
+        x2z2_setup.BHdebug = True
+        x2z2_setup.Name = "Setup"
+        
+        ###   BT node for the actual tests
+        x2z2_work = x2z2_id_solve()   #  same node on two different setups
+        x2z2_work.Name = "x2z2 ID/Solver"
+        x2z2_work.BHdebug = True 
+        
+        test = b3.Sequence([x2z2_setup, x2z2_work])
+        ik_tester.root = test
+        
+        print('')
+        print('              = = =    Test 1   = = = ') 
+        print('')
+        bb.set('test_number', 1)
+        bb.set('curr_unk', unknown(th_3)) 
+        #  this was set by test 1 and needs to be cleared
+        x2z2_work.SolvedOneFlag = False   # reset the SolvedOneFlag
+        ik_tester.tick("test x2z2 solver (1)", bb)
+        
+        unkns = bb.get("unknowns")
+        
+        fs = 'x2z2 id/solver Test 1 FAIL'
+        ntests = 0
+        for u in unkns:
+            print(u.symbol)
+            print(u.solutions)
+            if(u.symbol == th_3):   
+                ntests += 1
+                assert(u.nsolutions == 2), fs + ' wrong number of solutions (test 1)'
+                #print(u.solutions[0])
+                #print(' ')
+                #print(u.solutions[1])
+                
+                SolA = sp.atan2(-2*a_2*d_4, 2*a_2*a_3) + sp.atan2(sp.sqrt(4*a_2**2*a_3**2 + 4*a_2**2*d_4**2 - (Pz**2 - a_2**2 - a_3**2 - d_4**2 + (Px*sp.cos(th_1) + Py*sp.sin(th_1))**2)**2), Pz**2 - a_2**2 - a_3**2 - d_4**2 + (Px*sp.cos(th_1) + Py*sp.sin(th_1))**2)
+                
+                SolB = sp.atan2(-2*a_2*d_4, 2*a_2*a_3) + sp.atan2(-sp.sqrt(4*a_2**2*a_3**2 + 4*a_2**2*d_4**2 - (Pz**2 - a_2**2 - a_3**2 - d_4**2 + (Px*sp.cos(th_1) + Py*sp.sin(th_1))**2)**2), Pz**2 - a_2**2 - a_3**2 - d_4**2 + (Px*sp.cos(th_1) + Py*sp.sin(th_1))**2)
+
+                assert(sp.expand(u.solutions[0]) ==  sp.expand(SolA)), fs
+                assert(sp.expand(u.solutions[1]) ==  sp.expand(SolB)), fs
+        
+        print('        Setup OK')
+        print('')
+        print('              = = =   Test X2Z2 solver (Puma)  = = = ')
+        print('')
+        
+        bb = b3.Blackboard()         # clear the previous bb
+        bb.set('test_number', 2)     # set up Puma kinematics this time
+        bb.set('curr_unk', unknown(th_3))
+        ik_tester.tick("test x2z2 solver (2)", bb)
+            
+        unkns = bb.get("unknowns")
+        
+        fs = 'x2z2 id/solver Test 2 (Puma)   FAIL'
+        ntests = 0
+        for u in unkns:
+            print(u.symbol)
+            print(u.solutions)
+            if(u.symbol == th_3):
+                ntests += 1
+                print(u.solutions[0])
+                assert(u.nsolutions == 2), fs + ' wrong number of solutions'
+                c1 = sp.cos(th_1)
+                s1 = sp.sin(th_1)
+                
+                term2 = sp.atan2(-2*a_2*d_4, 2*a_2*a_3) + sp.atan2(sp.sqrt(4*a_2**2*a_3**2 + 4*a_2**2*d_4**2 - (-a_2**2 - a_3**2 - d_4**2 + (Pz - d_1)**2 + (Px*sp.cos(th_1) + Py*sp.sin(th_1))**2)**2), -a_2**2 - a_3**2 - d_4**2 + (Pz - d_1)**2 + (Px*sp.cos(th_1) + Py*sp.sin(th_1))**2)
+                
+                term2a = sp.atan2(-2*a_2*d_4, 2*a_2*a_3) + sp.atan2(-sp.sqrt(4*a_2**2*a_3**2 + 4*a_2**2*d_4**2 - (-a_2**2 - a_3**2 - d_4**2 + (Pz - d_1)**2 + (Px*sp.cos(th_1) + Py*sp.sin(th_1))**2)**2), -a_2**2 - a_3**2 - d_4**2 + (Pz - d_1)**2 + (Px*sp.cos(th_1) + Py*sp.sin(th_1))**2)
+
+                #print('=============================== ***')
+                #assert u.solutions[0] != u.solutions[1], 'two solutions should not be same!'
+                #print('test: solutions')
+                #print(u.solutions[1])
+                #print('================')
+                #print(term2)
+                #print('=============================== ***')
+                ntests +=  1
+                assert (u.solutions[0] == term2 ),fs + ' th_3'
+                print(' ')
+                ntests +=  1
+                assert (u.solutions[1] == term2a),fs + ' th_3a'
+                 
+    
+        self.assertTrue(ntests == 3, ' X2Z2 solver:  assertion count error --- FAIL')
+        print('X2Z2 solver PASSED all', ntests, ' assertions.') 
+        
+##  write tester code which runs if this file is run directly instead
+##    of "imported".
+
+
 #
-if __name__ == '__main__':    
-    ik_tester = b3.BehaviorTree()  # two leaves to 1) setup test 2) carry out test
-    bb = b3.Blackboard()
-    
-    ###   A BT node to set everything up for tests
-    x2z2_setup = test_x2z2()     # fcn can set up test 2 ways
-    x2z2_setup.BHdebug = True
-    x2z2_setup.Name = "Setup"
-    
-    ###   BT node for the actual tests
-    x2z2_work = x2z2_id_solve()   #  same node on two different setups
-    x2z2_work.Name = "x2z2 ID/Solver"
-    x2z2_work.BHdebug = True 
-    
-    test = b3.Sequence([x2z2_setup, x2z2_work])
-    ik_tester.root = test
-    
-    print('')
-    print('              = = =    Test No 1    = = = ') 
-    print('')
-    bb.set('test_number', 1)
-    bb.set('curr_unk', unknown(th_3)) 
-    #  this was set by test 1 and needs to be cleared
-    x2z2_work.SolvedOneFlag = False   # reset the SolvedOneFlag
-    ik_tester.tick("test x2z2 solver (1)", bb)
-    
-    unkns = bb.get("unknowns")
-    
-    fs = 'x2z2 id/solver Test 1 FAIL'
-    ntests = 0
-    for u in unkns:
-        print(u.symbol)
-        print(u.solutions)
-        if(u.symbol == th_3):   
-            ntests += 1
-            assert(u.nsolutions == 2), fs + ' wrong number of solutions (test 1)'
-            print(u.solutions[0])
-            print(' ')
-            print(u.solutions[1])
-            
-            SolA = sp.atan2(-2*a_2*d_4, 2*a_2*a_3) + sp.atan2(sp.sqrt(4*a_2**2*a_3**2 + 4*a_2**2*d_4**2 - (Pz**2 - a_2**2 - a_3**2 - d_4**2 + (Px*sp.cos(th_1) + Py*sp.sin(th_1))**2)**2), Pz**2 - a_2**2 - a_3**2 - d_4**2 + (Px*sp.cos(th_1) + Py*sp.sin(th_1))**2)
-            
-            SolB = sp.atan2(-2*a_2*d_4, 2*a_2*a_3) + sp.atan2(-sp.sqrt(4*a_2**2*a_3**2 + 4*a_2**2*d_4**2 - (Pz**2 - a_2**2 - a_3**2 - d_4**2 + (Px*sp.cos(th_1) + Py*sp.sin(th_1))**2)**2), Pz**2 - a_2**2 - a_3**2 - d_4**2 + (Px*sp.cos(th_1) + Py*sp.sin(th_1))**2)
+#    Can run your test from command line by invoking this file
+#
+#      - or - call your TestSolverTEMPLATE()  from elsewhere
+#
 
-            assert(sp.expand(u.solutions[0]) ==  sp.expand(SolA)), fs
-            assert(sp.expand(u.solutions[1]) ==  sp.expand(SolB)), fs
-    
-    # assert(ntests == 1), 'x2z2_solver:   Test 1 assert count                FAIL'
+def run_test():
+    print('\n\n===============  Test X2Y2 solver=====================')
+    testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver010)  # replace TEMPLATE 
+    unittest.TextTestRunner(verbosity=2).run(testsuite)
 
-    print('        Test 1  PASSED')
-    print('')
-    print('              = = =    Test No 2    = = = ')
-    print('')
+if __name__ == "__main__":
     
-    bb = b3.Blackboard()         # clear the previous bb
-    bb.set('test_number', 2)     # set up Puma kinematics this time
-    bb.set('curr_unk', unknown(th_3))
-    ik_tester.tick("test x2z2 solver (2)", bb)
-           
-    unkns = bb.get("unknowns")
-    
-    fs = 'x2z2 id/solver Test 2 (Puma)   FAIL'
-    ntests = 0
-    for u in unkns:
-        print(u.symbol)
-        print(u.solutions)
-        if(u.symbol == th_3):
-            ntests += 1
-            print(u.solutions[0])
-            assert(u.nsolutions == 2), fs + ' wrong number of solutions'
-            c1 = sp.cos(th_1)
-            s1 = sp.sin(th_1)
-            #term2 = sp.asin((Px**2*c1**2 + Px*Py*sp.sin(2*th_1) + Py**2*s1**2 + Pz**2 - a_2**2 - a_3**2 - d_4**2)/sp.sqrt(4*a_2**2*a_3**2 + 4*a_2**2*d_4**2)) - sp.atan2(2*a_2*a_3, -2*a_2*d_4)
-            
-            #term2a = -sp.asin((Px**2*c1**2 + Px*Py*sp.sin(2*th_1) + \
-                #Py**2*s1**2 + Pz**2 - a_2**2 - a_3**2 - d_4**2)/sp.sqrt(4*a_2**2*a_3**2 + 4*a_2**2*d_4**2)) - sp.atan2(2*a_2*a_3, -2*a_2*d_4) + sp.pi
-            
-            term2 = sp.atan2(-2*a_2*d_4, 2*a_2*a_3) + sp.atan2(sp.sqrt(4*a_2**2*a_3**2 + 4*a_2**2*d_4**2 - (-a_2**2 - a_3**2 - d_4**2 + (Pz - d_1)**2 + (Px*sp.cos(th_1) + Py*sp.sin(th_1))**2)**2), -a_2**2 - a_3**2 - d_4**2 + (Pz - d_1)**2 + (Px*sp.cos(th_1) + Py*sp.sin(th_1))**2)
-            
-            term2a = sp.atan2(-2*a_2*d_4, 2*a_2*a_3) + sp.atan2(-sp.sqrt(4*a_2**2*a_3**2 + 4*a_2**2*d_4**2 - (-a_2**2 - a_3**2 - d_4**2 + (Pz - d_1)**2 + (Px*sp.cos(th_1) + Py*sp.sin(th_1))**2)**2), -a_2**2 - a_3**2 - d_4**2 + (Pz - d_1)**2 + (Px*sp.cos(th_1) + Py*sp.sin(th_1))**2)
+    print('\n\n===============  Test X2Y2 solver=====================')
+    testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver010)  # replace TEMPLATE 
+    unittest.TextTestRunner(verbosity=2).run(testsuite)
+   
 
-            #print('=============================== ***')
-            #assert u.solutions[0] != u.solutions[1], 'two solutions should not be same!'
-            #print('test: solutions')
-            #print(u.solutions[1])
-            #print('================')
-            #print(term2)
-            #print('=============================== ***')
-            assert (u.solutions[0] == term2 ),fs + ' th_3'
-            print(' ')
-            assert (u.solutions[1] == term2a),fs + ' th_3a'
-    assert(ntests == 1), 'x2z2_solver:   Test 2 assert count                FAIL'
 
-    print('\n\n              x2z2 ID/Solve   PASSES  all tests\n\n')
-    
-    
