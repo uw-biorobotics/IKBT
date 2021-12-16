@@ -239,7 +239,7 @@ worktools = b3.Priority([algSol, sc_tan, Simu_Eqn_Sol, sacSol, x2z2_Solver])
 subtree = b3.RepeatUntilSuccess(b3.Sequence([asgn, sumOfAnglesID, worktools]), 6)
 solveRoutine = b3.Sequence([sub_trans, subtree,  updateL, compDetect])
 
-topnode = b3.RepeatUntilSuccess(solveRoutine, 7) #max 10 loops
+topnode = b3.RepeatUntilSuccess(solveRoutine, 10) #max 10 loops
 
 ikbt.root = topnode
 

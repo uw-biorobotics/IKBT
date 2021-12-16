@@ -63,11 +63,11 @@ def robot_params(name):
         #
         dh = sp.Matrix([
         [       0  ,   0 , l_1 , th_1 ],
-        [  sp.pi/2 , a_1 ,   0 , th_2 ],
+        [  -sp.pi/2, a_1 ,   0 , th_2 ],
         [       0  , a_2 ,   0 , th_3 ],
         [  sp.pi/2 , a_3 , l_3 , th_4 ],
         [ -sp.pi/2 ,   0 ,   0 , th_5],
-        [  sp.pi/2 ,   0 , l_4 , th_6 ]
+        [  sp.pi/2 ,   0 ,   0 , th_6 ]  # can't solve with d_6 ~= 0!
         ])
 
         vv = [1,1,1,1,1,1]
