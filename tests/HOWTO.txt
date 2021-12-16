@@ -50,14 +50,16 @@ Testing ik_classes.py
 
 **  Testing system for ikbt leaves
 
-Each test resides in the __main__() method of an ikbtleaf.   The testing process involves
-setting up a 2-leaf BT whos root is a sequence node.  
-The first leaf is a special testing node which sets up the environment
-(chiefly blackboard information) for testing the actual leaf.   The second node 
-is the leaf under test. 
+Overall, testing is mostly integrated into the unittest python module's framework. 
+A test method should be defined in each leaf file.  
+The testing process usually involves setting up a 2-leaf BT whos root is a sequence node.  
+The first leaf is a special testing-only node which sets up the environment
+(chiefly blackboard information) for testing the second leaf.   
+The second leaf is the leaf under test. 
 
 This tree is ticked to perform the test and then outputs are checked with assertions in 
 __main__().
+
 
 
 
