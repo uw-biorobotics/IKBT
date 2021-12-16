@@ -43,7 +43,7 @@ class test_x2z2(b3.Action):    # tester for your ID
     assert(test_number in [1, 2]), ' BAD TEST NUMBER'
     
     if(test_number == 1):
-        # set up bb data for testing  
+        # just set up bb data for testing  (not really a test!)
         Td = ik_lhs()      # basic LHS template for TEST
         Ts = sp.zeros(4)
         
@@ -68,7 +68,7 @@ class test_x2z2(b3.Action):    # tester for your ID
         variables = [ud1, uth2, uth23, uth3, uth4, uth5]
         
         R.generate_solution_nodes(variables)        #for the solution graph
-        ud1.solutions.append(a_3)
+        ud1.solutions.append(a_3) # placeholder
         ud1.nsolutions = 1
         ud1.set_solved(R,variables)  # needed for this test
         #uth23.set_solved(R,variables)  # needed for this test
@@ -90,11 +90,13 @@ class test_x2z2(b3.Action):    # tester for your ID
         #   The famous Puma 560  (solved in Craig)
         # 
         robot = 'Puma'
-        [dh_Puma560, vv_Puma,  params_puma, pvals_puma, unk_Puma] = robot_params('Puma') 
+        [dh_Puma560, vv_Puma,  params_Puma, pvals_Puma, unk_Puma] = robot_params('Puma') 
              
         dh = dh_Puma560
         vv = vv_Puma
-        variables = unk_Puma
+        variables = unk_Puma  # variables aka unknowns
+        params = params_Puma
+        pvals = pvals_Puma
 
         ################## (all robots) ######################
         ##  make sure each unknown knows its position (index)
@@ -104,9 +106,11 @@ class test_x2z2(b3.Action):    # tester for your ID
             i+=1    
 
         print('Testing x2z2solver with Puma Kinematics')
+        testflag = False # deprecated but needed(!)
         # read kinematic model from pickle file / or compute it from scratch
-        [M, R, variables ] = kinematics_pickle(robot, dh, params_puma, vv, variables )
-        
+        [M, R, variables ] = kinematics_pickle(robot, dh, params, pvals, vv, variables, testflag)
+        #def kinematics_pickle(rname, dh, constants, pvals, vv, unks, test):
+
         ##   check the pickle in case DH params were changed in robot_params making the 
         #       pickle obsolete.
         check_the_pickle(dh_Puma560, M.DH) 
@@ -162,7 +166,7 @@ class x2z2_id_solve(b3.Action):    #  This time we combine into a single ID/Solv
         eqn_ls = []
         
 
-        # note: x2y2 is very costly, and less likely to be used
+        # note: x2y2 is very costly, and less likely to be successful
         #  This is a hack exploiting it seems to be needed only for
         #   Theta_3 on the Puma robot
         if not u.symbol == th_3 or u.symbol == th_2 :
@@ -182,7 +186,10 @@ class x2z2_id_solve(b3.Action):    #  This time we combine into a single ID/Solv
             print(eqn_ls)
             
         
-        for i in range(len(eqn_ls)):
+        # find any two equations and add their squares of each side
+        #   ( we can't count on just [0,3],[2,3])
+        #
+        for i in range(len(eqn_ls)):  
             eqn1 = eqn_ls[i]
             r1 = eqn1.RHS
             l1 = eqn1.LHS
@@ -261,21 +268,21 @@ class x2z2_id_solve(b3.Action):    #  This time we combine into a single ID/Solv
                         B = d[Bw]
                         C = d[Cw]
                         if (B is None):
-                            B = 1
-                        # r1 = sp.sqrt(A*A+B*B)  # note: arg is always positive :)
-                        # if (A==B):
-                        #     r1=sp.sqrt(2)*A     # arg is always positive 
-                        #  generate the solutions
+                            B = 1 
                 
                         if(self.BHdebug):
                             print('I think I solved ', unknown.symbol)
                             sp.pprint(unknown.solutions)
                             print('')
-                            
-                        #unknown.solutions.append(sp.asin(lhs/r1)-sp.atan2(A,B))
-                        #unknown.solutions.append(sp.pi - sp.asin(lhs/r1)-sp.atan2(A,B))
-                        
+                             
                         t = sp.sqrt(A*A + B*B - C*C)
+                        # test:
+                        #print('=============================== ***')
+                        #print('test: solutions')
+                        #print(sp.atan2(A, B) + sp.atan2( t, C))
+                        #print(sp.atan2(A, B) + sp.atan2(-t, C))
+                        #print('=============================== ***')
+                        #quit()
                         unknown.solutions.append(sp.atan2(A, B) + sp.atan2(t, C))
                         unknown.solutions.append(sp.atan2(A, B) + sp.atan2(-t, C))
                         #unknown.argument = lhs/r1
@@ -300,14 +307,16 @@ class x2z2_id_solve(b3.Action):    #  This time we combine into a single ID/Solv
 #  put in test code here.  See sinANDcos.py for example
 #
 if __name__ == '__main__':    
-    ik_tester = b3.BehaviorTree()
+    ik_tester = b3.BehaviorTree()  # two leaves to 1) setup test 2) carry out test
     bb = b3.Blackboard()
     
-
-    x2z2_setup = test_x2z2()
+    ###   A BT node to set everything up for tests
+    x2z2_setup = test_x2z2()     # fcn can set up test 2 ways
     x2z2_setup.BHdebug = True
     x2z2_setup.Name = "Setup"
-    x2z2_work = x2z2_id_solve()
+    
+    ###   BT node for the actual tests
+    x2z2_work = x2z2_id_solve()   #  same node on two different setups
     x2z2_work.Name = "x2z2 ID/Solver"
     x2z2_work.BHdebug = True 
     
@@ -315,12 +324,11 @@ if __name__ == '__main__':
     ik_tester.root = test
     
     print('')
-    print('              = = =    Test No 1    = = = ')
+    print('              = = =    Test No 1    = = = ') 
     print('')
     bb.set('test_number', 1)
-    #bb.set('curr_unk', unknown(th_3)) 
-    bb.set('curr_unk', unknown(th_23)) 
-    
+    bb.set('curr_unk', unknown(th_3)) 
+     
     ik_tester.tick("test x2z2 solver (1)", bb)
     
     unkns = bb.get("unknowns")
@@ -330,32 +338,29 @@ if __name__ == '__main__':
     for u in unkns:
         print(u.symbol)
         print(u.solutions)
-        if(u.symbol == th_3):
+        if(u.symbol == th_3):   
             ntests += 1
-            assert(u.nsolutions == 2), fs
+            assert(u.nsolutions == 2), fs + ' wrong number of solutions'
             print(u.solutions[0])
             print(' ')
             print(u.solutions[1])
             
-            # These are complicated solutions!!
-            SolA =  sp.asin((-a_2**2 - a_3**2 - d_4**2 + Px**2*sp.cos(th_1)**2 + Px*Py*sp.sin(2*th_1) + Py**2*sp.sin(th_1)**2 + Pz**2)/sp.sqrt(4*a_2**2*a_3**2 + 4*a_2**2*d_4**2)) - sp.atan2(2*a_2*a_3, -2*a_2*d_4)
+            # not sure where these "right" answers came from: Delete later(!)
+            ## These are complicated solutions!!
+            #SolA =  sp.asin((-a_2**2 - a_3**2 - d_4**2 + Px**2*sp.cos(th_1)**2 + Px*Py*sp.sin(2*th_1) + Py**2*sp.sin(th_1)**2 + Pz**2)/sp.sqrt(4*a_2**2*a_3**2 + 4*a_2**2*d_4**2)) - sp.atan2(2*a_2*a_3, -2*a_2*d_4)
             
-            SolB = -sp.asin((-a_2**2 - a_3**2 - d_4**2 + Px**2*sp.cos(th_1)**2 + Px*Py*sp.sin(2*th_1) + Py**2*sp.sin(th_1)**2 + Pz**2)/sp.sqrt(4*a_2**2*a_3**2 + 4*a_2**2*d_4**2)) - sp.atan2(2*a_2*a_3, -2*a_2*d_4) + sp.pi
+            #SolB = -sp.asin((-a_2**2 - a_3**2 - d_4**2 + Px**2*sp.cos(th_1)**2 + Px*Py*sp.sin(2*th_1) + Py**2*sp.sin(th_1)**2 + Pz**2)/sp.sqrt(4*a_2**2*a_3**2 + 4*a_2**2*d_4**2)) - sp.atan2(2*a_2*a_3, -2*a_2*d_4) + sp.pi
             
-            ##############3  debugging
-            print('==========================================')
-            print(SolA)
-            print('= = = = = = = = = = = = = = = ')
-            print(u.solutions[0])
-            print('==========================================')
-            ##########################           
+            SolA = sp.atan2(-2*a_2*d_4, 2*a_2*a_3) + sp.atan2(sp.sqrt(4*a_2**2*a_3**2 + 4*a_2**2*d_4**2 - (Pz**2 - a_2**2 - a_3**2 - d_4**2 + (Px*sp.cos(th_1) + Py*sp.sin(th_1))**2)**2), Pz**2 - a_2**2 - a_3**2 - d_4**2 + (Px*sp.cos(th_1) + Py*sp.sin(th_1))**2)
             
+            SolB = sp.atan2(-2*a_2*d_4, 2*a_2*a_3) + sp.atan2(-sp.sqrt(4*a_2**2*a_3**2 + 4*a_2**2*d_4**2 - (Pz**2 - a_2**2 - a_3**2 - d_4**2 + (Px*sp.cos(th_1) + Py*sp.sin(th_1))**2)**2), Pz**2 - a_2**2 - a_3**2 - d_4**2 + (Px*sp.cos(th_1) + Py*sp.sin(th_1))**2)
+
             assert(sp.expand(u.solutions[0]) ==  sp.expand(SolA)), fs
             assert(sp.expand(u.solutions[1]) ==  sp.expand(SolB)), fs
     
     # assert(ntests == 1), 'x2z2_solver:   Test 1 assert count                FAIL'
 
-    
+    print('        Test 1  PASSED')
     print('')
     print('              = = =    Test No 2    = = = ')
     print('')
