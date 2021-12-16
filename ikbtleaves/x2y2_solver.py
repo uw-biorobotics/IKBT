@@ -120,7 +120,8 @@ class test_x2z2(b3.Action):    # tester for your ID
         variables [0].solutions.append(a_3)
         variables [0].nsolutions = 1
         variables [0].set_solved(R,variables )  # needed for this test
-    
+        
+        print('x2z2 setup for Test 2: generate SOA equations:\n')
         R.sum_of_angles_transform(variables )        # should add th_23=th_2+th_3 to list
         [L1, L2, L3p] = R.scan_for_equations(variables )  # lists of 1unk and 2unk equations
         
@@ -140,8 +141,9 @@ class x2z2_id_solve(b3.Action):    #  This time we combine into a single ID/Solv
         self.SolvedOneFlag = False      # turn off this expensive leaf after it has worked once
 
     def tick(self, tick):
-        if self.SolvedOneFlag:           #  we will only get lucky with this method once (HACK!)
-            return b3.FAILURE
+        #if self.SolvedOneFlag:           #  we will only get lucky with this method once (HACK!)
+            #print(' we already used x2z2 method')
+            #return b3.FAILURE
         unknowns = tick.blackboard.get('unknowns')   # the current list of unknowns
         R = tick.blackboard.get('Robot')
         one_unk = tick.blackboard.get('eqns_1u')
@@ -276,13 +278,6 @@ class x2z2_id_solve(b3.Action):    #  This time we combine into a single ID/Solv
                             print('')
                              
                         t = sp.sqrt(A*A + B*B - C*C)
-                        # test:
-                        #print('=============================== ***')
-                        #print('test: solutions')
-                        #print(sp.atan2(A, B) + sp.atan2( t, C))
-                        #print(sp.atan2(A, B) + sp.atan2(-t, C))
-                        #print('=============================== ***')
-                        #quit()
                         unknown.solutions.append(sp.atan2(A, B) + sp.atan2(t, C))
                         unknown.solutions.append(sp.atan2(A, B) + sp.atan2(-t, C))
                         #unknown.argument = lhs/r1
@@ -328,7 +323,8 @@ if __name__ == '__main__':
     print('')
     bb.set('test_number', 1)
     bb.set('curr_unk', unknown(th_3)) 
-     
+    #  this was set by test 1 and needs to be cleared
+    x2z2_work.SolvedOneFlag = False   # reset the SolvedOneFlag
     ik_tester.tick("test x2z2 solver (1)", bb)
     
     unkns = bb.get("unknowns")
@@ -340,16 +336,10 @@ if __name__ == '__main__':
         print(u.solutions)
         if(u.symbol == th_3):   
             ntests += 1
-            assert(u.nsolutions == 2), fs + ' wrong number of solutions'
+            assert(u.nsolutions == 2), fs + ' wrong number of solutions (test 1)'
             print(u.solutions[0])
             print(' ')
             print(u.solutions[1])
-            
-            # not sure where these "right" answers came from: Delete later(!)
-            ## These are complicated solutions!!
-            #SolA =  sp.asin((-a_2**2 - a_3**2 - d_4**2 + Px**2*sp.cos(th_1)**2 + Px*Py*sp.sin(2*th_1) + Py**2*sp.sin(th_1)**2 + Pz**2)/sp.sqrt(4*a_2**2*a_3**2 + 4*a_2**2*d_4**2)) - sp.atan2(2*a_2*a_3, -2*a_2*d_4)
-            
-            #SolB = -sp.asin((-a_2**2 - a_3**2 - d_4**2 + Px**2*sp.cos(th_1)**2 + Px*Py*sp.sin(2*th_1) + Py**2*sp.sin(th_1)**2 + Pz**2)/sp.sqrt(4*a_2**2*a_3**2 + 4*a_2**2*d_4**2)) - sp.atan2(2*a_2*a_3, -2*a_2*d_4) + sp.pi
             
             SolA = sp.atan2(-2*a_2*d_4, 2*a_2*a_3) + sp.atan2(sp.sqrt(4*a_2**2*a_3**2 + 4*a_2**2*d_4**2 - (Pz**2 - a_2**2 - a_3**2 - d_4**2 + (Px*sp.cos(th_1) + Py*sp.sin(th_1))**2)**2), Pz**2 - a_2**2 - a_3**2 - d_4**2 + (Px*sp.cos(th_1) + Py*sp.sin(th_1))**2)
             
@@ -366,7 +356,8 @@ if __name__ == '__main__':
     print('')
     
     bb = b3.Blackboard()         # clear the previous bb
-    bb.set('test_number', 2)
+    bb.set('test_number', 2)     # set up Puma kinematics this time
+    bb.set('curr_unk', unknown(th_3))
     ik_tester.tick("test x2z2 solver (2)", bb)
            
     unkns = bb.get("unknowns")
@@ -378,15 +369,26 @@ if __name__ == '__main__':
         print(u.solutions)
         if(u.symbol == th_3):
             ntests += 1
-            assert(u.nsolutions == 2), fs
             print(u.solutions[0])
+            assert(u.nsolutions == 2), fs + ' wrong number of solutions'
             c1 = sp.cos(th_1)
             s1 = sp.sin(th_1)
-            term2 = sp.asin((Px**2*c1**2 + Px*Py*sp.sin(2*th_1) + Py**2*s1**2 + Pz**2 - a_2**2 - a_3**2 - d_4**2)/sp.sqrt(4*a_2**2*a_3**2 + 4*a_2**2*d_4**2)) - sp.atan2(2*a_2*a_3, -2*a_2*d_4)
+            #term2 = sp.asin((Px**2*c1**2 + Px*Py*sp.sin(2*th_1) + Py**2*s1**2 + Pz**2 - a_2**2 - a_3**2 - d_4**2)/sp.sqrt(4*a_2**2*a_3**2 + 4*a_2**2*d_4**2)) - sp.atan2(2*a_2*a_3, -2*a_2*d_4)
             
-            term2a = -sp.asin((Px**2*c1**2 + Px*Py*sp.sin(2*th_1) + \
-                Py**2*s1**2 + Pz**2 - a_2**2 - a_3**2 - d_4**2)/sp.sqrt(4*a_2**2*a_3**2 + 4*a_2**2*d_4**2)) - sp.atan2(2*a_2*a_3, -2*a_2*d_4) + sp.pi
+            #term2a = -sp.asin((Px**2*c1**2 + Px*Py*sp.sin(2*th_1) + \
+                #Py**2*s1**2 + Pz**2 - a_2**2 - a_3**2 - d_4**2)/sp.sqrt(4*a_2**2*a_3**2 + 4*a_2**2*d_4**2)) - sp.atan2(2*a_2*a_3, -2*a_2*d_4) + sp.pi
             
+            term2 = sp.atan2(-2*a_2*d_4, 2*a_2*a_3) + sp.atan2(sp.sqrt(4*a_2**2*a_3**2 + 4*a_2**2*d_4**2 - (-a_2**2 - a_3**2 - d_4**2 + (Pz - d_1)**2 + (Px*sp.cos(th_1) + Py*sp.sin(th_1))**2)**2), -a_2**2 - a_3**2 - d_4**2 + (Pz - d_1)**2 + (Px*sp.cos(th_1) + Py*sp.sin(th_1))**2)
+            
+            term2a = sp.atan2(-2*a_2*d_4, 2*a_2*a_3) + sp.atan2(-sp.sqrt(4*a_2**2*a_3**2 + 4*a_2**2*d_4**2 - (-a_2**2 - a_3**2 - d_4**2 + (Pz - d_1)**2 + (Px*sp.cos(th_1) + Py*sp.sin(th_1))**2)**2), -a_2**2 - a_3**2 - d_4**2 + (Pz - d_1)**2 + (Px*sp.cos(th_1) + Py*sp.sin(th_1))**2)
+
+            #print('=============================== ***')
+            #assert u.solutions[0] != u.solutions[1], 'two solutions should not be same!'
+            #print('test: solutions')
+            #print(u.solutions[1])
+            #print('================')
+            #print(term2)
+            #print('=============================== ***')
             assert (u.solutions[0] == term2 ),fs + ' th_3'
             print(' ')
             assert (u.solutions[1] == term2a),fs + ' th_3a'
