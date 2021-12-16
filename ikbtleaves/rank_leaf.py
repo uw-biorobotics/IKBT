@@ -57,21 +57,23 @@ class rank(b3.Action):
                     choosen = "sincos"
                 else:
                     choosen = "tan"
+            # note that we used a ranking
+            u.solvemethod += ', best ranked, '
         
-            # reset soltusions
+            # reset solutions
             u.solutions = None
             #u.solveorder = u.solveorder - 1
             if choosen == "sincos":
                 u.solutions = u.sincos_solutions
                 u.nsolutions = len(u.sincos_solutions)
                 u.eqntosolve = u.sincos_eqnlist[0]
-                u.solvemethod = "sin or cos"
+                u.solvemethod += "sin or cos"
             elif choosen == "tan":
                 u.solutions = u.tan_solutions
                 u.nsolutions = len(u.tan_solutions)
                 u.eqntosolve = u.tan_eqnlist[0]
                 u.secondeqn = u.tan_eqnlist[1]
-                u.solvemethod = "atan2(y,x)"
+                u.solvemethod += "atan2(y,x)"
 
             u.set_solved(R, unknowns)
 

@@ -136,7 +136,7 @@ class sinandcos_id(b3.Action):    # action leaf for sincosid
                   if not d[Cw].has(u.symbol):
                       u.readytosolve = True
                       u.eqntosolve   = kc.kequation(lhs, es)
-                      u.solvemethod = "sinANDcos"
+                      u.solvemethod += 'sinANDcos'
                       found = True
                       break
             
@@ -162,7 +162,7 @@ class sinandcos_solve(b3.Action):    # Solve asincos equation pairs
        
 
        if(not u.solved):                
-            if (u.readytosolve) and (u.solvemethod == "sinANDcos"):
+            if (u.readytosolve) and ('sinANDcos' in u.solvemethod):
                 if(self.BHdebug): 
                   print("\nsinANDcos solver: I'm working on: ", u.symbol)
                   print("  Using: ", )

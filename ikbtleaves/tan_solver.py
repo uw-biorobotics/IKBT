@@ -148,7 +148,7 @@ class tan_id(b3.Action):    # action leaf for ID eqns solved by atan2()
                         print('tan_id:  able to solve', u.symbol)
                         if count_unknowns(unknowns, co) > 0: #cancellable unsolved term, add the nonzero assumption
                             global_assumptions.add(sp.Q.nonzero(d2[Cw]))                            
-                        u.solvemethod = "atan2(y,x)"
+                        u.solvemethod += "atan2(y,x)"
                         u.solvable_tan = True
                         
                     if(self.BHdebug and u.readytosolve):

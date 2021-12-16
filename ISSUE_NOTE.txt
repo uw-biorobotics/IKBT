@@ -3,6 +3,7 @@ Feb 2020:  Users reporting UR5 broken on master.
 >> 3-Feb:   solution of UR5 working. just some extra variables in the output: eg th_23 
     which have solutionmethod = "*none* and no solution equations.
     need to prune nodes by nodes.solutionmethod
+    21-Dec  Update:  prune by zero length solution method instead!
     
     ----------------------------------------
 

@@ -100,7 +100,7 @@ class unknown(object):
 
         self.secondeqn  = None
 
-        self.solvemethod = "*None*"
+        self.solvemethod = ''
         self.solved = False
         self.solveorder = 0
         self.usedfortransform = False   # if solved, has this been used for transform yet?

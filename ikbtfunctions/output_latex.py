@@ -180,7 +180,7 @@ def output_latex_solution(Robot,variables, groups):
     sorted_node_list = sorted(Robot.solution_nodes)
 
     for node in sorted_node_list: 
-        if node.solvemethod != '*None*':   # skip variables (typically extra SOA's) that are not used.
+        if node.solvemethod != '':   # skip variables (typically extra SOA's) that are not used.
             ALIGN = True
             tmp = '$' + sp.latex(node.symbol) + '$'
             tmp = tmp.replace(r'th_', r'\theta_')
@@ -262,7 +262,7 @@ The following are the sets of joint solutions (poses) for this manipulator:
     metsection = r'\section{Equations Used for Solutions}'
 
     for node in sorted_node_list:
-        if node.solvemethod == '*None*':  # skip unused SOA vars. 
+        if node.solvemethod == '':  # skip unused SOA vars. 
             continue
                 #print out the equations evaluated
         # print  'Equation(s):

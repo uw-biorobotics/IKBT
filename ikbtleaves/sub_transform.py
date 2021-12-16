@@ -83,12 +83,6 @@ class test_sub_transform(b3.Action):    # tester for your ID
         tick.blackboard.set('unknowns',variables)
         tick.blackboard.set('Robot',R)    
         return b3.SUCCESS
-    
-    
-    #
-    #           ***********************    ERK!    Need to keep this at the mequation_list level (i.e. 4x4  eqns)
-    #                                                so that equations can be modified for future use in other lists. 
-    #
 
 class sub_transform(b3.Action):    # action leaf for  
     
@@ -106,10 +100,10 @@ class sub_transform(b3.Action):    # action leaf for
             print('')
             
         #   We're going to look at the first N equations in the mequation_list
-        N = 1   #  were only looking at first 2 matrix equations (at least for now)          
+        N = 1   #  were only looking at first few (1 or 2) matrix equations (at least for now)          
         assert (N <= len(R.mequation_list)), 'sub_transform test wants too many meqns '
         
-        # identify elements of eqns where another elemnet can be substituted in
+        # identify elements of eqns where another element can be substituted in
         #    to eliminate unknowns
         #    
         found = False 
@@ -154,7 +148,7 @@ class sub_transform(b3.Action):    # action leaf for
                                 if(self.BHdebug):
                                     print('Unknowns: old/new:', nold, '/', nnew)
                                     print('Prop Sub: ', e2, '/', new)
-                                if(nnew < nold):
+                                if(nnew < nold): # only do this to *reduce* # of unknowns!
                                     R.mequation_list[m].Ts[i,j] = new
                                     found = True
                                 

@@ -129,7 +129,7 @@ class sincos_id(b3.Action):    # action leaf for sincosid
                     if(self.BHdebug):
                         print('I found an sin() equation to ID: ', e)
                     u.eqntosolve = e
-                    u.solvemethod = "arcsin"
+                    u.solvemethod += ", arcsin"
                     found = True
                     break
                     
@@ -137,7 +137,7 @@ class sincos_id(b3.Action):    # action leaf for sincosid
                     if(self.BHdebug):
                         print('I found an cos() equation to ID: ', e)
                     u.eqntosolve = e
-                    u.solvemethod = "arccos"
+                    u.solvemethod += ", arccos"
                     found = True
                     break
                 
@@ -175,7 +175,7 @@ class sincos_solve(b3.Action):    # Solve asincos equation pairs
             rhs = sp.collect(u.eqntosolve.RHS, terms)
             Aw  = sp.Wild("Aw")
             Bw  = sp.Wild("Bw")                        
-            if u.solvemethod == "arcsin": 
+            if  'arcsin' in u.solvemethod: 
                 d   = rhs.match(Aw*sp.sin(u.symbol)+Bw)  
                 assert(d is not None),  "sincos_solve (arcsin branch): Somethings Wrong!"
                 A = d[Aw]
@@ -201,7 +201,7 @@ class sincos_solve(b3.Action):    # Solve asincos equation pairs
                 #u.set_solved(R,unknowns)
                 solvedanything = True
                 
-            elif u.solvemethod == "arccos":
+            elif  "arccos" in u.solvemethod:
                 d   = rhs.match(Aw*sp.cos(u.symbol)+Bw)  
                 if(d is None):
                     print("sincos_solve (arccos branch):  Somethings Wrong!")

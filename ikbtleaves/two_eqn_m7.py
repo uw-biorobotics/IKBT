@@ -117,7 +117,7 @@ class simu_id(b3.Action):
                         eq2 = temp
 
                     if found:
-                        curr_unk.solvemethod = "simultaneous eqn"
+                        curr_unk.solvemethod += "simultaneous eqn"
                         curr_unk.eqntosolve = kequation(0, eq1)
                         curr_unk.secondeqn = kequation(0, eq2)
                         tick.blackboard.set('curr_unk', curr_unk)

@@ -179,12 +179,14 @@ class Robot:
 
         self.min_index = 0
         self.max_index = 0
-        self.mequation_list = []        # all the 4x4 Matrix FK equations
-        self.kequation_aux_list = []    # kequations: such as eg th_23 = th_2+th_3
-        
-        # a place to store discovered sum of angles equations
-        self.SOA_eqns = kc.matrix_equation()  # embed these inside a 4x4 equation for 
-                                        # downstream compatibility: use SOA_eqns.auxeqns.append(neweqn)
+        # mequation_list:        all the 4x4 Matrix FK equations
+        self.mequation_list = []  
+        # kequation_aux_list:    sum of angle eqns such as eg th_23 = th_2+th_3
+        self.kequation_aux_list = []  
+        # a matrix equation in which to embed important kequations equations
+        #    this is done for compatibility with the id/solvers
+        self.SOA_eqns = kc.matrix_equation() 
+        # To add a kequation, use R.SOA_eqns.auxeqns.append(neweqn)
 
         if(Mech != None):    # in testing situations we only need a "Robot" to keep track of solutions above
             self.Mech = Mech
@@ -210,7 +212,7 @@ class Robot:
     def generate_solution_nodes(self, unknowns):
         '''generate solution nodes'''
         for unk in unknowns:
-            if unk.solvemethod != '*None*':    # this means the unk was not used at all in solution 
+            if unk.solvemethod != '':    # this means the unk was not used at all in solution 
                                               #  typically SOA unknowns like th_23
                 self.solution_nodes.append(Node(unk))
                 self.variables_symbols.append(unk.symbol)
@@ -229,9 +231,9 @@ class Robot:
         elist = self.mequation_list
         #print '------------------------- elist----'
         #print elist
-        print ('-------- (aux eqns):')
-        print (self.SOA_eqns.auxeqns)
-        print ('--------')
+        #print ('-------- (aux eqns):')
+        #print (self.SOA_eqns.auxeqns)
+        #print ('--------')
         assert (len(elist) > 0), '  not enough equations '
         #i=0
         #for e in self.kequation_aux_list:
@@ -280,29 +282,30 @@ class Robot:
 #
 #   Get equation lists from just a matrix equation
 #     (this is used when generating tests NOT from DH params
+##       (superseeded by scan_for_equations() )
 #
-    def scan_Mequation(self,Meqn,variables):
-        self.l1 = []
-        self.l2 = []
-        for eqn in Meqn.get_kequation_list():
-            lh1x1 = eqn.LHS  #4x4 matrix
-            rh1x1 = eqn.RHS  #4x4 matrix
-            n = count_unknowns(variables, lh1x1) + count_unknowns(variables, rh1x1)
-            #e1 = kequation(lh1x1, rh1x1) # change from 0,rh1x1-lh1x1 **********
-            e1 = eqn
-            if(n==1):
-                flag = False
-                if e1 not in self.l1:
+    #def scan_Mequation(self,Meqn,variables):
+        #self.l1 = []
+        #self.l2 = []
+        #for eqn in Meqn.get_kequation_list():
+            #lh1x1 = eqn.LHS  #4x4 matrix
+            #rh1x1 = eqn.RHS  #4x4 matrix
+            #n = count_unknowns(variables, lh1x1) + count_unknowns(variables, rh1x1)
+            ##e1 = kequation(lh1x1, rh1x1) # change from 0,rh1x1-lh1x1 **********
+            #e1 = eqn
+            #if(n==1):
+                #flag = False
+                #if e1 not in self.l1:
 
-                    self.l1.append(e1)   # only append if not already there
-            if(n==2):
-                flag = False
+                    #self.l1.append(e1)   # only append if not already there
+            #if(n==2):
+                #flag = False
 
-                if e1 not in self.l2:
-                    self.l2.append(e1)    # only append if not already there
-        self.l1 = erank(self.l1) # sort the equations (in place) so solvers get preferred eqns first
-        self.l2 = erank(self.l2)
-        return [self.l1, self.l2]
+                #if e1 not in self.l2:
+                    #self.l2.append(e1)    # only append if not already there
+        #self.l1 = erank(self.l1) # sort the equations (in place) so solvers get preferred eqns first
+        #self.l2 = erank(self.l2)
+        #return [self.l1, self.l2]
 
 
     #

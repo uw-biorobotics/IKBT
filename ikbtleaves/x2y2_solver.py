@@ -8,8 +8,13 @@
 #      for puma joint 2 (eqn 4.65 p 118)
 #
 #    BH    2/2/17
+#
+#    BH : Dec-21:  SIMPLIFY!    After squaring and summing,
+#       if a one-unk equation is identified, just add
+#       it to the list of one-unk equations (in a persistent way).
+#
 
-# Copyright 2017 University of Washington
+# Copyright 2021 University of Washington
 
 # Developed by Dianmu Zhang and Blake Hannaford
 # BioRobotics Lab, University of Washington
@@ -138,7 +143,9 @@ class test_x2z2(b3.Action):    # tester for your ID
         return b3.SUCCESS
 
 
-class x2z2_id_solve(b3.Action):    #  This time we combine into a single ID/Solve leaf 
+class x2z2_id_solve(b3.Action):    #  This time we combine into a single ID/Solve leaf
+    # but *really* x2z2 is a transform which only generates a 1-unk equation
+    # for *other* leaves to solve. 
     def __init__(self):
         super().__init__()             
         self.SolvedOneFlag = False      # turn off this expensive leaf after it has worked once
@@ -224,7 +231,7 @@ class x2z2_id_solve(b3.Action):    #  This time we combine into a single ID/Solv
                 
 
                     if count_unknowns(unknowns, temp_r) == 1:
-                        print("found eqn for x2y2!")
+                        print("X2Z2 found a useful eqn!")
                         found = True
                 if found:
                     break
@@ -243,63 +250,19 @@ class x2z2_id_solve(b3.Action):    #  This time we combine into a single ID/Solv
                 if self.BHdebug: print('x2y2: The unknown variable is: ', unk)
             
         if not unknown.solved:
-            if (temp_r.has(sp.sin(unk)) and temp_r.has(sp.cos(unk))):
-                    print("x2z2: found sin and cos terms" )
-                    Aw = sp.Wild("Aw")
-                    Bw = sp.Wild("Bw")
-                    Cw = sp.Wild("Cw")
-                    # d = temp_r.match(Aw*sp.cos(unk)+Bw*sp.sin(unk)- Cw)
-
-                    rhs = temp_r - temp_l
-                    #rhs = rhs.expand()
-                    #rhs = rhs.collect(sp.sin(unk))
-                    #rhs = rhs.collect(sp.cos(unk))
-
-                    d = rhs.match(Aw*sp.sin(unk)+Bw*sp.cos(unk)- Cw)
-                    if(self.BHdebug):
-                            print('x2z2: Sin AND Cos processing: ', rhs)
-                            if(d is not None):
-                                print('Aw: ', d[Aw], ' Bw: ', d[Bw], ' Cw: ', d[Cw])
-                            else:
-                                print('Parse not successful')
-                    if(d is None):
-                        print("x2z2_solve:  Somethings Wrong!")
-                        return b3.FAILURE
-                    else:        
-                        print("I'm working up a solution for ", unknown )
-                        #lhs = temp_l - d[Cw]
-
-                        A = d[Aw]
-                        B = d[Bw]
-                        C = d[Cw]
-                        if (B is None):
-                            B = 1 
-                
-                        if(self.BHdebug):
-                            print('I think I solved ', unknown.symbol)
-                            sp.pprint(unknown.solutions)
-                            print('')
-                             
-                        t = sp.sqrt(A*A + B*B - C*C)
-                        unknown.solutions.append(sp.atan2(A, B) + sp.atan2(t, C))
-                        unknown.solutions.append(sp.atan2(A, B) + sp.atan2(-t, C))
-                        #unknown.argument = lhs/r1
-                        unknown.nsolutions = 2
-                        unknown.solvemethod = "x2y2"
-                        unknown.eqntosolve = kequation(0,rhs)
-                        unknown.set_solved(R,unknowns)
-                        solved = True
-
-    
+            ######################################### NEW ###############
+            ##  NEW  instead of solving it here, we just put it in the list
+            # of one-unknown equations so that some other leaf can solve it
+            unknown.solvemethod += 'x2z2_transform and ' # only part of soln.
+            R.SOA_eqns.auxeqns.append(kc.kequation(temp_l,temp_r))
+            #############################################################
         tick.blackboard.set('Robot', R)
         tick.blackboard.set('unknowns',unknowns)   # the current list of unknowns
-        if solved:
-            self.SolvedOneFlag = True
-            return b3.SUCCESS
-        else:
-            return b3.FAILURE
+        self.SolvedOneFlag = True
+         # we have a new 1-unk equation for other leafs to solve
+         #   but nothing new is solved yet.
+        return b3.SUCCESS  
        
-   
 #######################################################################
 #  Test code:
 class TestSolver010(unittest.TestCase):

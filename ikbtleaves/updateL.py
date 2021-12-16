@@ -3,9 +3,7 @@
 #   TEMPLATE
 #     BT Nodes for Testing, ID, Solving
 #
-
-#  Replace TEMPLATE below with your solution method
-#
+ 
 
 # Copyright 2017 University of Washington
 

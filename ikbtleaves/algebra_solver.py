@@ -129,7 +129,7 @@ class algebra_id(b3.Action):    # action leaf for
 
                         tmp = tmp.collect(u.symbol)
                         u.eqntosolve = kequation(0, tmp)
-                        u.solvemethod = "algebra"
+                        u.solvemethod += "algebra"
                         found = True
                         break
                         
@@ -155,14 +155,13 @@ class algebra_solve(b3.Action):    # Solve asincos equation pairs
                         print("I'm trying to solve: ", u.symbol)
                         print("  Using: ", )
                         print(u.eqntosolve  )
-           if u.solvemethod == "algebra":
-
+           if 'algebra' in u.solvemethod:
                Aw = sp.Wild("Aw")
                Bw = sp.Wild("Bw")
                d = u.eqntosolve.RHS.match(Aw*u.symbol+Bw)
                A = d[Aw]
                B = d[Bw]
-               u.solutions.append( (u.eqntosolve.LHS-B)/A  )       # one soluntion 
+               u.solutions.append( (u.eqntosolve.LHS-B)/A  )       # one solution 
                u.nsolutions = 1   # or 1
                u.set_solved(R,unknowns)  # flag that this is solved 
        tick.blackboard.set('curr_unk', u)
