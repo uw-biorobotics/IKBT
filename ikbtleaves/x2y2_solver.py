@@ -280,13 +280,13 @@ class TestSolver010(unittest.TestCase):
         
         ###   A BT node to set everything up for tests
         x2z2_setup = test_x2z2()     # fcn can set up test 2 ways
-        x2z2_setup.BHdebug = True
+        #x2z2_setup.BHdebug = True
         x2z2_setup.Name = "Setup"
         
         ###   BT node for the actual tests
         x2z2_work = x2z2_id_solve()   #  same node on two different setups
         x2z2_work.Name = "x2z2 ID/Solver"
-        x2z2_work.BHdebug = True 
+        #x2z2_work.BHdebug = True 
         
         test = b3.Sequence([x2z2_setup, x2z2_work])
         ik_tester.root = test
@@ -304,24 +304,13 @@ class TestSolver010(unittest.TestCase):
         
         fs = 'x2z2 id/solver Test 1 FAIL'
         ntests = 0
-        for u in unkns:
-            print(u.symbol)
-            print(u.solutions)
-            if(u.symbol == th_3):   
-                ntests += 1
-                assert(u.nsolutions == 2), fs + ' wrong number of solutions (test 1)'
-                #print(u.solutions[0])
-                #print(' ')
-                #print(u.solutions[1])
-                
-                SolA = sp.atan2(-2*a_2*d_4, 2*a_2*a_3) + sp.atan2(sp.sqrt(4*a_2**2*a_3**2 + 4*a_2**2*d_4**2 - (Pz**2 - a_2**2 - a_3**2 - d_4**2 + (Px*sp.cos(th_1) + Py*sp.sin(th_1))**2)**2), Pz**2 - a_2**2 - a_3**2 - d_4**2 + (Px*sp.cos(th_1) + Py*sp.sin(th_1))**2)
-                
-                SolB = sp.atan2(-2*a_2*d_4, 2*a_2*a_3) + sp.atan2(-sp.sqrt(4*a_2**2*a_3**2 + 4*a_2**2*d_4**2 - (Pz**2 - a_2**2 - a_3**2 - d_4**2 + (Px*sp.cos(th_1) + Py*sp.sin(th_1))**2)**2), Pz**2 - a_2**2 - a_3**2 - d_4**2 + (Px*sp.cos(th_1) + Py*sp.sin(th_1))**2)
-
-                assert(sp.expand(u.solutions[0]) ==  sp.expand(SolA)), fs
-                assert(sp.expand(u.solutions[1]) ==  sp.expand(SolB)), fs
+        for u in unkns: 
+            if(u.symbol == th_3):    # the special unknown for this test
+               # all we are testing is that x2y2 claims that it has added
+               #  a new (but simpler) equation to the list unsolved equations
+               assert 'x2z2_transform' in u.solvemethod, fs 
         
-        print('        Setup OK')
+        print('      x2z2 PASSED test 1')
         print('')
         print('              = = =   Test X2Z2 solver (Puma)  = = = ')
         print('')
@@ -335,41 +324,13 @@ class TestSolver010(unittest.TestCase):
         
         fs = 'x2z2 id/solver Test 2 (Puma)   FAIL'
         ntests = 0
-        for u in unkns:
-            print(u.symbol)
-            print(u.solutions)
+        for u in unkns: 
             if(u.symbol == th_3):
-                ntests += 1
-                print(u.solutions[0])
-                assert(u.nsolutions == 2), fs + ' wrong number of solutions'
-                c1 = sp.cos(th_1)
-                s1 = sp.sin(th_1)
+                assert 'x2z2_transform' in u.solvemethod, fs 
                 
-                term2 = sp.atan2(-2*a_2*d_4, 2*a_2*a_3) + sp.atan2(sp.sqrt(4*a_2**2*a_3**2 + 4*a_2**2*d_4**2 - (-a_2**2 - a_3**2 - d_4**2 + (Pz - d_1)**2 + (Px*sp.cos(th_1) + Py*sp.sin(th_1))**2)**2), -a_2**2 - a_3**2 - d_4**2 + (Pz - d_1)**2 + (Px*sp.cos(th_1) + Py*sp.sin(th_1))**2)
                 
-                term2a = sp.atan2(-2*a_2*d_4, 2*a_2*a_3) + sp.atan2(-sp.sqrt(4*a_2**2*a_3**2 + 4*a_2**2*d_4**2 - (-a_2**2 - a_3**2 - d_4**2 + (Pz - d_1)**2 + (Px*sp.cos(th_1) + Py*sp.sin(th_1))**2)**2), -a_2**2 - a_3**2 - d_4**2 + (Pz - d_1)**2 + (Px*sp.cos(th_1) + Py*sp.sin(th_1))**2)
-
-                #print('=============================== ***')
-                #assert u.solutions[0] != u.solutions[1], 'two solutions should not be same!'
-                #print('test: solutions')
-                #print(u.solutions[1])
-                #print('================')
-                #print(term2)
-                #print('=============================== ***')
-                ntests +=  1
-                assert (u.solutions[0] == term2 ),fs + ' th_3'
-                print(' ')
-                ntests +=  1
-                assert (u.solutions[1] == term2a),fs + ' th_3a'
-                 
-    
-        self.assertTrue(ntests == 3, ' X2Z2 solver:  assertion count error --- FAIL')
-        print('X2Z2 solver PASSED all', ntests, ' assertions.') 
-        
-##  write tester code which runs if this file is run directly instead
-##    of "imported".
-
-
+        print('\n\n              X2Z2 solver PASSED all tests\n\n') 
+         
 #
 #    Can run your test from command line by invoking this file
 #
