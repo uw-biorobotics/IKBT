@@ -185,8 +185,8 @@ class Robot:
         self.kequation_aux_list = []  
         # a matrix equation in which to embed important kequations equations
         #    this is done for compatibility with the id/solvers
-        self.SOA_eqns = kc.matrix_equation() 
-        # To add a kequation, use R.SOA_eqns.auxeqns.append(neweqn)
+    #    self.SOA_eqns = kc.matrix_equation() 
+        # To add a kequation, use R.kequation_aux_list.append(neweqn)
 
         if(Mech != None):    # in testing situations we only need a "Robot" to keep track of solutions above
             self.Mech = Mech
@@ -232,7 +232,7 @@ class Robot:
         #print '------------------------- elist----'
         #print elist
         #print ('-------- (aux eqns):')
-        #print (self.SOA_eqns.auxeqns)
+        #print (self.kequation_aux_list)
         #print ('--------')
         assert (len(elist) > 0), '  not enough equations '
         #i=0
@@ -264,7 +264,7 @@ class Robot:
                         if e1 not in self.l3p:
                             self.l3p.append(e1)    # only append if not already there
         #Process the SOA equations
-        for e in self.SOA_eqns.auxeqns:
+        for e in self.kequation_aux_list:
             lhs = e.LHS
             rhs = e.RHS
             n = count_unknowns(variables, lhs) + count_unknowns(variables, rhs)
@@ -417,7 +417,7 @@ def sum_of_angles_sub(R, expr, variables):
             nil.sort()  # get consistent order of indices
             ni = ''
             for c in nil:  # make into a string
-                ni += c
+                ni += c   # build up subscript e.g. 234
 
             #print 'New index: '+ni
             vexists = False
@@ -445,9 +445,15 @@ def sum_of_angles_sub(R, expr, variables):
                 #   Add the def of this SOA to list:  eg  th23 = th2+th3
                 #   BUT  it needs to be embedded into a 4x4 mequation so
                 #    that solvers can scan it properly
-                R.SOA_eqns.auxeqns.append(tmpeqn)
+                R.kequation_aux_list.append(tmpeqn)
+            
+            
             
             # substitute new variable into the kinematic equations  ((WHY twice??))
+            #  If there is a three-way sub, prefer it to a two-way sub.  e.g:
+            #     (a+b+c) -> (abc) instead of (a+bc)(!)
+            #
+            
             #self.mequation_list[k].Td[i,j] = Meq.Td[i,j].subs(d[aw] + d[bw] + d[cw], th_subval)
             #self.mequation_list[k].Ts[i,j] = Meq.Ts[i,j].subs(d[aw] + d[bw] + d[cw], th_subval)
             expr = expr.subs(d[aw] + d[bw] + d[cw], th_subval)

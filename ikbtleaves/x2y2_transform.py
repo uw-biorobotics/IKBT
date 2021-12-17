@@ -13,6 +13,11 @@
 #       if a one-unk equation is identified, just add
 #       it to the list of one-unk equations (in a persistent way).
 #
+#     To reflect this change we rename it to x2y2_transform!
+
+#     also please forgive occasional references to x2z2 instead of x2y2
+#        they are the same!!
+#
 
 # Copyright 2021 University of Washington
 
@@ -113,7 +118,7 @@ class test_x2z2(b3.Action):    # tester for your ID
             u.n = i
             i+=1    
 
-        print('Testing x2z2solver with Puma Kinematics')
+        print('Testing x2z2transform with Puma Kinematics')
         testflag = False # deprecated but needed(!)
         # read kinematic model from pickle file / or compute it from scratch
         [M, R, variables ] = kinematics_pickle(robot, dh, params, pvals, vv, variables, testflag)
@@ -143,8 +148,8 @@ class test_x2z2(b3.Action):    # tester for your ID
         return b3.SUCCESS
 
 
-class x2z2_id_solve(b3.Action):    #  This time we combine into a single ID/Solve leaf
-    # but *really* x2z2 is a transform which only generates a 1-unk equation
+class x2z2_transform(b3.Action):     
+    # Eff Dec 2021, x2z2 is NOW a transform which only generates a 1-unk equation
     # for *other* leaves to solve. 
     def __init__(self):
         super().__init__()             
@@ -178,9 +183,9 @@ class x2z2_id_solve(b3.Action):    #  This time we combine into a single ID/Solv
         eqn_ls = []
         
 
-        # note: x2y2 is very costly, and less likely to be successful
+        # note: x2y2 is somewhat costly,  
         #  This is a hack exploiting it seems to be needed only for
-        #   Theta_3 on the Puma robot
+        #   Th 2 or Th_3 on the Puma and Kawasaki robot
         if not u.symbol == th_3 or u.symbol == th_2 :
             return b3.FAILURE
 
@@ -253,8 +258,8 @@ class x2z2_id_solve(b3.Action):    #  This time we combine into a single ID/Solv
             ######################################### NEW ###############
             ##  NEW  instead of solving it here, we just put it in the list
             # of one-unknown equations so that some other leaf can solve it
-            unknown.solvemethod += 'x2z2_transform and ' # only part of soln.
-            R.SOA_eqns.auxeqns.append(kc.kequation(temp_l,temp_r))
+            unknown.solvemethod += 'x2z2 transform and ' # only part of soln.
+            R.kequation_aux_list.append(kc.kequation(temp_l,temp_r))
             #############################################################
         tick.blackboard.set('Robot', R)
         tick.blackboard.set('unknowns',unknowns)   # the current list of unknowns
@@ -268,7 +273,7 @@ class x2z2_id_solve(b3.Action):    #  This time we combine into a single ID/Solv
 class TestSolver010(unittest.TestCase):
     def setUp(self):
         self.DB = True  # debug flag
-        print('\n\n===============  Test x2z2 Solver  =====================')
+        print('\n\n============  Setup to Test x2z2 Transform  ==================')
         return
     
     def runTest(self):
@@ -284,8 +289,8 @@ class TestSolver010(unittest.TestCase):
         x2z2_setup.Name = "Setup"
         
         ###   BT node for the actual tests
-        x2z2_work = x2z2_id_solve()   #  same node on two different setups
-        x2z2_work.Name = "x2z2 ID/Solver"
+        x2z2_work = x2z2_transform()   #  same node on two different setups
+        x2z2_work.Name = "x2z2 ID/Transform"
         #x2z2_work.BHdebug = True 
         
         test = b3.Sequence([x2z2_setup, x2z2_work])
@@ -298,38 +303,38 @@ class TestSolver010(unittest.TestCase):
         bb.set('curr_unk', unknown(th_3)) 
         #  this was set by test 1 and needs to be cleared
         x2z2_work.SolvedOneFlag = False   # reset the SolvedOneFlag
-        ik_tester.tick("test x2z2 solver (1)", bb)
+        ik_tester.tick("test x2z2 Transform (1)", bb)
         
         unkns = bb.get("unknowns")
         
-        fs = 'x2z2 id/solver Test 1 FAIL'
+        fs = 'x2z2 id/transform Test 1 FAIL'
         ntests = 0
         for u in unkns: 
             if(u.symbol == th_3):    # the special unknown for this test
                # all we are testing is that x2y2 claims that it has added
                #  a new (but simpler) equation to the list unsolved equations
-               assert 'x2z2_transform' in u.solvemethod, fs 
+               assert 'x2z2 transform' in u.solvemethod, fs 
         
         print('      x2z2 PASSED test 1')
         print('')
-        print('              = = =   Test X2Z2 solver (Puma)  = = = ')
+        print('              = = =   Test X2Z2 transform (Puma)  = = = ')
         print('')
         
         bb = b3.Blackboard()         # clear the previous bb
         bb.set('test_number', 2)     # set up Puma kinematics this time
         bb.set('curr_unk', unknown(th_3))
-        ik_tester.tick("test x2z2 solver (2)", bb)
+        ik_tester.tick("test x2z2 transform (2)", bb)
             
         unkns = bb.get("unknowns")
         
-        fs = 'x2z2 id/solver Test 2 (Puma)   FAIL'
+        fs = 'x2z2 id/transform Test 2 (Puma)   FAIL'
         ntests = 0
         for u in unkns: 
             if(u.symbol == th_3):
-                assert 'x2z2_transform' in u.solvemethod, fs 
+                assert 'x2z2 transform' in u.solvemethod, fs 
                 
                 
-        print('\n\n              X2Z2 solver PASSED all tests\n\n') 
+        print('\n\n              X2Z2 transform PASSED all tests\n\n') 
          
 #
 #    Can run your test from command line by invoking this file
@@ -338,13 +343,13 @@ class TestSolver010(unittest.TestCase):
 #
 
 def run_test():
-    print('\n\n===============  Test X2Y2 solver=====================')
+    print('\n\n===============  Test X2Y2 transform=====================r')
     testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver010)  # replace TEMPLATE 
     unittest.TextTestRunner(verbosity=2).run(testsuite)
 
 if __name__ == "__main__":
     
-    print('\n\n===============  Test X2Y2 solver=====================')
+    print('\n\n===============  Test X2Y2 transform=====================m')
     testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver010)  # replace TEMPLATE 
     unittest.TextTestRunner(verbosity=2).run(testsuite)
    

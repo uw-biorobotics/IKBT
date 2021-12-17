@@ -39,7 +39,7 @@ from ikbtleaves.algebra_solver import *
 from ikbtleaves.tan_solver import *
 from ikbtleaves.sincos_solver import *
 from ikbtleaves.sinANDcos_solver import *
-from ikbtleaves.x2y2_solver import *
+from ikbtleaves.x2y2_transform import *
 from ikbtleaves.sub_transform import *
 #from ikbtleaves.sum_transform import *  # replaced by sum_id() + Algebra node.
 from ikbtleaves.sum_id import *      # detect and sub sum-of-angles
@@ -186,8 +186,9 @@ sacSol.Name = "Sin AND Cos ID+Solve"
 sacSol.BHdebug = SolverDebug
 
 # x^2 + y^2 trick from Craig (eqn 4.65)
-x2z2_Solver = x2z2_id_solve()
-x2z2_Solver.Name = 'X2Y2 id and solver'
+#  needed for Puma and KawasakiRS007L
+x2z2_Solver = x2z2_transform()
+x2z2_Solver.Name = 'X2Y2 transform'
 x2z2_Solver.BHdebug = False
 
 

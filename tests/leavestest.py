@@ -46,7 +46,7 @@ from ikbtleaves.sincos_solver import *
 from ikbtleaves.tan_solver import *
 from ikbtleaves.sub_transform import *
 from ikbtleaves.updateL import *
-from ikbtleaves.x2y2_solver import *
+from ikbtleaves.x2y2_transform import *
 
 
 import b3 as b3          # behavior trees
@@ -191,10 +191,10 @@ if __name__ == '__main__':
     suite2.addTest(TestSolver002())  # algebra_solver.py
     suite2.addTest(TestSolver003())  # sinANDcos_solver.py
     suite2.addTest(TestSolver004())  # tan_solver.py
-    suite2.addTest(TestSolver010())   # x2y2_solver.py
     
-    # misc tests
+    # test the transforms and misc. tests
     suite3 = unittest.TestLoader().loadTestsFromTestCase(TestSolver006)  # sub_transform.py
+    suite2.addTest(TestSolver010())   # x2y2_transform.py
     suite3.addTest(TestSolver007())   # updateL.py  # updating matrix equation lists
     
     if(not HTML):
