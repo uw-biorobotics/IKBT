@@ -107,12 +107,12 @@ class TEMPLATE_id(b3.Action):    # action leaf for
                     if ( --- Your ID condition 1 is met ---):   # we found  METHOD ID
                         u.readytosolve = True
                         u.eqntosolve = e
-                        u.solvemethod = "**METHOD 1 NAME**"
+                        u.solvemethod += "**METHOD 1 NAME**"
                         found = True
                     if ( --- Your ID condition 2 is met ---):   # we found X = Acos(x)
                         u.readytosolve = True
                         u.eqntosolve = e
-                        u.solvemethod = "**METHOD 2 NAME**"
+                        u.solvemethod += "**METHOD 2 NAME**"
                         found = True
         tick.blackboard.set('unknowns',unknowns)   # the current list of unknowns
         if found:
