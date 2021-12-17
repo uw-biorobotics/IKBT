@@ -6,6 +6,10 @@ Solutions are fully symbolic and are output as LaTex, Python, and C++.
 # Current News
 
 ## Dec 2021
+* Release v2.2 has refactored one of the more arcane solution nodes (x2y2solver)  so that it instead transforms
+the equation for later solution by any solver.  KawasakiRS007L can now be solved!   (Still an obscure bug
+with sum-of-angle substitution, see commends in ik_classes.py)
+
 * Latex output has been refactored.   New Latex procedure is simplified as follows:
   1) run IKBT
   2) cd LaTex
