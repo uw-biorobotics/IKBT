@@ -69,7 +69,7 @@ mechanism).   IKBT can now solve the UR5 and similar robots!
  1.  Implementation in a modern open-source, cross-platform, programming language (Python) with minimal dependencies outside of the standard Python distribution ({\tt sympy}).
  
 # Track Project Forks
- * [ Current list of Forks ](https://github.com/uw-biorobotics/IKBT.git)
+ * [ Current list of Forks ](https://techgaun.github.io/active-forks/index.html#uw-biorobotics/IKBT)
 
 # Videos
  * [Introductory Video](https://youtu.be/bLTXuNZPR5k)  (6min)
