@@ -88,7 +88,7 @@ Zhang, Dianmu, and Blake Hannaford. "IKBT: solving closed-form Inverse Kinematic
 
 You need the following to be installed to run IKBT:
 
- * Python 2.7.x [(Python Installation)](https://edu.google.com/openonline/course-builder/docs/1.10/set-up-course-builder/check-for-python.html)
+ * Python 3.8.x [(Python Installation)](https://edu.google.com/openonline/course-builder/docs/1.10/set-up-course-builder/check-for-python.html)
  * Sympy python package [(Installation instructions for all OS)](https://github.com/sympy/sympy/wiki/Download-Installation)
  * Latex package (for nice equation output - highly recommended) [(Install Latex)](https://www.latex-project.org/get/)
  
