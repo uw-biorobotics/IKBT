@@ -68,7 +68,8 @@ def robot_params(name):
         dh = sp.Matrix([
         [  0,          0,     ld_1,     th_1  ],
         [-sp.pi/2,    a_1,     0,      th_2  ],
-        [  0,      a_2,     0,      th_3  ],
+    #   [  sp.pi,      a_2,     0,      th_3  ],
+        [  0,      a_2,     0,      th_3  ],         # testing
         [ sp.pi/2 ,   a_3,    ld_2,     th_4  ],
         [ sp.pi/2 ,    0,     ld_3,     th_5  ],
         [-sp.pi/2 ,    0,     ld_4,     th_6  ]
