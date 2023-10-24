@@ -32,7 +32,7 @@ from ikbtbasics.ik_classes import *     # special classes for Inverse kinematics
 #####
 def robot_params(name):
     pvals = {}   # null for most robots
-    List = ['ICP5p5_A21','KR16',
+    List = ['ICP5p5_A21','KR16', 'Issue4',
             'UR5', 
             'Puma', 'Pumaoffset',
             'Chair_Helper', 
@@ -56,9 +56,31 @@ def robot_params(name):
         for n in List:
             print('   ', n)
         quit()
+
+
+
+####################################################      Issues 2 and 4
+
+    if(name == 'Issue4'):
         
-        
-####################################################3
+        sp.var('ld_1 ld_2 ld_3 ld_4')
+
+        dh = sp.Matrix([
+        [  0,          0,     ld_1,     th_1  ],
+        [-sp.pi/2,    a_1,     0,      th_2  ],
+        [  0,      a_2,     0,      th_3  ],
+        [ sp.pi/2 ,   a_3,    ld_2,     th_4  ],
+        [ sp.pi/2 ,    0,     ld_3,     th_5  ],
+        [-sp.pi/2 ,    0,     ld_4,     th_6  ]
+        ])
+        vv = [1,1,1,1,1,1]
+
+        variables =  [unknown(th_1), unknown(th_2), unknown(th_3), unknown(th_4), unknown(th_5), unknown(th_6)]
+
+        params = [ld_1, a_1, a_2, a_3, ld_2, ld_3, ld_4]
+        pvals = {ld_1:0.112891 , a_1:0.12893 , a_2:0.8382, a_3:0.064 , ld_2:0.4615 , ld_3:0.029, ld_4:0.418}
+
+
     if(name == 'KR16'):         # two link planar test (Issue #12) 
         #
         dh = sp.Matrix([

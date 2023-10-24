@@ -370,6 +370,11 @@ print(R.notation_collections)
 #  This step creates the list of solution poses (i.e. it associates
 #  the various joint solutions correctly)
 final_groups = matching.matching_func(R.notation_collections, R.solution_nodes)
+
+if len(final_groups) == 0:
+    print("\n\n       I'm sorry, no solutions were found \n\n")
+    quit()
+
 # # matching, now integrated into the latex report
 # uncomment for debugging
 
