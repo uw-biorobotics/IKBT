@@ -60,7 +60,6 @@ def robot_params(name):
 
 
 
-####################################################      Issues 2 and 4
 
     if(name == 'Raven-II'):
 
@@ -81,6 +80,7 @@ def robot_params(name):
         params = [  ld_2, ld_3 ]
         pvals = {ld_2: -470.0, ld_3: 13.0 }
 
+############################################################33    Issues 3 and 4 tests
     if(name == 'Issue4'):
 
         sp.var('ld_1 ld_2 ld_3 ld_4')
