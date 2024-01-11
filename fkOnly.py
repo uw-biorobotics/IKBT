@@ -114,6 +114,7 @@ print('GOT HERE (after FK): robot name: ', R.name)
 
 R.name = robot
 R.params = params
+R.variables = unknowns
 
 ##   check the pickle in case DH params were changed
 dhp = M.DH

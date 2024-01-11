@@ -41,6 +41,12 @@ pi = np.pi
 '''
 
 def output_FK_python_code(Robot):
+
+    DirName = 'CodeGen/Python/'
+    orig_name  = Robot.name.replace('test: ', '')
+    fname = DirName + 'FK_equations'+orig_name+'.py'
+    f = open(fname, 'w')
+
     importString = '''#!/usr/bin/python
 #  Python forward kinematic equations for **Robot**
 
@@ -55,14 +61,34 @@ from math import asin
 pi = np.pi
 
 '''
-    DirName = 'CodeGen/Python/'
-    orig_name  = Robot.name.replace('test: ', '')
-    fname = DirName + 'FK_equations'+orig_name+'.py'
-    f = open(fname, 'w')
     importString = importString.replace('**Robot**', Robot.name)
     print(importString, file=f)
 
+    matclass = '''class Matrix:
+    def __init__(self,A):
+        Matrix.A = A
+        Matrix.rows = len(A)
+        Matrix.cols = len(A[0])
+
+    def __repr__(self):
+        res = '\\n'
+        for i in range(self.rows):
+            for j in range(self.cols):
+                res += f'{self.A[i][j]:10.3f} '
+            res += '\\n'
+        return res
+    '''
+
+    print(matclass, file=f)
+
+    print('Debug: Robot.params:',Robot.params)
+
+
+    indent = '' # 4 spaces
+
     # parameter Declarations (a_3, d_5, etc).
+
+    print('#\n#      Robot Parameters \n#',file=f)
     tmp = '\n'
     if(Robot.Mech.pvals != {}):  # if we have numerical values stored
         for p in Robot.params:
@@ -73,13 +99,21 @@ pi = np.pi
             tmp += str(p) + ' = XXXXX    # deliberate undeclared error!  USER needs to give numerical value \n'
     par_decl_str = tmp
 
+    print(par_decl_str, file=f)
 
-    indent = '    ' # 4 spaces
+
+    # joint variables:
+    print('Debug: joint variables: ', Robot.variables)
+
+    print('#\n#     Robot Joint Variables \n#',file=f)
+
+    for v in Robot.variables:
+        print(indent + f'{str(v)} = 1.0   # 1.0= dummy value',file=f)
 
     funcname = 'Fkin_'+orig_name
     print('''
 # Code to compute Forward Kinematics ''', file=f)
-    print('def', funcname +'():', file=f) # no indent
+    #print('def', funcname +'():', file=f) # no indent
 
     print(indent + '''
 #############################################################
@@ -92,11 +126,16 @@ pi = np.pi
 
     Fkeqns = Robot.Mech.forward_kinematics()
 
-    Tfk = Robot.Mech.T_06
-    print(indent + "T_06 = [  [' ', ' ', ' ', ' '], [' ', ' ', ' ', ' '], [' ', ' ', ' ', ' '], [' ', ' ', ' ', ' '] ]")
-    for i in range(4):
-        for j in range(4):
-            print(indent + f'T_06[{i}][{j}] = {sp.python(Tfk[i][j])}')
+    Tfk = str(Robot.Mech.T_06)
+    #print(indent + "T_06 = [  [' ', ' ', ' ', ' '], [' ', ' ', ' ', ' '], [' ', ' ', ' ', ' '], [' ', ' ', ' ', ' '] ]")
+    #for i in range(4):
+        #for j in range(4):
+            #print(indent + f'T_06[{i}][{j}] = {sp.python(Tfk[i][j])}')
+
+    print('T06 = ' + Tfk,file=f)
+
+    print('print(f"T06 has {T06.rows} rows and {T06.cols} cols")',file=f)
+    print('print(T06)', file=f)
 
     f.close()
 
