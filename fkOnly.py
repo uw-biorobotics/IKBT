@@ -26,6 +26,7 @@ import unittest
 import b3 as b3          # behavior trees
 
 # local modules
+
 import ikbtfunctions.helperfunctions as hf
 import ikbtfunctions.output_latex as ol
 import ikbtfunctions.output_python as op
@@ -87,7 +88,7 @@ if len(argv) == 1:  # no argument - use default
     #robot = 'Puma'
     #robot = 'Chair_Helper'
     #robot = 'Khat6DOF'
-    robot = 'Wrist'
+    robot = 'Raven-II'
 
 elif len(argv) == 2:
     robot = str(argv[1])
@@ -109,7 +110,7 @@ print('')
 
 testing = False
 [M, R, unknowns] = kinematics_pickle(robot, dh, params, pvals, vv, unknowns, testing)
-print('GOT HERE: robot name: ', R.name)
+print('GOT HERE (after FK): robot name: ', R.name)
 
 R.name = robot
 R.params = params
@@ -118,14 +119,14 @@ R.params = params
 dhp = M.DH
 check_the_pickle(dhp, dh)   # check that two mechanisms have identical DH params
 
+print('Generating Python code ...')
+op.output_FK_python_code(R)  # should do it all(!)
+
 
 ##################################   The FK and Jacobian are already done here!
 
 
 
-####################################################################################
-##
-#                              No BT needed
 #
 #
 if TEST_DATA_GENERATION:
@@ -137,7 +138,7 @@ if TEST_DATA_GENERATION:
         pickle.dump( [R, unks], pf)
     quit()
 
-ol.output_FK_equations(R)
+ol.output_FK_equations(R)  # output Latex.
 
  
 

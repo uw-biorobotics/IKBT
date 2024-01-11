@@ -109,7 +109,7 @@ print('')
 
 testing = False
 [M, R, unknowns] = kinematics_pickle(robot, dh, params, pvals, vv, unknowns, testing)
-print('GOT HERE: robot name: ', R.name)
+print('GOT HERE (Fk completed): robot name: ', R.name)
 
 R.name = robot
 R.params = params

@@ -25,17 +25,8 @@ from ikbtfunctions.helperfunctions import *
 from ikbtbasics.ik_classes import *     # special classes for Inverse kinematics in sympy
 #
 
-def output_python_code(Robot, groups):
-
-    fixed_name = Robot.name.replace(r'_', r'\_')  # this is for LaTex output
-    fixed_name = fixed_name.replace('test: ','')
-    orig_name  = Robot.name.replace('test: ', '')
-
-    DirName = 'CodeGen/Python/'
-    fname = DirName + 'IK_equations'+orig_name+'.py'
-    f = open(fname, 'w')
-    print('''#!/usr/bin/python
-#  Python inverse kinematic equations for ''' + fixed_name + '''
+importString = '''#!/usr/bin/python
+#  Python inverse kinematic equations for **Robot**
 
 import numpy as np
 from math import sqrt
@@ -47,8 +38,98 @@ from math import asin
 
 pi = np.pi
 
+'''
 
-''', file=f)
+def output_FK_python_code(Robot):
+    importString = '''#!/usr/bin/python
+#  Python forward kinematic equations for **Robot**
+
+import numpy as np
+from math import sqrt
+from math import atan2
+from math import cos
+from math import sin
+from math import acos
+from math import asin
+
+pi = np.pi
+
+'''
+    DirName = 'CodeGen/Python/'
+    orig_name  = Robot.name.replace('test: ', '')
+    fname = DirName + 'FK_equations'+orig_name+'.py'
+    f = open(fname, 'w')
+    importString = importString.replace('**Robot**', Robot.name)
+    print(importString, file=f)
+
+    # parameter Declarations (a_3, d_5, etc).
+    tmp = '\n'
+    if(Robot.Mech.pvals != {}):  # if we have numerical values stored
+        for p in Robot.params:
+            val = str(Robot.Mech.pvals[p])
+            tmp += str(p) + ' = ' + val + '\n'
+    else:                        # no stored numerical values
+        for p in Robot.params:
+            tmp += str(p) + ' = XXXXX    # deliberate undeclared error!  USER needs to give numerical value \n'
+    par_decl_str = tmp
+
+
+    indent = '    ' # 4 spaces
+
+    funcname = 'Fkin_'+orig_name
+    print('''
+# Code to compute Forward Kinematics ''', file=f)
+    print('def', funcname +'():', file=f) # no indent
+
+    print(indent + '''
+#############################################################
+#
+#   Forward Kinematics
+#
+#############################################################
+ ''', file=f)
+
+
+    Fkeqns = Robot.Mech.forward_kinematics()
+
+    Tfk = Robot.Mech.T_06
+    print(indent + "T_06 = [  [' ', ' ', ' ', ' '], [' ', ' ', ' ', ' '], [' ', ' ', ' ', ' '], [' ', ' ', ' ', ' '] ]")
+    for i in range(4):
+        for j in range(4):
+            print(indent + f'T_06[{i}][{j}] = {sp.python(Tfk[i][j])}')
+
+    f.close()
+
+
+
+
+
+def output_python_code(Robot, groups):
+
+    importString = '''#!/usr/bin/python
+#  Python inverse kinematic equations for **Robot**
+
+import numpy as np
+from math import sqrt
+from math import atan2
+from math import cos
+from math import sin
+from math import acos
+from math import asin
+
+pi = np.pi
+
+'''
+    fixed_name = Robot.name.replace(r'_', r'\_')  # this is for LaTex output
+    fixed_name = fixed_name.replace('test: ','')
+    orig_name  = Robot.name.replace('test: ', '')
+
+    DirName = 'CodeGen/Python/'
+    fname = DirName + 'IK_equations'+orig_name+'.py'
+    f = open(fname, 'w')
+
+    importString = importString.replace('**Robot**', Robot.name)
+    print(importsString, file=f)
 
     # parameter Declarations (a_3, d_5, etc).
     tmp = '\n'
@@ -70,7 +151,7 @@ pi = np.pi
 
     funcname = 'ikin_'+fixed_name 
     print('''
-# Code to solve the unknowns ''', file=f)
+    # Code to solve the unknowns ''', file=f)
     print('def', funcname +'(T):', file=f) # no indent
     print(indent+'if(T.shape != (4,4)):', file=f)
     print(indent*2 + 'print ( "bad input to "+funcname'+')', file=f)
