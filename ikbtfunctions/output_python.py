@@ -108,7 +108,19 @@ pi = np.pi
     print('#\n#     Robot Joint Variables \n#',file=f)
 
     for v in Robot.variables:
-        print(indent + f'{str(v)} = 1.0   # 1.0= dummy value',file=f)
+        ss = str(v).split('_')   # get joint subscript(s)
+        if len(ss[1]) > 1:  # we have a sum_of_angles
+            subs = [*ss[1]] # make list of
+            soa = str(v) + ' = ' # e.g. 'th_23 = '
+            for s in subs:
+                print('Debug subscript s:',ss, s)
+                # find var with this subscript:
+                for v1 in Robot.variables:
+                    if s in str(v1) and len(str(v1).split('_')[1]) == 1: # avoid soa subscripts
+                        soa += f' {str(v1)} +'
+            print(indent + soa[:-1], file=f)
+        else:
+            print(indent + f'{str(v)} = 1.0   # 1.0= dummy value',file=f)
 
     funcname = 'Fkin_'+orig_name
     print('''
@@ -133,9 +145,11 @@ pi = np.pi
             #print(indent + f'T_06[{i}][{j}] = {sp.python(Tfk[i][j])}')
 
     print('T06 = ' + Tfk,file=f)
-
+    print('',file=f)
     print('print(f"T06 has {T06.rows} rows and {T06.cols} cols")',file=f)
+    print('',file=f)
     print('print(T06)', file=f)
+    print('',file=f)
 
     f.close()
 

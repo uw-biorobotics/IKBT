@@ -49,7 +49,8 @@ def robot_params(name):
             'Craig417', 
             'KawasakiRS05L',
             'KawasakiRS007L',
-            'Raven-II']
+            'Raven-II',
+            'DZhang']
     
     if not (name in List):
         print('robot_params(): Unknown robot, ' + name )

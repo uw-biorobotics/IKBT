@@ -64,7 +64,7 @@ else:
     print("")
     print('-'*50)
 
-# generic variables for any maniplator
+# generic variables for any manipulator
 ((th_1, th_2, th_3, th_4, th_5, th_6)) = sp.symbols(('th_1', 'th_2', 'th_3', 'th_4', 'th_5', 'th_6'))
 ((d_1, d_2, d_3, d_4, d_5, d_6)) = sp.symbols(('d_1', 'd_2', 'd_3', 'd_4', 'd_5', 'd_6'))
 ((h,l_0, l_1, l_2, l_3, l_4)) = sp.symbols(('h','l_0', 'l_1', 'l_2', 'l_3', 'l_4'))
@@ -81,7 +81,7 @@ sp.var('Px Py Pz')
 
 #  Very basic Test
 
-Rs = ['C-Arm', 'Gomez', 'Puma', 'Chair_Helper', 'Khat6DOF', 'Wrist', 'MiniDD', 'RavenII']
+#Rs = ['C-Arm', 'Gomez', 'Puma', 'Chair_Helper', 'Khat6DOF', 'Wrist', 'MiniDD', 'RavenII']
 
 if len(argv) == 1:  # no argument - use default
     #robot = 'Gomez'
