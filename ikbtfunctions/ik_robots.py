@@ -36,6 +36,7 @@ def robot_params(name):
             'UR5', 
             'Puma', 'Pumaoffset',
             'Chair_Helper', 
+            'Bartell',
             'Brad', 
             'Sims11',
             'ArmRobo', 
@@ -49,7 +50,10 @@ def robot_params(name):
             'Craig417', 
             'KawasakiRS05L',
             'KawasakiRS007L',
+            'Khat6DOF',
             'Raven-II',
+            'Wachtveitl', 'Frei13', 'Parkman13', 'Palm13', 'Minder13', 'Mackler13',
+            'Axtman13', 'Srisuan11', 'MiniDD', 'ICP5p5_A21', 'KR16', 'Issue4'
             'DZhang']
     
     if not (name in List):
