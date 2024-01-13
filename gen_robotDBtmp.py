@@ -53,6 +53,10 @@ class RobotParms:
         d = {}
         #d = { 'a': 5, 'b' : 'B', 'c': [ 1, 5, 7, 13 ]}
         d['name'] = self.name
+        svars = []
+        for v in self.variables:
+            svars.append(str(v))
+        d['variables'] = svars
         d['vv'] = self.vv
         spar = []
         for p in self.params:
@@ -65,27 +69,6 @@ class RobotParms:
         d['dh'] = str(self.dh)
         return d
 
-    #def to_dict(self):
-
-        #d = {
-            #'name': self.name,
-            #'vv': self.vv,
-            #'params': self.params,
-            #'pvals': self.pvals,
-            #'variables': self.variables
-            #}
-
-        ##for i in range(len(self.dh)):
-            ##for j in range(4):
-                ##k = f'dh_{i}_{j}'
-                ##d[k] = str(self.dh[i][j])
-
-        #d['dh'] = str(self.dh)
-
-        #print('to_dict:')
-        #print(d)
-
-        #return d
 
 
 def process_robot_params(fname):
@@ -117,11 +100,12 @@ def process_robot_params(fname):
     fp = open(fname, 'w')
     List.sort()
     for name in List:
+        print('---', file=fp)
         d2 = getRobotInfo(name).to_dict()
-        print('DEBUG 1', d2)
-        ydata = yaml.dump(d2,indent=2)
+        if name=='Raven-II':
+            print('DEBUG 1', d2)
+        ydata = yaml.dump(d2,indent=2, sort_keys=False)
         fp.write(ydata)
-
     fp.close()
 
 
