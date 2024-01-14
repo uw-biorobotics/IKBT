@@ -5,7 +5,7 @@
 
 # Copyright 2017 University of Washington
 
-# Developed by Dianmu Zhang and Blake Hannaford 
+# Developed by Dianmu Zhang and Blake Hannaford
 # BioRobotics Lab, University of Washington
 
 # Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -22,14 +22,15 @@ import sympy as sp
 from ikbtbasics.kin_cl import *
 from ikbtfunctions.helperfunctions import *
 from ikbtbasics.ik_classes import *     # special classes for Inverse kinematics in sympy
+import sys
 #
 import yaml
 
 ####
 #
-#   NOTE: due to an obscure sympy bug, you cannot use numerical values in any DH position.   Use a symbolic constant
-#         instead (like a_3 below), declare it in params, and give it your value in pvals
-#
+#    This is a test of the code to serialize a robot parameter set,
+#  dump it to a yaml file, and then read it back in.    Asserts are given
+#  so normal completion == pass.
 #####
 
 
@@ -134,61 +135,73 @@ def testSympyYaml():
 
 if __name__=='__main__':
 
+    yfname = 'SympyTest.yml'
+
+    if len(sys.argv)==1:
+        WRITE=True
+        READ =True
+    else:  # use an arg to force test of reading only
+        WRITE=False
+        READ=True
+
     print('test of Yaml serialization with sympy')
 
-    #set up the params
-    RP = testSympyYaml()
-    d = RP.to_dict()
+    if WRITE:
+        print('TESTING: writing out parameters.')
+        #set up the params
+        RP = testSympyYaml()
+        d = RP.to_dict()
 
-    yfname = 'SympyTest.yml'
-    fp = open(yfname,'w')
+        fp = open(yfname,'w')
 
-    ydata = yaml.dump(d,indent=2, sort_keys=False)
-    fp.write(ydata)
-    fp.close()
+        ydata = yaml.dump(d,indent=2, sort_keys=False)
+        fp.write(ydata)
+        fp.close()
 
-    print('Yaml file is written: {yfname}')
+        print('Yaml file is written: {yfname}')
 
+    if READ:
 ##########################################    Test load yaml
 
-    fp = open(yfname, 'r')
-    d2 = yaml.safe_load(fp)
-    print('Result: dict: ')
-    for k in d2.keys():
-        print('    ',f'{k:12} {d2[k]}')
+        print('TESTING: reading in parameters.')
+        fp = open(yfname, 'r')
+        d2 = yaml.safe_load(fp)
+        print('Result: dict: ')
+        for k in d2.keys():
+            print('    ',f'{k:12} {d2[k]}')
 
 
-    # convert dh parameters from string to sympy variables/expressions
-    pi = sp.pi  # sympy takes of 'sp.' from string rep.
-    print('\n eval() result:')
-    print(type(d2['dh']))
-    mat = eval(d2['dh'])
-    x = sp.var('x')
-    print('type: dh element: ', type(mat[2][0]) )
-    assert 'sympy' in str(type(mat[2][0])), 'failed to convert dh elements from str to sympy  '
+        # convert dh parameters from string to sympy variables/expressions
+        pi = sp.pi  # sympy takes of 'sp.' from string rep.
+        print('\n eval() result:')
+        print(type(d2['dh']))
+        mat = eval(f"vars({d2['dh']})")
+        x = sp.var('x')
+        print('type: dh element: ', type(mat[2][0]) )
+        assert 'sympy' in str(type(mat[2][0])), 'failed to convert dh elements from str to sympy  '
 
-    print('sympy expression from matrix')
-    syexp = mat[2][0]*(mat[0][3] + mat[1][3])/mat[2][0]
-    assert syexp == mat[0][3] + mat[1][3], 'sympy conversion problem'
+        print('sympy expression from matrix')
+        syexp = mat[2][0]*(mat[0][3] + mat[1][3])/mat[2][0]
+        assert syexp == mat[0][3] + mat[1][3], 'sympy conversion problem'
 
-    print(syexp)
+        print(syexp)
 
-    print('Check from_dict(to_dict(R)) == identity')
+        print('Check from_dict(to_dict(R)) == identity')
 
-    RP2 = RobotParms()
-    RP2.from_dict(RP.to_dict())
-    assert RP2.name==RP.name, 'to-from dictionary error: name'
-    assert RP2.vv==RP.vv, 'to-from dictionary error: vv'
-    assert RP2.pvals==RP.pvals, 'to-from dictionary error: pvals'
-    assert RP2.params==RP.params, 'to-from dictionary error: params'
-    print('RP2.variables: ',RP2.variables, type(RP2.variables))
-    print('RP.variables: ', RP.variables,  type(RP.variables))
-    for i in range(6):
-        RP2.variables[i] =  unknown(RP2.variables[i])  #ikbtbasics.kin_cl.unknown(()
-        print(RP.variables[i], type(RP.variables[i]), type(RP2.variables[i]))
-    assert RP2.variables==RP.variables, 'to-from dictionary error: variables'
-    d3 = RP.to_dict()
-    d4 = RP2.to_dict()
-    assert d3==d4, 'from-to dictionary error'
+        RP2 = RobotParms()
+        RP2.from_dict(RP.to_dict())
+        assert RP2.name==RP.name, 'to-from dictionary error: name'
+        assert RP2.vv==RP.vv, 'to-from dictionary error: vv'
+        assert RP2.pvals==RP.pvals, 'to-from dictionary error: pvals'
+        assert RP2.params==RP.params, 'to-from dictionary error: params'
+        print('RP2.variables: ',RP2.variables, type(RP2.variables))
+        print('RP.variables: ', RP.variables,  type(RP.variables))
+        for i in range(6):
+            RP2.variables[i] =  unknown(RP2.variables[i])  #ikbtbasics.kin_cl.unknown(()
+            print(RP.variables[i], type(RP.variables[i]), type(RP2.variables[i]))
+        assert RP2.variables==RP.variables, 'to-from dictionary error: variables'
+        d3 = RP.to_dict()
+        d4 = RP2.to_dict()
+        assert d3==d4, 'from-to dictionary error'
 
-
+    print('\n\n              ALL TESTS PASS\n\n')
