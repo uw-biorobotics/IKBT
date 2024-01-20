@@ -39,6 +39,9 @@ from math import asin
 pi = np.pi
 
 '''
+#
+#   Output python code to simplify and numerically evaluate the forward kinematic equations
+#
 
 def output_FK_python_code(Robot):
 
@@ -109,15 +112,18 @@ pi = np.pi
 
     for v in Robot.variables:
         ss = str(v).split('_')   # get joint subscript(s)
-        if len(ss[1]) > 1:  # we have a sum_of_angles
-            subs = [*ss[1]] # make list of
-            soa = str(v) + ' = ' # e.g. 'th_23 = '
-            for s in subs:
-                print('Debug subscript s:',ss, s)
-                # find var with this subscript:
-                for v1 in Robot.variables:
-                    if s in str(v1) and len(str(v1).split('_')[1]) == 1: # avoid soa subscripts
-                        soa += f' {str(v1)} +'
+        print('Variabl: SofA: ', str(v), ss)
+        if len(ss) > 1:
+            if len(ss[1]) > 1:  # we have a sum_of_angles
+                print('Sum of ang found in variable: ', str(v))
+                subs = [*ss[1]] # make list of
+                soa = str(v) + ' = ' # e.g. 'th_23 = '
+                for s in subs:
+                    print('Debug subscript s:',ss, s)
+                    # find var with this subscript:
+                    for v1 in Robot.variables:
+                        if s in str(v1) and len(str(v1).split('_')[1]) == 1: # avoid soa subscripts
+                            soa += f' {str(v1)} +'
             print(indent + soa[:-1], file=f)
         else:
             print(indent + f'{str(v)} = 1.0   # 1.0= dummy value',file=f)
@@ -138,13 +144,24 @@ pi = np.pi
 
     Fkeqns = Robot.Mech.forward_kinematics()
 
-    Tfk = str(Robot.Mech.T_06)
-    #print(indent + "T_06 = [  [' ', ' ', ' ', ' '], [' ', ' ', ' ', ' '], [' ', ' ', ' ', ' '], [' ', ' ', ' ', ' '] ]")
-    #for i in range(4):
-        #for j in range(4):
-            #print(indent + f'T_06[{i}][{j}] = {sp.python(Tfk[i][j])}')
+    Tfk = (Robot.Mech.T_06)
 
-    print('T06 = ' + Tfk,file=f)
+    # we are now going to simplify any trig expressions which contain only numeric args
+    #   (a lot of them if alpha_i != 0pi/2, pi, etc. )
+
+
+    print('Simplifying out parameter values')
+    if(Robot.Mech.pvals != {}):  # if we have numerical values stored
+        for r in range(3):  #skip bottom row, {0,0,0,1}
+            for c in range(4):
+                new = Tfk[r][c].evalf(subs=pvals)
+                print('\nOrig Expression:')
+                print(Tfk[r][c])
+                print('Simplified expression:')
+                print(new)
+    Tfks = str(Tfk)
+
+    print('T06 = ' + Tfks,file=f)
     print('',file=f)
     print('print(f"T06 has {T06.rows} rows and {T06.cols} cols")',file=f)
     print('',file=f)
@@ -156,6 +173,9 @@ pi = np.pi
 
 
 
+#
+#   Output python code to   evaluate the inverse kinematic equations
+#
 
 def output_python_code(Robot, groups):
 
