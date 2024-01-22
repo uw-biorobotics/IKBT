@@ -94,7 +94,7 @@ if use_pickle:
     # using pickle
     testing = False
     [M, R, unknowns] = kinematics_pickle(robot, dh, params, pvals, vv, unknowns, testing)
-    print('GOT HERE: robot name: ', R.name)
+    print('GOT HERE (use pickle): robot name: ', R.name)
 
     M.forward_kinematics()
 else:

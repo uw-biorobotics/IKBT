@@ -25,17 +25,8 @@ from ikbtfunctions.helperfunctions import *
 from ikbtbasics.ik_classes import *     # special classes for Inverse kinematics in sympy
 #
 
-def output_python_code(Robot, groups):
-
-    fixed_name = Robot.name.replace(r'_', r'\_')  # this is for LaTex output
-    fixed_name = fixed_name.replace('test: ','')
-    orig_name  = Robot.name.replace('test: ', '')
-
-    DirName = 'CodeGen/Python/'
-    fname = DirName + 'IK_equations'+orig_name+'.py'
-    f = open(fname, 'w')
-    print('''#!/usr/bin/python
-#  Python inverse kinematic equations for ''' + fixed_name + '''
+importString = '''#!/usr/bin/python
+#  Python inverse kinematic equations for **Robot**
 
 import numpy as np
 from math import sqrt
@@ -47,8 +38,155 @@ from math import asin
 
 pi = np.pi
 
+'''
+#
+#   Output python code to simplify and numerically evaluate the forward kinematic equations
+#
 
-''', file=f)
+def output_FK_python_code(Robot):
+
+    DirName = 'CodeGen/Python/'
+    orig_name  = Robot.name.replace('test: ', '')
+    fname = DirName + 'FK_equations'+orig_name+'.py'
+    f = open(fname, 'w')
+
+    importString = '''#!/usr/bin/python
+#  Python forward kinematic equations for **Robot**
+
+import numpy as np
+from math import sqrt
+from math import atan2
+from math import cos
+from math import sin
+from math import acos
+from math import asin
+
+pi = np.pi
+
+'''
+    importString = importString.replace('**Robot**', Robot.name)
+    print(importString, file=f)
+
+    matclass = '''class Matrix:
+    def __init__(self,A):
+        Matrix.A = A
+        Matrix.rows = len(A)
+        Matrix.cols = len(A[0])
+
+    def __repr__(self):
+        res = '\\n'
+        for i in range(self.rows):
+            for j in range(self.cols):
+                res += f'{self.A[i][j]:10.3f} '
+            res += '\\n'
+        return res
+    '''
+
+    print(matclass, file=f)
+
+    indent = '' # 4 spaces
+
+    # parameter Declarations (a_3, d_5, etc).
+
+    print('#\n#      Robot Parameters \n#',file=f)
+    tmp = '\n'
+    if(Robot.Mech.pvals != {}):  # if we have numerical values stored
+        for p in Robot.params:
+            val = str(Robot.Mech.pvals[p])
+            tmp += str(p) + ' = ' + val + '\n'
+    else:                        # no stored numerical values
+        for p in Robot.params:
+            tmp += str(p) + ' = XXXXX    # deliberate undeclared error!  USER needs to give numerical value \n'
+    par_decl_str = tmp
+
+    print(par_decl_str, file=f)
+
+
+    # joint variables:
+    print('Debug: joint variables: ', Robot.variables)
+
+    print('#\n#     Robot Joint Variables \n#',file=f)
+
+    for v in Robot.variables:
+        ss = str(v).split('_')   # get joint subscript(s)
+        print('Variabl: SofA: ', str(v), ss)
+        if len(ss) > 1:
+            if len(ss[1]) > 1:  # we have a sum_of_angles
+                print('Sum of ang found in variable: ', str(v))
+                subs = [*ss[1]] # make list of
+                soa = str(v) + ' = ' # e.g. 'th_23 = '
+                for s in subs:
+                    print('Debug subscript s:',ss, s)
+                    # find var with this subscript:
+                    for v1 in Robot.variables:
+                        if s in str(v1) and len(str(v1).split('_')[1]) == 1: # avoid soa subscripts
+                            soa += f' {str(v1)} +'
+                print(indent + soa[:-1], file=f)
+            else:
+                print(indent + f'{str(v)} = 1.0   # 1.0= dummy value',file=f)
+
+    funcname = 'Fkin_'+orig_name
+    print('''
+# Code to compute Forward Kinematics ''', file=f)
+    #print('def', funcname +'():', file=f) # no indent
+
+    print(indent + '''
+#############################################################
+#
+#   Forward Kinematics
+#
+#############################################################
+ ''', file=f)
+
+
+    Fkeqns = Robot.Mech.forward_kinematics()
+
+    Tfk = (Robot.Mech.T_06)
+
+    Tfks = str(Tfk)
+
+    print('T06 = ' + Tfks,file=f)
+    print('',file=f)
+    print('print(f"T06 has {T06.rows} rows and {T06.cols} cols")',file=f)
+    print('',file=f)
+    print('print(T06)', file=f)
+    print('',file=f)
+
+    f.close()
+
+
+
+
+#
+#   Output python code to   evaluate the inverse kinematic equations
+#
+
+def output_python_code(Robot, groups):
+
+    importString = '''#!/usr/bin/python
+#  Python inverse kinematic equations for **Robot**
+
+import numpy as np
+from math import sqrt
+from math import atan2
+from math import cos
+from math import sin
+from math import acos
+from math import asin
+
+pi = np.pi
+
+'''
+    fixed_name = Robot.name.replace(r'_', r'\_')  # this is for LaTex output
+    fixed_name = fixed_name.replace('test: ','')
+    orig_name  = Robot.name.replace('test: ', '')
+
+    DirName = 'CodeGen/Python/'
+    fname = DirName + 'IK_equations'+orig_name+'.py'
+    f = open(fname, 'w')
+
+    importString = importString.replace('**Robot**', Robot.name)
+    print(importsString, file=f)
 
     # parameter Declarations (a_3, d_5, etc).
     tmp = '\n'
@@ -70,7 +208,7 @@ pi = np.pi
 
     funcname = 'ikin_'+fixed_name 
     print('''
-# Code to solve the unknowns ''', file=f)
+    # Code to solve the unknowns ''', file=f)
     print('def', funcname +'(T):', file=f) # no indent
     print(indent+'if(T.shape != (4,4)):', file=f)
     print(indent*2 + 'print ( "bad input to "+funcname'+')', file=f)

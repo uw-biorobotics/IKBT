@@ -26,6 +26,7 @@ import unittest
 import b3 as b3          # behavior trees
 
 # local modules
+
 import ikbtfunctions.helperfunctions as hf
 import ikbtfunctions.output_latex as ol
 import ikbtfunctions.output_python as op
@@ -63,7 +64,7 @@ else:
     print("")
     print('-'*50)
 
-# generic variables for any maniplator
+# generic variables for any manipulator
 ((th_1, th_2, th_3, th_4, th_5, th_6)) = sp.symbols(('th_1', 'th_2', 'th_3', 'th_4', 'th_5', 'th_6'))
 ((d_1, d_2, d_3, d_4, d_5, d_6)) = sp.symbols(('d_1', 'd_2', 'd_3', 'd_4', 'd_5', 'd_6'))
 ((h,l_0, l_1, l_2, l_3, l_4)) = sp.symbols(('h','l_0', 'l_1', 'l_2', 'l_3', 'l_4'))
@@ -80,14 +81,14 @@ sp.var('Px Py Pz')
 
 #  Very basic Test
 
-Rs = ['C-Arm', 'Gomez', 'Puma', 'Chair_Helper', 'Khat6DOF', 'Wrist', 'MiniDD', 'RavenII']
+#Rs = ['C-Arm', 'Gomez', 'Puma', 'Chair_Helper', 'Khat6DOF', 'Wrist', 'MiniDD', 'RavenII']
 
 if len(argv) == 1:  # no argument - use default
     #robot = 'Gomez'
     #robot = 'Puma'
     #robot = 'Chair_Helper'
     #robot = 'Khat6DOF'
-    robot = 'Wrist'
+    robot = 'Raven-II'
 
 elif len(argv) == 2:
     robot = str(argv[1])
@@ -109,23 +110,24 @@ print('')
 
 testing = False
 [M, R, unknowns] = kinematics_pickle(robot, dh, params, pvals, vv, unknowns, testing)
-print('GOT HERE: robot name: ', R.name)
+print('GOT HERE (after FK): robot name: ', R.name)
 
 R.name = robot
 R.params = params
+R.variables = unknowns
 
 ##   check the pickle in case DH params were changed
 dhp = M.DH
 check_the_pickle(dhp, dh)   # check that two mechanisms have identical DH params
+
+print('Generating Python code ...')
+op.output_FK_python_code(R)  # should do it all(!)
 
 
 ##################################   The FK and Jacobian are already done here!
 
 
 
-####################################################################################
-##
-#                              No BT needed
 #
 #
 if TEST_DATA_GENERATION:
@@ -137,7 +139,7 @@ if TEST_DATA_GENERATION:
         pickle.dump( [R, unks], pf)
     quit()
 
-ol.output_FK_equations(R)
+ol.output_FK_equations(R)  # output Latex.
 
  
 

@@ -159,8 +159,6 @@ class TestIkClass(unittest.TestCase):
         print('but just sometimes!!!')
         assert str(term2) == correctString, fs
     
-        
-
     def test_SOA_idsub_3(self):
             
         #####################################################

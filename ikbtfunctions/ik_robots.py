@@ -36,6 +36,7 @@ def robot_params(name):
             'UR5', 
             'Puma', 'Pumaoffset',
             'Chair_Helper', 
+            'Bartell',
             'Brad', 
             'Sims11',
             'ArmRobo', 
@@ -48,7 +49,12 @@ def robot_params(name):
             'Khat6DOF',    
             'Craig417', 
             'KawasakiRS05L',
-            'KawasakiRS007L']
+            'KawasakiRS007L',
+            'Khat6DOF',
+            'Raven-II',
+            'Wachtveitl', 'Frei13', 'Parkman13', 'Palm13', 'Minder13', 'Mackler13',
+            'Axtman13', 'Srisuan11', 'MiniDD', 'ICP5p5_A21', 'KR16', 'Issue4'
+            'DZhang']
     
     if not (name in List):
         print('robot_params(): Unknown robot, ' + name )
@@ -59,10 +65,31 @@ def robot_params(name):
 
 
 
-####################################################      Issues 2 and 4
 
+    if(name == 'Raven-II'):
+
+        sp.var('ld_1 ld_2 ld_3 ld_4')
+
+        dh = sp.Matrix([
+        [  0,          0,     0,      th_1  ],
+        [ al_1,   0 ,     0,      th_2  ],
+        [ al_2,      0,    d_3,   sp.pi/2 ],         # testing
+        [ 0,           0,     ld_2,     th_4  ],
+        [ sp.pi/2 ,    0,        0,     th_5  ],
+        [ sp.pi/2 ,    ld_3,    0,      th_6  ]
+        ])
+        vv = [1,1,0,1,1,1]
+
+        variables =  [unknown(th_1), unknown(th_2), unknown(d_3), unknown(th_4), unknown(th_5), unknown(th_6)]
+
+        params = [  ld_2, ld_3 , al_1, al_2]
+        #pvals = {ld_2: -470.0, ld_3: 13.0, al_1 : sp.pi*75/180, al_2: (180-52)*sp.pi/180}
+        # use np.pi because these are fixed numerical params.
+        pvals = {ld_2: -470.0, ld_3: 13.0, al_1 : np.pi*75/180, al_2: (180-52)*np.pi/180}
+
+############################################################33    Issues 3 and 4 tests
     if(name == 'Issue4'):
-        
+
         sp.var('ld_1 ld_2 ld_3 ld_4')
 
         dh = sp.Matrix([

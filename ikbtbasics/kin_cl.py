@@ -268,6 +268,7 @@ class mechanism:
 
     ###############  compute kinematic transforms and equations for the manipulator (including Jacobian)
     def forward_kinematics(self):
+
         ###   set up symbolic variables
         if(JACOBIAN):
             # angular velocities of each link
@@ -283,6 +284,22 @@ class mechanism:
         d = 2    # d_n
         th = 3   # th_n
 
+        # find any alphas which are not n*90deg
+        alpha_subs = {}
+        for i in range(6):
+            alpha_i = self.DH[i,al]
+            if not (sp.sin(alpha_i) == 0 or sp.cos(alpha_i) == 0):  # alpha is not "nice"
+                tmpvc = sp.var(f'ca{i}')  # create new parameter for cos(al)-> ca1, ca2, etc
+                tmpvs = sp.var(f'sa{i}')  # create new parameter for sin(al)
+
+                self.params.append(tmpvc)   #
+                self.params.append(tmpvs)   #
+                self.pvals[tmpvc] = f'np.cos({alpha_i})'
+                self.pvals[tmpvs] = f'np.sin({alpha_i})'
+
+                alpha_subs[sp.cos(alpha_i)] = tmpvc  # we will make these subs in the T matrics
+                alpha_subs[sp.sin(alpha_i)] = tmpvs
+
         #  symbolic 4x4 transforms for each link
         self.T_01 = Link_S(self.DH[0,al], self.DH[0,a], self.DH[0,d], self.DH[0,th])
         self.T_12 = Link_S(self.DH[1,al], self.DH[1,a], self.DH[1,d], self.DH[1,th])
@@ -291,8 +308,29 @@ class mechanism:
         self.T_45 = Link_S(self.DH[4,al], self.DH[4,a], self.DH[4,d], self.DH[4,th])
         self.T_56 = Link_S(self.DH[5,al], self.DH[5,a], self.DH[5,d], self.DH[5,th])
 
-        #  here is the full FK derivation:
-        self.T_06 = sp.trigsimp(self.T_01 * self.T_12 * self.T_23 * self.T_34 * self.T_45 * self.T_56)
+        # there a fairly rare class of robots in which cos(al)/sin(al) does not
+        #evaluate to  {-1,0,1}! (Raven-II is a member!)
+        # We would like to substitute in numerical value instead of 'cos(al_1)' etc.
+        #  for better simplification downstream
+
+        if True:
+            # replace not-nice sin/cos(alpha) with constants
+            self.T_01 = self.T_01.subs(alpha_subs).doit()
+            self.T_12 = self.T_12.subs(alpha_subs).doit()
+            self.T_23 = self.T_23.subs(alpha_subs).doit()
+            self.T_34 = self.T_34.subs(alpha_subs).doit()
+            self.T_45 = self.T_45.subs(alpha_subs).doit()
+            self.T_56 = self.T_56.subs(alpha_subs).doit()
+        else:
+            # replace all constant parameters with numerical values
+            self.T_01 = self.T_01.subs(self.pvals).doit()
+            self.T_12 = self.T_12.subs(self.pvals).doit()
+            self.T_23 = self.T_23.subs(self.pvals).doit()
+            self.T_34 = self.T_34.subs(self.pvals).doit()
+            self.T_45 = self.T_45.subs(self.pvals).doit()
+            self.T_56 = self.T_56.subs(self.pvals).doit()
+            # (too many float constants in generated code so this is disabled)
+
 
         # list of T_ij matrices (used in inverse kinematics update
         self.Ts = [self.T_01, self.T_12, self.T_23, self.T_34, self.T_45, self.T_56]
