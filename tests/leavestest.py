@@ -136,20 +136,28 @@ class TestIkClass(unittest.TestCase):
         if newe:
             print(' NEW Equation: ', newe)
             
-        print('---')
+        print('--- before SOA')
         print(eqnterm)
-        print('---')
+        print('--- after SOA')
         print(term2)
         print('---')
         print('new unknown list: ', unks01)
         
         fs = 'FAIL problem specific SOA tests'
-        #print('====== term 2')
-        #print(term2)
-        #print('=============')
-        assert str(term2) == 'Px*sin(th_234)*cos(th_1) + Py*sin(th_1)*sin(th_234) + Pz*cos(th_234) - a_2*sin(th_34) - a_3*sin(th_4) - d_1*cos(th_234)', fs
+        print('====== term 2')
+        print(term2)
+        print('=============')
         assert kc.unknown(th_234) in unks01, fs
         assert kc.unknown(th_34) in unks01, fs
+        correctString = 'Px*sin(th_234)*cos(th_1) + Py*sin(th_1)*sin(th_234) + Pz*cos(th_234) - a_2*sin(th_34) - a_3*sin(th_4) - d_1*cos(th_234)'
+        print('----- Correct:')
+        print(correctString)
+        print('--------------')
+        # TODO:  Clean up this unreliable test!!
+        print('WARNING:  this assertion seems to randomly fail!! Try running the test multiple times')
+        print('The failure mode is that the 3-way SOA substitution fails and terms like (th_2 + th_34) appear')
+        print('but just sometimes!!!')
+        assert str(term2) == correctString, fs
     
         
 
