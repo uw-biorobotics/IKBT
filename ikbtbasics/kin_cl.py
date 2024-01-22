@@ -321,7 +321,7 @@ class mechanism:
             self.T_34 = self.T_34.subs(alpha_subs).doit()
             self.T_45 = self.T_45.subs(alpha_subs).doit()
             self.T_56 = self.T_56.subs(alpha_subs).doit()
-         else:
+        else:
             # replace all constant parameters with numerical values
             self.T_01 = self.T_01.subs(self.pvals).doit()
             self.T_12 = self.T_12.subs(self.pvals).doit()
