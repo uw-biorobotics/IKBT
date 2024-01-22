@@ -84,9 +84,6 @@ pi = np.pi
 
     print(matclass, file=f)
 
-    print('Debug: Robot.params:',Robot.params)
-
-
     indent = '' # 4 spaces
 
     # parameter Declarations (a_3, d_5, etc).
@@ -124,9 +121,9 @@ pi = np.pi
                     for v1 in Robot.variables:
                         if s in str(v1) and len(str(v1).split('_')[1]) == 1: # avoid soa subscripts
                             soa += f' {str(v1)} +'
-            print(indent + soa[:-1], file=f)
-        else:
-            print(indent + f'{str(v)} = 1.0   # 1.0= dummy value',file=f)
+                print(indent + soa[:-1], file=f)
+            else:
+                print(indent + f'{str(v)} = 1.0   # 1.0= dummy value',file=f)
 
     funcname = 'Fkin_'+orig_name
     print('''
@@ -146,19 +143,6 @@ pi = np.pi
 
     Tfk = (Robot.Mech.T_06)
 
-    # we are now going to simplify any trig expressions which contain only numeric args
-    #   (a lot of them if alpha_i != 0pi/2, pi, etc. )
-
-
-    print('Simplifying out parameter values')
-    if(Robot.Mech.pvals != {}):  # if we have numerical values stored
-        for r in range(3):  #skip bottom row, {0,0,0,1}
-            for c in range(4):
-                new = Tfk[r][c].evalf(subs=pvals)
-                print('\nOrig Expression:')
-                print(Tfk[r][c])
-                print('Simplified expression:')
-                print(new)
     Tfks = str(Tfk)
 
     print('T06 = ' + Tfks,file=f)
