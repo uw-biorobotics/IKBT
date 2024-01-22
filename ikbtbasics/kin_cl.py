@@ -331,6 +331,8 @@ class mechanism:
             self.T_56 = self.T_56.subs(self.pvals).doit()
             # (too many float constants in generated code so this is disabled)
 
+        #  here is the full FK derivation:
+        self.T_06 = sp.trigsimp(self.T_01 * self.T_12 * self.T_23 * self.T_34 * self.T_45 * self.T_56)
 
         # list of T_ij matrices (used in inverse kinematics update
         self.Ts = [self.T_01, self.T_12, self.T_23, self.T_34, self.T_45, self.T_56]
