@@ -163,7 +163,7 @@ class unknown(object):
         if not found:
             n = Node(self)
             R.solution_nodes.append(n)
-            print(' Generated node: ', type(n))
+            print('---------> New Generated node: ',n, '    ', type(n))
             R.variables_symbols.append(self.symbol)
             
         # for new solution graph
@@ -195,6 +195,7 @@ class unknown(object):
         #set solutions
 
         curr_node.detect_parent(R)
+
         curr_node.generate_notation(R)
         #curr_node.generate_solutions(R)
         #print 'finish set_solved', self.symbol
@@ -476,6 +477,8 @@ class mechanism:
         lhs = self.Td
         rhs = self.T_01*self.T_12*self.T_23*self.T_34*self.T_45*self.T_56
         list.append(matrix_equation(lhs,rhs))
+
+        self.T_06 = rhs
 
         lhs = H_inv_S(self.T_01)*self.Td
         rhs =           self.T_12*self.T_23*self.T_34*self.T_45*self.T_56

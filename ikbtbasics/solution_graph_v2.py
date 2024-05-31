@@ -63,18 +63,23 @@ def find_edge(child, graph):
     
 def related(start_node, end_node):
     '''DFS: return True if a path exists, for Node types'''
+    print('solution_graph: related: ', start_node, end_node)
     s = []
     s.append(start_node)
     
+    print(f'      start: {start_node} Parents: {start_node.parents}')
     #ancestors = set()
     
     while(len(s) > 0):
+
         curr = s[-1]
         del s[-1]
-        
+        #print(f'          {curr} == {end_node}??  ')
         if curr == end_node:
             return True
         else:
+            if len(curr.parents) == 0:
+                return False
             next_steps = curr.parents
             s.extend(next_steps)
     return False
@@ -115,12 +120,13 @@ class Node:
     def detect_parent(self, R):
         if not len(self.solutions) == 0:
             eqn = self.solutions[0] #solutions is a list of keqn
-            print(eqn)
+            print('Node.detect_parent:', eqn)
             elements = eqn.atoms(sp.Symbol) # get only symbol elements
             for elem in elements:
                 if elem in R.variables_symbols: #swap possible_unkns to unknows symbols
                     parent = find_node(R.solution_nodes, elem)
-                    self.parents.append(parent)
+                    if parent.symbol != elem:  #####  **** NEW 31-May-24 BH (not tested yet)
+                        self.parents.append(parent)
                      
             # detect redundancy and eliminate higher order parent
             if len(self.parents) > 1:

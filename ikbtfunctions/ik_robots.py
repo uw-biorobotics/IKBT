@@ -54,7 +54,8 @@ def robot_params(name):
             'Raven-II',
             'Wachtveitl', 'Frei13', 'Parkman13', 'Palm13', 'Minder13', 'Mackler13',
             'Axtman13', 'Srisuan11', 'MiniDD', 'ICP5p5_A21', 'KR16', 'Issue4'
-            'DZhang']
+            'DZhang',
+            'JennyGuoSp24']
     
     if not (name in List):
         print('robot_params(): Unknown robot, ' + name )
@@ -64,6 +65,25 @@ def robot_params(name):
         quit()
 
 
+
+
+    if(name == 'JennyGuoSp24'):         #  ECE543 Sp24
+        #
+        dh = sp.Matrix([
+        [  -sp.pi/2 ,    0 ,  d_1 , 0 ],
+        [   sp.pi/2 ,    0 ,  l_2 , th_2 ],
+        [   sp.pi/2 ,    0 ,   0 , th_3 ],
+        [       0   , l_3  ,   0 , th_4 ],
+        [       0   , l_4  ,   0 , th_5],
+        [ 0,0,0,0 ]  # can't solve with d_6 ~= 0!
+        ])
+
+        vv = [0,1,1,1,1,1]
+        variables =  [unknown(d_1), unknown(th_2), unknown(th_3), unknown(th_4), unknown(th_5), unknown(th_6)]
+        params = [ l_2, l_3, l_4]
+        pvals = {l_2:1,l_3:1,l_4:1}
+
+############################################################
 
 
     if(name == 'Raven-II'):
@@ -162,7 +182,7 @@ def robot_params(name):
     if(name == 'KawasakiRS007L'):
         
          dh = sp.Matrix([
-             [0,        0,     l_1,  th_1 ],
+             [0,        0,    l_1,  th_1 ],
              [sp.pi/2,  0,      0,  th_2 ],
              [0,        l_2,    0,  th_3 ],
              [ sp.pi/2, 0,    l_3,  th_4 ],
