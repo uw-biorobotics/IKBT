@@ -186,7 +186,7 @@ pi = np.pi
     f = open(fname, 'w')
 
     importString = importString.replace('**Robot**', Robot.name)
-    print(importsString, file=f)
+    print(importString, file=f)
 
     # parameter Declarations (a_3, d_5, etc).
     tmp = '\n'
