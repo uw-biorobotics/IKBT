@@ -209,6 +209,9 @@ class Robot:
             self.mequation_list = Mech.get_mequation_set()  # all the Matrix FK equations
             print('ik_classes: length Robot.mequation_list: ', len(self.mequation_list))
 
+    #generate_solution_nodes
+    #    APPEARS TO BE NOT USED:
+    #
     def generate_solution_nodes(self, unknowns):
         '''generate solution nodes'''
         for unk in unknowns:
@@ -216,8 +219,7 @@ class Robot:
                                               #  typically SOA unknowns like th_23
                 self.solution_nodes.append(Node(unk))
                 self.variables_symbols.append(unk.symbol)
-
-        print(self.solution_nodes)
+        print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>Robot: solution nodes:', self.solution_nodes)
         print(self.variables_symbols)
 
     # get lists of unsolved equations having 1 and 2 unks
