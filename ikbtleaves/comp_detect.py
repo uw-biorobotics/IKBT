@@ -54,20 +54,24 @@ class comp_det(b3.Action):
             
         n = 0
         ns = 0
+        print('\n\n')
         for u in unks:
             n += 1
+            status = 'Unsolved'
             if(u.solved):
                 ns += 1
-        print('\n\n')
+                status = 'SOLVED'
+            sname = str(u.symbol)
+            print(f'{sname:10}: {status}')
+
         print('           Completion Detector: ', n, ' variables, ', ns, ' are solved.')
         print('             solved: ',)
         for u in unks:
             if(u.solved):
-                str = '{} ({});  '.format(u.symbol, u.solvemethod)
-                print(str,                )
+                outstr = '{} ({});  '.format(u.symbol, u.solvemethod)
+                print(outstr,                )
         print('\n\n\n')
-        time.sleep(2)  # for easier reading/ stopping
-            
+        time.sleep(10)  # for easier reading/ stopping
             
         #
         #   Look for sum-of-angle equations which can now be solved
@@ -76,7 +80,6 @@ class comp_det(b3.Action):
         #   this should be algebric solver's work, 
         #   also the set solve here causes problem
         
-                
                 
         if(self.FailAllDone):               # we can set up to succeed when all are done or succeed when more to do. 
             DONEComplete   = b3.FAILURE
