@@ -87,14 +87,14 @@ class test_sub_transform(b3.Action):    # tester for your ID
 class sub_transform(b3.Action):    # action leaf for  
     
     def tick(self, tick):
-        unknowns = tick.blackboard.get('unknowns')   # the current list of unknowns
+        unknowns = tick.blackboard.get('unknowns')   # the current list of unknowns (read-only here)
         R = tick.blackboard.get('Robot')   # the current robot instance
         if(self.BHdebug):
             print("running: ", self.Name)
             print('number of matrix equations: ', len(R.mequation_list))
             print('first matrix equation: ', R.mequation_list[0])
             print('number of input equations: ', len(R.mequation_list[0].get_kequation_list()))
-            print("unknowns:")
+            print("sub_transform: unknowns:")
             for u in unknowns:
                 print(u.symbol, ', solved: ',u.solved)
             print('')

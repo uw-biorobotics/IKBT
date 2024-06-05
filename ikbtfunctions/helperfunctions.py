@@ -44,7 +44,7 @@ def count_unknowns(unknowns, expr):
             n += 1
     return n
 
-#return a list of unknown objects that exsits in a exper
+#return a list of unknown objects that exsits in a expression
 def get_unknowns(unknowns, expr):
     us = []
     for u in unknowns:

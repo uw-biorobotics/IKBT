@@ -92,6 +92,7 @@ class kequation:
 class unknown(object):
     def __init__(self,u=sp.var('x'), mat_eqn=None):
         self.symbol = u
+        self.name = str(u)
         self.n = 0           # index of the unk in the serial chain (1-6) 0=unset
                         #  NEW: self.n can be 23 e.g. for (th2+th3) or 234 for (th2+th3+th4)
         self.eqnlist = []    # list of kequations containing this UNK

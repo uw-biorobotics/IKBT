@@ -71,7 +71,7 @@ class comp_det(b3.Action):
                 outstr = '{} ({});  '.format(u.symbol, u.solvemethod)
                 print(outstr,                )
         print('\n\n\n')
-        time.sleep(10)  # for easier reading/ stopping
+        time.sleep(2)  # for easier reading/ stopping
             
         #
         #   Look for sum-of-angle equations which can now be solved

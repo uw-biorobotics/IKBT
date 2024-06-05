@@ -403,7 +403,6 @@ if __name__ == '__main__':
     #   Tests of basic classes
     suite1 = unittest.TestLoader().loadTestsFromTestCase(TestIkClass)
     suite1.addTest(TestSolver008())   # kin_cl.py   # basic kinematics classes
-    suite1.addTest(TestSolver009())   # helperfunctions.py
 
     # test the leaves (id/solvers)
     suite2 = unittest.TestLoader().loadTestsFromTestCase(TestSolver001)  # sincos_solver.py
@@ -413,9 +412,10 @@ if __name__ == '__main__':
     
     # test the transforms and misc. tests
     suite3 = unittest.TestLoader().loadTestsFromTestCase(TestSolver006)  # sub_transform.py
-    suite2.addTest(TestSolver010())   # x2y2_transform.py
+    suite3.addTest(TestSolver010())   # x2y2_transform.py
     suite3.addTest(TestSolver007())   # updateL.py  # updating matrix equation lists
-    
+    suite1.addTest(TestSolver009())   # helperfunctions.py
+
     if(not HTML):
         print('\n\n>>>>>>>>>>>>>>>>>>>>  Test ik_classes >>>>>>>>>>>>>>>>>>>>\n')
         unittest.TextTestRunner(verbosity=2).run(suite1)

@@ -23,12 +23,15 @@ import sympy as sp
 import numpy as np
 from sys import exit
 
+#all leaves
 from ikbtfunctions.helperfunctions import *
 from ikbtbasics.kin_cl import *
 from ikbtbasics.ik_classes import *     # special classes for Inverse kinematics in sympy
-from ikbtfunctions.ik_robots import *
 
 import b3 as b3          # behavior trees
+
+# custom
+from ikbtfunctions.ik_robots import *
 import pickle     # for storing pre-computed FK eqns
 
 class updateL(b3.Action):    # Set up (update) the equation lists
@@ -42,7 +45,7 @@ class updateL(b3.Action):    # Set up (update) the equation lists
         # aux equation (e.g. th_45 = th_4+th+5
         for e in R.kequation_aux_list:
             sp.var('x')
-            e1 = kequation(x-x, e.LHS-e.RHS)  # simplified form
+            e1 = kequation(0, e.LHS-e.RHS)  # simplified form
             cu = count_unknowns(variables, e1.RHS)
             if cu == 1:
                 L1.append(e1)
@@ -55,6 +58,9 @@ class updateL(b3.Action):    # Set up (update) the equation lists
         tick.blackboard.set('eqns_2u', L2)  # eqns w/ 2 unknowns
         tick.blackboard.set('eqns_3pu', L3p)  # eqns w/ 3 unknowns
         tick.blackboard.set('Robot', R)
+
+        #print('Testing: updateL(): L1: ', L1)
+        #x = input (' <CR> to continue ....')
         return b3.SUCCESS
 
 

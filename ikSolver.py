@@ -76,11 +76,7 @@ sp.var('Px Py Pz')
 #     Robot Parameters
 
 
-########################################################    NEW Style robot param setups
-
-#  Very basic Test
-
-Rs = ['C-Arm', 'Gomez', 'Puma', 'Chair_Helper', 'Khat6DOF', 'Wrist', 'MiniDD', 'RavenII']
+######################################################
 
 if len(argv) == 1:  # no argument - use default
     #robot = 'Gomez'
@@ -439,6 +435,6 @@ else:
     print('\n\n\n                            ',string,'  PASSES ', assertion_count, 'assertions!')
     print('                                  passed ',ntests,' tests \n\n\n')
 
-print('End of solution job')
+print('\n\n\n                  End of solution job \n                  (normal exit) \n\n')
 
 

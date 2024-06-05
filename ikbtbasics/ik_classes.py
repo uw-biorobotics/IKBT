@@ -327,7 +327,6 @@ class Robot:
             for i in [0,1,2]:   # only first three rows are interesting
                 for j in [0,1,2,3]:  # but check all 4 columns
                     it_number += 1
-                    #print ' .. '
                     prog_bar(it_number, nits, barlen, 'Sum of Angles')
                     #print 'kij: ', k,i,j
                     
@@ -348,12 +347,9 @@ class Robot:
                         variables.append(newj)
                     if newe:
                         self.kequation_aux_list.append(newe)
+
                     # simplify RHS
                     rhs, newj, newe= sum_of_angles_sub(self, rhs, variables)
-                    if newj:
-                        variables.append(newj)
-                    if newe:
-                        self.kequation_aux_list.append(newe)
                     
                     Meq.Td[i,j] = lhs 
                     Meq.Ts[i,j] = rhs
@@ -460,7 +456,7 @@ def sum_of_angles_sub(R, expr, variables):
             #print self.mequation_list[k].Ts[i,j]
             #print '========'
     if tmpeqn is not None:
-        print('sum_of_angles_sub: Ive found a new SOA equation, ', tmpeqn)
+        print('sum_of_angles_sub: Ive found a new SOA equation, ', tmpeqn, 'it is a 3-way SOA: ', found3)
     return (expr, newjoint, tmpeqn)
  
 def get_variable_index(vars, symb):

@@ -23,11 +23,14 @@ import sympy as sp
 import numpy as np
 from sys import exit
 
+#all leaves
 from ikbtfunctions.helperfunctions import *
 from ikbtbasics.kin_cl import *
 from ikbtbasics.ik_classes import *     # special classes for Inverse kinematics in sympy
 
 import b3 as b3          # behavior trees
+
+# custom
 from ikbtleaves.assigner_leaf  import *
 import ikbtleaves.comp_detect as cpd
 
@@ -85,10 +88,16 @@ class test_algebra_id(b3.Action):    # tester for your ID
         tick.blackboard.set('Robot',R)    
         return b3.SUCCESS
     
+def spZconv(term):   # if term == int(0), make it a sympy zero
+    if term==int(0):
+        return sp.S.Zero
+    else:
+        return term
 
 class algebra_id(b3.Action):    # action leaf for  
     
     def tick(self, tick):
+        self.BHdebug = True
         Tm = tick.blackboard.get('Tm')   # the current matrix equation 
         unknowns = tick.blackboard.get('unknowns')   # the current list of unknowns
         
@@ -112,11 +121,13 @@ class algebra_id(b3.Action):    # action leaf for
       #           basic algebra
         found = False      
         if (not u.solved):  # only if not already solved!
-                for e in one_unk:
+                for e in one_unk:  # eqns containing one unknown
                     if(self.BHdebug):
-                        print('algebra ID: Looking for unknown: ', u.symbol, ' in equation: ', )
-                        print(e ,)
-                        print("  - ", count_unknowns(unknowns, e.RHS), " unknown in RHS")
+                        print('algebra ID: Looking for unknown: ', u.symbol, ' in equation: ')
+                        print(e )
+                        print("         ", count_unknowns(unknowns, e.RHS), " unknowns in RHS\n")
+                    e.RHS = spZconv(e.RHS)
+                    e.LHS = spZconv(e.LHS)
                     if (e.RHS.has(sp.sin(u.symbol)) or e.RHS.has(sp.cos(u.symbol)) or\
                         e.LHS.has(sp.sin(u.symbol)) or e.LHS.has(sp.cos(u.symbol))):
                         continue   # this shouldbe caught by another ID
@@ -132,7 +143,8 @@ class algebra_id(b3.Action):    # action leaf for
                         u.solvemethod += "algebra"
                         found = True
                         break
-                        
+
+        # not sure these "sets" are needed???? (or could be nested "if found")
         tick.blackboard.set('curr_unk', u)
         tick.blackboard.set('unknowns',unknowns)   # the current list of unknowns
         if found:

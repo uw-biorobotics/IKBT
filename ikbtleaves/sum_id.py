@@ -27,6 +27,7 @@ import b3 as b3          # behavior trees
  
 
 class sum_id(b3.Action):   ##  we should change this name since its a transform
+
     def tick(self, tick):
         R = tick.blackboard.get('Robot')  
         #matr_equ = tick.blackboard.get('Tm')                # current matrix equation  
@@ -35,6 +36,7 @@ class sum_id(b3.Action):   ##  we should change this name since its a transform
         L2 = tick.blackboard.get('eqns_2u')  # eqns w/ 2 unknowns
         L3p = tick.blackboard.get('eqns_3pu')  # eqns w/ 3 unknowns
         unknowns = tick.blackboard.get("unknowns")
+        unknownsOrig = unknowns.copy()
                 
                 
         for matr_equ in R.mequation_list:
@@ -88,7 +90,7 @@ class sum_id(b3.Action):   ##  we should change this name since its a transform
                                 found = True
                             
                         if found:
-                            print('test: found:', expr)
+                            print('- - - - - - - - >>>> test: found:', expr)
                             success_flag = True
                             th_xy = find_xy(d[thx], d[thy])
                             #if not exists in the unknown list (this requires proper hashing), create variable
@@ -103,7 +105,14 @@ class sum_id(b3.Action):   ##  we should change this name since its a transform
                                 #print('test: .n ',str(d[thx])[3:], str(d[thy])[3:])
                                 newjoint.n = int(str(d[thx])[3:]+str(d[thy])[3:]) # store new subscript
                                 #newjoint.joint_eq = d[thx] + d[sgn] * d[thy]
-                                unknowns.append(newjoint) #add it to unknowns list 
+                                alreadyThere = False
+                                for u in unknowns:
+                                    if u.n == newjoint.n:
+                                        print('>>> Skipping a duplicate variable: Th', newjoint.n)
+                                        alreadyThere=True
+                                if not alreadyThere:
+                                    print('>>>>     appending variable to unknowns: ', newjoint)
+                                    unknowns.append(newjoint) #add it to unknowns list
                                 tmpeqn = kequation(th_xy, d[thx] + d[sgn] * d[thy])
                                 print('sumofanglesT: appending ', tmpeqn)
                                 # store the SOA aux equation 
@@ -114,6 +123,14 @@ class sum_id(b3.Action):   ##  we should change this name since its a transform
                                 matr_equ.Td = matr_equ.Td.subs(d[thx] + d[sgn] * d[thy], th_xy) 
         
         tick.blackboard.set('Robot', R)
+
+        ##############   DEBUG
+        newUnk = False
+        for u in unknowns:
+            if u not in unknownsOrig:
+                print('\n\n                sum_id is adding a new unknown: ', u,'\n\n')
+                newUnk = True
+
         tick.blackboard.set("unknowns", unknowns)# we've got to keep the blackboard tags standard
         
         #if(success_flag):
@@ -180,7 +197,7 @@ class test_sum_id(b3.Action):
 # not currently used (April2019)
 class sum_solve(b3.Action):
     def tick(self, tick):
-        unknowns = tick.blackboard.get("unknowns")
+        unknowns = tick.blackboard.get("unknowns")  # this leaf only modifies STATUS of unks, doesn't add new
         R = tick.blackboard.get('Robot')
         Tm = tick.blackboard.get('Tm')
         solvedtag = False
