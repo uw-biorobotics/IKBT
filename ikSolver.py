@@ -361,8 +361,16 @@ if TEST_DATA_GENERATION:
         pickle.dump( [R, unks], pf)
     quit()
 
+ncsize = 0
+for ncv in R.notation_collections:
+    ncsize += len(ncv)
 
-print(R.notation_collections)
+if ncsize > 20:
+    print(f'There are {ncsize} notation collection elements!!')
+else:
+    print(f'Notation Collections Size: {ncsize}:')
+    print(R.notation_collections)
+x = input('CR:...')
 
 #
 #  This step creates the list of solution poses (i.e. it associates

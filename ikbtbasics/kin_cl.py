@@ -156,22 +156,24 @@ class unknown(object):
         curr_node = None
 
         found = False
-        for sol_node in R.solution_nodes:   # make sure there is a node for this var
+        #print('unknown:set_solved --> existing nodes:', R.solution_nodes)
+        for sol_node in R.solution_nodes[1:]:   # make sure there is a node for this var (skip root)
             if sol_node.symbol == self.symbol:
                 found = True
-                print('set_solved: Found existing node: ', sol_node)
-
+                #print('unknown:set_solved: ----> Found existing node: ', sol_node)
+        #x=input('CR:...')
         if not found:
             n = Node(self)
             R.solution_nodes.append(n)
-            print('---------> New Generated node: ',n, '    ', type(n))
+            #print('unknown:set_solved ---------> New Generated node: ',n, '    ', type(n))
             R.variables_symbols.append(self.symbol)
-            
+        #x=input('CR:...')
+
         # for new solution graph
         for sol_node in R.solution_nodes:
             if sol_node.symbol == self.symbol:
                 curr_node = sol_node
-                print('set_solved: Using  existing node: ', curr_node)
+                #print('set_solved: Using existing node: ', curr_node)
                 
         #print ' -  - - - - '
         #print R.solution_nodes

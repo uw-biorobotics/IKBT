@@ -63,25 +63,22 @@ def find_edge(child, graph):
     
 def related(start_node, end_node):
     '''DFS: return True if a path exists, for Node types'''
-    print('solution_graph: related: ', start_node, end_node)
-    s = []
-    s.append(start_node)
+    s = [start_node]
     
-    print(f'      start: {start_node} Parents: {start_node.parents}')
+    print(f' solution_graph: related:     start: {start_node}  Parents: {start_node.parents}  End: {end_node}')
     #ancestors = set()
-    
-    while(len(s) > 0):
 
+    if start_node == end_node:
+        print('solution_graph_v2:related: Start and End nodes are the same')
+        return True
+
+    while(len(s) > 0):
         curr = s[-1]
         del s[-1]
-        #print(f'          {curr} == {end_node}??  ')
-        if curr == end_node:
-            return True
-        else:
-            if len(curr.parents) == 0:
-                return False
-            next_steps = curr.parents
-            s.extend(next_steps)
+        if len(curr.parents) == 0:
+            return False
+        next_steps = curr.parents
+        s.extend(next_steps)
     return False
 
 

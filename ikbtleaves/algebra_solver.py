@@ -97,7 +97,6 @@ def spZconv(term):   # if term == int(0), make it a sympy zero
 class algebra_id(b3.Action):    # action leaf for  
     
     def tick(self, tick):
-        self.BHdebug = True
         Tm = tick.blackboard.get('Tm')   # the current matrix equation 
         unknowns = tick.blackboard.get('unknowns')   # the current list of unknowns
         
