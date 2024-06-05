@@ -84,11 +84,12 @@ def related(start_node, end_node):
             s.extend(next_steps)
     return False
 
-    
+
 class Node:
-    '''Node is a temp class, will be integrate into unknown/variable, or inhirit from it'''
+    '''  a node in the solution graph - primarily contains an unknown '''
     def __init__(self, unk):
         self.symbol = unk.symbol
+        self.name = str(unk.symbol)
         self.argument = unk.argument
         self.solvemethod = unk.solvemethod
         self.eqnlist = []
@@ -125,8 +126,9 @@ class Node:
             for elem in elements:
                 if elem in R.variables_symbols: #swap possible_unkns to unknows symbols
                     parent = find_node(R.solution_nodes, elem)
-                    if parent.symbol != elem:  #####  **** NEW 31-May-24 BH (not tested yet)
-                        self.parents.append(parent)
+                    # DEBUG
+                    #if parent.symbol != elem:  #####  **** NEW 31-May-24 BH (not tested yet)
+                    self.parents.append(parent)
                      
             # detect redundancy and eliminate higher order parent
             if len(self.parents) > 1:
@@ -153,7 +155,7 @@ class Node:
         if len(self.parents) == 0: #root node special case
             if self.nsolutions < 2:
                 self.sol_notations.add(self.symbol)
-                R.notation_graph.add(Edge(self.symbol, -1))
+                R.notation_graph_edges.add(Edge(self.symbol, R.notation_graph_root ))
                 R.notation_collections.append([self.symbol])
                 #print '//////////////////////// 1 sol'
                 #print 'generate_notation: curr: ', self.symbol
@@ -165,7 +167,7 @@ class Node:
                     curr = str(self.symbol) + 's' + str(i) #convert to str, then to symbol?
                     curr = sp.var(curr)
                     self.sol_notations.add(curr)
-                    R.notation_graph.add(Edge(curr, -1))
+                    R.notation_graph_edges.add(Edge(curr, R.solution_nodes[0]))
                     R.notation_collections.append([curr]) # add into subgroup
 
                     curr_solution = self.solutions[i-1]
@@ -220,7 +222,7 @@ class Node:
                     parents_notations.append(parent_sym)    
                     for higher_parent in self.upper_level_parents:
                         goal_notation = goal_search(parent_sym, \
-                            higher_parent.sol_notations, R.notation_graph)
+                            higher_parent.sol_notations, R.notation_graph_edges)
                         if goal_notation is not None:
                             parents_notations.append(goal_notation)
 
@@ -235,7 +237,7 @@ class Node:
                     isub = isub + 1
                     # link to graph
                     for parent_sym in parents_tuple:
-                        R.notation_graph.add(Edge(curr, parent_sym))
+                        R.notation_graph_edges.add(Edge(curr, parent_sym))
                     # substitute for solutions
                     rhs = curr_solution
 
@@ -263,12 +265,7 @@ class Node:
 
                     self.solution_with_notations[curr] = kc.kequation(curr, rhs)
                     self.arguments[curr] = tmp_arg   
-                        
 
-    def generate_solutions(self, R):
-        '''generate solutions with notation(subscript)'''
-        pass
-       
             
 
 class Edge:

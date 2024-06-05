@@ -112,15 +112,15 @@ def mark_off(notation_set, solution_nodes):
     check_list = []
     goals = [] #what to look for
     start_pts = [] #what the set already has
-    for node in solution_nodes:
-        check_list.append(False)
-        for single_notation in notation_set:
-            if single_notation in node.sol_notations:
-                check_list[-1] = True
-        if check_list[-1] == False:
-            goals.append(node)
-        else:
-            start_pts.append(node)
+    for node in solution_nodes: #skip root
+            check_list.append(False)
+            for single_notation in notation_set:
+                if single_notation in node.sol_notations:
+                    check_list[-1] = True
+            if check_list[-1] == False:
+                goals.append(node)
+            else:
+                start_pts.append(node)
 
     return check_list, goals, start_pts
 
@@ -165,7 +165,7 @@ def matching_func(notation_collections, solution_nodes):
                         
                         # check if symbols already in the merged group                        
                         for sym in pten_group:
-                            for i in range(len(solution_nodes)):
+                            for i in range(len(solution_nodes))[1:]: # skip root
                                 if sym in solution_nodes[i].sol_notations:
                                     if check_list[i]:
                                         has_new_sym = True
@@ -176,7 +176,7 @@ def matching_func(notation_collections, solution_nodes):
                         for sym in pten_group:
                             for sym_in_set in new_set:
                                 if not(sym == sym_in_set): 
-                                    for i in range(len(solution_nodes)):
+                                    for i in range(len(solution_nodes))[1:]: #skip root
                                         if (sym in solution_nodes[i].sol_notations) \
                                             and (sym_in_set in solution_nodes[i].sol_notations):
                                             

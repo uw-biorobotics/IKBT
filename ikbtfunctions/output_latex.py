@@ -221,7 +221,7 @@ The following is the abstract representation of solution graph for this manipula
 \begin{verbatim}
 '''
     
-    graph = Robot.notation_graph
+    graph = Robot.notation_graph_edges
 
     i = 0
     sameline = '     '

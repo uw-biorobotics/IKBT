@@ -25,7 +25,7 @@ import os as os
 #import numpy as np
 import ikbtbasics.pykinsym as pks
 import re
-from ikbtbasics.solution_graph_v2 import *
+import ikbtbasics.solution_graph_v2 as sg
 import ikbtbasics.matching as mtch
 import sys as sys
 import b3 as b3          # behavior trees
@@ -169,13 +169,20 @@ class Robot:
         self.solveN = 0   # index of current solution in solving sequence
         self.soltag = ''  # suffix tag for current solution level leafs
         self.params = []  # constant dh params such as l_4 etc.
-        self.solution_nodes = []  # first one is the root, by solve order
         self.variables_symbols = []
         #
         #   "notations" means specifically labeled solution variables such as
         #          th_1s2  (theta-1, solution 2)
-        self.notation_graph = set() #solution nodes notation graph
+        #
+
+        self.notation_graph_edges = set() #solution edges between nodes notation graph
+        self.solution_nodes = []  # first one is the root, by solve order
         self.notation_collections = [] #solution notations divided into subgroups
+        # set up root
+        utmp = kc.unknown(sp.var('Root'))
+        nn = sg.Node(utmp)
+        self.solution_nodes.append(nn)
+        self.notation_graph_root = nn
 
         self.min_index = 0
         self.max_index = 0
@@ -210,14 +217,14 @@ class Robot:
             print('ik_classes: length Robot.mequation_list: ', len(self.mequation_list))
 
     #generate_solution_nodes
-    #    APPEARS TO BE NOT USED:
     #
     def generate_solution_nodes(self, unknowns):
         '''generate solution nodes'''
+
         for unk in unknowns:
             if unk.solvemethod != '':    # this means the unk was not used at all in solution 
                                               #  typically SOA unknowns like th_23
-                self.solution_nodes.append(Node(unk))
+                self.solution_nodes.append(sg.Node(unk))
                 self.variables_symbols.append(unk.symbol)
         print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>Robot: solution nodes:', self.solution_nodes)
         print(self.variables_symbols)
@@ -501,7 +508,7 @@ def output_solution_graph(R):
 
     # print all edges in graph
     print('========== Solution Graph (Edges) output ================')
-    for edge in R.notation_graph:
+    for edge in R.notation_graph_edges:
         print(edge)
     print('========== End Solution output ================')
 

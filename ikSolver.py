@@ -104,6 +104,8 @@ print('')
 #       file is not there, compute the kinematic equations
 
 testing = False
+print('Solver:  unknowns:', unknowns)
+
 [M, R, unknowns] = kinematics_pickle(robot, dh, params, pvals, vv, unknowns, testing)
 print('GOT HERE (Fk completed): robot name: ', R.name)
 
@@ -367,9 +369,9 @@ print(R.notation_collections)
 #  the various joint solutions correctly)
 final_groups = matching.matching_func(R.notation_collections, R.solution_nodes)
 
-if len(final_groups) == 0:
-    print("\n\n       I'm sorry, no solutions were found \n\n")
-    quit()
+#if len(final_groups) == 0:
+    #print("\n\n       I'm sorry, no solutions were found \n\n")
+    #quit()
 
 # # matching, now integrated into the latex report
 # uncomment for debugging
