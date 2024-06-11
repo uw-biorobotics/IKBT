@@ -37,7 +37,7 @@ def print_debug(label):
     print(label)
 
 ## how many unknowns are in expr?
-def count_unknowns(unknowns, expr): 
+def count_unknowns(unknowns, expr):
     n = 0
     for u in unknowns:
         if(expr.has(u.symbol) and u.solved == False):
@@ -50,6 +50,21 @@ def get_unknowns(unknowns, expr):
     for u in unknowns:
         if(expr.has(u.symbol) and u.solved == False):
             us.append(u)
+    return us
+
+#return a list of unknown objects that which are dependencies of a solution
+def get_deps(unknowns, expr):
+    us = set()
+    problem = False
+    for u in unknowns:
+        if expr.has(u.symbol):
+            if u.solved:
+                us.add(u)
+            else:
+                problem = True
+    if problem:
+        print(f'helpers:get_dep: {expr} has both solved and unsolved deps!')
+        assert False, 'quitting'
     return us
 
 # return a list of all variables in an expression which
@@ -113,11 +128,11 @@ def ik_lhs():  # generate a simple Left Hand side matrix
 #   default bar length = 25
 #
 def prog_bar(l, lmax, length=25,  msg = ''):
-    if l<0: 
+    if l<0:
         print('\n')   # clean up after
         sys.stdout.flush()
         return
-    
+
     ratio = float(l)/float(lmax)
     n = int(length*ratio)
     n2 = length - n

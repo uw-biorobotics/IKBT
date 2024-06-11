@@ -106,6 +106,7 @@ class unknown(object):
         self.solveorder = 0
         self.usedfortransform = False   # if solved, has this been used for transform yet?
         self.solutions = []   # list of solutions, store final solutions
+        self.dependencies = set()  # unknowns on which this soln depends (all solved)
         self.nsolutions = 0   # number of solutions (== len(self.solutions))
         self.assumption = [] #assumputions about the solutions
         self.argument = sp.var('a')*sp.var('b')  # argument to arcin() for example (used for generating checking code output)
@@ -139,6 +140,7 @@ class unknown(object):
         sret += 'Solved:     ' + str(self.solved) + '\n'
         sret += 'Solveorder: ' + str(self.solveorder) + '\n'
         sret += 'Solutions:  ' + str(self.solutions) + '\n'
+        sret += 'Deps:       ' + str(self.dependencies) + '\n'
         sret += 'Assumptions:' + str(self.assumption) + '\n'
         return sret
 
@@ -156,6 +158,8 @@ class unknown(object):
 
         R.solveN += 1                 # increment solution level counter
         self.solveorder = R.solveN    # first solution starts with 1 (0 is the root)
+        for sol in self.solutions:
+            self.dependencies.update(get_deps(unknowns,sol))
         # set up a node
         newNode = Node(self)
 
