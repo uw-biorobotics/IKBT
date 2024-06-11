@@ -25,7 +25,7 @@ import os as os
 #import numpy as np
 import ikbtbasics.pykinsym as pks
 import re
-import ikbtbasics.solution_graph_v2 as sg
+import ikbtbasics.solutionGraphV3 as sg
 import ikbtbasics.matching as mtch
 import sys as sys
 import b3 as b3          # behavior trees

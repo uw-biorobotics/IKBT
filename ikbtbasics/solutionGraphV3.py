@@ -51,31 +51,31 @@ class Node:
             return self.symbol == other.symbol
         return False
 
-    #def __hash__(self): #hash function "inherits" from symbol
-        #return self.symbol.__hash__()
+    def __hash__(self): #hash function "inherits" from symbol
+        return self.symbol.__hash__()
 
     def __repr__(self): # string representation
         return self.symbol.__repr__()
 
 
 
-class Edge:
-    def __init__(self, N1, N2, multiplicity=1):   # N2 depends on N1
+class Edge: # from unk --->  dependency
+    def __init__(self, N1, N2, multiplicity=1):   # N1 depends on N2
         '''child and parent are notation with subscript type'''
-        self.start = N1
-        self.end = N2
+        self.start = N2  # depends on  (arrow pts .start --> .end  (end dependss on start))
+        self.end = N1   # the unknown solutions
         self.mult = multiplicity
         #self.child = child
         #self.parent = parent
 
     def __repr__(self):
-        return   'Edge:' +  str(self.start) + " depends on: " + str(self.end)
+        return   'Edge:' +  str(self.start) + " depends on: " + str(self.end) + f'  ({self.start}-->{self.end})'
 
     def __eq__(self, other):
-        return self.N1 == other.N1 and self.N2 == other.N2 and self.mult == other.mult
+        return self.start == other.start and self.end == other.end and self.mult == other.mult
 
-    #def __hash__(self):
-        #return self.N1.__hash__() * self.N2.__hash__() + self.mult.__hash__()
+    def __hash__(self):
+        return self.start.__hash__() * self.end.__hash__() + self.mult.__hash__()
 
 
 

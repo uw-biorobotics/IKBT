@@ -30,7 +30,7 @@ import ikbtfunctions.helperfunctions as hf
 import ikbtfunctions.output_latex as ol
 import ikbtfunctions.output_python as op
 import ikbtfunctions.output_cpp as oc
-from   ikbtfunctions.ik_robots import *  
+from   ikbtfunctions.ik_robots import *
 
 from ikbtbasics import *
 from ikbtleaves.assigner_leaf import assigner
@@ -347,6 +347,8 @@ print("Ticking IK BT for ", R.name, " -------------------------\n\n")
 
 ikbt.tick("Test a full solver", bb)
 
+print('\n\n           Processing Results \n\n')
+
 unks = bb.get('unknowns')
 Tm = bb.get('Tm')
 R = bb.get('Robot')
@@ -361,32 +363,46 @@ if TEST_DATA_GENERATION:
         pickle.dump( [R, unks], pf)
     quit()
 
-ncsize = 0
-for ncv in R.notation_collections:
-    ncsize += len(ncv)
+#
+#  Version 3 of solution set finding (non tree)
+#
 
-if ncsize > 20:
-    print(f'There are {ncsize} notation collection elements!!')
-else:
-    print(f'Notation Collections Size: {ncsize}:')
-    print(R.notation_collections)
-x = input('CR:...')
+VERSION02 = False
+
+if VERSION02:
+#
+#  Version 2 of solution set finding (tree-based)
+#
+    ncsize = 0
+    for ncv in R.notation_collections:
+        ncsize += len(ncv)
+
+    if ncsize > 20:
+        print(f'There are {ncsize} notation collection elements!!')
+    else:
+        print(f'Notation Collections Size: {ncsize}:')
+        print(R.notation_collections)
+    #x = input('CR:...')
+
+    #
+    #  This step creates the list of solution poses (i.e. it associates
+    #  the various joint solutions correctly)
+    final_groups = matching.matching_func(R.notation_collections, R.solution_nodes)
+
+    #if len(final_groups) == 0:
+        #print("\n\n       I'm sorry, no solutions were found \n\n")
+        #quit()
+
+    # # matching, now integrated into the latex report
+    # uncomment for debugging
+
+    # print "sorted final notation groups"
+    # for a_set in final_groups:
+    #    print a_set
 
 #
-#  This step creates the list of solution poses (i.e. it associates
-#  the various joint solutions correctly)
-final_groups = matching.matching_func(R.notation_collections, R.solution_nodes)
-
-#if len(final_groups) == 0:
-    #print("\n\n       I'm sorry, no solutions were found \n\n")
-    #quit()
-
-# # matching, now integrated into the latex report
-# uncomment for debugging
-
-# print "sorted final notation groups"
-# for a_set in final_groups:
-#    print a_set
+#  Maybe these will break for V3 method
+#
 output_solution_graph(R)
 ol.output_latex_solution(R,unks, final_groups)
 op.output_python_code(R, final_groups)
@@ -394,7 +410,7 @@ oc.output_cpp_code(R, final_groups)
 
 
 #################################################
-# print out all eqnuations that used to solve variables
+# print out all equations that used to solve variables
 # uncomment for debugging
 
 print("equations evaluated")
@@ -404,12 +420,10 @@ for one_unk in unks:
     print(one_unk.secondeqn)
     print('\n')
 
-
-#
-#
-#
 ################################################################################
-
+#
+#    Some assertions for testing solver using the 'Chair Helper' robot.
+#
 # define symbols that appear in solutions
 sp.var('r_11 r_12 r_13 r_21 r_22 r_23 r_31 r_32 r_33 Px Py Pz')
 

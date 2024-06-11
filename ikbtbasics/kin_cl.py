@@ -22,7 +22,7 @@ import numpy as np
 
 from ikbtbasics.pykinsym import *
 
-from ikbtbasics.solution_graph_v2 import *
+from ikbtbasics.solutionGraphV3 import *
 
 import ikbtfunctions.helperfunctions as hf
 
@@ -158,19 +158,24 @@ class unknown(object):
 
         R.solveN += 1                 # increment solution level counter
         self.solveorder = R.solveN    # first solution starts with 1 (0 is the root)
+        #get dependencies from the solutions
         for sol in self.solutions:
-            self.dependencies.update(get_deps(unknowns,sol))
+            self.dependencies.update(get_deps(unknowns,sol))  # add to set of deps
         # set up a node
         newNode = Node(self)
 
         print(self.details())
-        breakpoint()
+        #breakpoint()
 
         R.solution_nodes.append(newNode)
+        # update edge set
+        for d in self.dependencies:
+            R.notation_graph_edges.add(Edge(d,self))
 
 
         # set up edge(s)
         ##############3  ******************************* TBD
+
 
 
 
