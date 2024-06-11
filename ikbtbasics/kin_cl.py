@@ -87,8 +87,8 @@ class kequation:
         tmp = re.sub(r'_(\d+)',  r'_{\1}', tmp)   # get all digits of subscript into {}
         tmp = re.sub(r'atan_\{2\}','atan2' , tmp)  # correct atan2 formatting
         return tmp
-    
-    
+
+
 class unknown(object):
     def __init__(self,u=sp.var('x'), mat_eqn=None):
         self.symbol = u
@@ -106,6 +106,8 @@ class unknown(object):
         self.solveorder = 0
         self.usedfortransform = False   # if solved, has this been used for transform yet?
         self.solutions = []   # list of solutions, store final solutions
+        self.nsolutions = 0   # number of solutions (== len(self.solutions))
+        self.assumption = [] #assumputions about the solutions
         self.argument = sp.var('a')*sp.var('b')  # argument to arcin() for example (used for generating checking code output)
 
         # for nodes ranking
@@ -116,8 +118,6 @@ class unknown(object):
         self.tan_eqnlist = []
         self.solvable_tan = False
         # end: nodes ranking
-        self.nsolutions = 0   # number of solutions (== len(self.solutions))
-        self.assumption = [] #assumputions about the solutions
         #self.nodelist = []   # list of solution tree nodes for this variable
         if mat_eqn != None:     #  list of kequation scontaining this unknown
             self.scan(mat_eqn)
@@ -133,8 +133,47 @@ class unknown(object):
     def __repr__(self): # string representation
         return self.symbol.__repr__()
 
+    def details(self):   # easier debugging
+        sret = ''
+        sret += 'Name:       ' + self.name + '\n'
+        sret += 'Solved:     ' + str(self.solved) + '\n'
+        sret += 'Solveorder: ' + str(self.solveorder) + '\n'
+        sret += 'Solutions:  ' + str(self.solutions) + '\n'
+        sret += 'Assumptions:' + str(self.assumption) + '\n'
+        return sret
+
+
+    def set_solved(self, R, unknowns):
+        self.solved = True
+        self.readytosolve = False
+        print('\n\n')
+        print('set_solved (for solutionGraphV3: ', self.symbol, '      by: ', self.solvemethod)
+        #print '            ', self.eqntosolve
+        fs = 'set_solved: solutions empty '
+        assert (len(self.solutions) >= 1), fs
+        assert (self.nsolutions > 0), fs
+        print('            ', self.symbol, '=', self.solutions[0], '\n\n')
+
+        R.solveN += 1                 # increment solution level counter
+        self.solveorder = R.solveN    # first solution starts with 1 (0 is the root)
+        # set up a node
+        newNode = Node(self)
+
+        print(self.details())
+        breakpoint()
+
+        R.solution_nodes.append(newNode)
+
+
+        # set up edge(s)
+        ##############3  ******************************* TBD
+
+
+
+    # Summer 24: now on solutionGraphV3
+    #  disable this by renaming
     # class unknown:
-    def set_solved(self, R, unknowns):           # indicate that a this variable has been solved
+    def set_solvedV2(self, R, unknowns):           # indicate that a this variable has been solved
                                                  #  and update the solution tree
         self.solved = True
         self.readytosolve = False
@@ -174,7 +213,7 @@ class unknown(object):
             if sol_node.symbol == self.symbol:
                 curr_node = sol_node
                 #print('set_solved: Using existing node: ', curr_node)
-                
+
         #print ' -  - - - - '
         #print R.solution_nodes
         #print 'Trying to solution tree node for: ',  self.symbol
@@ -474,7 +513,7 @@ class mechanism:
     #    T10*Td*T65 = T12*T23*T34*T45  (needed for UR5)
     #    T21*T10*Td*T65*T54 = T23*T34
     #
-    
+
 
     def get_mequation_set(self):
         self.Td = hf.ik_lhs()
@@ -504,18 +543,18 @@ class mechanism:
         lhs = H_inv_S(self.T_45)*H_inv_S(self.T_34)*H_inv_S(self.T_23)*H_inv_S(self.T_12)*H_inv_S(self.T_01)*self.Td
         rhs =                                               self.T_56
         list.append(matrix_equation(lhs,rhs))
-        
+
         # Aug 18 new equations added
-        
+
         lhs = H_inv_S(self.T_01)*self.Td*H_inv_S(self.T_56)
         rhs =                     self.T_12*self.T_23*self.T_34*self.T_45
         list.append(matrix_equation(lhs,rhs))
-        
+
         lhs = H_inv_S(self.T_12)*H_inv_S(self.T_01)*self.Td*H_inv_S(self.T_56)*H_inv_S(self.T_45)
         rhs =                          self.T_23*self.T_34
         list.append(matrix_equation(lhs,rhs))
-        
-        
+
+
         return list
 
 
@@ -532,7 +571,7 @@ def forward_kinematics_N(M, pose, params):
     pp = pose.copy()
     pp.update(params)    # combine the pose and the params
     T1 = sp.N(M.T_06.subs(pp))    # substitute for all symbols (including sp.pi)
- 
+
     # test to make sure all symbols are substituted with numeric values
     Num_check(T1)     # this quits if fails
 

@@ -126,7 +126,7 @@ def check_the_pickle(dh1, dh2):   # check that two mechanisms have identical DH 
     if(flag):
         print('''\n\n -----------------------------------------------------
                     DH parameters Differ
-                 Pickle file is out of date. 
+                 Pickle file is out of date.
                    please remove it and start again
   -----------------------------------------------------
   ''')
@@ -137,11 +137,11 @@ def find_xy(thx, thy):
     # lookup table for thxy
     print('test: find_xy:',thx, thy)
     thxy_lookup = {
-                   th_1:[th_12, th_123], 
-                   th_2:[th_12, th_23, th_123, th_234], 
-                   th_3:[th_23, th_34, th_123, th_234, th_345], 
-                   th_4:[th_34, th_45, th_234, th_345, th_456], 
-                   th_5:[th_45, th_56, th_345, th_456], 
+                   th_1:[th_12, th_123],
+                   th_2:[th_12, th_23, th_123, th_234],
+                   th_3:[th_23, th_34, th_123, th_234, th_345],
+                   th_4:[th_34, th_45, th_234, th_345, th_456],
+                   th_5:[th_45, th_56, th_345, th_456],
                    th_6:[th_56, th_456]
                    }
     # add 3-way SOA's to thxy_lookup
@@ -150,7 +150,7 @@ def find_xy(thx, thy):
     thxy_lookup[th_34] = [th_234,th_345]
     thxy_lookup[th_45] = [th_345,th_456]
     thxy_lookup[th_56] = [th_456]
-    
+
     # one symbol in common is the th_xy we're looking for
     thx_s = set(thxy_lookup[thx])
     thy_s = set(thxy_lookup[thy])
@@ -176,7 +176,7 @@ class Robot:
         #
 
         self.notation_graph_edges = set() #solution edges between nodes notation graph
-        self.solution_nodes = []  # first one is the root, by solve order
+        self.solution_nodes = []  #   by solve order
         self.notation_collections = [] #solution notations divided into subgroups
         # set up root
         utmp = kc.unknown(sp.var('Root'))
@@ -187,12 +187,12 @@ class Robot:
         self.min_index = 0
         self.max_index = 0
         # mequation_list:        all the 4x4 Matrix FK equations
-        self.mequation_list = []  
+        self.mequation_list = []
         # kequation_aux_list:    sum of angle eqns such as eg th_23 = th_2+th_3
-        self.kequation_aux_list = []  
+        self.kequation_aux_list = []
         # a matrix equation in which to embed important kequations equations
         #    this is done for compatibility with the id/solvers
-    #    self.SOA_eqns = kc.matrix_equation() 
+    #    self.SOA_eqns = kc.matrix_equation()
         # To add a kequation, use R.kequation_aux_list.append(neweqn)
 
         if(Mech != None):    # in testing situations we only need a "Robot" to keep track of solutions above
@@ -222,7 +222,7 @@ class Robot:
         '''generate solution nodes'''
 
         for unk in unknowns:
-            if unk.solvemethod != '':    # this means the unk was not used at all in solution 
+            if unk.solvemethod != '':    # this means the unk was not used at all in solution
                                               #  typically SOA unknowns like th_23
                 self.solution_nodes.append(sg.Node(unk))
                 self.variables_symbols.append(unk.symbol)
@@ -336,7 +336,7 @@ class Robot:
                     it_number += 1
                     prog_bar(it_number, nits, barlen, 'Sum of Angles')
                     #print 'kij: ', k,i,j
-                    
+
                     #print 'Sum of Angles: eqn,row,col: ', k,i,j
                     # simplify with lasting effect (note: try sp.trigsimp() for faster????)
                     Meq.Ts[i,j] = sp.simplify(Meq.Ts[i,j])  # simplify should catch c1s2+s1c2 etc. (RHS)
@@ -345,11 +345,11 @@ class Robot:
                     lhs = Meq.Td[i,j]
                     rhs = Meq.Ts[i,j]
 
-                        
+
                     # simplify LHS
-                     
+
                     lhs, newj, newe = sum_of_angles_sub(self, lhs, variables)
- 
+
                     if newj:
                         variables.append(newj)
                     if newe:
@@ -357,8 +357,8 @@ class Robot:
 
                     # simplify RHS
                     rhs, newj, newe= sum_of_angles_sub(self, rhs, variables)
-                    
-                    Meq.Td[i,j] = lhs 
+
+                    Meq.Td[i,j] = lhs
                     Meq.Ts[i,j] = rhs
 
         prog_bar(-1,100,100, '')  # clear the progress bar
@@ -368,14 +368,14 @@ class Robot:
 
 
 ##################
-# 
+#
 #   substitute th_23 for th_2+th_3 etc.
 # (april: separate out for easier testing)
 
-def sum_of_angles_sub(R, expr, variables):     
+def sum_of_angles_sub(R, expr, variables):
     aw = sp.Wild('aw')
     bw = sp.Wild('bw')
-    cw = sp.Wild('cw') 
+    cw = sp.Wild('cw')
     newjoint = None
     tmpeqn = None
     found2 = found3 = False
@@ -440,20 +440,20 @@ def sum_of_angles_sub(R, expr, variables):
                 variables.append(newjoint) #add it to unknowns list
                 tmpeqn = kc.kequation(th_new, d[aw] + d[bw] + d[cw])
                 print('sum_of_angles_sub: created new equation:', tmpeqn)
-                 
+
                 #
                 #   Add the def of this SOA to list:  eg  th23 = th2+th3
                 #   BUT  it needs to be embedded into a 4x4 mequation so
                 #    that solvers can scan it properly
-                R.kequation_aux_list.append(tmpeqn) 
-            
-            # substitute new variable into the kinematic equations   
-            
+                R.kequation_aux_list.append(tmpeqn)
+
+            # substitute new variable into the kinematic equations
+
             # Problem Dec'21:
             #     If there is a three-way sub, prefer it to a two-way sub.  e.g:
             #     (a+b+c) -> (abc) instead of (a+bc)(!)
             #
-            
+
             #self.mequation_list[k].Td[i,j] = Meq.Td[i,j].subs(d[aw] + d[bw] + d[cw], th_subval)
             #self.mequation_list[k].Ts[i,j] = Meq.Ts[i,j].subs(d[aw] + d[bw] + d[cw], th_subval)
             expr = expr.subs(d[aw] + d[bw] + d[cw], th_subval)
@@ -465,7 +465,7 @@ def sum_of_angles_sub(R, expr, variables):
     if tmpeqn is not None:
         print('sum_of_angles_sub: Ive found a new SOA equation, ', tmpeqn, 'it is a 3-way SOA: ', found3)
     return (expr, newjoint, tmpeqn)
- 
+
 def get_variable_index(vars, symb):
     for v in vars:
         if v.n == 0:
@@ -542,4 +542,4 @@ if __name__ == "__main__":   # tester code for the classes in this file
    # testing for these classes and methods now in tests/leavestest.py
    # TBD   properly integrate with unittest module
    pass
-  
+
