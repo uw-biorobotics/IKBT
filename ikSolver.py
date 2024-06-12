@@ -403,7 +403,7 @@ if VERSION02:
 #
 #  Maybe these will break for V3 method
 #
-output_solution_graph(R)
+output_solution_graph(R) # V3 works
 ol.output_latex_solution(R,unks, final_groups)
 op.output_python_code(R, final_groups)
 oc.output_cpp_code(R, final_groups)

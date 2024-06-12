@@ -178,11 +178,14 @@ class Robot:
         self.notation_graph_edges = set() #solution edges between nodes notation graph
         self.solution_nodes = []  #   by solve order
         self.notation_collections = [] #solution notations divided into subgroups
-        # set up root
-        utmp = kc.unknown(sp.var('Root'))
-        nn = sg.Node(utmp)
-        self.solution_nodes.append(nn)
-        self.notation_graph_root = nn
+
+
+        #  V3:  no such thing as root anymore
+        ## set up root
+        #utmp = kc.unknown(sp.var('Root'))
+        #nn = sg.Node(utmp)
+        #self.solution_nodes.append(nn)
+        #self.notation_graph_root = nn
 
         self.min_index = 0
         self.max_index = 0
@@ -500,11 +503,12 @@ def output_solution_graph(R):
     print('========== Solution output ================')
     print('          ' + R.name)
 
-
+    print('========== Solution Graph (Nodes) ===============')
     for node in R.solution_nodes:
-        if node.solveorder != -1: #node is solved
-            print('\n\n', node.solveorder, node.symbol, ' by method: ', node.solvemethod, ',  ', node.nsolutions, ' solution(s)')
-            print(node.solution_with_notations)
+        #if node.solveorder != -1: #node is solved
+        #print('\n\n', node.symbol, ' by method: ', node.solvemethod, ',  ', len(node.solutions), ' solution(s)')
+        #print(node.solution_with_notations)
+        print(node.details())
 
     # print all edges in graph
     print('========== Solution Graph (Edges) output ================')

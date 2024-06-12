@@ -41,7 +41,8 @@ class Node:
         self.arguments = {}  # argument needing domain testing
         self.solveorder = -1
 
-
+    def details(self):
+        return('Node details: \n'+self.unknown.details())
 
     def __lt__(self, other):   # for sorting Nodes
         return self.solveorder < other.solveorder
@@ -62,20 +63,18 @@ class Node:
 class Edge: # from unk --->  dependency
     def __init__(self, N1, N2, multiplicity=1):   # N1 depends on N2
         '''child and parent are notation with subscript type'''
-        self.start = N2  # depends on  (arrow pts .start --> .end  (end dependss on start))
-        self.end = N1   # the unknown solutions
+        self.dependsOn = N2  # depends on  (arrow pts .startNode --> .dependsOn)
+        self.StartNode = N1   #  the solution node
         self.mult = multiplicity
-        #self.child = child
-        #self.parent = parent
 
     def __repr__(self):
-        return   'Edge:' +  str(self.start) + " depends on: " + str(self.end) + f'  ({self.start}-->{self.end})'
+        return   'Edge:' +  str(self.StartNode) + " depends on: " + str(self.dependsOn) + f'  ({self.StartNode}-->{self.dependsOn})'
 
     def __eq__(self, other):
-        return self.start == other.start and self.end == other.end and self.mult == other.mult
+        return self.StartNode == other.StartNode and self.dependsOn == other.dependsOn and self.mult == other.mult
 
     def __hash__(self):
-        return self.start.__hash__() * self.end.__hash__() + self.mult.__hash__()
+        return self.StartNode.__hash__() * self.dependsOn.__hash__() + self.mult.__hash__()
 
 
 

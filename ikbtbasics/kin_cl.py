@@ -170,7 +170,7 @@ class unknown(object):
         R.solution_nodes.append(newNode)
         # update edge set
         for d in self.dependencies:
-            R.notation_graph_edges.add(Edge(d,self))
+            R.notation_graph_edges.add(Edge(self,d))  #edge(unk, dependency)
 
 
         # set up edge(s)
