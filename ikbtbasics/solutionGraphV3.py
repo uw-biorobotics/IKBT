@@ -33,6 +33,7 @@ class Node:
         self.name = str(unk.symbol)
         self.argument = unk.argument
         self.solvemethod = unk.solvemethod
+        # nversions is in the unknown class self.unk.nversions
         #  aren't these redundant since we have them in the unk??
         self.eqnlist = []
         self.nsolutions = 0

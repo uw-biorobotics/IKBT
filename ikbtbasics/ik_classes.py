@@ -103,7 +103,8 @@ def kinematics_pickle(rname, dh, constants, pvals, vv, unks, test):
         # below is commented out for testing and devel of sum_of_angles_transform
         R.sum_of_angles_transform(unks)  # find sum of angles
 
-        R.generate_solution_nodes(unks) # generate solution nodes
+        # for Version 3: solution nodes created as they are solved (unknown.set_solved)
+        #R.generate_solution_nodes(unks) # generate solution nodes
 
         print(' Storing kinematics pickle for '+rname + '('+name+')')
         with open(name,'wb') as pf:
@@ -219,21 +220,75 @@ class Robot:
             self.mequation_list = Mech.get_mequation_set()  # all the Matrix FK equations
             print('ik_classes: length Robot.mequation_list: ', len(self.mequation_list))
 
-    #generate_solution_nodes
+    # #
+    #   Print text-based solution graph
     #
-    def generate_solution_nodes(self, unknowns):
-        '''generate solution nodes'''
+    def output_solution_graph(self):
+        print('========== Solution Output ================')
+        print('          ' + self.name)
 
-        for unk in unknowns:
-            if unk.solvemethod != '':    # this means the unk was not used at all in solution
-                                              #  typically SOA unknowns like th_23
-                self.solution_nodes.append(sg.Node(unk))
-                self.variables_symbols.append(unk.symbol)
-        print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>Robot: solution nodes:', self.solution_nodes)
-        print(self.variables_symbols)
+        print('========== Solution Graph (Nodes) ===============')
+        for node in self.solution_nodes:
+            print(node.details())
+
+        print('========== Solution Graph (Edges) output ================')
+        for edge in self.notation_graph_edges:
+            print(edge)
+
+        print('========== End Solution Graph Output ================')
+
+    def create_solution_sets(self):
+        # go through nodes in solution order
+        solListMatrix = []  # a matrix, each row is a set of versions forming a solution
+        for node in self.solution_nodes:
+            u = node.unknown
+            unsol = len(u.solutions)
+            lp= len(solListMatrix)
+            if unsol > 1: # if current nsol > 1
+                for i in range(unsol): # duplicate rows if needed to accomodate nsols
+                    solListMatrix += solListMatrix.copy()
+
+            if len(solListMatrix) >0:
+                # add this node's solutions to form a new column
+                for i,r in enumerate(solListMatrix):  # add to each row
+                    print('create_solution_sets: appending ', u,  u.versionNames[i])
+                    r.append(u.versionNames[i])
+            else: # first time through
+                for sol_n in u.solutionNames:
+                    solListMatrix.append([sol_n])
+                    print('create_solution_sets: creating ', u, solListMatrix)
+        print('======>>>  SOLUTION LIST COMPLETED:')
+        print(solListMatrix)
+
+        # foreach node:
+        x = '''
+4. Number the versions xivj where i selects the variable and j selects the version number.
+5. Enumerate and save the expression for each version. Example:
+√
+ x4v1 = − 9
+√
+ x4v2 = 9]
+6. Add them as a new colum to the solution vector matrix, if nvi is less than the number of rows, repeat
+the versions to complete all rows. If nvi is greater than the number of rows of the solution vector
+matrix, copy the rows nsi times and append them to to get nvj rows.'''
+
+
+    #  DELETEME
+    #generate_solution_nodes (V3: not needed)
+    #
+    #def generate_solution_nodes(self, unknowns):
+        #'''generate solution nodes'''
+
+        #for unk in unknowns:
+            #if unk.solvemethod != '':    # this means the unk was not used at all in solution
+                                              ##  typically SOA unknowns like th_23
+                #self.solution_nodes.append(sg.Node(unk))
+                #self.variables_symbols.append(unk.symbol)
+        #print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>Robot: solution nodes:', self.solution_nodes)
+        #print(self.variables_symbols)
 
     # get lists of unsolved equations having 1 and 2 unks
-    # class Robot:
+    #
     def scan_for_equations(self,variables):
         self.l1 = [] # equations with one unk nown (if any)
         self.l2 = [] # equations with two unknowns
@@ -494,27 +549,6 @@ def get_variable_index(vars, symb):
 
 # matrix_equation class moved to kin_cl.py
 
-
-
-# #
-#   Print text-based solution graph
-#
-def output_solution_graph(R):
-    print('========== Solution output ================')
-    print('          ' + R.name)
-
-    print('========== Solution Graph (Nodes) ===============')
-    for node in R.solution_nodes:
-        #if node.solveorder != -1: #node is solved
-        #print('\n\n', node.symbol, ' by method: ', node.solvemethod, ',  ', len(node.solutions), ' solution(s)')
-        #print(node.solution_with_notations)
-        print(node.details())
-
-    # print all edges in graph
-    print('========== Solution Graph (Edges) output ================')
-    for edge in R.notation_graph_edges:
-        print(edge)
-    print('========== End Solution output ================')
 
 
 def erank(list_L):    # rearrange list of eqns by length

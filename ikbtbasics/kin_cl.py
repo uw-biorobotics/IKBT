@@ -106,7 +106,10 @@ class unknown(object):
         self.solveorder = 0
         self.usedfortransform = False   # if solved, has this been used for transform yet?
         self.solutions = []   # list of solutions, store final solutions
+        self.solutionNames = []  # symbols for each solution eg x_2s1
+        self.versionNames = []   # version names (repeats of solutionNames)
         self.dependencies = set()  # unknowns on which this soln depends (all solved)
+        self.nversions = 1  # filled in by Robot.create_solution_sets in solution order
         self.nsolutions = 0   # number of solutions (== len(self.solutions))
         self.assumption = [] #assumputions about the solutions
         self.argument = sp.var('a')*sp.var('b')  # argument to arcin() for example (used for generating checking code output)
@@ -138,10 +141,13 @@ class unknown(object):
         sret = ''
         sret += 'Name:       ' + self.name + '\n'
         sret += 'Solved:     ' + str(self.solved) + '\n'
-        sret += 'Solveorder: ' + str(self.solveorder) + '\n'
-        sret += 'Solutions:  ' + str(self.solutions) + '\n'
+        sret += 'Solveorder: ' + str(self.solveorder)  + '\n'
+        sret += 'Solutions:  ' + str(self.solutions)   + '  n_si = ' + str(len(self.solutions)) +'\n'
         sret += 'Deps:       ' + str(self.dependencies) + '\n'
-        sret += 'Assumptions:' + str(self.assumption) + '\n'
+        sret += 'Nversions:  ' + str(self.nversions)   + '\n'
+        sret += 'Sol. Names: ' + str(self.solutionNames) + '\n'
+        sret += 'Ver. Names: ' + str(self.versionNames) + '\n'
+        sret += 'Assumptions:' + str(self.assumption)  + '\n'
         return sret
 
 
@@ -159,8 +165,12 @@ class unknown(object):
         R.solveN += 1                 # increment solution level counter
         self.solveorder = R.solveN    # first solution starts with 1 (0 is the root)
         #get dependencies from the solutions
+        n=1
         for sol in self.solutions:
             self.dependencies.update(get_deps(unknowns,sol))  # add to set of deps
+            solname = self.name + 's' + str(n)
+            n += 1
+            self.solutionNames.append(solname)
         # set up a node
         newNode = Node(self)
 
@@ -172,12 +182,14 @@ class unknown(object):
         for d in self.dependencies:
             R.notation_graph_edges.add(Edge(self,d))  #edge(unk, dependency)
 
-
-        # set up edge(s)
-        ##############3  ******************************* TBD
-
-
-
+        # create the versions of this unknown
+        nver = len(self.solutions)
+        for d in self.dependencies:
+            nver *= d.nversions
+        self.nversions = nver
+        for i in range(nver):
+            vername = self.solutionNames[i%self.nsolutions]
+            self.versionNames.append(vername)
 
     # Summer 24: now on solutionGraphV3
     #  disable this by renaming
