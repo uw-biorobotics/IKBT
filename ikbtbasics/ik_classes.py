@@ -22,6 +22,7 @@
 import sympy as sp
 import shutil as sh
 import os as os
+import copy
 #import numpy as np
 import ikbtbasics.pykinsym as pks
 import re
@@ -32,7 +33,7 @@ import b3 as b3          # behavior trees
 import pickle
 from ikbtfunctions.helperfunctions import *
 import ikbtfunctions.graph2latex as gl
-#from kin_cl import *
+#from kin_cl import *f
 import ikbtbasics.kin_cl as kc
 
 # generic variables for any manipulator
@@ -242,38 +243,36 @@ class Robot:
         solListMatrix = []  # a matrix, each row is a set of versions forming a solution
         for node in self.solution_nodes:
             u = node.unknown
-            unsol = len(u.solutions)
-            lp= len(solListMatrix)
-            if unsol > 1: # if current nsol > 1
-                for i in range(unsol): # duplicate rows if needed to accomodate nsols
-                    solListMatrix += solListMatrix.copy()
+            u_nvers = node.unknown.nversions
+            u_nsols = node.unknown.nsolutions
+            n_rows_solnM= len(solListMatrix)
 
-            if len(solListMatrix) >0:
+            if u_nsols > 1: # if current nsol > 1
+                for i in range(u_nsols-1): # duplicate rows if needed to accomodate nsols
+                    solListMatrix += copy.deepcopy(solListMatrix)
+
+            if n_rows_solnM > 0:
                 # add this node's solutions to form a new column
-                for i,r in enumerate(solListMatrix):  # add to each row
-                    print('create_solution_sets: appending ', u,  u.versionNames[i])
+                for i in range(len(solListMatrix)):  # add to each row
+                    r = solListMatrix[i]
+                    #print('create_solution_sets: appending ',  u.versionNames[i])
+                    #print(i,r,'<--',u.versionNames[i])
+                    #breakpoint()
                     r.append(u.versionNames[i])
             else: # first time through
-                for sol_n in u.solutionNames:
-                    solListMatrix.append([sol_n])
-                    print('create_solution_sets: creating ', u, solListMatrix)
-        print('======>>>  SOLUTION LIST COMPLETED:')
-        print(solListMatrix)
-
-        # foreach node:
-        x = '''
-4. Number the versions xivj where i selects the variable and j selects the version number.
-5. Enumerate and save the expression for each version. Example:
-√
- x4v1 = − 9
-√
- x4v2 = 9]
-6. Add them as a new colum to the solution vector matrix, if nvi is less than the number of rows, repeat
-the versions to complete all rows. If nvi is greater than the number of rows of the solution vector
-matrix, copy the rows nsi times and append them to to get nvj rows.'''
+                #print('first solved unk:', u.details())
+                for sol_name in u.versionNames:  #start new row for all solns of first solved unk.
+                    solListMatrix.append([sol_name])
+                    #print('create_solution_sets: creating ', u, solListMatrix)
+            #print('---')
+            #print(solListMatrix)
+        print('====== SOLUTION LIST COMPLETED: ================')
+        for r in solListMatrix:
+            print(r)
 
 
-    #  DELETEME
+
+    #  TODO:  verify uneeded then DELETEME
     #generate_solution_nodes (V3: not needed)
     #
     #def generate_solution_nodes(self, unknowns):

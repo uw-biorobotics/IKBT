@@ -146,7 +146,10 @@ class unknown(object):
         sret += 'Deps:       ' + str(self.dependencies) + '\n'
         sret += 'Nversions:  ' + str(self.nversions)   + '\n'
         sret += 'Sol. Names: ' + str(self.solutionNames) + '\n'
-        sret += 'Ver. Names: ' + str(self.versionNames) + '\n'
+        if self.nversions < 65:
+            sret += 'Ver. Names: ' + str(self.versionNames) + '\n'
+        else:
+            sret += 'Ver. Names: ' + str(self.versionNames[0:64]) + '   ...  \n'
         sret += 'Assumptions:' + str(self.assumption)  + '\n'
         return sret
 
