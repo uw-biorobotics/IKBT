@@ -32,7 +32,7 @@ class cpp_output:
         self.f = None     #file ptr
         self.level = 0
         self.indent = '    '
-    
+
     def line(self,str):
         lines = str.split('\n')
         for l in lines:
@@ -45,7 +45,7 @@ class cpp_output:
                 r = re.compile(r'([a-z]{3}\([^\)]+?\))\*\*2')  #  sin(x)**2 or cos(x)**2
                 l = r.sub(r'\1*\1', s2)  # substitute --> x*x
             print(self.indent*self.level + l, file=self.f)
-        
+
     def push(self):
         self.level += 1
         print(self.indent*self.level + '{', file=self.f)
@@ -58,19 +58,19 @@ def output_cpp_code(Robot, solution_groups):
     fixed_name = Robot.name.replace(r'_', r'\_')  # this is for LaTex output
     fixed_name = fixed_name.replace('test: ','')
     orig_name  = Robot.name.replace('test: ', '')
-    
+
     c = cpp_output()
-    
+
     DirName = 'CodeGen/Cpp/'
     fname = DirName + 'IK_equations'+orig_name+'.cpp'
     f = open(fname, 'w')
     c.f = f
     c.level = 0
     c.indent = '    '
-    
+
     c.line('''//
 //  C++ inverse kinematic equations for ''' + fixed_name + '''
-    
+
 
 #include <math.h>
 #include <stdio.h>
@@ -78,45 +78,45 @@ def output_cpp_code(Robot, solution_groups):
 
 double pi = 3.1415926;
 
-// ikin_Wrists modifies solution_list in-place and 
+// ikin_Wrists modifies solution_list in-place and
 // returns 1 for valid solutions and 0 for no solutions
 int ikin(double T[4][4], double solution_list[64][6]);
 
 ''')
-    
+
     ###################
     #   Variable and parameter declarations
-    
+
     sol_vars = set() #all variables used in solutions
     # now handled outside, in ikSolver
     #solution_groups = mtch.matching_func(Robot.notation_collections, Robot.solution_nodes)
     for s in solution_groups:
         sol_vars.update(s)
-        
-    #  Variable Declarations 
+
+    #  Variable Declarations
     tmp = 'double'
     for v in sol_vars:
         tmp += ' ' + str(v) + ','
-        
+
     var_decl_str = tmp[:-1] + ';'   # drop trailing comma and end the line
-     
+
     # parameter Declarations
     tmp = '\n'
     for p in Robot.params:   # other DH dimensional params (l_3 etc)
         tmp += 'double '+str(p) + ' = XXXXX ; \\ deliberate undeclared error!  USER needs to give numerical value\n'
     par_decl_str = tmp
-    
+
        #  FROM Latex Output
         #nsolns = len(node.solution_with_notations.values())
         #for eqn in node.solution_with_notations.values():
-    
+
     nlist = Robot.solution_nodes
 
-    nlist.sort( ) # sort by solution order
-    
-    
+    #nlist.sort( ) # already sorted by solution order
+
+
     indent = '    ' # 4 spaces
-    
+
     funcname = 'ikin'
     c.line('int main()')
     c.push()
@@ -131,13 +131,13 @@ int ikin(double T[4][4], double solution_list[64][6]);
     c.line('std::cout <<  "No valid solution" ;')
     c.pop()
     c.pop()
-    # end of main 
-    
+    # end of main
+
     # ik function
     c.line('\n// Code to solve the unknowns ')
     c.line('\n\n// Declarations')
     c.line('int ' + funcname + '(double T[4][4], double solution_list[64][6] )')  # no indent
-    c.push() 
+    c.push()
     c.line('''\n//define the input vars
 double r_11 = T[0][0];
 double r_12 = T[0][1];
@@ -168,24 +168,25 @@ int False = 0;
     c.line('// declare constant parameters (note they will need values!)')
     c.line(par_decl_str)
     for node in nlist:  # for each solved var
-        c.line('\n\n') 
+        c.line('\n\n')
 
         c.line('//Variable: '+str(node.symbol))
         solno = 0
-        for sol in node.solution_with_notations.values(): 
+        for i,solu in enumerate(node.solution_list):
+            sol = kc.kequation(node.solutionNames, solu)
             c.line('\n// solution '+str(solno))
             solno += 1
             solrhs = str(sol.RHS)
             # detect arcsin() or arccos()
             #
             #  BH   21-Sept
-            #  This code needs a serious refactor.  When solution is for example: 
+            #  This code needs a serious refactor.  When solution is for example:
             #    th5_ijk = arcsin(x) + atan2(y1,x1)
             #       (here 'x' is a complicated expression)
-            #  then it is important that the generated code will test  -1 < x < +1 
-            #  if this test fails the pose is unreachable and arcsin fails. 
+            #  then it is important that the generated code will test  -1 < x < +1
+            #  if this test fails the pose is unreachable and arcsin fails.
             #
-            #  Suggested solution: 
+            #  Suggested solution:
             #     in each solver, generate test expressions in the R object
             #     Code generator can then just generate:
             #        if (fabs(x) > 1) {    // etc. etc.
@@ -200,7 +201,7 @@ int False = 0;
             #            set "no-solution" flag
             #
             trig = False
-            
+
             print('\n\nStudying node: ', node.symbol, ' solution ', solno)
             print('solvemethod: ', node.solvemethod)
             print(' LHS: ', str(sol.LHS))
@@ -209,13 +210,13 @@ int False = 0;
             print('argument: ', node.argument)
             print('solarg:   ', node.arguments[sol.LHS])
             print('\n\n')
-            
+
             c.line('// solvemethod: ' + node.solvemethod )
             c.line('//    argument: ' + str(node.argument )  )
-            
+
             if(node.solvemethod == 'arcsin' or node.solvemethod == 'arccos'):
                trig = True
-            
+
             if(trig):
                print('  Found asin/acos solution ...', sol.LHS , ' "=" ',sol.RHS)
                c.line('// Arcsin() or Arccos() based solution:')
@@ -225,35 +226,35 @@ int False = 0;
                c.line('solvable_pose = False; ')
                c.pop()
                c.line('else if (solvable_pose)')
-               c.push()        #  bugus    (here) 
+               c.push()        #  bugus    (here)
                c.line(str(sol.LHS) + ' = '+node.solvemethod+'(argument);' )
                c.pop()
-                
+
             if ((not trig) and node.solvemethod == 'atan2(y,x)' ):
                c.line('// Atan2(y,x) based solution:')
                c.line(str(sol.LHS) + ' = ' + solrhs + ';')
-                
+
             if node.solvemethod == 'algebra':
                c.line('// Algebra based solution:')
                c.line(str(sol.LHS) + ' = ' + solrhs + ';')
-            
+
             if node.solvemethod == 'x2z2':
                 print('x2z2 output: ', node.argument)
                 c.line('// "x2z2" based solution:')
                 #c.line('argument = '+str(node.arguments[str(sol.LHS)])+';')
                 c.line('argument = '+str(node.arguments[(sol.LHS)])+';')
-                
-            
-            
+
+
+
             if node.solvemethod == 'simultaneous eqn':
                 print('x2z2 output: ', node.argument)
                 c.line('// simultaneous equations - based solution:')
                 #c.line('argument = '+str(node.arguments[str(sol.LHS)])+';')
                 c.line('argument = '+str(node.arguments[(sol.LHS)])+';')
-                
-            
-                    
-                
+
+
+
+
     c.line('''
 //##################################
 //#
@@ -261,25 +262,25 @@ int False = 0;
 //#
 //###################################
 ''')
-    
-    
+
+
     ###########################################################
     #
     #   Output of solution sets
     #
     ###########################################################
-    
-    
+
+
     grp_lists = []
     for g in solution_groups:
         gs = []
         for t in g:
             print('g: ', g, 't: ', t)
             gs.append(str(t))
-            
+
         #print(gs.sort, file=f) # in place
         grp_lists.append(gs)
-        
+
     c.line('//(note trailing commas allowed in C++\n')
 
     i = 0
@@ -287,37 +288,37 @@ int False = 0;
     for g in grp_lists:
         g.sort()
         for v in g:
-            c.line('solution_list['+ str(i) + '][' + str(j) + '] = ' + v + ';') 
+            c.line('solution_list['+ str(i) + '][' + str(j) + '] = ' + v + ';')
             j += 1
-        j=0 
+        j=0
         i+= 1
-        
-    # we are done.   Return 
+
+    # we are done.   Return
     c.line('\n\n')
     c.line('// return 1 for solved, 0 for no solution')
-    c.line('return(solvable_pose);') 
+    c.line('return(solvable_pose);')
     c.pop()
-    
+
     f.close()
-    
+
 ###################################################################
 #
 #    Test Code
 #
 
- 
+
 #####################################################################################
 # Test code below.  See sincos_solver.py for example
-#       
+#
 class TestSolver010(unittest.TestCase):    # change TEMPLATE to unique name (2 places)
     # def setUp(self):
         # self.DB = False  # debug flag
         #print '===============  Test updateL.py  ====================='
         # return
-    
+
     def runTest(self):
         self.test_output_cpp()
-            
+
     def test_output_cpp(self):
         #
         #     Set up robot equations for further solution by BT
@@ -328,15 +329,15 @@ class TestSolver010(unittest.TestCase):    # change TEMPLATE to unique name (2 p
         #
         #   The famous Puma 560  (solved in Craig)
         #
-        
+
         # 1)   Read the test pickle for PUMA equations
-        test_pickle_dir = 'Test_pickles/'       
+        test_pickle_dir = 'Test_pickles/'
         name = test_pickle_dir + 'Puma' + 'test_pickle.p'
         try:
             with open(name, 'r') as pick:
                 print('\nReading pre-computed forward kinematics TEST info\n')
                 [R, unks]  = pickle.load(pick)
-        except:  
+        except:
             print('\n\n\n        Testing:  Failed to find data pickle file ... quitting()    \n\n\n')
             # if the test pickle is missing: edit ikSolver.py
             #    line 32: TEST_DATA_GENERATION = True
@@ -349,15 +350,15 @@ class TestSolver010(unittest.TestCase):    # change TEMPLATE to unique name (2 p
         #output_latex_solution(R,unks)
 
         output_cpp_code(R)
-        
+
         # 3)   assertions
-        
+
         print('cpp output file completed')
-        
+
         #    3.1)   Open CPP output file
-        #    3.2)   use assertions to check some lines. 
-         
-        
+        #    3.2)   use assertions to check some lines.
+
+
 #
 #    Can run your test from command line by invoking this file
 #
@@ -366,18 +367,18 @@ class TestSolver010(unittest.TestCase):    # change TEMPLATE to unique name (2 p
 
 #def run_test():
     #print '\n\n===============  Test output_cpp_code() ====================='
-    #testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver010)  # replace TEMPLATE 
+    #testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver010)  # replace TEMPLATE
     #unittest.TextTestRunner(verbosity=2).run(testsuite)
 
 if __name__ == "__main__":
-    
+
     print('\n\n===============  Test output_cpp_code() =====================')
-    testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver010)  # replace TEMPLATE 
+    testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver010)  # replace TEMPLATE
     unittest.TextTestRunner(verbosity=2).run(testsuite)
     #unittest.main()
-   
 
 
-    
+
+
 
 

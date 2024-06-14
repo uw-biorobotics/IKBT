@@ -405,13 +405,15 @@ if VERSION02:
 #
 R.output_solution_graph() # V3 works (moved into Robot class)
 
-# create the "final groups"
+#
+#  generate the solution sets (as a set of tuples (don't ask))
+#
+R.create_solution_set()
 
-final_groups = R.create_solution_sets()
 
-ol.output_latex_solution(R,unks, final_groups)
-op.output_python_code(R, final_groups)
-oc.output_cpp_code(R, final_groups)
+ol.output_latex_solution(R,unks, R.solutionSet)  # calling args could be optimized for V3
+op.output_python_code(R, R.solutionSet)
+oc.output_cpp_code(R, R.solutionSet)
 
 
 #################################################

@@ -177,9 +177,9 @@ def output_latex_solution(Robot,variables, groups):
     solsection += ''' The following equations comprise the full solution set for this robot.''' + eol
 
     # sort the nodes into solution order
-    sorted_node_list = sorted(Robot.solution_nodes)
+    #sorted_node_list = sorted(Robot.solution_nodes)
 
-    for node in sorted_node_list:
+    for node in Robot.solution_nodes:
         if node.solvemethod != '':   # skip variables (typically extra SOA's) that are not used.
             ALIGN = True
             tmp = '$' + sp.latex(node.symbol) + '$'
@@ -192,8 +192,11 @@ def output_latex_solution(Robot,variables, groups):
             else:
                 solsection += r'\begin{dmath} '+eol
             i=0
-            nsolns = len(node.solution_with_notations.values())
-            for eqn in node.solution_with_notations.values():
+            nsolns = node.nsolutions #len(node.solution_with_notations.values())
+            print('LatexOutput: ', node, ' has ', nsolns, ' solutions')
+            for soln in node.solutions:
+                eqn = kc.kequation(node.unknown.solutionNames[i], soln)
+                print('Latex Output: Equation: ', eqn)
                 i += 1
                 if ALIGN and (i < nsolns):
                     tmp2 = r'\\'   # line continuation for align environment
@@ -261,7 +264,7 @@ The following are the sets of joint solutions (poses) for this manipulator:
      # Equations evaluated (for result verification or debugging)
     metsection = r'\section{Equations Used for Solutions}'
 
-    for node in sorted_node_list:
+    for node in Robot.solution_nodes:
         if node.solvemethod == '':  # skip unused SOA vars.
             continue
                 #print out the equations evaluated

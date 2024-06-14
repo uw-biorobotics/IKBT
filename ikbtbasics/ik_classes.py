@@ -238,7 +238,12 @@ class Robot:
 
         print('========== End Solution Graph Output ================')
 
-    def create_solution_sets(self):
+
+    #
+    #  generate the solution vectors for the robot
+    #     first as a list of lists, convert to set of tuples for compatibilty w/ V2
+    #
+    def create_solution_set(self):
         # go through nodes in solution order
         solListMatrix = []  # a matrix, each row is a set of versions forming a solution
         for node in self.solution_nodes:
@@ -267,9 +272,18 @@ class Robot:
             #print('---')
             #print(solListMatrix)
         print('====== SOLUTION LIST COMPLETED: ================')
-        for r in solListMatrix:
-            print(r)
 
+        self.solutionSet = set()
+        for row in solListMatrix:
+            print(row)
+        #
+        #   code/Latex generaters want a set of tuples(!)
+        #
+            self.solutionSet.add(tuple(row))
+
+        print('======  SOLUTION LIST IS Set of tuples: self.solutionSet ==============')
+
+        return
 
 
     #  TODO:  verify uneeded then DELETEME
