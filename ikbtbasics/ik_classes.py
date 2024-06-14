@@ -249,7 +249,7 @@ class Robot:
 
             if u_nsols > 1: # if current nsol > 1
                 for i in range(u_nsols-1): # duplicate rows if needed to accomodate nsols
-                    solListMatrix += copy.deepcopy(solListMatrix)
+                    solListMatrix += copy.deepcopy(solListMatrix)[::-1]
 
             if n_rows_solnM > 0:
                 # add this node's solutions to form a new column
@@ -258,7 +258,7 @@ class Robot:
                     #print('create_solution_sets: appending ',  u.versionNames[i])
                     #print(i,r,'<--',u.versionNames[i])
                     #breakpoint()
-                    r.append(u.versionNames[i])
+                    r.append(u.versionNames[i%u.nversions])
             else: # first time through
                 #print('first solved unk:', u.details())
                 for sol_name in u.versionNames:  #start new row for all solns of first solved unk.

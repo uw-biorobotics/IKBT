@@ -161,7 +161,8 @@ class unknown(object):
         print('set_solved (for solutionGraphV3: ', self.symbol, '      by: ', self.solvemethod)
         #print '            ', self.eqntosolve
         fs = 'set_solved: solutions empty '
-        assert (len(self.solutions) >= 1), fs
+        self.nsolutions = len(self.solutions)
+        assert (self.nsolutions >= 1), fs
         assert (self.nsolutions > 0), fs
         print('            ', self.symbol, '=', self.solutions[0], '\n\n')
 
@@ -188,7 +189,7 @@ class unknown(object):
         # create the versions of this unknown
         nver = len(self.solutions)
         for d in self.dependencies:
-            nver *= d.nversions
+            nver *= d.nsolutions
         self.nversions = nver
         for i in range(nver):
             vername = self.solutionNames[i%self.nsolutions]

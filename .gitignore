@@ -9,6 +9,4 @@ t.*
 *.npy
 *.log
 *.aux
-*.pdf
 *.out
-*.tex
