@@ -80,7 +80,7 @@ class kequation:
         tab = ' '
         if align:
             tab = ' &'
-        self.string = sp.latex(self.LHS) + tab +  '= ' + tmp
+        self.string = '\n' + sp.latex(self.LHS) + tab +  '= ' + tmp
 
         tmp = self.string
         tmp = tmp.replace(r'th_', r'\theta_')     # change to greek theta
@@ -112,6 +112,7 @@ class unknown(object):
         self.nversions = 1  # filled in by Robot.create_solution_sets in solution order
         self.nsolutions = 0   # number of solutions (== len(self.solutions))
         self.assumption = [] #assumputions about the solutions
+        self.versionEqnList = []   # full equations for each solution version
         self.argument = sp.var('a')*sp.var('b')  # argument to arcin() for example (used for generating checking code output)
 
         # for nodes ranking
@@ -160,14 +161,19 @@ class unknown(object):
         print('\n\n')
         print('set_solved (for solutionGraphV3: ', self.symbol, '      by: ', self.solvemethod)
         #print '            ', self.eqntosolve
+
+        # make sure our calling state is valid
         fs = 'set_solved: solutions empty '
         self.nsolutions = len(self.solutions)
         assert (self.nsolutions >= 1), fs
         assert (self.nsolutions > 0), fs
+
+
         print('            ', self.symbol, '=', self.solutions[0], '\n\n')
 
         R.solveN += 1                 # increment solution level counter
-        self.solveorder = R.solveN    # first solution starts with 1 (0 is the root)
+        self.solveorder = R.solveN    # first solution starts with 0 (no more "Root")
+
         #get dependencies from the solutions
         n=1
         for sol in self.solutions:
@@ -182,10 +188,8 @@ class unknown(object):
         #breakpoint()
 
         R.solution_nodes.append(newNode)
-        # update edge set
-        for d in self.dependencies:
-            R.notation_graph_edges.add(Edge(self,d))  #edge(unk, dependency)
 
+        #########
         # create the versions of this unknown
         nver = len(self.solutions)
         for d in self.dependencies:
@@ -194,6 +198,31 @@ class unknown(object):
         for i in range(nver):
             vername = self.solutionNames[i%self.nsolutions]
             self.versionNames.append(vername)
+
+
+        #######
+        #  for each version, generate a full solution equation
+        for i,vn in enumerate(self.versionNames):
+            LHS = sp.var(vn)
+            RHS = self.solutions[i%self.nsolutions]
+            # get substitutions of versions for deps
+            subdict = {} # versions to be substituted
+            for d in self.dependencies:
+                # the dep is an 'unknown' - make it a sp.var()
+                subdict[sp.var(str(d))] = sp.var(d.versionNames[i] )
+            #print('set_solved: subdict:', subdict, 'RHS type: ', type(RHS))
+            RHS = RHS.subs(subdict) # d <-- subs[d]
+            #print('set_solved: new RHS: ', RHS)
+            neweq = kequation(LHS,RHS)
+            self.versionEqnList.append(neweq)
+            #print('set_solved: new equation for', self.name, ':', neweq)
+
+
+
+        #########################
+        # update edge set
+        for d in self.dependencies:
+            R.notation_graph_edges.add(Edge(self,d))  #edge(unk, dependency)
 
     # Summer 24: now on solutionGraphV3
     #  disable this by renaming

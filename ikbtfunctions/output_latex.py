@@ -78,7 +78,8 @@ class LatexFile():
 
 def plines(sl,f):
     for s in sl:
-        print(s,end='',file=f)
+        print(s,end='\n',file=f)
+    #print(sl, end='\n', file=f)
 
 
 #
@@ -185,17 +186,16 @@ def output_latex_solution(Robot,variables, groups):
             tmp = '$' + sp.latex(node.symbol) + '$'
             tmp = tmp.replace(r'th_', r'\theta_')
             tmp = re.sub(r'_(\d+)',  r'_{\1}', tmp)   # get all digits of subscript into {} for latex
-            solsection += r'\subsection{'+tmp+r' } '+eol + 'Solution Method: ' + node.solvemethod + eol
+            solsection += '\n' +r'\subsection{'+tmp+r' } '+eol + 'Solution Method: ' + node.solvemethod + eol
 
             if (ALIGN):
-                solsection += r'\begin{align}'+eol
+                solsection += r'\begin{align}'
             else:
-                solsection += r'\begin{dmath} '+eol
+                solsection += r'\begin{dmath} '
             i=0
-            nsolns = node.nsolutions #len(node.solution_with_notations.values())
+            nsolns = node.unknown.nsolutions #len(node.solution_with_notations.values())
             print('LatexOutput: ', node, ' has ', nsolns, ' solutions')
-            for soln in node.solutions:
-                eqn = kc.kequation(node.unknown.solutionNames[i], soln)
+            for eqn in node.unknown.versionEqnList:
                 print('Latex Output: Equation: ', eqn)
                 i += 1
                 if ALIGN and (i < nsolns):
@@ -241,7 +241,7 @@ The following is the abstract representation of solution graph for this manipula
 
     edgesection +=  r'\end{verbatim} '+eol
 
-    LF.sections.append(edgesection)
+    LF.sections.append(edgesection.splitlines())
 
 
     ####################  Solution Sets
@@ -250,7 +250,7 @@ The following is the abstract representation of solution graph for this manipula
     solsection += r'''
 The following are the sets of joint solutions (poses) for this manipulator:
 \begin{verbatim}
-    '''
+'''
 
     # groups = mtch.matching_func(Robot.notation_collections, Robot.solution_nodes)
 
@@ -260,27 +260,45 @@ The following are the sets of joint solutions (poses) for this manipulator:
 
     solsection += '\end{verbatim}'+eol+eol
 
+    LF.sections.append(solsection.splitlines())
+
+    ####################  Solution sets
+
+
+    ncols = len(list(Robot.solutionSet)[0])
+    colstr = '|' + 'l|'*ncols
+    tablestr = r'\section{SolutionSets v3} \begin{tabular}{' + colstr + r'}\hline' + eol
+    for s in Robot.solutionSet:
+        tablestr += s[0]
+        for v in s[1:]:
+            tablestr += ' & ' + v
+        tablestr += r'\\\hline' + eol
+    tablestr += r'\end{tabular}'+eol
+
+    LF.sections.append(tablestr.splitlines())
+
+
     ####################  Solution methods
      # Equations evaluated (for result verification or debugging)
-    metsection = r'\section{Equations Used for Solutions}'
+    #metsection = r'\section{Equations Used for Solutions}'
 
-    for node in Robot.solution_nodes:
-        if node.solvemethod == '':  # skip unused SOA vars.
-            continue
-                #print out the equations evaluated
-        # print  'Equation(s):
-        tmp = '$' + sp.latex(node.symbol) + '$'
-        tmp = tmp.replace(r'th_', r'\theta_')
-        tmp = re.sub(r'_(\d+)',  r'_{\1}', tmp)   # get all digits of subscript into {} for latex
-        metsection += r'\subsection{'+tmp+' }'+eol
-        metsection += r'Solution Method: '+node.solvemethod
+    #for node in Robot.solution_nodes:
+        #if node.solvemethod == '':  # skip unused SOA vars.
+            #continue
+                ##print out the equations evaluated
+        ## print  'Equation(s):
+        #tmp = '$' + sp.latex(node.symbol) + '$'
+        #tmp = tmp.replace(r'th_', r'\theta_')
+        #tmp = re.sub(r'_(\d+)',  r'_{\1}', tmp)   # get all digits of subscript into {} for latex
+        #metsection += r'\subsection{'+tmp+' }'+eol
+        #metsection += r'Solution Method: '+node.solvemethod
 
-        for eqn in node.eqnlist:
-            metsection += r'\begin{dmath}'+eol
-            metsection += eqn.LaTexOutput()+eol
-            metsection += r'\end{dmath}'+eol
+        #for eqn in node.eqnlist:
+            #metsection += r'\begin{dmath}'+eol
+            #metsection += eqn.LaTexOutput()+eol
+            #metsection += r'\end{dmath}'+eol
 
-    LF.sections.append(metsection.splitlines())
+    #LF.sections.append(metsection.splitlines())
 
 
     ####################  Jacobian Matrix
