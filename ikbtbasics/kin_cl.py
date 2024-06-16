@@ -83,7 +83,7 @@ class kequation:
         self.string = '\n' + sp.latex(self.LHS) + tab +  '= ' + tmp
 
         tmp = self.string
-        tmp = tmp.replace(r'th_', r'\theta_')     # change to greek theta
+        tmp = theta_expand(tmp)
         tmp = re.sub(r'_(\d+)',  r'_{\1}', tmp)   # get all digits of subscript into {}
         tmp = re.sub(r'atan_\{2\}','atan2' , tmp)  # correct atan2 formatting
         return tmp
@@ -112,7 +112,8 @@ class unknown(object):
         self.nversions = 1  # filled in by Robot.create_solution_sets in solution order
         self.nsolutions = 0   # number of solutions (== len(self.solutions))
         self.assumption = [] #assumputions about the solutions
-        self.versionEqnList = []   # full equations for each solution version
+        self.versionEqnList = []   # DEPRECATED: full equations for each solution version
+        self.LHSversionNames = []
         self.argument = sp.var('a')*sp.var('b')  # argument to arcin() for example (used for generating checking code output)
 
         # for nodes ranking
@@ -198,24 +199,29 @@ class unknown(object):
         for i in range(nver):
             vername = self.solutionNames[i%self.nsolutions]
             self.versionNames.append(vername)
+            self.LHSversionNames.append(self.name + 'v' + str(i+1)) # not modded by nsolutions.  For final LHS of eqn
 
-
-        #######
+        #DEPRECATED
+        #######  ##   We're moving this equation list to Robot class
         #  for each version, generate a full solution equation
-        for i,vn in enumerate(self.versionNames):
-            LHS = sp.var(vn)
-            RHS = self.solutions[i%self.nsolutions]
-            # get substitutions of versions for deps
-            subdict = {} # versions to be substituted
-            for d in self.dependencies:
-                # the dep is an 'unknown' - make it a sp.var()
-                subdict[sp.var(str(d))] = sp.var(d.versionNames[i] )
-            #print('set_solved: subdict:', subdict, 'RHS type: ', type(RHS))
-            RHS = RHS.subs(subdict) # d <-- subs[d]
-            #print('set_solved: new RHS: ', RHS)
-            neweq = kequation(LHS,RHS)
-            self.versionEqnList.append(neweq)
-            #print('set_solved: new equation for', self.name, ':', neweq)
+        #print('Unknown version derivation: ', self)
+        #print('        version names:      ', self.versionNames)
+        #for i,vn in enumerate(self.versionNames): # need this many equations for system soln
+            #tmp = self.LHSversionNames[i]
+            #LHS = expand_theta(tmp)
+            #RHS = self.solutions[i%self.nsolutions]
+            ## get substitutions of versions for deps
+            #subdict = {} # versions to be substituted
+            #for d in self.dependencies:
+                ## the dep is an 'unknown' - make it a sp.var()
+                #print('     ver: ',vn, '      dep:', d, '  i:', i)
+                #subdict[sp.var(str(d))] = sp.var(d.LHSversionNames[i%self.nsolutions])
+            ##print('set_solved: subdict:', subdict, 'RHS type: ', type(RHS))
+            #RHS = RHS.subs(subdict) # d <-- subs[d]
+            ##print('set_solved: new RHS: ', RHS)
+            #neweq = kequation(LHS,RHS)
+            #self.versionEqnList.append(neweq)
+            ##print('set_solved: new equation for', self.name, ':', neweq)
 
 
 

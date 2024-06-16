@@ -36,6 +36,11 @@ def print_status(bb, label):
 def print_debug(label):
     print(label)
 
+#
+def theta_expand(x):
+    return x.replace(r'th_', r'\theta_') # convert 'th' to '\theta' for nicer latex
+
+
 ## how many unknowns are in expr?
 def count_unknowns(unknowns, expr):
     n = 0

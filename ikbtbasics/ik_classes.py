@@ -172,6 +172,10 @@ class Robot:
         self.soltag = ''  # suffix tag for current solution level leafs
         self.params = []  # constant dh params such as l_4 etc.
         self.variables_symbols = []
+        self.FinalEqnMatrix = []   # will contain a kequation for each unk and each version
+        self.nversions = 0   # will have the number of rows in FinalEqnMatrix
+
+
         #
         #   "notations" means specifically labeled solution variables such as
         #          th_1s2  (theta-1, solution 2)
@@ -180,7 +184,6 @@ class Robot:
         self.notation_graph_edges = set() #solution edges between nodes notation graph
         self.solution_nodes = []  #   by solve order
         self.notation_collections = [] #solution notations divided into subgroups
-
 
         #  V3:  no such thing as root anymore
         ## set up root
@@ -239,6 +242,40 @@ class Robot:
         print('========== End Solution Graph Output ================')
 
 
+    #   *********  new fcn for final soln versions
+    #  generate the final list of versions for this unknown
+    #
+    def make_LHS_versions(self):
+        nvers = len(self.solListMatrix)  # n versions
+        nunks = len(self.solListMatrix[0])  # n solved unknowns (cols)
+        for row in range(nvers): # go through versions
+            # get subs dict for this row
+            subdict = {}
+            for col,n in enumerate(self.solution_nodes):
+                unk = n.unknown.name
+                subdict[unk] = self.solListMatrix[row][col]
+
+            nsols = self.solution_nodes[col].unknown.nsolutions
+            #LHS: variable version #
+            eqns_row = []
+            for col in range(nunks): # go through unks in solution order
+                #make an equation
+                LHS = self.solution_nodes[col].unknown.name + 'v' + str(row)
+                thisSol = self.solution_nodes[col].unknown.solutions[row%nsols]
+                RHS = thisSol.subs(subdict) # substitute versions for this row
+                thiseqn = kc.kequation(LHS,RHS)
+                eqns_row.append(thiseqn)
+            self.FinalEqnMatrix.append(eqns_row)
+            self.nversions += 1
+        print('make_LHS_versions: NOW WE HAVE Robot.finalEqnMatrix, printing:')
+        #testrow = 3
+        #print(self.FinalEqnMatrix[testrow])
+        print('\n\n')
+        for r in self.FinalEqnMatrix:
+            print(r)
+        print('\n\n')
+
+
     #
     #  generate the solution vectors for the robot
     #     first as a list of lists, convert to set of tuples for compatibilty w/ V2
@@ -246,24 +283,28 @@ class Robot:
     def create_solution_set(self):
         # go through nodes in solution order
         solListMatrix = []  # a matrix, each row is a set of versions forming a solution
+        verListMatrix = []
         for node in self.solution_nodes:
             u = node.unknown
             u_nvers = node.unknown.nversions
             u_nsols = node.unknown.nsolutions
             n_rows_solnM= len(solListMatrix)
 
+            # if this unk has multiple solutions, multiply rows (versions)
             if u_nsols > 1: # if current nsol > 1
-                for i in range(u_nsols-1): # duplicate rows if needed to accomodate nsols
+                for i in range(u_nsols-1): # duplicate rows if needed to accomodate nsols of this unk
                     solListMatrix += copy.deepcopy(solListMatrix)[::-1]
+                    verListMatrix += copy.deepcopy(verListMatrix)[::-1]
 
             if n_rows_solnM > 0:
                 # add this node's solutions to form a new column
                 for i in range(len(solListMatrix)):  # add to each row
-                    r = solListMatrix[i]
+                    rs = solListMatrix[i]
                     #print('create_solution_sets: appending ',  u.versionNames[i])
                     #print(i,r,'<--',u.versionNames[i])
                     #breakpoint()
-                    r.append(u.versionNames[i%u.nversions])
+                    rs.append(u.versionNames[i%u.nversions]) # solution-based version names
+
             else: # first time through
                 #print('first solved unk:', u.details())
                 for sol_name in u.versionNames:  #start new row for all solns of first solved unk.
@@ -273,7 +314,9 @@ class Robot:
             #print(solListMatrix)
         print('====== SOLUTION LIST COMPLETED: ================')
 
-        self.solutionSet = set()
+        self.solListMatrix = solListMatrix  # soltions in list-of-lists form (nversions rows by nunknowns colums)
+        self.solutionSet = set()            # solutions as a set of tuples (v2 output compatibility)
+
         for row in solListMatrix:
             print(row)
         #

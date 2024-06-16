@@ -85,7 +85,11 @@ def plines(sl,f):
 #
 #      Generate a complete report in latex
 #
-def output_latex_solution(Robot,variables, groups):
+def theta_expand(x):
+    return x.replace(r'th_', r'\theta_') # convert 'th' to '\theta' for nicer latex
+
+
+def output_latex_solution(Robot, variables, groups):
     GRAPH = True
     ''' Print out a latex document of the solution equations. '''
     eol = '\n'
@@ -163,7 +167,7 @@ def output_latex_solution(Robot,variables, groups):
         tvars[v]=v.solveorder
     for v in sorted(tvars, key=tvars.get):
         tmp = '$' + sp.latex(v) + '$'
-        tmp = tmp.replace(r'th_', r'\theta_')
+        tmp = theta_expand(tmp)
         tmp = re.sub(r'_(\d+)',  r'_{\1}', tmp)   # get all digits of subscript into {}
         unksection += eol+r'\item {'+tmp+'}'
 
@@ -172,7 +176,8 @@ def output_latex_solution(Robot,variables, groups):
     LF.sections.append(unksection.splitlines())
 
 
-    ####################   Solutions to IK
+    ##########################################################################
+    ####################   Solutions to IK    ( convert to use Robot.solListMatrix)
 
     solsection = r'\section{Solutions} '+eol
     solsection += ''' The following equations comprise the full solution set for this robot.''' + eol
@@ -180,28 +185,38 @@ def output_latex_solution(Robot,variables, groups):
     # sort the nodes into solution order
     #sorted_node_list = sorted(Robot.solution_nodes)
 
+    Robot.make_LHS_versions() # create final equations including all dependencies, versions, solutions!
+
+    # print the final equations
     for node in Robot.solution_nodes:
         if node.solvemethod != '':   # skip variables (typically extra SOA's) that are not used.
             ALIGN = True
             tmp = '$' + sp.latex(node.symbol) + '$'
-            tmp = tmp.replace(r'th_', r'\theta_')
+            tmp = theta_expand(tmp)
             tmp = re.sub(r'_(\d+)',  r'_{\1}', tmp)   # get all digits of subscript into {} for latex
+
+
+            #new subsection for this variable and solution
             solsection += '\n' +r'\subsection{'+tmp+r' } '+eol + 'Solution Method: ' + node.solvemethod + eol
 
+            #begin the equation output
             if (ALIGN):
                 solsection += r'\begin{align}'
             else:
                 solsection += r'\begin{dmath} '
-            i=0
+
             nsolns = node.unknown.nsolutions #len(node.solution_with_notations.values())
-            print('LatexOutput: ', node, ' has ', nsolns, ' solutions')
-            for eqn in node.unknown.versionEqnList:
+            nvers  = Robot.nversions
+            print('LatexOutput: ', node, ' has ', nsolns, ' solutions and ',nvers, ' versions')
+            # go through the final matrix of equation versions
+            colindex = node.unknown.solveorder-1  # select the unknown
+            for rowindex in range(nvers): # go through the versions
+                eqn = Robot.FinalEqnMatrix[rowindex][colindex]
                 print('Latex Output: Equation: ', eqn)
-                i += 1
-                if ALIGN and (i < nsolns):
+                if ALIGN and (rowindex < nvers-1):
                     tmp2 = r'\\'   # line continuation for align environment
                 else:
-                    tmp2 = ''
+                    tmp2 = ''  # last solution version
                 tmp = str(eqn.LaTexOutput(ALIGN))
                 # convert division ('/') to \frac{}{} for nicer output
                 if re.search(r'/',tmp):
@@ -246,7 +261,7 @@ The following is the abstract representation of solution graph for this manipula
 
     ####################  Solution Sets
 
-    solsection = r'\section{Solution Sets}'+eol
+    solsection = r'\section{Solution Set}'+eol
     solsection += r'''
 The following are the sets of joint solutions (poses) for this manipulator:
 \begin{verbatim}
@@ -255,23 +270,23 @@ The following are the sets of joint solutions (poses) for this manipulator:
     # groups = mtch.matching_func(Robot.notation_collections, Robot.solution_nodes)
 
     i=0
-    for g in groups:
+    for g in groups:     # groups is argument consisting of set of tuples
         solsection += str(g)+eol
 
     solsection += '\end{verbatim}'+eol+eol
 
     LF.sections.append(solsection.splitlines())
 
-    ####################  Solution sets
 
 
+    ####################  Solution sets Table form
     ncols = len(list(Robot.solutionSet)[0])
     colstr = '|' + 'l|'*ncols
-    tablestr = r'\section{SolutionSets v3} \begin{tabular}{' + colstr + r'}\hline' + eol
+    tablestr = r'\section{Solution Set v3} \begin{tabular}{' + colstr + r'}\hline' + eol
     for s in Robot.solutionSet:
-        tablestr += s[0]
+        tablestr += '$'+s[0]+'$'
         for v in s[1:]:
-            tablestr += ' & ' + v
+            tablestr += ' & $' + v + '$ '
         tablestr += r'\\\hline' + eol
     tablestr += r'\end{tabular}'+eol
 
