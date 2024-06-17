@@ -176,15 +176,71 @@ def output_latex_solution(Robot, variables, groups):
     ##########################################################################
     ####################   Solutions to IK    ( convert to use Robot.solListMatrix)
 
-    solsection = r'\section{Solutions} '+eol
-    solsection += ''' The following equations comprise the full solution set for this robot.''' + eol
+    solsection = r'\section{Solutions in Generic Form} '+eol
+    solsection += ''' The following equations comprise solutions for each unknown.''' + eol
 
     # sort the nodes into solution order
     #sorted_node_list = sorted(Robot.solution_nodes)
 
     Robot.make_LHS_versions() # create final equations including all dependencies, versions, solutions!
 
-    # print the final equations
+    ###################
+    #  Print the generic solution equations for each unknown without doing the permuations and combinations
+    #
+    for node in Robot.solution_nodes:
+        if node.solvemethod != '':   # skip variables (typically extra SOA's) that are not used.
+            u = node.unknown
+            ALIGN = True
+            tmp = '$' + sp.latex(node.symbol) + '$'
+            tmp = theta_expand(tmp)
+            varLHS = re.sub(r'_(\d+)',  r'_{\1}', tmp)   # get all digits of subscript into {} for latex
+
+            nsolns = u.nsolutions      #len(node.solution_with_notations.values())
+
+            if nsolns > 1:
+                ALIGN = True
+            else:
+                ALIGN = False
+
+            #new subsection for this variable and solution(s)
+            solsection += '\n' +r'\subsection{'+varLHS+r' } '+eol + 'Solution Method: ' + u.solvemethod + eol
+
+            #begin the equation output
+            if (ALIGN):
+                solsection += r'\begin{align}'
+            else:
+                solsection += r'\begin{dmath} '
+
+            #output the actual solutions
+            for i,sol in enumerate(u.solutions):
+                if ALIGN and (i < nsolns-1):
+                    thisEOL = r'\\'   # line continuation for align environment
+                else:
+                    thisEOL = ''  # last solution version
+                LHS = sp.var(u.solutionNames[i])
+                RHS = sol
+                eqn = kc.kequation(LHS,RHS)
+                tmp = str(eqn.LaTexOutput(ALIGN))
+                # convert division ('/') to \frac{}{} for nicer output
+                if re.search(r'/',tmp):
+                    tmp = tmp.replace(r'(.+)=(.+)/(.+)', r'\1 = \frac{\2}{\3}')
+                solsection += tmp + ' '+ thisEOL
+
+            if (ALIGN):
+                solsection += r'\end{align} '+eol
+            else:
+                solsection += r'\end{dmath} '+eol
+
+            solsection += eol+eol
+
+    LF.sections.append(solsection.splitlines())
+
+    ###################
+    # print the detailed equations for each version of each variable
+    solsection = r'\section{Solutions to Generate all Versions} '+eol
+    solsection += ''' The following equations are the full set of solutions for each unknown
+    incorporating all combinations of dependencies.''' + eol
+
     for node in Robot.solution_nodes:
         if node.solvemethod != '':   # skip variables (typically extra SOA's) that are not used.
             ALIGN = True
