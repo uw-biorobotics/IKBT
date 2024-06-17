@@ -129,7 +129,11 @@ class sincos_id(b3.Action):    # action leaf for sincosid
                     if(self.BHdebug):
                         print('I found an sin() equation to ID: ', e)
                     u.eqntosolve = e
-                    u.solvemethod += ", arcsin"
+                    if len(u.solvemethod) > 0:
+                        u.solvemethod += ", arcsin"
+                    else:
+                        u.solvemethod += "arcsin"
+
                     found = True
                     break
                     
@@ -137,7 +141,10 @@ class sincos_id(b3.Action):    # action leaf for sincosid
                     if(self.BHdebug):
                         print('I found an cos() equation to ID: ', e)
                     u.eqntosolve = e
-                    u.solvemethod += ", arccos"
+                    if len(u.solvemethod) > 0:
+                        u.solvemethod += ", arccos"
+                    else:
+                        u.solvemethod += "arccos"
                     found = True
                     break
                 

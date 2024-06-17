@@ -160,7 +160,6 @@ class unknown(object):
         self.readytosolve = False
         print('\n\n')
         print('set_solved (for solutionGraphV3: ', self.symbol, '      by: ', self.solvemethod)
-        #print '            ', self.eqntosolve
 
         # make sure our calling state is valid
         fs = 'set_solved: solutions empty '

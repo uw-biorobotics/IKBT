@@ -163,6 +163,10 @@ def find_xy(thx, thy):
 #def find_sum(thx,thy):
     # new approach for same problem as find_xy()
 
+##############################################################################33
+#
+#     Robot Class
+
 #  Class to contain all robot info
 class Robot:
     def __init__(self, Mech=None, name="*Unnamed*"):
@@ -263,6 +267,7 @@ class Robot:
                 #make an equation
             #tmp = '$' + sp.latex(node.symbol) + '$'
             #tmp = theta_expand(tmp)
+                #LHS = sp.var(self.solution_nodes[col].unknown.LHSversionNames[row]) # no
                 LHS =  sp.var(self.solution_nodes[col].name + 'v' + str(row))
                 #LHS = theta_expand(LHS)
                 #print('\n\n   make_LHS_versions:         LHS: ', LHS , '\n\n')
@@ -285,6 +290,7 @@ class Robot:
     #  generate the solution vectors for the robot
     #     first as a list of lists, convert to set of tuples for compatibilty w/ V2
     #
+    #class Robot
     def create_solution_set(self):
         # go through nodes in solution order
         solListMatrix = []  # a matrix, each row is a set of versions forming a solution
@@ -305,12 +311,8 @@ class Robot:
                 # add this node's solutions to form a new column
                 for i in range(len(solListMatrix)):  # add to each row
                     rs = solListMatrix[i]
-                    #print('create_solution_sets: appending ',  u.versionNames[i])
-                    #print(i,r,'<--',u.versionNames[i])
-                    #breakpoint()
-                    # LHSversionNames
-                    #rs.append(u.versionNames[i%u.nversions]) # solution-based version names
-                    u.LHSversionNames.append(self.name + 'v' + str(i+1)) # not modded by nsolutions.  For final LHS of eqn
+                    # LHS version names
+                    u.LHSversionNames.append(u.name + 'v' + str(i+1)) # not modded by nsolutions.  For final LHS of eqn
 
                     rs.append(u.LHSversionNames[i])           # version-based version names
 
