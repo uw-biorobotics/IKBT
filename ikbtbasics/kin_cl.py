@@ -73,17 +73,16 @@ class kequation:
         return hash(str(self.LHS) + str(self.RHS))
 
     def LaTexOutput(self, align=False):
-        tmp = sp.latex(self.RHS)
         # TODO: delete these comments or restore functionality
         #tmp = tmp.replace(r'^(.+)/(.+)', '\\frac{\1}{\2}')
         #tmp = tmp.replace('\\frac{(.+)}{(.+)}(.+)',r'\\frac{\1\3}{\2}')
         tab = ' '
         if align:
             tab = ' &'
-        self.string = '\n' + sp.latex(self.LHS) + tab +  '= ' + tmp
+        self.string = '\n  ' + theta_expand(sp.latex(self.LHS)) + tab +  '= ' + theta_expand(sp.latex(self.RHS))
 
         tmp = self.string
-        tmp = theta_expand(tmp)
+        #tmp = theta_expand(tmp)
         tmp = re.sub(r'_(\d+)',  r'_{\1}', tmp)   # get all digits of subscript into {}
         tmp = re.sub(r'atan_\{2\}','atan2' , tmp)  # correct atan2 formatting
         return tmp
@@ -155,7 +154,7 @@ class unknown(object):
         sret += 'Assumptions:' + str(self.assumption)  + '\n'
         return sret
 
-
+    #class unknown
     def set_solved(self, R, unknowns):
         self.solved = True
         self.readytosolve = False
@@ -199,7 +198,6 @@ class unknown(object):
         for i in range(nver):
             vername = self.solutionNames[i%self.nsolutions]
             self.versionNames.append(vername)
-            self.LHSversionNames.append(self.name + 'v' + str(i+1)) # not modded by nsolutions.  For final LHS of eqn
 
         #DEPRECATED
         #######  ##   We're moving this equation list to Robot class

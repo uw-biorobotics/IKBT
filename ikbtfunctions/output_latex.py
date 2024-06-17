@@ -85,9 +85,6 @@ def plines(sl,f):
 #
 #      Generate a complete report in latex
 #
-def theta_expand(x):
-    return x.replace(r'th_', r'\theta_') # convert 'th' to '\theta' for nicer latex
-
 
 def output_latex_solution(Robot, variables, groups):
     GRAPH = True
@@ -193,11 +190,11 @@ def output_latex_solution(Robot, variables, groups):
             ALIGN = True
             tmp = '$' + sp.latex(node.symbol) + '$'
             tmp = theta_expand(tmp)
-            tmp = re.sub(r'_(\d+)',  r'_{\1}', tmp)   # get all digits of subscript into {} for latex
+            varLHS = re.sub(r'_(\d+)',  r'_{\1}', tmp)   # get all digits of subscript into {} for latex
 
 
             #new subsection for this variable and solution
-            solsection += '\n' +r'\subsection{'+tmp+r' } '+eol + 'Solution Method: ' + node.solvemethod + eol
+            solsection += '\n' +r'\subsection{'+varLHS+r' } '+eol + 'Solution Method: ' + node.solvemethod + eol
 
             #begin the equation output
             if (ALIGN):
@@ -214,14 +211,14 @@ def output_latex_solution(Robot, variables, groups):
                 eqn = Robot.FinalEqnMatrix[rowindex][colindex]
                 print('Latex Output: Equation: ', eqn)
                 if ALIGN and (rowindex < nvers-1):
-                    tmp2 = r'\\'   # line continuation for align environment
+                    thisEOL = r'\\'   # line continuation for align environment
                 else:
-                    tmp2 = ''  # last solution version
+                    thisEOL = ''  # last solution version
                 tmp = str(eqn.LaTexOutput(ALIGN))
                 # convert division ('/') to \frac{}{} for nicer output
                 if re.search(r'/',tmp):
                     tmp = tmp.replace(r'(.+)=(.+)/(.+)', r'\1 = \frac{\2}{\3}')
-                solsection += tmp + ' '+ tmp2
+                solsection += tmp + ' '+ thisEOL
 
             if (ALIGN):
                 solsection += r'\end{align} '+eol

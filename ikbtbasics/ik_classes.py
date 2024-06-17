@@ -245,6 +245,7 @@ class Robot:
     #   *********  new fcn for final soln versions
     #  generate the final list of versions for this unknown
     #
+    # class Robot
     def make_LHS_versions(self):
         nvers = len(self.solListMatrix)  # n versions
         nunks = len(self.solListMatrix[0])  # n solved unknowns (cols)
@@ -260,7 +261,11 @@ class Robot:
             eqns_row = []
             for col in range(nunks): # go through unks in solution order
                 #make an equation
-                LHS = self.solution_nodes[col].unknown.name + 'v' + str(row)
+            #tmp = '$' + sp.latex(node.symbol) + '$'
+            #tmp = theta_expand(tmp)
+                LHS =  sp.var(self.solution_nodes[col].name + 'v' + str(row))
+                #LHS = theta_expand(LHS)
+                #print('\n\n   make_LHS_versions:         LHS: ', LHS , '\n\n')
                 thisSol = self.solution_nodes[col].unknown.solutions[row%nsols]
                 RHS = thisSol.subs(subdict) # substitute versions for this row
                 thiseqn = kc.kequation(LHS,RHS)
@@ -286,9 +291,9 @@ class Robot:
         verListMatrix = []
         for node in self.solution_nodes:
             u = node.unknown
-            u_nvers = node.unknown.nversions
-            u_nsols = node.unknown.nsolutions
-            n_rows_solnM= len(solListMatrix)
+            u_nvers = u.nversions
+            u_nsols = u.nsolutions
+            n_rows_solnM = len(solListMatrix)
 
             # if this unk has multiple solutions, multiply rows (versions)
             if u_nsols > 1: # if current nsol > 1
@@ -303,11 +308,16 @@ class Robot:
                     #print('create_solution_sets: appending ',  u.versionNames[i])
                     #print(i,r,'<--',u.versionNames[i])
                     #breakpoint()
-                    rs.append(u.versionNames[i%u.nversions]) # solution-based version names
+                    # LHSversionNames
+                    #rs.append(u.versionNames[i%u.nversions]) # solution-based version names
+                    u.LHSversionNames.append(self.name + 'v' + str(i+1)) # not modded by nsolutions.  For final LHS of eqn
+
+                    rs.append(u.LHSversionNames[i])           # version-based version names
 
             else: # first time through
                 #print('first solved unk:', u.details())
                 for sol_name in u.versionNames:  #start new row for all solns of first solved unk.
+                #for sol_name in u.LHSversionNames:  #start new row for all solns of first solved unk.
                     solListMatrix.append([sol_name])
                     #print('create_solution_sets: creating ', u, solListMatrix)
             #print('---')
