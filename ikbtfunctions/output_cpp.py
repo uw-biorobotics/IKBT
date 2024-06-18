@@ -106,14 +106,7 @@ int ikin(double T[4][4], double solution_list[64][6]);
         tmp += 'double '+str(p) + ' = XXXXX ; \\ deliberate undeclared error!  USER needs to give numerical value\n'
     par_decl_str = tmp
 
-       #  FROM Latex Output
-        #nsolns = len(node.solution_with_notations.values())
-        #for eqn in node.solution_with_notations.values():
-
     nlist = Robot.solution_nodes
-
-    #nlist.sort( ) # already sorted by solution order
-
 
     indent = '    ' # 4 spaces
 
@@ -172,11 +165,19 @@ int False = 0;
 
         c.line('//Variable: '+str(node.symbol))
         solno = 0
-        for i,solu in enumerate(node.solution_list):
-            sol = kc.kequation(node.solutionNames, solu)
+        #for i,solu in enumerate(node.solution_list):
+        nsolns = node.unknown.nsolutions #len(node.solution_with_notations.values())
+        nvers  = Robot.nversions
+        print('Cpp Output: ', node, ' has ', nsolns, ' solutions and ',nvers, ' versions')
+        # go through the final matrix of equation versions
+        colindex = node.unknown.solveorder-1  # select the unknown
+        for rowindex in range(nvers): # go through the versions
+            # get the solution equation version
+            solEqnVer = Robot.FinalEqnMatrix[rowindex][colindex]
+            print('Cpp Output: Solution Equation Version: ', solEqnVer)
             c.line('\n// solution '+str(solno))
             solno += 1
-            solrhs = str(sol.RHS)
+            solrhs = str(solEqnVer.RHS)
             # detect arcsin() or arccos()
             #
             #  BH   21-Sept
@@ -186,29 +187,13 @@ int False = 0;
             #  then it is important that the generated code will test  -1 < x < +1
             #  if this test fails the pose is unreachable and arcsin fails.
             #
-            #  Suggested solution:
-            #     in each solver, generate test expressions in the R object
-            #     Code generator can then just generate:
-            #        if (fabs(x) > 1) {    // etc. etc.
-            #            * 'x' is hard to isolate from the complete solution *
-            #
-            #     ideally, solver can define an intermediate argument variable:
-            #        trigarg = x
-            #        if(fabs(x) < 1 ) {
-            #            th_ijk = asin(trigarg)
-            #            }
-            #        else {
-            #            set "no-solution" flag
             #
             trig = False
-
-            print('\n\nStudying node: ', node.symbol, ' solution ', solno)
+            print('\n\nCpp Output: Studying node: ', node.symbol, ' solution ', solno)
             print('solvemethod: ', node.solvemethod)
-            print(' LHS: ', str(sol.LHS))
+            print(' LHS: ', str(solEqnVer.LHS))
             print(' RHS: ', solrhs)
-            print()
             print('argument: ', node.argument)
-            print('solarg:   ', node.arguments[sol.LHS])
             print('\n\n')
 
             c.line('// solvemethod: ' + node.solvemethod )
@@ -218,39 +203,35 @@ int False = 0;
                trig = True
 
             if(trig):
-               print('  Found asin/acos solution ...', sol.LHS , ' "=" ',sol.RHS)
+               print('  Found asin/acos solution ...', solEqnVer.LHS , ' "=" ',solEqnVer.RHS)
                c.line('// Arcsin() or Arccos() based solution:')
-               c.line('argument = '+str(node.arguments[sol.LHS])+';')
+               c.line('argument = ' + str(node.argument))
                c.line('if (solvable_pose && fabs(argument) > 1)')
                c.push()
                c.line('solvable_pose = False; ')
                c.pop()
                c.line('else if (solvable_pose)')
                c.push()        #  bugus    (here)
-               c.line(str(sol.LHS) + ' = '+node.solvemethod+'(argument);' )
+               c.line(str(solEqnVer.LHS) + ' = '+node.solvemethod+'(argument);' )
                c.pop()
 
-            if ((not trig) and node.solvemethod == 'atan2(y,x)' ):
-               c.line('// Atan2(y,x) based solution:')
-               c.line(str(sol.LHS) + ' = ' + solrhs + ';')
+            print('Cpp: trig: ', trig, '    node.solvemethod: ', node.solvemethod)
 
-            if node.solvemethod == 'algebra':
-               c.line('// Algebra based solution:')
-               c.line(str(sol.LHS) + ' = ' + solrhs + ';')
+            if ((not trig) and 'atan2(y,x)' in node.solvemethod):
+                c.line(str(solEqnVer.LHS) + ' = ' + solrhs + ';')
 
-            if node.solvemethod == 'x2z2':
+            if 'algebra' in node.solvemethod:
+                c.line(str(solEqnVer.LHS) + ' = ' + solrhs + ';')
+
+            if 'x2z2' in node.solvemethod:
                 print('x2z2 output: ', node.argument)
-                c.line('// "x2z2" based solution:')
-                #c.line('argument = '+str(node.arguments[str(sol.LHS)])+';')
-                c.line('argument = '+str(node.arguments[(sol.LHS)])+';')
+                c.line(str(solEqnVer.LHS) + ' = ' + solrhs + ';')
 
 
 
-            if node.solvemethod == 'simultaneous eqn':
+            if 'simultaneous eqn' in node.solvemethod:
                 print('x2z2 output: ', node.argument)
-                c.line('// simultaneous equations - based solution:')
-                #c.line('argument = '+str(node.arguments[str(sol.LHS)])+';')
-                c.line('argument = '+str(node.arguments[(sol.LHS)])+';')
+                c.line(str(solEqnVer.LHS) + ' = ' + solrhs + ';')
 
 
 
@@ -300,6 +281,7 @@ int False = 0;
     c.pop()
 
     f.close()
+    print('\n\n\n                       End of Cpp Output work \n\n\n')
 
 ###################################################################
 #

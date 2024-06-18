@@ -260,10 +260,9 @@ def output_latex_solution(Robot, variables, groups):
 
             nsolns = node.unknown.nsolutions #len(node.solution_with_notations.values())
             nvers  = Robot.nversions
-            print('LatexOutput: ', node, ' has ', nsolns, ' solutions and ',nvers, ' versions')
-            # go through the final matrix of equation versions
             colindex = node.unknown.solveorder-1  # select the unknown
             for rowindex in range(nvers): # go through the versions
+                # get the solution equation version
                 eqn = Robot.FinalEqnMatrix[rowindex][colindex]
                 print('Latex Output: Equation: ', eqn)
                 if ALIGN and (rowindex < nvers-1):
@@ -497,3 +496,5 @@ def output_FK_equations(Robot):
 
     # Write out the file!!
     LF.output()
+
+    print('\n\n\n                       End of LaTex Output work \n\n\n')
