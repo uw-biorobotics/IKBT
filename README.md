@@ -5,6 +5,12 @@ Solutions are fully symbolic and are output as LaTex, Python, and C++.
 
 # Current News
 
+## Jan 2024
+* New feature: Can generate python code for Forward Kinematics only.  This code can be sub-optimal, and equations can be over complex
+when the alpha parameter is not a nice multiple of pi/2 (sin(al) != {0,1}).  This is the case for a few robots like Raven-II.
+Now in this case constants with the sine and cosine values of alpha are automatically created and swapped in to the FK equations.
+Generated code initializes the new constants.   Try >python3 fkOnly \<RobotName\>.  Output is in the CodeGen directory.
+
 ## Dec 2021
 * Release v2.2 has refactored one of the more arcane solution nodes (x2y2solver)  so that it instead transforms
 the equation for later solution by any solver.  KawasakiRS007L can now be solved!   (Still an obscure bug
