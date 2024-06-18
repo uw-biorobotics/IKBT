@@ -184,20 +184,16 @@ class Robot:
         #   "notations" means specifically labeled solution variables such as
         #          th_1s2  (theta-1, solution 2)
         #
+        #   "notations" are deprecated in V3 solution set solver method
+        #   TODO: ablation test some of these outdated class members
 
         self.notation_graph_edges = set() #solution edges between nodes notation graph
         self.solution_nodes = []  #   by solve order
         self.notation_collections = [] #solution notations divided into subgroups
-
-        #  V3:  no such thing as root anymore
-        ## set up root
-        #utmp = kc.unknown(sp.var('Root'))
-        #nn = sg.Node(utmp)
-        #self.solution_nodes.append(nn)
-        #self.notation_graph_root = nn
-
         self.min_index = 0
         self.max_index = 0
+
+        # Forward Kinematics Results
         # mequation_list:        all the 4x4 Matrix FK equations
         self.mequation_list = []
         # kequation_aux_list:    sum of angle eqns such as eg th_23 = th_2+th_3
@@ -277,9 +273,6 @@ class Robot:
                 eqns_row.append(thiseqn)
             self.FinalEqnMatrix.append(eqns_row)
             self.nversions += 1
-        print('make_LHS_versions: NOW WE HAVE Robot.finalEqnMatrix, printing:')
-        #testrow = 3
-        #print(self.FinalEqnMatrix[testrow])
         print('\n\n')
         for r in self.FinalEqnMatrix:
             print(r)
@@ -340,21 +333,6 @@ class Robot:
 
         return
 
-
-    #  TODO:  verify uneeded then DELETEME
-    #generate_solution_nodes (V3: not needed)
-    #
-    #def generate_solution_nodes(self, unknowns):
-        #'''generate solution nodes'''
-
-        #for unk in unknowns:
-            #if unk.solvemethod != '':    # this means the unk was not used at all in solution
-                                              ##  typically SOA unknowns like th_23
-                #self.solution_nodes.append(sg.Node(unk))
-                #self.variables_symbols.append(unk.symbol)
-        #print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>Robot: solution nodes:', self.solution_nodes)
-        #print(self.variables_symbols)
-
     # get lists of unsolved equations having 1 and 2 unks
     #
     def scan_for_equations(self,variables):
@@ -362,19 +340,8 @@ class Robot:
         self.l2 = [] # equations with two unknowns
         self.l3p = [] # 3 OR MORE unknowns
         sp.var('x')  #this will be used to generate 'algebraic zero'
-        #elist = self.mequation_list.append(self.kequation_aux_list)
         elist = self.mequation_list
-        #print '------------------------- elist----'
-        #print elist
-        #print ('-------- (aux eqns):')
-        #print (self.kequation_aux_list)
-        #print ('--------')
         assert (len(elist) > 0), '  not enough equations '
-        #i=0
-        #for e in self.kequation_aux_list:
-            #elist[0][3][i] = e  # HACK: put aux eqns into row 4 Meqn[0]
-            #print 'scan_for_equns: putting ', e, 'into eqn'
-            #i+=1
         for eqn in elist:
             lhs = eqn.Td   #4x4 matrix
             rhs = eqn.Ts  #4x4 matrix

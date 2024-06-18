@@ -73,9 +73,6 @@ class kequation:
         return hash(str(self.LHS) + str(self.RHS))
 
     def LaTexOutput(self, align=False):
-        # TODO: delete these comments or restore functionality
-        #tmp = tmp.replace(r'^(.+)/(.+)', '\\frac{\1}{\2}')
-        #tmp = tmp.replace('\\frac{(.+)}{(.+)}(.+)',r'\\frac{\1\3}{\2}')
         tab = ' '
         if align:
             tab = ' &'
@@ -197,29 +194,6 @@ class unknown(object):
         for i in range(nver):
             vername = self.solutionNames[i%self.nsolutions]
             self.versionNames.append(vername)
-
-        #DEPRECATED
-        #######  ##   We're moving this equation list to Robot class
-        #  for each version, generate a full solution equation
-        #print('Unknown version derivation: ', self)
-        #print('        version names:      ', self.versionNames)
-        #for i,vn in enumerate(self.versionNames): # need this many equations for system soln
-            #tmp = self.LHSversionNames[i]
-            #LHS = expand_theta(tmp)
-            #RHS = self.solutions[i%self.nsolutions]
-            ## get substitutions of versions for deps
-            #subdict = {} # versions to be substituted
-            #for d in self.dependencies:
-                ## the dep is an 'unknown' - make it a sp.var()
-                #print('     ver: ',vn, '      dep:', d, '  i:', i)
-                #subdict[sp.var(str(d))] = sp.var(d.LHSversionNames[i%self.nsolutions])
-            ##print('set_solved: subdict:', subdict, 'RHS type: ', type(RHS))
-            #RHS = RHS.subs(subdict) # d <-- subs[d]
-            ##print('set_solved: new RHS: ', RHS)
-            #neweq = kequation(LHS,RHS)
-            #self.versionEqnList.append(neweq)
-            ##print('set_solved: new equation for', self.name, ':', neweq)
-
 
 
         #########################
