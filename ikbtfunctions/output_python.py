@@ -139,7 +139,7 @@ pi = np.pi
  ''', file=f)
 
 
-    Fkeqns = Robot.Mech.forward_kinematics()
+    Fkeqns = Robot.Mech.forward_kinematics()  # need to redo this????
 
     Tfk = (Robot.Mech.T_06)
 
@@ -208,7 +208,10 @@ pi = np.pi
 
     funcname = 'ikin_'+fixed_name 
     print('''
-    # Code to solve the unknowns ''', file=f)
+# Auto Generated Code to solve the unknowns
+#        parameter:  T   4x4 numerical target for T06
+#
+''', file=f)
     print('def', funcname +'(T):', file=f) # no indent
     print(indent+'if(T.shape != (4,4)):', file=f)
     print(indent*2 + 'print ( "bad input to "+funcname'+')', file=f)
@@ -258,12 +261,13 @@ pi = np.pi
     for node in nlist:  # for each solved var
         print('\n', file=f)
         print(indent + '#Variable: ', str(node.symbol), file=f)
-        #for sol in node.solution_with_notations.values():
+        nsolns = node.unknown.nsolutions #len(node.solution_with_notations.values())
+        nvers  = Robot.nversions
         colindex = node.unknown.solveorder-1  # select the unknown
         for rowindex in range(nvers): # go through the versions
             # get the solution equation version
             solEqnVer = Robot.FinalEqnMatrix[rowindex][colindex]
-            print('Latex Output: Equation: ', eqn)
+            print('Python Output: Solution Equation Version: ', solEqnVer)
             if re.search('asin', str(solEqnVer.RHS)) or re.search('acos', str(solEqnVer.RHS)):
                 print ('  Found asin/acos solution ...', solEqnVer.LHS , ' "=" ',solEqnVer.RHS)
                 tmp = re.search('\((.*)\)',str(solEqnVer.RHS))
@@ -272,9 +276,9 @@ pi = np.pi
                 print(indent + 'else:', file=f)
                 tmp = str(solEqnVer.LHS) + ' = ' + str(solEqnVer.RHS)
                 print(indent*2 + tmp, file=f)
-            if re.search('atan', str(sol.RHS)):
+            if re.search('atan', str(solEqnVer.RHS)):
                 print('  Found atan2 solution ...', solEqnVer.LHS , ' "=" ',solEqnVer.RHS)
-                tmp = re.search('\((.*)\)',str(sol.RHS))
+                tmp = re.search('\((.*)\)',str(solEqnVer.RHS))
                 tmp = str(solEqnVer.LHS) + ' = ' + str(solEqnVer.RHS)
                 print(indent + tmp, file=f)
             if node.solvemethod == 'algebra':
