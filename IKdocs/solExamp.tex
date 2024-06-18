@@ -56,9 +56,17 @@
 
 \begin{document}
 
-\section{}
+\begin{center}\Large{Combinatorics-based method for derivation of solution sets for
+Inverse Kinematics}
 
-For each solved variable, we distinguish between the number of ``solutions” and the number of
+\today
+\end{center}
+
+\section{}
+One of our main learnings in this project is that robot kinematic equation solutions in general are NOT described by a tree structure! Instead they are a more general graph. For example, two variable solutions might be independent of each other but contribute to the other variables' solutions (multiple 'roots' to the graph). Our previous solution was overly complex due to lingering assumptions from the tree structure idea.
+We have done a complete re-write of the solution set generator process with seemingly good results. The key insight was to develop the table of solutions, adding rows as each solved variable creates combinations.
+
+In the new approach, for each solved variable, we distinguish between the number of ``solutions” and the number of
 ``versions” it has.  The number of solutions is determined by the mathematical form of the
 solution for example:
 
@@ -66,9 +74,9 @@ solution for example:
 x=\sin{(\theta)}
 \eeq
 \noindent
-has two versions arising from its two solutions
+has two solutions (and also two versions).
 \beq
-\theta =[\arctan(x), \pi-\arctan(x)]
+\theta =[\arcsin(x), \pi-\arcsin(x)]
 \eeq
 
 However a variable whose solution is single valued, could have multiple versions of it depends on a variable with multiple versions.  For example,
@@ -78,18 +86,24 @@ y = \theta + \pi
 \noindent
 $y$ has one solution, but two versions
 \beq
-y = [\pi + \arctan(x) , 2\pi - \arctan(x)]
+y = [\pi + \arcsin(x) , 2\pi - \arcsin(x)]
 \eeq
-depending on which version of $ \theta$ is used.
+depending on which version of $ \theta$ is used.  We identify previously solved unknowns (such as $x$)
+appearing in
+the right hand side of solution equations as ``dependencies".
 
-Furthermore, a solution may depend on more than one solved variable and all the combinations of versions of those variables generate  versions of the current variable.
-To summarize, if a variable has $n_s$ solutions and $n_d$ versions due to  its dependencies,
+In general, an unknown may have multiple solutions to its equation, and may have more than one dependency,
+and all the combinations of versions of the dependencies
+generate  versions of the current variable.
+To summarize, if a variable has $n_s$ solutions and $n_d$  combinations of its dependencies,
 Then it has $n_s \times n_d$ versions.  If a variable $x_i$ has $m$ different variables as dependencies, then
 it as
+
 \beq\label{VersionProductEqn}
 n_{vi} = n_{sj} \Pi_{j=1}^{m} n_{vj}
 \eeq
 
+Note that we have studied this problem solely for the case of $n_{sj} \in \{ 1,2\}$.
 
 We illustrate this with  a small system of equations which is easy to solve but has these
 versioning characteristics
@@ -130,7 +144,7 @@ has four versions (in general distinct): $[4.5, -4.5, -4.5, 4.5]$ due to the
 combinations of versions of its two dependencies.
 \end{enumerate}
 
-\vspace{0.25in}
+\vspace{0.1in}
 \begin{center}
 \begin{tabular}{c|c|c}
 var.,    & multiplicity  &  Solutions or Versions\\\hline
@@ -141,9 +155,11 @@ $x_2$    &   1    & $[1.5,-1.5]^V$\\
 $x_1$    &   1    & $[4.5,-4.5,-4.5,4.5]^V$\\
 \end{tabular}
 \end{center}
+\vspace{0.1in}
 
 
-The solutions dependencies can be represented as a graph (Figure \ref{graphFig}).
+The solutions dependencies can be represented as a graph (Figure \ref{graphFig}), but unlike a tree,
+the graph is not especially helpful in finding the solution sets.
 
 \begin{figure}\centering
 \includegraphics[width=0.5\linewidth]{solutionGraph.png}
@@ -152,8 +168,7 @@ The solutions dependencies can be represented as a graph (Figure \ref{graphFig})
          ``sol" node is the full solution set. }\label{graphFig}
 \end{figure}
 
-\vspace{0.25in}
-Next, we assemble solution vectors by following the solution order as follows:
+ Next, we assemble solution vectors by following the solution order as follows:
 
 \begin{enumerate}
   \item $x_3$ has one solution, $x_{3s1}=9$ giving one  version
@@ -179,23 +194,25 @@ Next, we assemble solution vectors by following the solution order as follows:
   \item $x_4$ has two solutions based on the multiple solutions of
   Eqn \ref{X4Eqn} which depend on $x_3$ (having only one version) but
   these solutions are independent of $x_4$
-  and $x_5$.  We thus have to double the rows again :
+  and $x_5$.  We thus have to double the rows again and we have to flip the order of the newly
+  added rows to generate the full set of combinations:
     \beq
     \begin{bmatrix}
            x_{3v1}   & x_{5v1}  &  x_{4v1}\\
            x_{3v1}   & x_{5v2}  &  x_{4v2}\\
-           x_{3v1}   & x_{5v1}  &  x_{4v1}\\
-           x_{3v1}   & x_{5v2}  &  x_{4v2}\\
+           x_{3v1}   & x_{5v2}  &  x_{4v1}\\
+           x_{3v1}   & x_{5v1}  &  x_{4v2}\\
     \end{bmatrix}
     \eeq
-  \item $x_2$, similarly has one solution but depends on the versions of $x_4$
+  \item $x_2$, similarly has one solution (so we do not double the rows)
+  but depends on the versions of $x_4$ so it has 4 versions.
 
     \beq
     \begin{bmatrix}
            x_{3v1}   & x_{5v1}  &  x_{4v1}  & x_{2v1} \\
            x_{3v1}   & x_{5v2}  &  x_{4v2}  & x_{2v2} \\
-           x_{3v1}   & x_{5v1}  &  x_{4v1}  & x_{2v1} \\
-           x_{3v1}   & x_{5v2}  &  x_{4v2}  & x_{2v2} \\
+           x_{3v1}   & x_{5v2}  &  x_{4v1}  & x_{2v3} \\
+           x_{3v1}   & x_{5v1}  &  x_{4v2}  & x_{2v4} \\
     \end{bmatrix}
     \eeq
 
@@ -206,17 +223,17 @@ Next, we assemble solution vectors by following the solution order as follows:
       \begin{aligned}
           x_{1v1} &= x_{4v1} + x_{2v1} \\
           x_{1v2} &= x_{4v2} + x_{2v2} \\
-          x_{1v3} &= x_{4v1} + x_{2v2} \\
-          x_{1v4} &= x_{4v2} + x_{2v1} \\
+          x_{1v3} &= x_{4v1} + x_{2v3} \\
+          x_{1v4} &= x_{4v2} + x_{2v4} \\
       \end{aligned}
       \eeq
-    but we do not change the number of rows because of the single solution to Eqn \ref{X1Eqn}.
+    but we do not increase the number of rows because of the single solution to Eqn \ref{X1Eqn}.
     \beq
     \begin{bmatrix}
            x_{3v1}   & x_{5v1}  &  x_{4v1}  & x_{2v1} & x_{1v1} \\
            x_{3v1}   & x_{5v2}  &  x_{4v2}  & x_{2v2} & x_{1v2} \\
-           x_{3v1}   & x_{5v1}  &  x_{4v1}  & x_{2v1} & x_{1v3}\\
-           x_{3v1}   & x_{5v2}  &  x_{4v2}  & x_{2v2} & x_{1v4} \\
+           x_{3v1}   & x_{5v2}  &  x_{4v1}  & x_{2v3} & x_{1v3}\\
+           x_{3v1}   & x_{5v2}  &  x_{4v2}  & x_{2v4} & x_{1v4} \\
     \end{bmatrix}
     \eeq
 
@@ -225,8 +242,8 @@ Next, we assemble solution vectors by following the solution order as follows:
 
 The above process can be summarized as:
 
-Once an algorithm such as IKBT has found solutions to all unknowns we can then collect valid
-solution vectors as follows:
+Once an algorithm such as IKBT has found solutions to all $n_u$ unknowns we can then collect valid
+solution vectors into an $n_u \times n_v$ matrix as follows:
 
 \noindent
 For each variable $x_i$ in solution order:
@@ -236,26 +253,29 @@ For each variable $x_i$ in solution order:
   the number of versions of each dependency: $n_{vj}$.  Example: $y_5(y_2, y_4)$ where
   $y_2$ has 4 versions and $y_4$ has 2 versions.
   \item Compute the number of versions for $x_i$, $n_{vi}$,  using Eqn \ref{VersionProductEqn}.
+  \item If the new number of versions is a multiple of the $n_d$ per  Eqn \ref{VersionProductEqn}, then
+  repeat the previous rows  $n_{si}$ times, but flip their order\footnote{Open Issue:
+  Understood so far only for $n_{sj} \in \{ 1,2\}$.
+  If a variable had e.g. 4 solutions, how to flip the quadrupled rows??}.
   \item Number the versions $x_{ivj}$ where $i$ selects the variable and $j$ selects the
   version number.
-  \item Enumerate and save the expression for each  version.  Example:
+  \item Enumerate and save the expression for each  version.  For example: if the solutions are
      \begin{itemize}
-        \item $x_{4v1} = -\sqrt{9}$
-        \item $x_{4v2} =  \sqrt{9}]$
+        \item $x_{4s1} = -\sqrt{9}$
+        \item $x_{4s2} =  \sqrt{9}$
      \end{itemize}
-  \item Add them as a new colum to the solution vector matrix,
-  if $n_{vi}$ is less than the number of rows, repeat the versions to
-  complete all rows.
-  If $n_{vi}$ is greater than the number of rows of the solution vector matrix,
-  copy the rows $n_{si}$ times and append them to to get $n_{vj}$ rows.
+     Then renumber them by row number $x_{4vi}$ and add them as a new column to the solution vector matrix.
+  If $n_{si}$ is less than the number of versions, $n_{vi}$,
+  copy the solutions $n_{di}$ times and append them to to get $n_{vj}$ rows.
 \end{enumerate}
 
+%
+% \section{Solution Graphs}
+%
+% A graph of the solution dependncies can be constructed.   For the system of equations above, and
+% the solution list, we have
 
-\section{Solution Graphs}
-
-A graph of the solution dependncies can be constructed.   For the system of equations above, and
-the solution list, we have
-
+%  this verbal graph description was used with ChatGPT to get a start on the graph tikz code.
 % Five nodes, $x_1 \dots x_2$.  The graph is a directed graph such that if an edge points from $N1$ to $N2$ then $N2$ depends on $N1$.  Weights are tagged on the edges giving the number of solutions.
 %  The edges are:  x3 points to x4 (weight 1), x4 points to x2 (weight 2), x4 points to
 % x1 (weight 2), x2 points to x1 (weight 1).   Nodes x5, x1 have little edges that point to a node
