@@ -201,7 +201,7 @@ pi = np.pi
 
 
     nlist = Robot.solution_nodes
-    nlist.sort( ) # sort by solution order
+    #nlist.sort( ) # sort by solution order
 
 
     indent = '    ' # 4 spaces
@@ -258,23 +258,28 @@ pi = np.pi
     for node in nlist:  # for each solved var
         print('\n', file=f)
         print(indent + '#Variable: ', str(node.symbol), file=f)
-        for sol in node.solution_with_notations.values():
-            if re.search('asin', str(sol.RHS)) or re.search('acos', str(sol.RHS)):
-                #print '  Found asin/acos solution ...', sol.LHS , ' "=" ',sol.RHS
-                tmp = re.search('\((.*)\)',str(sol.RHS))
+        #for sol in node.solution_with_notations.values():
+        colindex = node.unknown.solveorder-1  # select the unknown
+        for rowindex in range(nvers): # go through the versions
+            # get the solution equation version
+            solEqnVer = Robot.FinalEqnMatrix[rowindex][colindex]
+            print('Latex Output: Equation: ', eqn)
+            if re.search('asin', str(solEqnVer.RHS)) or re.search('acos', str(solEqnVer.RHS)):
+                print ('  Found asin/acos solution ...', solEqnVer.LHS , ' "=" ',solEqnVer.RHS)
+                tmp = re.search('\((.*)\)',str(solEqnVer.RHS))
                 print(indent + 'if (solvable_pose and abs', tmp.group(0), ' > 1):', file=f)
                 print(indent*2 + 'solvable_pose = False', file=f)
                 print(indent + 'else:', file=f)
-                tmp = str(sol.LHS) + ' = ' + str(sol.RHS)
+                tmp = str(solEqnVer.LHS) + ' = ' + str(solEqnVer.RHS)
                 print(indent*2 + tmp, file=f)
             if re.search('atan', str(sol.RHS)):
-                print('  Found atan2 solution ...', sol.LHS , ' "=" ',sol.RHS)
+                print('  Found atan2 solution ...', solEqnVer.LHS , ' "=" ',solEqnVer.RHS)
                 tmp = re.search('\((.*)\)',str(sol.RHS))
-                tmp = str(sol.LHS) + ' = ' + str(sol.RHS)
+                tmp = str(solEqnVer.LHS) + ' = ' + str(solEqnVer.RHS)
                 print(indent + tmp, file=f)
             if node.solvemethod == 'algebra':
-                print('  Found algebra solution ... ' , sol.LHS , ' = ', sol.RHS)
-                print(indent + str(sol.LHS) + ' = ' + str(sol.RHS), file=f)
+                print('  Found algebra solution ... ' , solEqnVer.LHS , ' = ', solEqnVer.RHS)
+                print(indent + str(solEqnVer.LHS) + ' = ' + str(solEqnVer.RHS), file=f)
 
     print('''
 ##################################
