@@ -8,10 +8,11 @@ Solutions are fully symbolic and are output as LaTex, Python, and C++.
 ## June 2024
 * NOTE: There are a few final tweaks still being worked in this version!!!
 
-* One of our main learnings in this project is that robot kinematic equation solutions in general are NOT described
+* One of our main learnings in this project is that robot kinematic equation solutions in general are NOT described 
 by a tree structure!  Instead they are a more general graph.  For example, two variable solutions might be independent of
 each other but contribute to the other variable's solutions (multiple 'roots' to the graph).  Our previous solution
-was overly complex due to lingering assumptions from the tree structure idea.
+was overly complex due to lingering assumptions from the tree structure idea. 
+
 * We have done a complete re-write of the solution set generator process with seemingly good results.
   The key insight was to develop the table of solutions, adding rows as each solved variable creates combinations.
 * Current status is
@@ -25,6 +26,7 @@ but LaTex output suggests that the new data structures will output correct and h
 
 * There is lots of code from the old method ("v2") that need to be cleaned up, as well as several superfluous class members
   in Robot and unknown classes.
+
 
 ## Jan 2024
 * New feature: Can generate python code for Forward Kinematics only.  This code can be sub-optimal, and equations can be over complex
