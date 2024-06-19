@@ -42,6 +42,9 @@ class simu_id(b3.Action):
     #
   
     def tick(self, tick):
+        #  *******************************************************
+        return b3.FAILURE  # temporarily block this and see what breaks!!!!
+
         curr_unk = tick.blackboard.get('curr_unk')
         unknowns = tick.blackboard.get('unknowns')
         R = tick.blackboard.get('Robot')

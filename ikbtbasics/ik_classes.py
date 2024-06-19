@@ -264,7 +264,7 @@ class Robot:
             #tmp = '$' + sp.latex(node.symbol) + '$'
             #tmp = theta_expand(tmp)
                 #LHS = sp.var(self.solution_nodes[col].unknown.LHSversionNames[row]) # no
-                LHS =  sp.var(self.solution_nodes[col].name + 'v' + str(row))
+                LHS =  sp.var(self.solution_nodes[col].name + 'v' + str(row+1)) #versions begin w/ 1
                 #LHS = theta_expand(LHS)
                 #print('\n\n   make_LHS_versions:         LHS: ', LHS , '\n\n')
                 thisSol = self.solution_nodes[col].unknown.solutions[row%nsols]
@@ -302,18 +302,18 @@ class Robot:
 
             if n_rows_solnM > 0:
                 # add this node's solutions to form a new column
-                for i in range(len(solListMatrix)):  # add to each row
+                for i in range(len(solListMatrix)):  # go through each row and add next unk.
                     rs = solListMatrix[i]
-                    # LHS version names
+                    # LHS version names (version names start w/ 1)
                     u.LHSversionNames.append(u.name + 'v' + str(i+1)) # not modded by nsolutions.  For final LHS of eqn
 
                     rs.append(u.LHSversionNames[i])           # version-based version names
 
             else: # first time through
                 #print('first solved unk:', u.details())
-                for sol_name in u.versionNames:  #start new row for all solns of first solved unk.
-                #for sol_name in u.LHSversionNames:  #start new row for all solns of first solved unk.
-                    solListMatrix.append([sol_name])
+                for vn in u.versionNames:  #start new row for all solns of first solved unk.
+                    solListMatrix.append([vn])
+                    #solListMatrix.append([u.name+'v'+'1'])
                     #print('create_solution_sets: creating ', u, solListMatrix)
             #print('---')
             #print(solListMatrix)

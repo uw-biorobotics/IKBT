@@ -307,7 +307,7 @@ pi = np.pi
     for g in groups:
         gs = []
         for t in g:
-            print('g: ', g, 't: ', t)
+            #print('g: ', g, 't: ', t)
             gs.append(str(t))
 
         #print(gs.sort, file=f) # in place

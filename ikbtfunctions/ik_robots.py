@@ -64,22 +64,21 @@ def robot_params(name):
             print('   ', n)
         quit()
 
-
-
-
     if(name == 'JennyGuoSp24'):         #  ECE543 Sp24
         #
+        sp.var('d_1 l_2 l_3 l_4')
+
         dh = sp.Matrix([
         [  -sp.pi/2 ,    0 ,  d_1 , 0 ],
         [   sp.pi/2 ,    0 ,  l_2 , th_2 ],
         [   sp.pi/2 ,    0 ,   0 , th_3 ],
         [       0   , l_3  ,   0 , th_4 ],
         [       0   , l_4  ,   0 , th_5],
-        [ 0,0,0,0 ]  # can't solve with d_6 ~= 0!
+        [ 0,0,0,0 ]  #
         ])
 
         vv = [0,1,1,1,1,1]
-        variables =  [unknown(d_1), unknown(th_2), unknown(th_3), unknown(th_4), unknown(th_5), unknown(th_6)]
+        variables =  [unknown(d_1), unknown(th_2), unknown(th_3), unknown(th_4), unknown(th_5)]
         params = [ l_2, l_3, l_4]
         pvals = {l_2:1,l_3:1,l_4:1}
 

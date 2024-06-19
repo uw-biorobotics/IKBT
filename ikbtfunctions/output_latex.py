@@ -159,13 +159,13 @@ def output_latex_solution(Robot, variables, groups):
     # introduce the unknowns and the solution ORDER
     unksection += r'''The unknown variables for this robot are (in solution order): ''' +eol+r'\begin{enumerate}'+eol
 
-    tvars = {}
-    for v in variables:
-        tvars[v]=v.solveorder
-    for v in sorted(tvars, key=tvars.get):
-        tmp = '$' + sp.latex(v) + '$'
+    for n in Robot.solution_nodes:
+        unk = n.symbol
+        print('\noutput_latex: latex unknown v1:',unk, type(unk))
+        tmp = '$' +  sp.latex(unk) + '$'
         tmp = theta_expand(tmp)
         tmp = re.sub(r'_(\d+)',  r'_{\1}', tmp)   # get all digits of subscript into {}
+        print('output_latex: latex unknown v2:',tmp)
         unksection += eol+r'\item {'+tmp+'}'
 
     unksection += r'\end{enumerate}'+eol

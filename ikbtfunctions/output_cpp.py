@@ -256,7 +256,7 @@ int False = 0;
     for g in solution_groups:
         gs = []
         for t in g:
-            print('g: ', g, 't: ', t)
+            #print('g: ', g, 't: ', t)
             gs.append(str(t))
 
         #print(gs.sort, file=f) # in place
