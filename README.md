@@ -6,10 +6,6 @@ Solutions are fully symbolic and are output as LaTex, Python, and C++.
 # Latest News
 
 ## June 2024
-* NOTE: There are a few final tweaks still being worked in this version!!!
-
-* Python and cpp code output is broken and needs to be updated to the new solution data structures
-but LaTex output suggests that the new data structures will output correct and high quality code.
 
 * One of our main learnings in this project is that robot kinematic equation solutions in general are NOT described 
 by a tree structure!  Instead they are a more general graph.  For example, two variable solutions might be independent of
@@ -22,6 +18,7 @@ was overly complex due to lingering assumptions from the tree structure idea.
 that FK and IK solutions seem correct, latex output is correct and shows all versions.  A new section in the Latex output
 also gives generic "textbook" style solutions without all the solution set permutations.
 
+* New solution version system fully integrated with Latex, Cpp, and Python generation outputs.
 
 * The new approach to solution sets is explained in a document IKdocs/solExample.pdf.
 
