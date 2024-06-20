@@ -50,12 +50,12 @@ Generated code initializes the new constants.   Try >python3 fkOnly \<RobotName\
  * [How to set up IKBT for your own robot arm](https://youtu.be/hXzY5vrvWkU) (6.5min)
 
 
-# Details
+# Details    
 
 ### Documenation:  
    * [ Theory of Operation ](https://www.jair.org/index.php/jair/article/view/11592)
-   * [ Major Classes ](https:IKdocs/classes.md)
-   * [ Solution Set Generation Strategy Doc ](https:IKdocs/solExamp.pdf) (updated June 2024)
+   * [ Major Classes ](https:../blob/main/IKdocs/classes.md)
+   * [ Solution Set Generation Strategy Doc ](https:../blob/main/IKdocs/solExamp.pdf) (updated June 2024)
 
 ## How to cite: 
 
