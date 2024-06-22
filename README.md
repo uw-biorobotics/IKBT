@@ -7,20 +7,21 @@ Solutions are fully symbolic and are output as LaTex, Python, and C++.
 
 ## June 2024
 
-* One of our main learnings in this project is that robot kinematic equation solutions in general are NOT described 
-by a tree structure!  Instead they are a more general graph.  For example, two variable solutions might be independent of
-each other but contribute to the other variable's solutions (multiple 'roots' to the graph).  Our previous solution
+* We have done a complete re-write of the solution set generation process with seemingly good results.
+  We develop the table of solutions directly instead of relying on a solution graph,
+  adding rows as each solved variable creates combinations [Explanation and Example](https:../blob/main/IKdocs/solExamp.pdf)  
+* One of our main learnings earlier in this project was that robot kinematic equation solutions in general are NOT described 
+by a tree structure!  Instead they are a more general graph.  Our previous solution
 was overly complex due to lingering assumptions from the tree structure idea. 
 
-* We have done a complete re-write of the solution set generator process with seemingly good results.
-  The key insight was to develop the table of solutions, adding rows as each solved variable creates combinations.
 * Current status is
 that FK and IK solutions seem correct, latex output is correct and shows all versions.  A new section in the Latex output
 also gives generic "textbook" style solutions without all the solution set permutations.
+We have not yet done a full "closed loop" test on these new solution vectors as described in the JAIR paper.
 
-* New solution version system fully integrated with Latex, Cpp, and Python generation outputs.
+* New solution version system is fully integrated with Latex, Cpp, and Python generation outputs.
 
-* The new approach to solution sets is explained in a document IKdocs/solExample.pdf.
+* The new approach to solution sets is explained in a document [IKdocs/solExample.pdf](https:../blob/main/IKdocs/solExamp.pdf).
 
 * There is lots of code from the old method ("v2") that need to be cleaned up, as well as several superfluous class members
   in Robot and unknown classes.
