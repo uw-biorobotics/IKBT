@@ -55,16 +55,6 @@ class LatexFile():
         self.close = f.readlines()
         f.close()
 
-    def set_title(self,title):
-        self.preamble.append(eol)
-        self.preamble.append(('\begin{center} \section*{***TITLE***} \end{center}'+eol).replace(title))
-
-
-    #  optional to override the template file in /LaTex
-    def set_preamble(self,str):
-        self.preamble = str;
-
-
     #  output the final latex file
     def output(self):
         f = open(self.filename,'w')

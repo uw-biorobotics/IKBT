@@ -401,11 +401,6 @@ if VERSION02:
     #    print a_set
 
 #
-#  Maybe these will break for V3 method
-#
-R.output_solution_graph() # V3 works (moved into Robot class)
-
-#
 #  generate the solution sets (as a set of tuples (don't ask))
 #
 R.create_solution_set()

@@ -64,7 +64,7 @@ class TestSolver009(unittest.TestCase):    # change TEMPLATE to unique name (2 p
     def test_findobj(self):
         fs = 'find_obj()  FAIL'
         self.assertTrue(find_obj(self.uth3.symbol, self.vars) == self.vars[2], fs)
-        self.assertTrue(find_obj(kc.unknown('random_name'), self.vars) == None, fs)
+        self.assertTrue(find_obj(sp.var('random_name'), self.vars) == None, fs)
         return
     
     def test_get_vars(self):

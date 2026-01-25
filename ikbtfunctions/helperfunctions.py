@@ -28,14 +28,6 @@ import sympy as sp
 #
 #    Some helper functions
 #
-def print_status(bb, label):
-    print("    --- ", label, " ---")
-    print("            Solved:   " , bb.get('solutions'))
-    print("            Unknowns: " , bb.get('unknowns'))
-
-def print_debug(label):
-    print(label)
-
 #
 def theta_expand(x):
     return x.replace(r'th_', r'\theta_') # convert 'th' to '\theta' for nicer latex
@@ -92,23 +84,6 @@ def find_obj(th_sym, unknowns):
     return None
 
 
-#    TODO:   still needed????
-# find a variable higher up in the solution tree
-#    which has been used in the current solution
-
-def find_ancestor(node, var):
-    if node.parent.root:
-        print("find_ancestor: never found a solved variable in the solution tree !", var.symbol)
-        assert(False), 'caller (set_solved) tried to register a solution with unknown in it!'
-        return 0
-    else:
-        if(node.parent.variable == var):  # we found it
-            return node.parent
-        else:
-            return find_ancestor(node.parent, var)
-
-
-
 def ik_lhs():  # generate a simple Left Hand side matrix
     m = sp.zeros(4)
     for i in [1,2,3]:
@@ -147,54 +122,5 @@ def prog_bar(l, lmax, length=25,  msg = ''):
     sys.stdout.flush()
     return
 
-
-#######################################################################################
-
-#  TODO:  this is no longer needed
-
-####    from Stackexchange(!)
-#http://codereview.stackexchange.com/questions/82802/stack-implementation-in-python
-class EmptyStackError(Exception):
-    def __init__(self):
-        super(self.__class__, self).__init__("Stack is empty: cannot pop an empty stack")
-
-
-class StackFullError(Exception):
-    def __init__(self):
-        super(self.__class__, self).__init__("Stack is full")
-
-
-class stack():
-    def __init__(self):
-        self.data = []
-        self.Nmax = 5
-
-    def isFull(self):
-        if (len(self.data) > self.Nmax-1):
-            return True
-        else:
-            return False
-
-    def isEmpty(self):
-        if (len(self.data) == 0):
-            return True
-        else:
-            return False
-
-    def Clear(self):   # erase the stack
-        self.data = []
-
-    def push(self, data):
-        if self.isFull():
-            raise StackFullError()
-        self.data.append(data)
-        return data
-
-    def pop(self):
-        if self.isEmpty():
-            raise EmptyStackError()
-        item = self.data[len(self.data) -1]
-        del self.data[len(self.data) -1]
-        return item
 
 

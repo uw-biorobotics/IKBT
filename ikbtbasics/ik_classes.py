@@ -134,35 +134,6 @@ def check_the_pickle(dh1, dh2):   # check that two mechanisms have identical DH 
   ''')
         quit()
 
-## retrieve thxy from thx, thy
-def find_xy(thx, thy):
-    # lookup table for thxy
-    print('test: find_xy:',thx, thy)
-    thxy_lookup = {
-                   th_1:[th_12, th_123],
-                   th_2:[th_12, th_23, th_123, th_234],
-                   th_3:[th_23, th_34, th_123, th_234, th_345],
-                   th_4:[th_34, th_45, th_234, th_345, th_456],
-                   th_5:[th_45, th_56, th_345, th_456],
-                   th_6:[th_56, th_456]
-                   }
-    # add 3-way SOA's to thxy_lookup
-    thxy_lookup[th_12] = [th_123]
-    thxy_lookup[th_23] = [th_123,th_234]
-    thxy_lookup[th_34] = [th_234,th_345]
-    thxy_lookup[th_45] = [th_345,th_456]
-    thxy_lookup[th_56] = [th_456]
-
-    # one symbol in common is the th_xy we're looking for
-    thx_s = set(thxy_lookup[thx])
-    thy_s = set(thxy_lookup[thy])
-    thxy_s = thx_s.intersection(thy_s)
-    thxy = thxy_s.pop()
-    return thxy
-
-#def find_sum(thx,thy):
-    # new approach for same problem as find_xy()
-
 ##############################################################################33
 #
 #     Robot Class
@@ -223,24 +194,6 @@ class Robot:
             #  build up the equations to solve:
             self.mequation_list = Mech.get_mequation_set()  # all the Matrix FK equations
             print('ik_classes: length Robot.mequation_list: ', len(self.mequation_list))
-
-    # #
-    #   Print text-based solution graph
-    #
-    def output_solution_graph(self):
-        print('========== Solution Output ================')
-        print('          ' + self.name)
-
-        print('========== Solution Graph (Nodes) ===============')
-        for node in self.solution_nodes:
-            print(node.details())
-
-        print('========== Solution Graph (Edges) output ================')
-        for edge in self.notation_graph_edges:
-            print(edge)
-
-        print('========== End Solution Graph Output ================')
-
 
     #   *********  new fcn for final soln versions
     #  generate the final list of versions for this unknown

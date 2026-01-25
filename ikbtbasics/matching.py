@@ -37,19 +37,7 @@ import unittest
 import sympy as sp
 from ikbtbasics.ik_classes import *
 import ikbtbasics.kin_cl as kc
-from ikbtbasics.solution_graph_v2 import *
 
-# find subset contains certain symbol
-def find_subset(notation_collections, symbol):
-    for subset in notation_collections:
-        if symbol in subset:
-            return subset
-# delete some subset
-def delete_subset(notation_collections, subset):
-    for i in range(len(notation_collections)):
-        if subset == notation_collections[i]:
-            del notation_collections[i]
-            return notation_collections
 # sort notation_collections' sets by their contents
 # start with the ones with most notations
 def sort_by_length(notation_collections):
