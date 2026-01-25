@@ -4,6 +4,10 @@ behavior trees for action selection.
 Solutions are fully symbolic and are output as LaTex, Python, and C++.
 
 # Latest News
+## January 2026
+* The change in solution set generation (see below) left a large amount of old code idle.   With the help of Claude Code
+(my first Claude Code project), we have removed 667 lines of dead code.   Tests are now passing (one failure - stay tuned) and
+Puma, Chair_Helper fully solved.    Please report any issues!  
 
 ## June 2024
 
