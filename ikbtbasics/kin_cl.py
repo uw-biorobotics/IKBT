@@ -76,7 +76,7 @@ class kequation:
         tab = ' '
         if align:
             tab = ' &'
-        self.string = '\n  ' + theta_expand(sp.latex(self.LHS)) + tab +  '= ' + theta_expand(sp.latex(self.RHS))
+        self.string = theta_expand(sp.latex(self.LHS)) + tab +  '= ' + theta_expand(sp.latex(self.RHS))
 
         tmp = self.string
         #tmp = theta_expand(tmp)

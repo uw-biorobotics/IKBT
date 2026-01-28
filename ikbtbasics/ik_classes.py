@@ -430,6 +430,24 @@ def sum_of_angles_sub(R, expr, variables):
     #print expr
     #print matches
 
+    # Sort matches so 3-way SOA subs are processed before 2-way ones.
+    # Without sorting, set iteration order is non-deterministic which can
+    # cause a 2-way sub (e.g. th_34) to fire first, preventing the 3-way
+    # sub (e.g. th_234) from matching later.
+    def _soa_nargs(m):
+        """Return negative count of non-zero wild args so 3-way sorts first."""
+        d  = m.match(sp.cos(aw + bw + cw))
+        d1 = m.match(sp.sin(aw + bw + cw))
+        if d is not None and d1 is not None:
+            d.update(d1)
+        if d is None and d1 is not None:
+            d = d1
+        if d is None:
+            return 0
+        return -sum(1 for v in d.values() if v != 0)
+
+    matches = sorted(matches, key=_soa_nargs)
+
     for m in matches: # analyze each match
         d  = m.match(sp.cos(aw + bw + cw))
         d1 = m.match(sp.sin(aw + bw + cw))
