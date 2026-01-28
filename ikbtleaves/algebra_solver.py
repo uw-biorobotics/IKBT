@@ -75,17 +75,15 @@ class test_algebra_id(b3.Action):    # tester for your ID
         uth5 = unknown(th_5)
         variables = [ud1,  uth1, uth2, uth3, uth4, uth5,u123]
 
-        [L1, L2] = R.scan_Mequation(testm, variables)  # lists of 1unk and 2unk equations
-        
-        L1.append(kequation(th_123, th_1+th_2+B))
-        
-        # fix!!
-        R.generate_solution_nodes(variables) # generate solution nodes
-        
+        [L1, L2, L3p] = R.scan_Mequation(testm, variables)  # lists of 1unk, 2unk, and 3+unk equations
+
+        L3p.append(kequation(th_123, th_1+th_2+B))  # 3-unknown SOA equation
+
         tick.blackboard.set('eqns_1u', L1)
         tick.blackboard.set('eqns_2u', L2)
+        tick.blackboard.set('eqns_3pu', L3p)
         tick.blackboard.set('unknowns',variables)
-        tick.blackboard.set('Robot',R)    
+        tick.blackboard.set('Robot',R)
         return b3.SUCCESS
     
 def spZconv(term):   # if term == int(0), make it a sympy zero

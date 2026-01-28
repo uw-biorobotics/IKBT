@@ -81,11 +81,10 @@ class test_sinandcos_id(b3.Action):    # tester for sincos ID
 
       variables = [uth1, uth2, uth3, uth4, uth5, uth6]
       
-      [L1, L2] = R.scan_Mequation(testm, variables)  # lists of 1unk and 2unk equations
-      R.generate_solution_nodes(variables)
-      
+      [L1, L2, L3p] = R.scan_Mequation(testm, variables)  # lists of 1unk, 2unk, and 3+unk equations
       tick.blackboard.set('eqns_1u', L1)
       tick.blackboard.set('eqns_2u', L2)
+      tick.blackboard.set('eqns_3pu', L3p)
       tick.blackboard.set('unknowns',variables)
       tick.blackboard.set('Robot',R)    
       return b3.SUCCESS

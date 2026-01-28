@@ -69,7 +69,7 @@ class test_sub_transform(b3.Action):    # tester for your ID
         variables = [ua,ub,uc,ud,ue,uf,ug,uth2, uth3, uth4, uth5]
 
         R.mequation_list = [testm]
-        [L1, L2] = R.scan_Mequation(testm, variables)  # lists of 1unk and 2unk equations
+        [L1, L2, L3p] = R.scan_Mequation(testm, variables)  # lists of 1unk, 2unk, and 3+unk equations
         
         print(' INITIAL  Ts:')
         Tm = R.mequation_list[0]   # for a single test as above

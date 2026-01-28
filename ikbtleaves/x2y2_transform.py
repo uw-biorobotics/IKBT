@@ -78,7 +78,6 @@ class test_x2z2(b3.Action):    # tester for your ID
         
         variables = [ud1, uth2, uth23, uth3, uth4, uth5]
         
-        R.generate_solution_nodes(variables)        #for the solution graph
         ud1.solutions.append(a_3) # placeholder
         ud1.nsolutions = 1
         ud1.set_solved(R,variables)  # needed for this test

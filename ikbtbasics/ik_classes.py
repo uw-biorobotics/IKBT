@@ -342,25 +342,25 @@ class Robot:
     def scan_Mequation(self,Meqn,variables):
         self.l1 = []
         self.l2 = []
+        self.l3p = []
         for eqn in Meqn.get_kequation_list():
             lh1x1 = eqn.LHS  #4x4 matrix
             rh1x1 = eqn.RHS  #4x4 matrix
             n = count_unknowns(variables, lh1x1) + count_unknowns(variables, rh1x1)
-            #e1 = kequation(lh1x1, rh1x1) # change from 0,rh1x1-lh1x1 **********
             e1 = eqn
             if(n==1):
-                flag = False
                 if e1 not in self.l1:
-
                     self.l1.append(e1)   # only append if not already there
             if(n==2):
-                flag = False
-
                 if e1 not in self.l2:
                     self.l2.append(e1)    # only append if not already there
+            if(n > 2):
+                if e1 not in self.l3p:
+                    self.l3p.append(e1)    # only append if not already there
         self.l1 = erank(self.l1) # sort the equations (in place) so solvers get preferred eqns first
         self.l2 = erank(self.l2)
-        return [self.l1, self.l2]
+        self.l3p = erank(self.l3p)
+        return [self.l1, self.l2, self.l3p]
 
 
     #
