@@ -100,7 +100,6 @@ class unknown(object):
         self.solvemethod = ''
         self.solved = False
         self.solveorder = 0
-        self.usedfortransform = False   # if solved, has this been used for transform yet?
         self.solutions = []   # list of solutions, store final solutions
         self.solutionNames = []  # symbols for each solution eg x_2s1
         self.versionNames = []   # version names (repeats of solutionNames)
@@ -108,7 +107,6 @@ class unknown(object):
         self.nversions = 1  # filled in by Robot.create_solution_sets in solution order
         self.nsolutions = 0   # number of solutions (== len(self.solutions))
         self.assumption = [] #assumputions about the solutions
-        self.versionEqnList = []   # DEPRECATED: full equations for each solution version
         self.LHSversionNames = []
         self.argument = sp.var('a')*sp.var('b')  # argument to arcin() for example (used for generating checking code output)
 

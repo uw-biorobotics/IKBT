@@ -144,9 +144,7 @@ class Robot:
         self.name = name
         # the following data pertain to the solution tree for this Robot
         self.solveN = 0   # index of current solution in solving sequence
-        self.soltag = ''  # suffix tag for current solution level leafs
         self.params = []  # constant dh params such as l_4 etc.
-        self.variables_symbols = []
         self.FinalEqnMatrix = []   # will contain a kequation for each unk and each version
         self.nversions = 0   # will have the number of rows in FinalEqnMatrix
 

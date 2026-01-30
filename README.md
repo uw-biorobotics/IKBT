@@ -13,7 +13,7 @@ Puma, Chair_Helper fully solved.    Please report any issues!
 
 * We have done a complete re-write of the solution set generation process with seemingly good results.
   We develop the table of solutions directly instead of relying on a solution graph,
-  adding rows as each solved variable creates combinations [Explanation and Example](https:../blob/main/IKdocs/solExamp.pdf)  
+  adding rows as each solved variable creates combinations [Explanation and Example](IKdocs/solExamp.pdf)  
 * One of our main learnings earlier in this project was that robot kinematic equation solutions in general are NOT described 
 by a tree structure!  Instead they are a more general graph.  Our previous solution
 was overly complex due to lingering assumptions from the tree structure idea. 
@@ -25,10 +25,7 @@ We have not yet done a full "closed loop" test on these new solution vectors as 
 
 * New solution version system is fully integrated with Latex, Cpp, and Python generation outputs.
 
-* The new approach to solution sets is explained in a document [IKdocs/solExample.pdf](https:../blob/main/IKdocs/solExamp.pdf).
-
-* There is lots of code from the old method ("v2") that need to be cleaned up, as well as several superfluous class members
-  in Robot and unknown classes.
+* The new approach to solution sets is explained in a document [IKdocs/solExamp.pdf](IKdocs/solExamp.pdf).
 
 
 ## Jan 2024
@@ -59,8 +56,8 @@ Generated code initializes the new constants.   Try >python3 fkOnly \<RobotName\
 
 ### Documenation:  
    * [ Theory of Operation ](https://www.jair.org/index.php/jair/article/view/11592)
-   * [ Major Classes ](https:../blob/main/IKdocs/classes.md)
-   * [ Solution Set Generation Strategy Doc ](https:../blob/main/IKdocs/solExamp.pdf) (updated June 2024)
+   * [ Major Classes ](IKdocs/classes.md)
+   * [ Solution Set Generation Strategy Doc ](IKdocs/solExamp.pdf) (updated June 2024)
 
 ## How to cite: 
 
