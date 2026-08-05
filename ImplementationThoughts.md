@@ -149,3 +149,47 @@ The `worktools` `Priority` already has five children inside two nested repeat lo
 ~200 lines of commented-out per-robot debug flags in `ikSolver.py` suggest it is near the limit
 of what can be debugged by inspection. If Candidates 1 and 3 both land, grouping the algebraic
 toolbox into a named subtree would keep it legible.
+
+---
+
+## BH notes, August 2026
+
+Direction agreed: **fix up the existing BT method first**, per the recommended plan above.
+
+### The baseline must record expected failures, not just successes
+
+Some robots do not currently succeed — Kinova among them. The baseline is therefore not a
+pass/fail list but a *record of current status per robot*, in which "does not solve" is a
+legitimate and expected entry.
+
+This matters for how the baseline gets used:
+
+- A robot moving from solved to unsolved is a regression.
+- A robot moving from unsolved to solved is the *goal* of the new candidates, and needs to be
+  distinguishable from an accidental change.
+- A robot that stays unsolved is not a test failure and must not be reported as one, or the
+  suite will be permanently red and get ignored.
+
+So the baseline file should be checked in and diffed against, rather than encoded as assertions
+that every robot must solve.
+
+### A new higher-level test of the full solution process
+
+Ideally this becomes a proper test at a higher level than the current leaf unit tests: one that
+exercises the **full solution process** end to end, and that runs **after the leaf unit tests
+pass**.
+
+Rationale for that ordering: if a leaf is broken, the full-solution test will fail in a way that
+is hard to attribute. Leaf tests localize the fault; the integration test then answers the
+different question of whether the assembled tree still reaches the same solutions. Running the
+expensive whole-robot test only once the cheap unit tests are green also keeps the normal
+development cycle fast.
+
+Open questions to settle when building it:
+
+- Where it lives and how it is invoked, relative to `python3 -m tests.leavestest`.
+- Which robots form the set — all of them, or a representative subset, given runtime.
+- What is asserted per robot: solved/unsolved status at minimum; possibly also solution counts,
+  the `solvemethod` chosen per variable, and solve time.
+- How the FK pickle cache interacts with it, since a cold `fk_eqns/` makes the run far slower and
+  a stale one can mask changes.
