@@ -44,6 +44,7 @@ from ikbtleaves.algebra_solver import *
 from ikbtleaves.sinANDcos_solver import *
 from ikbtleaves.sincos_solver import *
 from ikbtleaves.tan_solver import *
+from ikbtleaves.two_eqn_m7 import *
 from ikbtleaves.sub_transform import *
 from ikbtleaves.updateL import *
 from ikbtleaves.x2y2_transform import *
@@ -409,7 +410,8 @@ if __name__ == '__main__':
     suite2.addTest(TestSolver002())  # algebra_solver.py
     suite2.addTest(TestSolver003())  # sinANDcos_solver.py
     suite2.addTest(TestSolver004())  # tan_solver.py
-    
+    suite2.addTest(TestSolver005())  # two_eqn_m7.py  # simultaneous equations
+
     # test the transforms and misc. tests
     suite3 = unittest.TestLoader().loadTestsFromTestCase(TestSolver006)  # sub_transform.py
     suite3.addTest(TestSolver010())   # x2y2_transform.py
@@ -419,11 +421,11 @@ if __name__ == '__main__':
     if(not HTML):
         print('\n\n>>>>>>>>>>>>>>>>>>>>  Test ik_classes >>>>>>>>>>>>>>>>>>>>\n')
         unittest.TextTestRunner(verbosity=2).run(suite1)
-        #print('\n\n>>>>>>>>>>>>>>>>>>>>  Test ID/Solver nodes>>>>>>>>>>>>>>>>>>>>\n')
-        #unittest.TextTestRunner(verbosity=2).run(suite2)
-        #print('\n\n>>>>>>>>>>>>>>>>>>>>  Test transforms and misc nodes >>>>>>>>>>>>>>>>>>>>\n')
-        #print(' (please be patient - slower tests)')
-        #unittest.TextTestRunner(verbosity=2).run(suite3)
+        print('\n\n>>>>>>>>>>>>>>>>>>>>  Test ID/Solver nodes>>>>>>>>>>>>>>>>>>>>\n')
+        unittest.TextTestRunner(verbosity=2).run(suite2)
+        print('\n\n>>>>>>>>>>>>>>>>>>>>  Test transforms and misc nodes >>>>>>>>>>>>>>>>>>>>\n')
+        print(' (please be patient - slower tests)')
+        unittest.TextTestRunner(verbosity=2).run(suite3)
     else:
         #HTMLTestRunner.main()
        # output to a file
