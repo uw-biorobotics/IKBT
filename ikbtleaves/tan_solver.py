@@ -103,38 +103,51 @@ class tan_id(b3.Action):    # action leaf for ID eqns solved by atan2()
 
 
 
+            # Wilds must exclude sin/cos of THIS unknown, so they are built
+            # here rather than reusing the module-level ones.  An unconstrained
+            # 'Cw*cos(u) + Dw' is ambiguous -- it matches anything via
+            # Cw = (expr - Dw)/cos(u) -- and sympy returns exactly that
+            # degenerate reading when the coefficient is negative, e.g.
+            #   -3*d_3*cos(th_1) + 4.95  ->  {Cw: 4.95/cos(th_1), Dw: -3*d_3*cos(th_1)}
+            # The count_unknowns(d2[Dw]) screen below then rejected a pair the
+            # leaf can solve, so a negative coefficient silently defeated it.
+            Awx = sp.Wild('Awx', exclude=terms)
+            Bwx = sp.Wild('Bwx', exclude=terms)
+            Cwx = sp.Wild('Cwx', exclude=terms)
+            Dwx = sp.Wild('Dwx', exclude=terms)
+
             for es in sin_eqn:
                 estst = (es.RHS - es.LHS).collect(terms)  # get all the sin(th)s collected
-                d1 = estst.match(Aw*sp.sin(u.symbol) + Bw)
+                d1 = estst.match(Awx*sp.sin(u.symbol) + Bwx)
                 if self.BHdebug: 
                     print('---')
                     print("\nsin equ: ")
                     print(u.eqntosolve)
                     print("\nsin(): coefficients are : ")
-                    print(d1[Aw] )
+                    print(d1[Awx] )
                     print('---')
                 for ec in cos_eqn:  
                     ectst = (ec.RHS - ec.LHS).collect(terms)  # get all the cos(th)s collected
-                    d2 = ectst.match(Cw*sp.cos(u.symbol) + Dw)
+                    d2 = ectst.match(Cwx*sp.cos(u.symbol) + Dwx)
                     if self.BHdebug: 
                         print("\ncos equ: ")
                         print(u.secondeqn)
                         print("\ncos(): coefficients")
-                        print(d2[Cw]          )
+                        print(d2[Cwx]          )
                     
                     # check some things about potential solvable equations
                     assert(d1 is not None and d2 is not None), 'somethings wrong!'
-                    co = d1[Aw]/d2[Cw]   # take ratio
+                    co = d1[Awx]/d2[Cwx]   # take ratio
                     # it's not solvable if (simplified) coefficient contains unknowns, or other parts have unknowns
                 
                     #print 
                     #print 'tan_id: (',u.symbol,')   0 =  Aw*sin(th_XX)+Bw , 0 = Cw*cos(th_XX) + Dw '
-                    #print 'Aw: ', d1[Aw], '   Bw: ', d1[Bw]
-                    #print 'Cw: ', d2[Cw], '   Dw: ', d2[Dw]
+                    #print 'Aw: ', d1[Awx], '   Bw: ', d1[Bwx]
+                    #print 'Cw: ', d2[Cwx], '   Dw: ', d2[Dwx]
                     
                     
                     too_many_unknowns = False
-                    if count_unknowns(unknowns, co) > 0 or count_unknowns(unknowns, d1[Bw]) >0 or count_unknowns(unknowns, d2[Dw]) > 0:
+                    if count_unknowns(unknowns, co) > 0 or count_unknowns(unknowns, d1[Bwx]) >0 or count_unknowns(unknowns, d2[Dwx]) > 0:
                         too_many_unknowns = True
 
 
@@ -147,7 +160,7 @@ class tan_id(b3.Action):    # action leaf for ID eqns solved by atan2()
                         # u.eqntosolve and secondeqn are already set up above 
                         print('tan_id:  able to solve', u.symbol)
                         if count_unknowns(unknowns, co) > 0: #cancellable unsolved term, add the nonzero assumption
-                            global_assumptions.add(sp.Q.nonzero(d2[Cw]))                            
+                            global_assumptions.add(sp.Q.nonzero(d2[Cwx]))                            
                         u.solvemethod += "atan2(y,x)"
                         u.solvable_tan = True
                         
@@ -213,8 +226,12 @@ class tan_solve(b3.Action):    # Solve sin cos equation pairs
                 print(u.eqntosolve)
                 
             rhs = u.eqntosolve.RHS
-            Aw = sp.Wild("Aw")
-            Bw = sp.Wild("Bw")
+            # exclude sin/cos of this unknown -- an unconstrained Wild makes
+            # 'Aw*sin(u) + Bw' ambiguous and sympy returns a degenerate
+            # decomposition for negative coefficients.  See tan_id.
+            _terms = [sp.sin(u.symbol), sp.cos(u.symbol)]
+            Aw = sp.Wild("Aw", exclude=_terms)
+            Bw = sp.Wild("Bw", exclude=_terms)
             d  = rhs.match(Aw*sp.sin(u.symbol)+Bw)
             
             assert(d != None), fs
@@ -263,8 +280,14 @@ class tan_solve(b3.Action):    # Solve sin cos equation pairs
                 
                 u.tan_eqnlist.append(u.eqntosolve)
                 u.tan_eqnlist.append(u.secondeqn)
-                u.assumption.append(sp.Q.positive(d[Aw]))  # right way to say "non-zero"?
-                u.assumption.append(sp.Q.negative(d[Aw]))                                                   
+                # The branch is selected by the sign of the factor used to
+                # scale both atan2 arguments, which is A2 (= d2[Aw]) -- NOT A1.
+                # Scaling atan2(y,x) preserves the angle only for a positive
+                # factor; sol2 covers the negative case.  These previously
+                # recorded d[Aw] (A1), which agrees only when A1 and A2 happen
+                # to share a sign; for opposite signs the labels were inverted.
+                u.assumption.append(sp.Q.positive(d2[Aw]))
+                u.assumption.append(sp.Q.negative(d2[Aw]))
                 u.nsolutions = 2
 
                 # note that set_solved is doen in ranker (ranking sincos, and tan sols)
@@ -364,8 +387,193 @@ class TestSolver004(unittest.TestCase):    # change TEMPLATE to unique name (2 p
         return
     
     def runTest(self):
-        self.test_tansolver() 
-        
+        self.test_tansolver()
+        self.test_tanB_roundtrip_single_solution()
+        self.test_tanB_roundtrip_two_branches()
+        self.test_tanB_negative_cos_coefficient_solves()
+        self.test_tanB_assumption_labels_match_valid_branch()
+
+    #####################################################################
+    #  Numeric round-trip tests.
+    #
+    #  test_tansolver() above compares against exact sympy expressions, which
+    #  pins the current FORM rather than the correctness of the answer.  These
+    #  substitute numbers into whatever the solver returns and check that it
+    #  actually satisfies both original equations.
+    #
+    #  The solver takes two paths:
+    #     A1*sin(u) + B1 = 0,  A2*cos(u) + B2 = 0
+    #   - if A1 has no unsolved unknowns:  one solution, atan2(Y/A1, X/A2)
+    #   - otherwise: the shared unsolved factor is cancelled via co = A1/A2 and
+    #     TWO solutions are emitted, because scaling both atan2 arguments is
+    #     only angle-preserving when the scale factor A2 is positive.
+
+    def run_tan(self, sin_expr, cos_expr, sym, coeff_unknowns=()):
+        '''Drive tan_id + tan_solve on 0 == sin_expr and 0 == cos_expr.
+           `coeff_unknowns` are extra UNSOLVED unknowns appearing in the
+           coefficients (that is what selects the two-branch path).
+           Returns the unknown for `sym`.  Note set_solved() is deliberately
+           NOT called by this leaf -- the rank leaf does it -- so u.solved
+           stays False here and we check u.solutions directly.'''
+        u = unknown(sym)
+        unknowns = [u] + [unknown(s) for s in coeff_unknowns]
+
+        t_id = tan_id()
+        t_id.BHdebug = self.DB
+        t_sl = tan_solve()
+        t_sl.BHdebug = self.DB
+
+        ik_tester = b3.BehaviorTree()
+        ik_tester.root = b3.Sequence([t_id, t_sl])
+
+        bb = b3.Blackboard()
+        bb.set('curr_unk', u)
+        bb.set('unknowns', unknowns)
+        bb.set('eqns_1u', [kequation(0, sin_expr), kequation(0, cos_expr)])
+        bb.set('eqns_2u', [])
+        bb.set('Robot', Robot())
+        ik_tester.tick("tan numeric roundtrip", bb)
+        return bb.get('curr_unk')
+
+    def residuals(self, sol, sin_expr, cos_expr, sym, subs=None):
+        '''Return (|sin eqn residual|, |cos eqn residual|) at the solution.'''
+        s = sol if subs is None else sol.subs(subs)
+        e1 = sin_expr if subs is None else sin_expr.subs(subs)
+        e2 = cos_expr if subs is None else cos_expr.subs(subs)
+        r1 = complex(sp.N(e1.subs(sym, s)))
+        r2 = complex(sp.N(e2.subs(sym, s)))
+        return abs(r1), abs(r2)
+
+    def test_tanB_roundtrip_single_solution(self):
+        '''Coefficients free of unsolved unknowns -> the single-solution path.'''
+        sp.var('th_1')
+        fs = ' tan_solver numeric roundtrip FAIL'
+        th_true = 0.6
+        A1, A2 = 2, 3
+        B1 = -A1*float(sp.sin(th_true))
+        B2 = -A2*float(sp.cos(th_true))
+        sin_expr = A1*sp.sin(th_1) + B1
+        cos_expr = A2*sp.cos(th_1) + B2
+
+        u = self.run_tan(sin_expr, cos_expr, th_1)
+
+        self.assertEqual(len(u.solutions), 1, fs + ' (expected the 1-solution path)')
+        self.assertAlmostEqual(float(sp.N(u.solutions[0])), th_true, places=9,
+                               msg=fs + ' (recovered the wrong angle)')
+        r1, r2 = self.residuals(u.solutions[0], sin_expr, cos_expr, th_1)
+        self.assertAlmostEqual(r1, 0.0, places=9, msg=fs + ' (sin eqn not satisfied)')
+        self.assertAlmostEqual(r2, 0.0, places=9, msg=fs + ' (cos eqn not satisfied)')
+
+    def test_tanB_roundtrip_two_branches(self):
+        '''A shared unsolved factor d_3 in both coefficients cancels in
+           co = A1/A2, giving the two-branch path.  Exactly one branch is
+           correct for a given sign of d_3; the pair must bracket the truth.'''
+        sp.var('th_1 d_3')
+        fs = ' tan_solver two-branch roundtrip FAIL'
+        th_true, d3_val = 0.6, 2.0
+        # A1 = 2*d_3, A2 = 3*d_3  -- same sign, so co = 2/3 is unknown-free
+        sin_expr = 2*d_3*sp.sin(th_1) - 2*d3_val*float(sp.sin(th_true))
+        cos_expr = 3*d_3*sp.cos(th_1) - 3*d3_val*float(sp.cos(th_true))
+
+        u = self.run_tan(sin_expr, cos_expr, th_1, coeff_unknowns=[d_3])
+
+        self.assertEqual(len(u.solutions), 2, fs + ' (expected the 2-branch path)')
+        subs = {d_3: d3_val}
+        ok = [i for i, s in enumerate(u.solutions)
+              if max(self.residuals(s, sin_expr, cos_expr, th_1, subs)) < 1e-9]
+        self.assertEqual(len(ok), 1, fs + ' (exactly one branch should be valid)')
+        # and the branches must be pi apart
+        vals = [float(sp.N(s.subs(subs))) for s in u.solutions]
+        self.assertAlmostEqual(abs(abs(vals[0] - vals[1]) - float(sp.pi)), 0.0, places=9,
+                               msg=fs + ' (branches are not pi apart)')
+
+    def test_tanB_negative_cos_coefficient_solves(self):
+        '''Regression: a NEGATIVE cos coefficient must solve, same as positive.
+
+           tan_id and tan_solve decomposed with an unconstrained Wild, and
+           'Cw*cos(u) + Dw' is ambiguous -- it matches anything via
+           Cw = (expr - Dw)/cos(u).  For a negative coefficient sympy returned
+           exactly that degenerate reading:
+               -3*d_3*cos(th_1) + 4.95 -> {Cw: 4.95/cos(th_1), Dw: -3*d_3*cos(th_1)}
+           the count_unknowns(d2[Dw]) screen then rejected the pair, and the
+           leaf silently declined a problem it can solve -- while the identical
+           problem with the sign flipped solved fine.  Fixed by excluding
+           sin/cos of the unknown from the Wilds.'''
+        sp.var('th_1 d_3')
+        fs = ' tan_solver negative-cos-coefficient FAIL'
+        th_true, d3_val = 0.6, 2.0
+        subs = {d_3: d3_val}
+        sin_expr  =  2*d_3*sp.sin(th_1) - 2*d3_val*float(sp.sin(th_true))
+
+        # the degenerate match that used to defeat the leaf
+        cos_neg = -3*d_3*sp.cos(th_1) + 3*d3_val*float(sp.cos(th_true))
+        Cw, Dw = sp.Wild('Cw'), sp.Wild('Dw')
+        self.assertTrue(cos_neg.match(Cw*sp.cos(th_1) + Dw)[Dw].has(sp.cos(th_1)),
+                        fs + ' (unconstrained Wild no longer degenerates -'
+                             ' the exclude= guards may now be redundant)')
+        # ... and the constrained form the leaf now uses, which does not
+        Cx = sp.Wild('Cx', exclude=[sp.sin(th_1), sp.cos(th_1)])
+        Dx = sp.Wild('Dx', exclude=[sp.sin(th_1), sp.cos(th_1)])
+        self.assertFalse(cos_neg.match(Cx*sp.cos(th_1) + Dx)[Dx].has(sp.cos(th_1)), fs)
+
+        # both signs must now solve, and give the same true angle
+        for name, sign in (('negative', -3), ('positive', 3)):
+            cos_expr = sign*d_3*sp.cos(th_1) - sign*d3_val*float(sp.cos(th_true))
+            u = self.run_tan(sin_expr, cos_expr, th_1, coeff_unknowns=[d_3])
+            self.assertEqual(len(u.solutions), 2,
+                             fs + ' (%s cos coefficient did not solve)' % name)
+            ok = [i for i, s in enumerate(u.solutions)
+                  if max(self.residuals(s, sin_expr, cos_expr, th_1, subs)) < 1e-9]
+            self.assertEqual(len(ok), 1,
+                             fs + ' (%s: exactly one branch should be valid)' % name)
+            self.assertAlmostEqual(float(sp.N(u.solutions[ok[0]].subs(subs))), th_true,
+                                   places=9,
+                                   msg=fs + ' (%s: wrong angle recovered)' % name)
+
+    def test_tanB_assumption_labels_match_valid_branch(self):
+        '''The recorded branch assumptions must name the coefficient that
+           actually selects the branch.
+
+           Scaling both atan2 arguments preserves the angle only for a POSITIVE
+           factor, and that factor is A2 (d2[Aw]); solutions[1] covers A2 < 0.
+           The assumptions previously recorded A1 (d[Aw]), which agrees only
+           when A1 and A2 share a sign.  With opposite signs the labels were
+           inverted: assumption[0] said "A1 positive" while the branch valid
+           under that condition was solutions[1].
+
+           Harmless in itself -- u.assumption is only appended and printed,
+           never consumed -- but wrong, and it would bite the moment anything
+           selects a branch from these labels.'''
+        sp.var('th_1 d_3')
+        fs = ' tan_solver assumption-label FAIL'
+        th_true, d3_val = 0.6, 2.0      # d_3 POSITIVE
+        subs = {d_3: d3_val}
+        sin_expr = 2*d_3*sp.sin(th_1) - 2*d3_val*float(sp.sin(th_true))
+
+        for name, a2 in (('same-sign', 3), ('opposite-sign', -3)):
+            cos_expr = a2*d_3*sp.cos(th_1) - a2*d3_val*float(sp.cos(th_true))
+            u = self.run_tan(sin_expr, cos_expr, th_1, coeff_unknowns=[d_3])
+            self.assertEqual(len(u.assumption), 2, fs)
+
+            valid = [i for i, s in enumerate(u.solutions)
+                     if max(self.residuals(s, sin_expr, cos_expr, th_1, subs)) < 1e-9]
+            self.assertEqual(len(valid), 1, fs + ' (%s)' % name)
+
+            # assumption[i] pairs with solutions[i]; the one that holds for
+            # d_3 = +2 must be the label on the branch that actually works.
+            # NB bool() on a sympy AppliedPredicate is always True -- it does
+            # not evaluate the predicate -- so evaluate the sign explicitly.
+            holds = []
+            for i, a in enumerate(u.assumption):
+                expr = a.arguments[0] if hasattr(a, 'arguments') else a.args[-1]
+                val = float(expr.subs(subs))
+                if (val > 0) == (a.function == sp.Q.positive):
+                    holds.append(i)
+            self.assertEqual(len(holds), 1, fs + ' (%s: labels not exclusive)' % name)
+            self.assertEqual(holds[0], valid[0],
+                             fs + ' (%s: assumption labels the wrong branch)' % name)
+
+
     def test_tansolver(self):
         ik_tester = b3.BehaviorTree() 
         tan_setup = test_tan_id()
