@@ -229,7 +229,131 @@ class TestSolver003(unittest.TestCase):
     
     def runTest(self):
         self.test_sinANDcos()
-            
+        self.test_scB_roundtrip_numeric()
+        self.test_scB_C_equals_zero_branch()
+        self.test_scB_tangency_duplicate_solutions()
+        self.test_scB_unreachable_gives_complex()
+
+    #####################################################################
+    #  Numeric round-trip tests.
+    #
+    #  The assertions in test_sinANDcos() above compare against exact sympy
+    #  expressions, which were evidently captured from a run.  That pins the
+    #  current FORM, so it cannot distinguish "correct" from "unchanged" -- a
+    #  sign error present when they were captured would be enshrined, not
+    #  caught.  These tests instead substitute numbers into whatever the solver
+    #  returns and check it actually satisfies the original equation.
+
+    def run_sc(self, expr, sym):
+        '''Drive sinandcos_id + sinandcos_solve on the equation 0 == expr.
+           Returns the unknown for `sym`.'''
+        u = kc.unknown(sym)
+        sc_id = sinandcos_id()
+        sc_id.BHdebug = self.DB
+        sc_sl = sinandcos_solve()
+        sc_sl.BHdebug = self.DB
+
+        ik_tester = b3.BehaviorTree()
+        ik_tester.root = b3.Sequence([sc_id, sc_sl])
+
+        bb = b3.Blackboard()
+        bb.set('curr_unk', u)
+        bb.set('unknowns', [u])
+        bb.set('eqns_1u', [kc.kequation(0, expr)])
+        bb.set('eqns_2u', [])
+        bb.set('Robot', Robot())
+        ik_tester.tick("sinANDcos numeric roundtrip", bb)
+        return bb.get('curr_unk')
+
+    def check_real_and_satisfies(self, sol, expr, sym, fs):
+        '''A solution must be REAL and must satisfy the equation.
+           The real check is deliberate: complex results are how this solver
+           currently reports an unreachable pose (see
+           test_scB_unreachable_gives_complex), so a reachable case that goes
+           complex is a genuine failure, not a near miss.'''
+        val = complex(sp.N(sol))
+        self.assertAlmostEqual(val.imag, 0.0, places=9,
+                               msg=fs + ' (solution is complex for a reachable pose)')
+        resid = complex(sp.N(expr.subs(sym, sp.re(sol))))
+        self.assertAlmostEqual(resid.real, 0.0, places=9,
+                               msg=fs + ' (solution does not satisfy the equation)')
+        self.assertAlmostEqual(resid.imag, 0.0, places=9, msg=fs)
+        return val.real
+
+    def test_scB_roundtrip_numeric(self):
+        '''A*sin(th) + B*cos(th) = C, generic reachable case.  BOTH returned
+           solutions must satisfy the equation.'''
+        sp.var('th_1')
+        fs = ' sinANDcos numeric roundtrip FAIL'
+        A, B, C = 3, 4, 2                      # A^2+B^2 = 25 > C^2 = 4  -> reachable
+        expr = A*sp.sin(th_1) + B*sp.cos(th_1) - C
+
+        u = self.run_sc(expr, th_1)
+
+        self.assertTrue(u.solved, fs + ' (leaf did not fire)')
+        self.assertEqual(len(u.solutions), 2, fs + ' (expected 2 branches)')
+        roots = [self.check_real_and_satisfies(s, expr, th_1, fs) for s in u.solutions]
+        # the two branches must be genuinely different roots here
+        self.assertGreater(abs(roots[0] - roots[1]), 1e-6,
+                           fs + ' (the two branches collapsed to one root)')
+
+    def test_scB_C_equals_zero_branch(self):
+        '''C == 0 takes a separate code path: atan2(-B,A) and that + pi.'''
+        sp.var('th_1')
+        fs = ' sinANDcos C==0 branch FAIL'
+        A, B = 3, 4
+        expr = A*sp.sin(th_1) + B*sp.cos(th_1)          # C == 0
+
+        u = self.run_sc(expr, th_1)
+
+        self.assertTrue(u.solved, fs + ' (leaf did not fire)')
+        self.assertEqual(len(u.solutions), 2, fs)
+        roots = [self.check_real_and_satisfies(s, expr, th_1, fs) for s in u.solutions]
+        # the two roots must differ by pi
+        self.assertAlmostEqual(abs(abs(roots[0] - roots[1]) - float(sp.pi)), 0.0, places=9,
+                               msg=fs + ' (branches are not pi apart)')
+
+    def test_scB_tangency_duplicate_solutions(self):
+        '''A^2+B^2 == C^2 is the tangency case: t == 0, so the two branches
+           coincide.  The root is correct, but nsolutions is still 2 with two
+           identical entries, which feeds duplicate rows into the version
+           machinery.  Characterization test -- update it if that is fixed.'''
+        sp.var('th_1')
+        fs = ' sinANDcos tangency FAIL'
+        A, B, C = 3, 4, 5                       # 9 + 16 == 25
+        expr = A*sp.sin(th_1) + B*sp.cos(th_1) - C
+
+        u = self.run_sc(expr, th_1)
+
+        self.assertTrue(u.solved, fs)
+        roots = [self.check_real_and_satisfies(s, expr, th_1, fs) for s in u.solutions]
+        self.assertAlmostEqual(roots[0], roots[1], places=9,
+                               msg=fs + ' (expected the tangency double root)')
+        # documents the duplicate: nsolutions counts 2 identical branches
+        self.assertEqual(u.nsolutions, 2, fs + ' (duplicate-branch behavior changed)')
+
+    def test_scB_unreachable_gives_complex(self):
+        '''C^2 > A^2+B^2 is unreachable: t = sqrt(A^2+B^2-C^2) is imaginary and
+           the solver returns complex solutions rather than reporting failure.
+
+           This may be intentional -- the real part is the closest reachable
+           pose -- but it is not tracked consistently across leaves.  See the
+           note in ImplementationThoughts.md.  Characterization test: it pins
+           the behavior so a future change is a deliberate decision.'''
+        sp.var('th_1')
+        fs = ' sinANDcos unreachable-case FAIL'
+        A, B, C = 3, 4, 10                      # 25 < 100  -> unreachable
+        expr = A*sp.sin(th_1) + B*sp.cos(th_1) - C
+
+        u = self.run_sc(expr, th_1)
+
+        self.assertTrue(u.solved, fs + ' (leaf did not fire)')
+        imags = [abs(complex(sp.N(s)).imag) for s in u.solutions]
+        self.assertGreater(max(imags), 1e-9,
+                           fs + ' (unreachable pose no longer yields complex -'
+                                ' if this was fixed deliberately, update this test)')
+
+
     def test_sinANDcos(self):
         ik_tester = b3.BehaviorTree()
         bb = b3.Blackboard()        
