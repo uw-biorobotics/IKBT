@@ -180,8 +180,15 @@ class sincos_solve(b3.Action):    # Solve asincos equation pairs
             # parse the equation RHS 
             terms = [sp.sin(u.symbol), sp.cos(u.symbol)]
             rhs = sp.collect(u.eqntosolve.RHS, terms)
-            Aw  = sp.Wild("Aw")
-            Bw  = sp.Wild("Bw")                        
+            # Exclude sin/cos of this unknown from the Wilds.  'Aw*sin(u)+Bw'
+            # is otherwise ambiguous -- it matches anything via
+            # Aw = (expr-Bw)/sin(u) -- and sympy returns exactly that for a
+            # negative coefficient:
+            #   -3*sin(th_1) + 1/2  ->  {Aw: 0.5/sin(th_1), Bw: -3*sin(th_1)}
+            # which made targument = (LHS-B)/A come out as 6*sin(th_1)**2 and
+            # produced the non-solution asin(6*sin(th_1)**2).
+            Aw  = sp.Wild("Aw", exclude=terms)
+            Bw  = sp.Wild("Bw", exclude=terms)
             if  'arcsin' in u.solvemethod: 
                 d   = rhs.match(Aw*sp.sin(u.symbol)+Bw)  
                 assert(d is not None),  "sincos_solve (arcsin branch): Somethings Wrong!"
@@ -191,7 +198,12 @@ class sincos_solve(b3.Action):    # Solve asincos equation pairs
                 else:
                     B = 0
                     
-                targument = (u.eqntosolve.LHS-B)/A 
+                targument = (u.eqntosolve.LHS-B)/A
+                # a solution that still contains its own unknown is not a
+                # solution; this guard is the analogue of the one commented
+                # out in sinANDcos_solver.
+                assert(not targument.has(u.symbol)), \
+                    'sincos_solve (arcsin): solution contains itself: ' + str(targument)
                 sol1 = sp.asin( targument  )
                 sol2 = sp.pi - sp.asin( targument  )  
                 u.argument = targument
@@ -220,7 +232,9 @@ class sincos_solve(b3.Action):    # Solve asincos equation pairs
                     else:
                         B = 0
                             
-                    targument = (u.eqntosolve.LHS-B)/A 
+                    targument = (u.eqntosolve.LHS-B)/A
+                    assert(not targument.has(u.symbol)), \
+                        'sincos_solve (arccos): solution contains itself: ' + str(targument)
                     sol1 =   sp.acos( targument  )
                     sol2 = - sp.acos( targument  )  
                     u.argument = targument
@@ -256,7 +270,90 @@ class TestSolver001(unittest.TestCase):
     
     def runTest(self):
         self.test_sincos()
-            
+        self.test_scA_roundtrip_both_signs()
+        self.test_scA_solution_never_contains_its_own_unknown()
+
+    #####################################################################
+    #  Numeric round-trip tests.
+    #
+    #  test_sincos() above is one of the better tests in the repo -- 12
+    #  assertions with a correct ntests guard -- and it still missed the bug
+    #  below, because every case it tries has a POSITIVE coefficient.
+    #  Comprehensive-looking assertions over a narrow input set.
+
+    def run_sincos(self, expr, sym):
+        '''Drive sincos_id + sincos_solve on 0 == expr; return the unknown.
+           NB the LHS must be a sympy zero, not a python int: sincos_id calls
+           e.LHS.has(...).'''
+        u = kin_cl.unknown(sym)
+        sid = sincos_id();     sid.BHdebug = self.DB
+        ssl = sincos_solve();  ssl.BHdebug = self.DB
+
+        t = b3.BehaviorTree()
+        t.root = b3.Sequence([sid, ssl])
+        bb = b3.Blackboard()
+        bb.set('curr_unk', u)
+        bb.set('unknowns', [u])
+        bb.set('eqns_1u', [kin_cl.kequation(sp.S.Zero, expr)])
+        bb.set('eqns_2u', [])
+        bb.set('Robot', Robot())
+        t.tick("sincos roundtrip", bb)
+        return bb.get('curr_unk')
+
+    def test_scA_roundtrip_both_signs(self):
+        '''Flipping the sign of the coefficient must not change the answer.
+
+           It used to: an unconstrained Wild made 'Aw*sin(u)+Bw' ambiguous,
+           and for a negative coefficient sympy returned
+               {Aw: 0.5/sin(th_1), Bw: -3*sin(th_1)}
+           so targument = (LHS-B)/A came out as 6*sin(th_1)**2 and the leaf
+           emitted asin(6*sin(th_1)**2) -- not a solution at all, but a
+           plausible-looking expression that would flow into codegen.'''
+        sp.var('th_1')
+        fs = ' sincos both-signs FAIL'
+        half = sp.Rational(1, 2)
+
+        for trig, mk in (('sin', sp.sin), ('cos', sp.cos)):
+            got = []
+            for sign in (3, -3):
+                #  sign*trig(th) - sign/2 = 0   ->   trig(th) = 1/2  either way
+                u = self.run_sincos(sign*mk(th_1) - sign*half, th_1)
+                self.assertEqual(len(u.solutions), 2,
+                                 fs + ' (%s, coeff %+d: did not solve)' % (trig, sign))
+                for s in u.solutions:
+                    self.assertFalse(s.has(th_1),
+                                     fs + ' (%s, coeff %+d: solution contains its own'
+                                          ' unknown: %s)' % (trig, sign, s))
+                got.append([sp.simplify(s) for s in u.solutions])
+
+            self.assertEqual(got[0], got[1],
+                             fs + ' (%s: sign of the coefficient changed the answer)' % trig)
+
+            # and the answer is right: trig(solution) == 1/2
+            for s in got[0]:
+                self.assertAlmostEqual(float(sp.N(mk(s))), 0.5, places=9,
+                                       msg=fs + ' (%s: wrong root %s)' % (trig, s))
+
+    def test_scA_solution_never_contains_its_own_unknown(self):
+        '''A returned solution for u must not be a function of u.  Cheap
+           invariant, and the one that catches degenerate pattern matches
+           whatever their cause.'''
+        sp.var('th_1 l_1 l_2')
+        fs = ' sincos self-reference FAIL'
+        half = sp.Rational(1, 2)
+        cases = [ 3*sp.sin(th_1) - half,   -3*sp.sin(th_1) + half,
+                  3*sp.cos(th_1) - half,   -3*sp.cos(th_1) + half,
+                  l_1*sp.sin(th_1) - l_2,  -l_1*sp.sin(th_1) + l_2,
+                  l_1*sp.cos(th_1) - l_2,  -l_1*sp.cos(th_1) + l_2 ]
+        n = 0
+        for e in cases:
+            u = self.run_sincos(e, th_1)
+            for s in u.solutions:
+                n += 1
+                self.assertFalse(s.has(th_1), fs + ' (%s -> %s)' % (e, s))
+        self.assertEqual(n, 2*len(cases), fs + ' (assert count -- some case did not solve)')
+
+
     def test_sincos(self):
         Rob = Robot()
         #  test the sincos ID and solver
