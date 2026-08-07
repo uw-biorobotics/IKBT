@@ -264,9 +264,13 @@ changing is acceptable so long as they are still (or now) correct. Covered by
 `test_tanB_negative_cos_coefficient_solves`, which checks both signs solve and recover the same
 angle.
 
-**This is a capability increase, not just a repair** — `tan_solver` will now claim equation pairs
+~~**This is a capability increase, not just a repair** — `tan_solver` will now claim equation pairs
 it previously declined, so it may win variables from other leaves and some robots may solve
-differently, or newly solve. That makes the baseline diff more interesting, not less.
+differently, or newly solve.~~
+
+**Struck: this was overstated.** The degenerate match needs a loose numeric term, which the DH
+convention should prevent, so real robots almost certainly never hit it. See *Correction: how
+reachable the `Wild` bug actually is* below.
 
 ### Was masked by the above (also FIXED): assumption labels tracked the wrong coefficient
 
@@ -312,6 +316,97 @@ this test used `bool(a.subs(...))` and consequently passed vacuously. Evaluate
   coincide, but `nsolutions` is still 2 — two identical rows into the version machinery.
 - **A guard that cannot fire.** `assert(A*A+B*B != 0)` is a structural sympy comparison; for
   symbolic `A`, `B` it is always `True`, so it never catches the case it names.
+
+### `sincos_solver`: the same `Wild` bug, worse consequence (FIXED)
+
+Asked whether auditing two leaves said anything about the rest, the answer turned out to be no —
+the bug just fixed in `tan_solver` was **already present** in `sincos_solver`, one of the leaves not
+yet examined. Same unconstrained `Wild`, but a worse outcome:
+
+```
+-3*sin(th_1) + 1/2 = 0      i.e. sin(th_1) = 1/6, identical to the positive case
+
+positive coefficient:   asin(1/6)                  correct
+negative coefficient:   asin(6*sin(th_1)**2)       a "solution" for th_1 containing th_1
+```
+
+`tan_solver` silently *declined*. `sincos_solver` emitted a wrong answer — and a plausible-looking
+one that would flow straight into the LaTeX and codegen output.
+
+Fixed the same way (`exclude=terms` on both Wilds), and additionally **reinstated the
+self-containment guard**: `sinANDcos_solver` line 188 already had exactly the check that would have
+caught this, commented out —
+
+```python
+#assert(not lhs.has(u.symbol)), 'Somethings wrong: solution contains itself! '
+```
+
+— so an `assert(not targument.has(u.symbol))` now runs in both the arcsin and arccos branches.
+Defence in depth: mutation testing confirms that without `exclude=` the guard fires with a clear
+message, and without either the tests catch the bad solution.
+
+**Why this hid for so long is the important part.** `TestSolver001` is one of the better tests in
+the repo — 12 assertions with a correct `ntests` count guard — and it missed this completely,
+because every case it exercises has a positive coefficient. Comprehensive-looking assertions over a
+narrow input set. Test *coverage* of the code was fine; coverage of the input space was not.
+
+### Correction: how reachable the `Wild` bug actually is
+
+BH's reaction to the above was that he did not recall this issue arising in any robot solution.
+That is correct, and it downgrades the severity of both `Wild` fixes considerably.
+
+The trigger is not a negative coefficient — it is a **numeric additive term**:
+
+| expression | match |
+|---|---|
+| `-3*d_3*cos(th) + 4.95` | degenerate |
+| `-3*d_3*cos(th) + 5` | degenerate |
+| `-3*d_3*cos(th) + Px` | ok |
+| `-l_1*cos(th) + Pz` | ok |
+| `-l_1*cos(th) + Pz + 3` | degenerate |
+
+Purely symbolic expressions match correctly regardless of sign. Since `CLAUDE.md` requires DH
+entries to be symbolic constants declared in `params` rather than bare numeric literals, real robot
+equations should not contain loose numerics, and the degenerate branch is not reached. This is
+consistent with all four reference robots having solved correctly the whole time.
+
+So the honest characterisation:
+
+- These are **defensive hardening, not repairs of an active defect.** `exclude=` is strictly more
+  precise than an unconstrained `Wild` and costs nothing, so the fixes are worth keeping — but they
+  are unlikely to change any robot result.
+- The claim in commit `864eb55` that the `tan_solver` fix is "a capability increase: some robots may
+  solve differently or newly solve" is **overstated**. That commit is already on `main` and cannot be
+  amended without a force-push, so the correction is recorded here instead. Expect the baseline diff
+  to show nothing from these two changes.
+- The genuinely dangerous case remains worth guarding: the failure mode in `sincos_solver` was a
+  *wrong answer* rather than a decline, and the new `assert(not targument.has(u.symbol))` catches
+  that class of fault whatever its cause. That guard has value independent of this particular
+  trigger.
+
+Residual risk is narrow but not zero: a robot whose `params` values get substituted early, or a
+transform that introduces an integer term, could produce a loose numeric addend. The
+`l_2 + 5` / `17` entries in the existing `sincos_solver` test fixture suggest the original authors
+did expect such terms to appear.
+
+### Remaining unaudited leaves
+
+Running tally: three leaves examined closely, three with real defects (`two_eqn_m7` 3 bugs,
+`tan_solver` 2, `sincos_solver` 1) — plus `sinANDcos` with latent issues only. Treat the untouched
+leaves as unaudited, not as working.
+
+Known leads, in priority order:
+
+1. `algebra_solver.py:170` — same unconstrained `Wild` (`Aw*u.symbol+Bw`), and `A = d[Aw]` then
+   `(LHS-B)/A` with no `d is None` check and no `A != 0` check.
+2. `sum_id.py:81,88,216` — three more unconstrained matches, on a different pattern shape
+   (`sin(thx + sgn*thy)`), so each needs its own analysis.
+3. `x2y2_transform` — `TestSolver010` sets `ntests = 0` and then never increments or asserts on it,
+   so its two assertions sit inside an `if` that may never fire; also squaring can introduce
+   spurious roots.
+4. `assigner_leaf`, `comp_detect`, `sum_id` — no test class at all, and all three are in the tree.
+5. Re-run over `tan_solver` and `sincos_solver`: fixing one bug has twice now made the next one
+   reachable.
 
 ### Method note
 
