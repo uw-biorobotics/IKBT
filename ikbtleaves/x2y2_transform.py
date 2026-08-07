@@ -185,7 +185,13 @@ class x2z2_transform(b3.Action):
         # note: x2y2 is somewhat costly,  
         #  This is a hack exploiting it seems to be needed only for
         #   Th 2 or Th_3 on the Puma and Kawasaki robot
-        if not u.symbol == th_3 or u.symbol == th_2 :
+        #  Operator precedence bug: this was
+        #      if not u.symbol == th_3 or u.symbol == th_2 :
+        #  which parses as  (not (u.symbol == th_3)) or (u.symbol == th_2)
+        #  and so returned FAILURE for th_2 as well -- the 'or' clause was dead
+        #  and only th_3 ever got through, despite the comment above saying the
+        #  method is needed for Th_2 or Th_3.
+        if u.symbol not in (th_2, th_3):
             return b3.FAILURE
 
             
@@ -247,19 +253,31 @@ class x2z2_transform(b3.Action):
             return b3.FAILURE
         
         # find the current unknown
-        for u in unknowns:
-            if temp_r.has(u.symbol):
-                unknown = u
-                unk = u.symbol
-                if self.BHdebug: print('x2y2: The unknown variable is: ', unk)
-            
-        if not unknown.solved:
-            ######################################### NEW ###############
-            ##  NEW  instead of solving it here, we just put it in the list
-            # of one-unknown equations so that some other leaf can solve it
-            unknown.solvemethod += 'x2z2 transform and ' # only part of soln.
-            R.kequation_aux_list.append(kc.kequation(temp_l,temp_r))
-            #############################################################
+        #   temp_r was accepted above because count_unknowns() == 1, i.e. it
+        #   holds exactly one UNSOLVED unknown -- that is the one we want.
+        #   This loop used to assign on every match and keep the LAST one,
+        #   which could be an already-solved unknown also present in temp_r;
+        #   'if not unknown.solved' then silently skipped appending the new
+        #   equation while the leaf still returned SUCCESS.  It also shadowed
+        #   the imported unknown class with a local of the same name.
+        target = None
+        for uu in unknowns:
+            if temp_r.has(uu.symbol) and not uu.solved:
+                target = uu
+                if self.BHdebug: print('x2y2: The unknown variable is: ', uu.symbol)
+                break
+        if target is None:
+            print('x2y2: no unsolved unknown in the new equation - discarding')
+            return b3.FAILURE
+
+        ######################################### NEW ###############
+        ##  NEW  instead of solving it here, we just put it in the list
+        # of one-unknown equations so that some other leaf can solve it
+        #   (the 'if not solved' test that used to wrap this is now part of
+        #    the search above, so it is unconditional here)
+        target.solvemethod += 'x2z2 transform and ' # only part of soln.
+        R.kequation_aux_list.append(kc.kequation(temp_l,temp_r))
+        #############################################################
         tick.blackboard.set('Robot', R)
         tick.blackboard.set('unknowns',unknowns)   # the current list of unknowns
         self.SolvedOneFlag = True
@@ -276,8 +294,51 @@ class TestSolver010(unittest.TestCase):
         return
     
     def runTest(self):
+        self.test_x2y2B_th2_is_not_rejected()
         self.test_x2z2()
-            
+
+    def test_x2y2B_th2_is_not_rejected(self):
+        '''Regression: the leaf's own comment says the method is needed for
+           "Th 2 or Th_3", but the guard was
+
+               if not u.symbol == th_3 or u.symbol == th_2 :  return FAILURE
+
+           which parses as (not (sym == th_3)) or (sym == th_2) -- so th_2 was
+           REJECTED and the 'or' clause was dead.  Only th_3 ever got through.
+
+           Same fixture as test 1 below (cheap -- no Puma kinematics), just
+           assigned to th_2 instead of th_3.  Before the fix this returned
+           FAILURE immediately; now it must get through and emit the new
+           one-unknown equation.'''
+        fs = ' x2y2 th_2-rejected FAIL'
+        ik_tester = b3.BehaviorTree()
+        setup = test_x2z2();          setup.Name = 'Setup'
+        work  = x2z2_transform();     work.Name  = 'x2z2 ID/Transform'
+        ik_tester.root = b3.Sequence([setup, work])
+
+        bb = b3.Blackboard()
+        bb.set('test_number', 1)
+        bb.set('curr_unk', unknown(th_2))       # <-- th_2, not th_3
+        status = ik_tester.tick("x2y2 with th_2 assigned", bb)
+
+        self.assertEqual(status, b3.SUCCESS,
+                         fs + ' (leaf rejected th_2 out of hand)')
+        R = bb.get('Robot')
+        self.assertGreater(len(R.kequation_aux_list), 0,
+                           fs + ' (no new equation was emitted)')
+        #  the emitted equation must be usable: exactly one unsolved unknown
+        unkns = bb.get('unknowns')
+        newe = R.kequation_aux_list[-1]
+        self.assertEqual(count_unknowns(unkns, newe.RHS), 1,
+                         fs + ' (emitted equation is not a 1-unknown equation)')
+        ntests = 0
+        for u in unkns:
+            if 'x2z2 transform' in u.solvemethod:
+                ntests += 1
+        self.assertEqual(ntests, 1,
+                         fs + ' (expected exactly one variable credited to x2z2,'
+                              ' got %d)' % ntests)
+
     def test_x2z2(self): 
         ik_tester = b3.BehaviorTree()  # two leaves to 1) setup test 2) carry out test
         bb = b3.Blackboard()

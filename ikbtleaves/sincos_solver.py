@@ -189,9 +189,20 @@ class sincos_solve(b3.Action):    # Solve asincos equation pairs
             # produced the non-solution asin(6*sin(th_1)**2).
             Aw  = sp.Wild("Aw", exclude=terms)
             Bw  = sp.Wild("Bw", exclude=terms)
-            if  'arcsin' in u.solvemethod: 
-                d   = rhs.match(Aw*sp.sin(u.symbol)+Bw)  
-                assert(d is not None),  "sincos_solve (arcsin branch): Somethings Wrong!"
+            if  'arcsin' in u.solvemethod:
+                d   = rhs.match(Aw*sp.sin(u.symbol)+Bw)
+                # No match means this leaf cannot solve this equation -- e.g.
+                # sin(u)**2, which needs Aw = sin(u) and so is refused by
+                # exclude=terms.  Decline and let the Priority try another leaf,
+                # as the arccos branch below already does.  This used to be an
+                # assert(), which aborted the whole solve; the two branches
+                # disagreeing meant sin(u)**2 crashed while cos(u)**2 did not.
+                # NB the exclude= hardening made this more reachable, not less:
+                # the Wilds now correctly refuse shapes they previously matched
+                # degenerately, so d is None happens where it once did not.
+                if(d is None):
+                    print("sincos_solve (arcsin branch):  Somethings Wrong!")
+                    return b3.FAILURE
                 A = d[Aw]
                 if(d[Bw] is not None):
                     B = d[Bw]
@@ -243,7 +254,15 @@ class sincos_solve(b3.Action):    # Solve asincos equation pairs
                     u.solutions.append(sol2)
                     u.sincos_solutions.append(sol1)
                     u.sincos_solutions.append(sol2)
-                    
+                    #  INVARIANT: sincos_eqnlist must be populated whenever
+                    #  sincos_solutions is, because rank_leaf reads
+                    #  u.sincos_eqnlist[0] when it picks this leaf's answer.
+                    #  This line was missing -- the arcsin branch above had it,
+                    #  arccos did not -- so a variable solved by arccos AND by
+                    #  tan, with rank preferring arccos, raised IndexError and
+                    #  aborted the whole solve.
+                    u.sincos_eqnlist.append(u.eqntosolve)
+
                     u.nsolutions = 2
                     if(self.BHdebug):
                         print('I think I solved ', u.symbol)
@@ -272,6 +291,7 @@ class TestSolver001(unittest.TestCase):
         self.test_sincos()
         self.test_scA_roundtrip_both_signs()
         self.test_scA_solution_never_contains_its_own_unknown()
+        self.test_scA_unsolvable_shape_declines_not_asserts()
 
     #####################################################################
     #  Numeric round-trip tests.
@@ -353,6 +373,46 @@ class TestSolver001(unittest.TestCase):
                 self.assertFalse(s.has(th_1), fs + ' (%s -> %s)' % (e, s))
         self.assertEqual(n, 2*len(cases), fs + ' (assert count -- some case did not solve)')
 
+
+    def test_scA_unsolvable_shape_declines_not_asserts(self):
+        '''A shape this leaf cannot decompose must make it DECLINE, so the
+           Priority can offer the variable to another leaf.
+
+           sin(u)**2 needs Aw = sin(u), which exclude=terms refuses, so the
+           match returns None.  The arcsin branch used to assert() on that,
+           aborting the entire solve, while the arccos branch printed and
+           returned FAILURE -- so sin(u)**2 crashed and cos(u)**2 did not.
+
+           NB the exclude= hardening made this MORE reachable, not less: the
+           Wilds now correctly refuse shapes they previously matched
+           degenerately, so d is None arises where it once did not.'''
+        sp.var('th_1 l_1')
+        fs = ' sincos unsolvable-shape FAIL'
+
+        for trig, mk in (('sin', sp.sin), ('cos', sp.cos)):
+            u = kin_cl.unknown(th_1)
+            sid = sincos_id();    sid.BHdebug = self.DB
+            ssl = sincos_solve(); ssl.BHdebug = self.DB
+            t = b3.BehaviorTree()
+            t.root = b3.Sequence([sid, ssl])
+            bb = b3.Blackboard()
+            bb.set('curr_unk', u)
+            bb.set('unknowns', [u])
+            bb.set('eqns_1u', [kin_cl.kequation(sp.S.Zero, mk(th_1)**2 - l_1)])
+            bb.set('eqns_2u', [])
+            bb.set('Robot', Robot())
+
+            try:
+                status = t.tick("sincos unsolvable shape", bb)
+            except AssertionError as e:
+                self.fail(fs + ' (%s**2 raised instead of declining: %s)' % (trig, e))
+
+            uu = bb.get('curr_unk')
+            self.assertEqual(status, b3.FAILURE,
+                             fs + ' (%s**2: leaf did not decline)' % trig)
+            self.assertEqual(len(uu.solutions), 0,
+                             fs + ' (%s**2: emitted a solution anyway)' % trig)
+            self.assertFalse(uu.solved, fs + ' (%s**2: marked solved)' % trig)
 
     def test_sincos(self):
         Rob = Robot()

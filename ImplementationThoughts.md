@@ -426,3 +426,352 @@ Every fix in this section was mutation-tested: the fix was reverted and the suit
 the new test actually fails. Both did. That step is not optional here — the `simu_id` work began
 precisely because a test had been passing against a solver that was returning nothing at all, and
 the first draft of the assumption test passed vacuously for the `bool()` reason noted above.
+
+## Solver-leaf audit round 2, August 2026
+
+Second pass, this time over *all* the solution-finding leaves rather than two of them. Kept at
+unit-test level by BH's instruction — leaf-level fixtures and probes, no full robot solves. Baseline
+before starting: `python3 -m tests.leavestest` green, 21 tests.
+
+Six findings, all reproduced by ticking the real leaves with a hand-built blackboard. Two were
+fixed this round; four are recorded and left alone.
+
+### FIXED: `algebra_solver` accepted anything that merely *mentioned* the unknown
+
+`algebra_id`'s only screen was "does the equation contain `sin(u)`/`cos(u)`". Anything else
+mentioning `u` was claimed, whatever its shape, and `algebra_solve` then divided by whatever an
+unconstrained `Wild` returned. Three shapes verified to produce a "solution" that is a function of
+the variable being solved — and `set_solved()` was called on all of them:
+
+| input | emitted "solution" | marked solved |
+|---|---|---|
+| `0 = d_1**2 - l_1` | `d_1 = l_1/d_1` | yes |
+| `r_11 = sin(th_1 + th_2)` (un-substituted SOA) | `th_1 = r_11*th_1/sin(th_1 + th_2)` | yes |
+| `0 = -d_1*l_3 + 5` | `d_1 = d_1**2*l_3/5` | yes |
+| `A` cancels during `expand()` | `zoo*(-l_1 + r_11)` | yes |
+
+The third is the same degenerate-`Wild` trigger already fixed in `tan_solver` and `sincos_solver`
+last round — `algebra_solver` was lead #1 on that round's list and this confirms it. The first two
+are new, and are *not* variants of the `Wild` problem: they are the ID node's screen being far too
+loose. `sin(th_1+th_2)` is the interesting one, because `has(sin(th_1))` is **False** for it, so the
+existing sin/cos screen lets it straight through.
+
+Fixed with a `linear_match(expr, sym)` helper shared by both nodes: `Aw*sym + Bw` with `sym`
+excluded from both `Wild`s, plus an explicit `A == 0` rejection. Excluding `sym` is what gives the
+match teeth — it is precisely what makes `sym**2` and `sin(th_1+th_2)` fail to match, since both
+would need `Aw` to contain `sym`. One helper covers all four shapes above.
+
+Two behaviour changes worth noting:
+
+- `algebra_id` now `continue`s past an unusable equation instead of `break`ing, so an unusable
+  equation early in `eqns_1u` no longer hides a usable one behind it. Small capability increase.
+- `algebra_solve` now returns `b3.FAILURE` when it cannot decompose, instead of returning
+  `b3.SUCCESS` having silently done nothing. That lets the `Priority` offer the variable to another
+  leaf.
+
+Per the previous round's correction, this is **defensive hardening, not a repair of an active
+defect** — no evidence any reference robot reaches these shapes, and BH's position is that
+self-referential solutions "have never been a big issue". Reachability against real robots is
+**not** established and remains the open question if anyone wants to escalate it.
+
+### FIXED: `sincos_solve`'s two branches disagreed about how to fail
+
+```python
+arcsin:  assert(d is not None), "..."       # AssertionError -> aborts the whole solve
+arccos:  print(...); return b3.FAILURE      # BT continues
+```
+
+Verified: `0 = sin(th)**2 - l_1` crashed, `0 = cos(th)**2 - l_1` declined cleanly. The arccos
+behaviour is the right one; arcsin now matches it.
+
+Note the direction of travel: **the `exclude=terms` hardening from last round made this assert more
+reachable, not less.** The `Wild`s now correctly refuse shapes they previously matched
+degenerately, so `d is None` arises where it once did not. Tightening a matcher converts silent
+wrong answers into hard failures, and every such site needs its failure path checked afterwards.
+Worth applying that lesson to the other leaves touched last round.
+
+### Recorded, not fixed
+
+1. **`rank_leaf` — hard `IndexError`, crashes the whole solve.** `sincos_solve` appends to
+   `u.sincos_eqnlist` in the arcsin branch but **not** the arccos branch; `rank_leaf.py:69` then does
+   `u.eqntosolve = u.sincos_eqnlist[0]`. Reproduced end-to-end through the production composite
+   `Sequence([OrNode([tanSol, scSol]), rank])`: a 1-unknown cos equation (arccos, 2 solutions) plus a
+   sin/cos pair sharing an unsolved factor (tan, 2 solutions) makes `rank` tie-break to `"sincos"` and
+   crash. **One missing line in `sincos_solve` is the fix.** Same function: the `else` tie-break
+   branch reads `sincos_solutions[0]` / `tan_solutions[0]` unguarded — the `len(...) > 0` checks
+   above it do not protect it.
+2. **`x2y2_transform` guard precedence.** `if not u.symbol == th_3 or u.symbol == th_2:` parses as
+   `(not (u.symbol == th_3)) or (u.symbol == th_2)`, so `th_2` is **rejected** and the `or` clause is
+   dead — despite the comment above it saying the leaf is needed for "Th 2 or Th_3". Verified by
+   truth table. Also in that leaf: `for u in unknowns: if temp_r.has(u.symbol): unknown = u` takes the
+   **last** match including already-solved unknowns (and shadows the `unknown` class); if the last
+   match is solved the useful equation is silently not appended and the leaf still returns `SUCCESS`.
+3. **`tan_id` debug block clobbers the current unknown.** `for u in get_unknowns(unknowns, e1tmp):`
+   rebinds `u`; the following `blackboard.set('curr_unk', u)` and `if u.solvable_tan` then act on the
+   wrong unknown. Fires only under `BHdebug` — i.e. it corrupts exactly the runs you would be doing
+   to diagnose something else.
+4. **`assigner` hands back a solved variable** (`unknowns[0]`) once everything is solved. Combined
+   with `tan_id` returning SUCCESS based on `u.solvable_tan` rather than on `found`, and neither
+   `tan_solve` nor `sincos_solve` having a `not u.solved` guard, that appends duplicate solutions.
+   Hard to reach in `ikSolver.py` (`RepeatUntilSuccess` breaks on the first SUCCESS) but reachable in
+   the unit-test harnesses, which use fixed-count `b3.Repeater`.
+
+### Test coverage, all solving leaves
+
+| leaf | test | state |
+|---|---|---|
+| `two_eqn_m7` | `TestSolver005` | best in the repo — positive + negative cases, numeric round-trip |
+| `sinANDcos_solver` | `TestSolver003` | good since round 1 |
+| `sincos_solver` | `TestSolver001` | good; +1 this round for the decline path |
+| `tan_solver` | `TestSolver004` | good, but the `test_number == 3` fixture is **never invoked** — and it is labelled "test equation that caused bug" |
+| `algebra_solver` | `TestSolver002` | was 3 exact-expression asserts, all linear/positive; +7 this round |
+| `sub_transform` | `TestSolver006` | 6 exact asserts; the `(-e1)` branch is never exercised |
+| `x2y2_transform` | `TestSolver010` | weakest — `ntests = 0` set and never incremented or asserted, so its two bare `assert`s sit inside an `if` with nothing proving it fired |
+| `rank_leaf` | **none** | in the tree |
+| `assigner_leaf` | **none** | in the tree |
+| `comp_detect` | **none** | in the tree |
+| `sum_id` | **none** | its `__main__` prints *"This node is not currently used!"* and `quit()`s. **Stale** — `sum_id` IS in the tree; `sum_solve` is the unused one |
+
+Four cross-cutting gaps, in the order they matter:
+
+1. **No test ticks the composite `ikSolver.py` actually builds.** Every leaf test uses an isolated
+   leaf or a hand-rolled subtree. Finding 1 above lives at the `OrNode([tanSol, scSol]) -> rank` seam
+   and is invisible to any per-leaf test. This is the single biggest structural gap.
+2. **Failure paths are untested everywhere.** Whether a leaf returns `FAILURE`, raises, or returns
+   `SUCCESS` having done nothing was unspecified — and three of the six findings live there.
+3. **Exact-expression assertions still dominate the un-audited leaves** (`sub_transform`, `x2y2`).
+   Same critique as round 1: they pin form, not correctness.
+4. The `ntests == N` idiom is good and mostly used; `x2y2` is the one place it is present but dead.
+
+### Mutation testing
+
+Both fixes were mutation-tested, and one mutation deliberately came back clean:
+
+| mutation | result |
+|---|---|
+| `linear_match` without `exclude=` | 3 failures |
+| `algebra_id` shape screen removed | 1 failure (`test_algB_scans_past_an_unusable_equation`) |
+| `algebra_solve` self-reference guard removed, `exclude=` intact | **OK — no failure** |
+| `sincos_solve` arcsin back to `assert()` | 1 failure |
+
+The third is recorded honestly rather than quietly: with `linear_match` in place the
+`sol.has(u.symbol)` guard in `algebra_solve` is genuinely unreachable, so no test can cover it. It
+is kept because it states the invariant that matters and costs nothing — but this repo has a track
+record of dead guards containing wrong formulas (`sinANDcos`'s `r = sqrt(2)*A`), so it is flagged
+rather than assumed harmless.
+
+The second mutation is also informative: removing the ID screen alone does **not** produce wrong
+answers, because `algebra_solve`'s copy of the check catches them. The two layers are independently
+covered, which is what defence in depth is supposed to look like.
+
+### Open inconsistency
+
+`sincos_solve` still uses `assert(not targument.has(u.symbol))` for its self-reference guard, while
+`algebra_solve` now returns `b3.FAILURE` for the same condition. Both are defensible — an assert is a
+loud tripwire for "this should be impossible", a FAILURE lets another leaf try — but they should not
+differ by accident. BH to pick one.
+
+### Design intent of `rank_leaf` / `assigner_leaf` (BH, Aug 2026)
+
+Recording this because it is not recoverable from the code, and it changes how the two leaves
+should be judged.
+
+More than one leaf can often solve the current unknown, and the solutions are not equally good — an
+`atan2(y,x)` form is preferable to a `±acos(...)` pair, because it is single-valued and better
+conditioned. Expressing "try several solvers, then keep the nicest answer" did not fit cleanly into
+the BT framework, which is built around first-success-wins. `assigner` + `OrNode` + `rank` is the
+workaround: `OrNode` deliberately runs **both** `tanSol` and `scSol` (unlike a `Priority`, it does
+not stop at the first success) so that `rank` can compare the two results afterwards and discard the
+worse one.
+
+So `rank` is hard-coded expert preference, not a generic mechanism, and its comparison — fewer
+solutions first, then fewer dependencies — is the encoding of that preference. Two consequences:
+
+- Judging `rank` as "untested logic" understates it: it is the only place in the tree that *discards*
+  a correct solution, and the criterion it discards on is a design decision, not a derivable fact.
+  A test should pin the preference (atan2 beats acos-pair), not just the mechanics.
+- The `OrNode`-runs-both behaviour is load-bearing and easy to mistake for a bug. Anything that
+  "optimises" it into a `Priority` silently disables ranking.
+
+## KawasakiRS007L regression, August 2026 — and a correction to round 1
+
+BH ran the reference robots and found `KawasakiRS007L`, which had solved for years, now aborting:
+
+```
+File "ikbtleaves/tan_solver.py", line 139, in tick
+    assert(d1 is not None and d2 is not None), 'somethings wrong!'
+AssertionError: somethings wrong!
+```
+
+**Cause: last round's `exclude=terms` hardening of `tan_id`.** Bisected — the crash reproduces with
+this session's `algebra_solver` / `sincos_solver` changes reverted to `HEAD`, so it is not from
+those. The offending pair, printed by instrumenting the assert:
+
+```
+unknown : th_2
+sin eqn : 0 = -Pz + l_1 + l_2*sin(th_2) - l_3*cos(th_23)          -> matches fine
+cos eqn : 0 = -Px + (l_2*cos(th_2) + l_3*sin(th_23))*cos(th_1)    -> d2 is None
+```
+
+`cos(th_2)` sits inside an **unexpanded product**, and `match()` is structural — it will not expand
+to find it. Confirmed directly on that exact expression:
+
+| Wilds | result |
+|---|---|
+| unconstrained (pre-Aug-2026) | `{Cw: 0, Dw: -Px + (l_2*cos(th_2) + l_3*sin(th_23))*cos(th_1)}` |
+| `exclude=terms` (round 1) | `None` |
+| `exclude=terms` + `.expand()` | `{Cw: l_2*cos(th_1), Dw: -Px + l_3*sin(th_23)*cos(th_1)}` |
+
+So the assert was only ever safe because an unconstrained `Wild` **cannot fail to match**. Unusable
+pairs were rejected a few lines later by the `count_unknowns(d2[Dw]) > 0` screen — `{Cw: 0, Dw: <whole
+expr>}` trips it immediately. Making the match correct made it return `None`, and turned a graceful
+rejection into a hard crash.
+
+Fixed by skipping the pair (`continue`) instead of asserting, which reproduces the old outcome
+exactly. Covered by `test_tanC_undecomposable_pair_declines_not_asserts`, which uses the real
+Kawasaki expressions and asserts only that the leaf **declines** — mutation-tested by restoring the
+assert.
+
+`.expand()` before `.collect()` would make these pairs genuinely solvable, and is deliberately NOT
+done: that is a capability change, not a regression fix. Worth considering separately — it would let
+`tan_id` claim pairs it has never claimed, on every robot.
+
+### The correction
+
+Round 1 concluded, in *Correction: how reachable the `Wild` bug actually is*:
+
+> These are **defensive hardening, not repairs of an active defect** ... unlikely to change any
+> robot result. Expect the baseline diff to show nothing from these two changes.
+
+**That was wrong for `tan_solver`.** The change did not merely fail to help — it broke a reference
+robot outright, and the breakage sat undetected because nothing runs the robots.
+
+Both the original severity claim and its correction reasoned about the *same* trigger, a loose
+numeric additive term, and concluded DH-conforming robots cannot produce one. That reasoning was
+sound and is still true. It was simply **not the only way `match()` behaviour changes**: an
+unexpanded product is a completely different mechanism, and neither the claim nor the retraction
+considered it. Two rounds of careful analysis of a single failure mode, and the actual defect was a
+second one nobody enumerated.
+
+The transferable lesson is narrower than "we were overconfident". When you tighten a matcher, the
+question is not *"which inputs newly fail to match?"* — it is **"what does every caller do when the
+match returns `None`?"** There were two callers. One (`count_unknowns` screen) degraded gracefully.
+One asserted. Only the second mattered, and it could have been found by reading the call sites
+rather than by reasoning about inputs at all.
+
+Round 1 already recorded a version of this — *"fixing one defect makes the next one testable, so an
+audit pass should be re-run after each fix"* — and this session's `sincos_solve` note said the
+hardening made that assert *more* reachable. The pattern was identified twice and still not swept
+for systematically. **Concrete action: grep every leaf for `assert` on a `match()` result.**
+
+### Robot-level output is not reproducible
+
+Discovered while diffing the reference robots before/after. Two runs of `Puma` with **identical
+code** produce LaTeX differing in 26 lines; with `PYTHONHASHSEED=0` they are byte-identical.
+
+Cause: `solutionSet` is a Python `set` of tuples, and the solution-graph edges iterate sets too, so
+row order and edge order follow the randomized string hash. The differences are pure ordering — the
+same rows, permuted.
+
+This matters directly for the planned robot-level baseline suite (*Related gap: no robot-level
+regression suite*): a naive `diff` of generated `.tex` will show spurious changes on **every** run
+and the suite will be ignored within a week. Any such suite must either pin `PYTHONHASHSEED`, sort
+before comparing, or compare parsed structures rather than text.
+
+Separately, the pre-session `.tex` baselines differ from current output by LaTeX **whitespace only**
+(line breaks inside `align`/`dmath`), meaning they predate an `output_latex.py` formatting change.
+Worth regenerating them before trusting any before/after comparison.
+
+### State after this session
+
+All four reference robots solve (`Wrist`, `Puma`, `Chair_Helper`, `KawasakiRS007L` — exit 0, no
+tracebacks, completion detector reached). Unit suite green at 23 tests.
+
+## Fixes for open items 1-3, August 2026
+
+All three mutation-tested; all four reference robots re-run afterwards.
+
+### 1. `rank_leaf` IndexError — two defects, not one
+
+**Root cause.** `sincos_solve` appended to `u.sincos_eqnlist` in its arcsin branch but not in its
+arccos branch, while `rank` reads `u.sincos_eqnlist[0]` when it picks sincos. Fixed by appending in
+both branches, with the invariant now stated in a comment: *sincos_eqnlist must be populated whenever
+sincos_solutions is.*
+
+**Second defect, found while fixing the first — and made more reachable by this session's own
+item-4 change.** `rank` keyed its decision off the `solvable_*` flags and then indexed the solution
+lists unguarded:
+
+```python
+if u.solvable_sincos and u.solvable_tan:
+    if (len(u.sincos_solutions) < len(u.tan_solutions)) and (len(u.sincos_solutions) > 0): ...
+    elif (len(u.sincos_solutions) > len(u.tan_solutions)) and (len(u.tan_solutions) > 0): ...
+    else:
+        sol_sin = u.sincos_solutions[0]      # <-- no guard, and this is the branch that can fail
+```
+
+Both `len(...) > 0` guards sit on branches that cannot fail; the bare `else`, which can, has none.
+An ID node can set `solvable_*` and its solver then decline, leaving the flag `True` and the list
+empty — and item 4 of this session turned `sincos_solve`'s arcsin `assert` into exactly such a
+`return b3.FAILURE`, so the fix for one crash widened the window for another. **Third time this
+session that tightening one thing made the next thing reachable.**
+
+Fixed by keying the decision on the solution lists actually produced (`n_sc`, `n_tan`) rather than on
+the flags, which removes every unguarded index at once. When neither solver produced anything, `rank`
+now declines to call `set_solved()` — previously it marked the variable solved with no solution.
+
+**Reachability, measured.** Every ranking decision across all four reference robots resolves to
+`best ranked, atan2(y,x)` — tan always wins, so the `choosen == "sincos"` path is never taken and the
+IndexError never bit in production. But `KawasakiRS007L`'s `th_6` is solved by **arccos and tan and
+is ranked** (`th_6 (atan2(y,x), arccos, best ranked, atan2(y,x))`): it satisfies every precondition
+except the tie-break outcome. One change in relative solution counts away from aborting the solve.
+Not hypothetical — latent.
+
+New `TestSolver011` in `rank_leaf.py`, registered in `tests/leavestest.py`. Four tests: the arccos
+crash, the ID-fired-but-solver-declined crash, the core preference (tan's single `atan2` beats
+sincos's `±acos` pair), and single-solver pass-through. Per the design note above, these pin the
+*preference*, not just the mechanics.
+
+### 2. `tan_solve`'s asserts — the same construct, one function away
+
+`tan_solve` carried the identical assert-on-`match()` pattern that broke Kawasaki in `tan_id`:
+
+```python
+assert(d != None), fs
+assert(count_unknowns(unknowns, d[Bw])==0), fs
+```
+
+In the tree these hold only because `tan_id` screened the *same* expressions with equivalent `Wild`s
+before setting `solvable_tan` — an implicit invariant between two nodes with nothing enforcing it.
+Converted to `return b3.FAILURE`. Covered by `test_tanD_solve_node_declines_bad_input_not_asserts`,
+which deliberately bypasses `tan_id` to violate that invariant.
+
+### 3. `x2y2_transform` guard precedence
+
+```python
+if not u.symbol == th_3 or u.symbol == th_2 :   ->   if u.symbol not in (th_2, th_3):
+```
+
+The old form parses as `(not (sym == th_3)) or (sym == th_2)`, so `th_2` was rejected and the `or`
+clause was dead — only `th_3` ever got through, despite the comment above it naming both.
+
+Also fixed in the same block: the "find the current unknown" loop assigned on every match and kept
+the **last** one, which could be an already-solved unknown also present in `temp_r`; the following
+`if not unknown.solved` then silently skipped appending the new equation while the leaf still
+returned `SUCCESS`. It also shadowed the imported `unknown` class with a local of the same name. Now
+searches for the first *unsolved* match, under the name `target`, and returns `FAILURE` if there is
+none.
+
+**Effect on the reference robots: none.** Verified by byte-comparing seed-pinned Puma output before
+and after — identical. `x2y2` still fires exactly once per robot (Puma, Kawasaki), credited to
+`th_3`, because `algSol` sits ahead of `x2z2_Solver` in the `Priority` and solves `th_2` by algebra
+long before x2y2 is reached. So enabling `th_2` is latent capability with no current consumer. It is
+still the intended behaviour, and the dead clause was certainly not.
+
+New `test_x2y2B_th2_is_not_rejected` uses the cheap test-1 fixture (no Puma kinematics) and, unlike
+the existing `test_x2z2`, actually counts its assertions.
+
+### State
+
+Unit suite green, 23 tests (was 21 at the start of the session). All four reference robots solve:
+exit 0, no tracebacks, completion detector reached. Nothing committed.
