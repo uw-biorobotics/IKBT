@@ -48,6 +48,8 @@ from ikbtleaves.two_eqn_m7 import *
 from ikbtleaves.sub_transform import *
 from ikbtleaves.updateL import *
 from ikbtleaves.x2y2_transform import *
+from ikbtleaves.rank_leaf import TestSolver011   # named import: rank_leaf also
+                                                #  defines count_variables()
 
 
 import b3 as b3          # behavior trees
@@ -411,6 +413,7 @@ if __name__ == '__main__':
     suite2.addTest(TestSolver003())  # sinANDcos_solver.py
     suite2.addTest(TestSolver004())  # tan_solver.py
     suite2.addTest(TestSolver005())  # two_eqn_m7.py  # simultaneous equations
+    suite2.addTest(TestSolver011())  # rank_leaf.py   # ranking tan vs sin/cos
 
     # test the transforms and misc. tests
     suite3 = unittest.TestLoader().loadTestsFromTestCase(TestSolver006)  # sub_transform.py

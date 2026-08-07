@@ -168,13 +168,13 @@ int False = 0;
         #for i,solu in enumerate(node.solution_list):
         nsolns = node.unknown.nsolutions #len(node.solution_with_notations.values())
         nvers  = Robot.nversions
-        print('Cpp Output: ', node, ' has ', nsolns, ' solutions and ',nvers, ' versions')
+        print('Cpp Output Gen: ', node, ' has ', nsolns, ' solutions and ',nvers, ' versions')
         # go through the final matrix of equation versions
         colindex = node.unknown.solveorder-1  # select the unknown
         for rowindex in range(nvers): # go through the versions
             # get the solution equation version
             solEqnVer = Robot.FinalEqnMatrix[rowindex][colindex]
-            print('Cpp Output: Solution Equation Version: ', solEqnVer)
+            print('Cpp Output Gen: Solution Equation Version: ', solEqnVer)
             c.line('\n// solution '+str(solno))
             solno += 1
             solrhs = str(solEqnVer.RHS)
@@ -189,7 +189,7 @@ int False = 0;
             #
             #
             trig = False
-            print('\n\nCpp Output: Studying node: ', node.symbol, ' solution ', solno)
+            print('\n\nCpp Output Gen: Studying node: ', node.symbol, ' solution ', solno)
             print('solvemethod: ', node.solvemethod)
             print(' LHS: ', str(solEqnVer.LHS))
             print(' RHS: ', solrhs)
@@ -214,8 +214,6 @@ int False = 0;
                c.push()        #  bugus    (here)
                c.line(str(solEqnVer.LHS) + ' = '+node.solvemethod+'(argument);' )
                c.pop()
-
-            print('Cpp: trig: ', trig, '    node.solvemethod: ', node.solvemethod)
 
             if ((not trig) and 'atan2(y,x)' in node.solvemethod):
                 c.line(str(solEqnVer.LHS) + ' = ' + solrhs + ';')

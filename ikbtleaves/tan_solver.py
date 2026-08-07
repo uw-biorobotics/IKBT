@@ -135,8 +135,40 @@ class tan_id(b3.Action):    # action leaf for ID eqns solved by atan2()
                         print("\ncos(): coefficients")
                         print(d2[Cwx]          )
                     
-                    # check some things about potential solvable equations
-                    assert(d1 is not None and d2 is not None), 'somethings wrong!'
+                    # A failed match is NOT an error -- it means this particular
+                    # (sin eqn, cos eqn) pair is not of the form this leaf
+                    # solves, so skip it and try the next one.
+                    #
+                    # REGRESSION, Aug 2026: this used to be
+                    #     assert(d1 is not None and d2 is not None)
+                    # which was safe only while the Wilds were unconstrained.
+                    # An unconstrained Wild never fails to match, so the assert
+                    # could not fire; unusable pairs were instead rejected a few
+                    # lines below by the count_unknowns() screen.  Adding
+                    # exclude=terms (correctly) made match() return None for
+                    # shapes it cannot decompose -- and turned that graceful
+                    # rejection into a hard crash.
+                    #
+                    # KawasakiRS007L is the victim.  Solving th_2 against
+                    #     0 = -Px + (l_2*cos(th_2) + l_3*sin(th_23))*cos(th_1)
+                    # fails to match because cos(th_2) sits inside an UNEXPANDED
+                    # product, and match() is structural -- it will not expand to
+                    # find it.  Before exclude= the same expression matched as
+                    # {Cw: 0, Dw: <whole expr>}, which count_unknowns(Dw) > 0
+                    # then rejected.  Same outcome, no crash.
+                    #
+                    # Note .expand() before .collect() above would let this pair
+                    # match properly ({Cw: l_2*cos(th_1), ...}).  Deliberately
+                    # NOT done here: it would let tan_id claim pairs it has never
+                    # claimed before, which is a capability change, not a
+                    # regression fix.  Recorded in ImplementationThoughts.md.
+                    if d1 is None or d2 is None:
+                        if self.BHdebug:
+                            print('tan_id: cannot decompose this pair for ',
+                                  u.symbol, ' -- skipping')
+                            print('   sin: ', estst, ' -> ', d1)
+                            print('   cos: ', ectst, ' -> ', d2)
+                        continue
                     co = d1[Awx]/d2[Cwx]   # take ratio
                     # it's not solvable if (simplified) coefficient contains unknowns, or other parts have unknowns
                 
@@ -233,17 +265,30 @@ class tan_solve(b3.Action):    # Solve sin cos equation pairs
             Aw = sp.Wild("Aw", exclude=_terms)
             Bw = sp.Wild("Bw", exclude=_terms)
             d  = rhs.match(Aw*sp.sin(u.symbol)+Bw)
-            
-            assert(d != None), fs
-            assert(count_unknowns(unknowns, d[Bw])==0), fs
-            
+
             # now the second equation for this variable
             x2 = u.secondeqn.LHS # it's 0
             rhs2 = u.secondeqn.RHS
             d2 = rhs2.match(Aw*sp.cos(u.symbol)+Bw)
-            
-            assert(d2 != None), fs
-            assert(count_unknowns(unknowns, d2[Bw])==0), fs
+
+            #  These four conditions were assert()s.  They are the SAME
+            #  construct that broke KawasakiRS007L one function away in tan_id:
+            #  an assert on a match() result is safe only while the Wilds are
+            #  unconstrained (and so cannot fail), and these Wilds carry
+            #  exclude=_terms.  They hold today only because tan_id screened the
+            #  identical expressions with equivalent Wilds before setting
+            #  solvable_tan -- an implicit, unenforced invariant between two
+            #  nodes.  Declining is the safe response either way: the variable
+            #  stays unsolved and the Priority can offer it to another leaf.
+            if d is None or d2 is None:
+                print('tan_solve: cannot decompose the ID-supplied pair for ',
+                      u.symbol, ' -- declining')
+                return b3.FAILURE
+            if count_unknowns(unknowns, d[Bw]) != 0 or \
+               count_unknowns(unknowns, d2[Bw]) != 0:
+                print('tan_solve: leftover unknowns in the constant terms for ',
+                      u.symbol, ' -- declining')
+                return b3.FAILURE
 
             #construct solutions
             print('tan_solver Denominators: ', d[Aw], d2[Aw])
@@ -392,6 +437,104 @@ class TestSolver004(unittest.TestCase):    # change TEMPLATE to unique name (2 p
         self.test_tanB_roundtrip_two_branches()
         self.test_tanB_negative_cos_coefficient_solves()
         self.test_tanB_assumption_labels_match_valid_branch()
+        self.test_tanC_undecomposable_pair_declines_not_asserts()
+        self.test_tanD_solve_node_declines_bad_input_not_asserts()
+
+    def test_tanD_solve_node_declines_bad_input_not_asserts(self):
+        '''tan_solve had the same assert-on-match() construct that broke
+           KawasakiRS007L in tan_id, one function away.
+
+           In the tree it is protected by tan_id having screened the identical
+           expressions first -- an implicit invariant between two nodes, with
+           nothing enforcing it.  This test bypasses tan_id and hands tan_solve
+           a pair it cannot decompose (sin(u)**2 needs Aw = sin(u), refused by
+           exclude=), which is exactly what that invariant is supposed to
+           prevent.  The leaf must decline, not abort the run.'''
+        sp.var('th_1 l_1 l_2')
+        fs = ' tan_solve bad-input FAIL'
+
+        u = unknown(th_1)
+        u.solvable_tan = True                       # pretend tan_id approved it
+        u.eqntosolve = kequation(0, sp.sin(th_1)**2 - l_1)   # undecomposable
+        u.secondeqn  = kequation(0, l_2*sp.cos(th_1) - 1)
+
+        t_sl = tan_solve(); t_sl.BHdebug = self.DB; t_sl.Name = 'tan solve'
+        ik_tester = b3.BehaviorTree()
+        ik_tester.root = b3.Sequence([t_sl])
+
+        bb = b3.Blackboard()
+        bb.set('curr_unk', u)
+        bb.set('unknowns', [u])
+        bb.set('Robot', Robot())
+        bb.set('Tm', None)
+
+        try:
+            status = ik_tester.tick("tan_solve bad input", bb)
+        except AssertionError as e:
+            self.fail(fs + ' (raised instead of declining: %s)' % e)
+
+        self.assertEqual(status, b3.FAILURE, fs + ' (did not decline)')
+        self.assertEqual(len(u.solutions), 0, fs + ' (emitted a solution anyway)')
+        self.assertFalse(u.solved, fs + ' (marked solved)')
+
+    def test_tanC_undecomposable_pair_declines_not_asserts(self):
+        '''Regression (KawasakiRS007L, Aug 2026): a pair this leaf cannot
+           decompose must be SKIPPED, not asserted on.
+
+           The Kawasaki equations below are the real ones.  cos(th_2) sits
+           inside an unexpanded product, and match() is structural, so
+               Cwx*cos(th_2) + Dwx   (Cwx, Dwx excluding sin/cos of th_2)
+           returns None.  tan_id used to assert on that and abort the whole
+           solve -- KawasakiRS007L stopped solving, having worked for years.
+
+           The assert was safe only while the Wilds were unconstrained: an
+           unconstrained Wild never fails, returning {Cw: 0, Dw: <whole expr>},
+           which the count_unknowns() screen below then rejected.  Adding
+           exclude= made match() correctly return None and converted that
+           graceful rejection into a crash.
+
+           This test asserts only that the leaf DECLINES.  It deliberately does
+           not require a solution: making these pairs solvable (by expanding
+           before collecting) is a capability change, not a regression fix.'''
+        sp.var('Px Pz th_1 th_2 th_23 l_1 l_2 l_3')
+        fs = ' tan_solver undecomposable-pair FAIL'
+
+        #  0 = Pz - l_1 - l_2*sin(th_2) + l_3*cos(th_23)     (sin eqn, matches)
+        #  0 = -Px + (l_2*cos(th_2) + l_3*sin(th_23))*cos(th_1)   (cos eqn, does not)
+        sin_expr = -Pz + l_1 + l_2*sp.sin(th_2) - l_3*sp.cos(th_23)
+        cos_expr = -Px + (l_2*sp.cos(th_2) + l_3*sp.sin(th_23))*sp.cos(th_1)
+
+        #  sanity: the cos equation really is the undecomposable shape
+        terms = [sp.sin(th_2), sp.cos(th_2)]
+        Cwx = sp.Wild('Cwx', exclude=terms)
+        Dwx = sp.Wild('Dwx', exclude=terms)
+        self.assertIsNone(cos_expr.collect(terms).match(Cwx*sp.cos(th_2) + Dwx),
+                          fs + ' (fixture no longer reproduces the None match -'
+                               ' if match() got smarter, this test is obsolete)')
+
+        u = unknown(th_2)
+        unknowns = [u, unknown(th_1), unknown(th_23)]
+        t_id = tan_id();    t_id.BHdebug = self.DB;  t_id.Name = 'tan ID'
+        t_sl = tan_solve(); t_sl.BHdebug = self.DB;  t_sl.Name = 'tan solve'
+        ik_tester = b3.BehaviorTree()
+        ik_tester.root = b3.Sequence([t_id, t_sl])
+
+        bb = b3.Blackboard()
+        bb.set('curr_unk', u)
+        bb.set('unknowns', unknowns)
+        bb.set('eqns_1u', [kequation(0, sin_expr), kequation(0, cos_expr)])
+        bb.set('eqns_2u', [])
+        bb.set('Robot', Robot())
+
+        try:
+            status = ik_tester.tick("tan undecomposable pair", bb)
+        except AssertionError as e:
+            self.fail(fs + ' (raised instead of declining: %s)' % e)
+
+        uu = bb.get('curr_unk')
+        self.assertEqual(status, b3.FAILURE, fs + ' (leaf did not decline)')
+        self.assertFalse(uu.solvable_tan, fs + ' (claimed a pair it cannot solve)')
+        self.assertEqual(len(uu.solutions), 0, fs + ' (emitted a solution anyway)')
 
     #####################################################################
     #  Numeric round-trip tests.

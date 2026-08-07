@@ -92,6 +92,34 @@ def spZconv(term):   # if term == int(0), make it a sympy zero
     else:
         return term
 
+
+def linear_match(expr, sym):
+    '''Decompose expr as A*sym + B with A, B free of sym, i.e. confirm that
+       expr is LINEAR in sym -- which is the only thing this leaf can solve.
+
+       Returns (A, B), or None if expr is not linear in sym or if A == 0.
+
+       The exclusion is the whole point.  An unconstrained sympy Wild makes
+       'Aw*sym + Bw' match any expression at all, via Aw = (expr - Bw)/sym, and
+       sympy really does return that reading -- so without exclude= this
+       function would accept sym**2, sin(th_1+th_2), and a plain numeric
+       addend on a negative coefficient.  Same failure mode already fixed in
+       tan_solver and sincos_solver.
+
+       A == 0 is rejected separately: sym can cancel during expand()
+       (e.g. (d_1+l_1)-(d_1+r_11) -> l_1-r_11), and (LHS-B)/A would then be
+       zoo rather than raising.'''
+    Aw = sp.Wild('Aw', exclude=[sym])
+    Bw = sp.Wild('Bw', exclude=[sym])
+    d = expr.match(Aw*sym + Bw)
+    if d is None:
+        return None
+    A = d[Aw]
+    B = d[Bw] if d[Bw] is not None else sp.S.Zero
+    if A == 0:
+        return None
+    return (A, B)
+
 class algebra_id(b3.Action):    # action leaf for  
     
     def tick(self, tick):
@@ -116,7 +144,7 @@ class algebra_id(b3.Action):    # action leaf for
         u = tick.blackboard.get('curr_unk')
       # identify unknowns in T where one equation can be solved by
       #           basic algebra
-        found = False      
+        found = False
         if (not u.solved):  # only if not already solved!
                 for e in one_unk:  # eqns containing one unknown
                     if(self.BHdebug):
@@ -128,14 +156,36 @@ class algebra_id(b3.Action):    # action leaf for
                     if (e.RHS.has(sp.sin(u.symbol)) or e.RHS.has(sp.cos(u.symbol)) or\
                         e.LHS.has(sp.sin(u.symbol)) or e.LHS.has(sp.cos(u.symbol))):
                         continue   # this shouldbe caught by another ID
-                    
+
                     # since we're not solving the equation here, simply count the unknowns will suffice for the identification
                     if(e.RHS.has(u.symbol) or e.LHS.has(u.symbol)):
-                        u.readytosolve = True
                         tmp = e.RHS - e.LHS
                         tmp = tmp.expand()
 
                         tmp = tmp.collect(u.symbol)
+
+                        #  "contains u" is not the same as "is linear in u", and
+                        #  this leaf can only do linear.  Confirm the shape here
+                        #  rather than letting algebra_solve divide by whatever
+                        #  the Wilds happen to return.  Excluding u.symbol from
+                        #  both Wilds is what gives the match teeth -- otherwise
+                        #  'Aw*u + Bw' matches ANYTHING via Aw = (expr-Bw)/u,
+                        #  the same degeneracy already fixed in tan_solver and
+                        #  sincos_solver.  Rejected shapes and what they used to
+                        #  produce:
+                        #     d_1**2 - l_1            ->  d_1 = l_1/d_1
+                        #     sin(th_1+th_2) - r_11   ->  th_1 = r_11*th_1/sin(th_1+th_2)
+                        #     -d_1*l_3 + 5            ->  d_1 = d_1**2*l_3/5
+                        #  i.e. "solutions" that are functions of the very
+                        #  variable being solved -- and set_solved() was called
+                        #  on all of them.
+                        d = linear_match(tmp, u.symbol)
+                        if d is None:
+                            if(self.BHdebug):
+                                print('algebra ID: not linear in ', u.symbol, ': ', tmp)
+                            continue   # keep looking -- another eqn may be usable
+
+                        u.readytosolve = True
                         u.eqntosolve = kequation(0, tmp)
                         u.solvemethod += "algebra"
                         found = True
@@ -165,14 +215,32 @@ class algebra_solve(b3.Action):    # Solve asincos equation pairs
                         print("  Using: ", )
                         print(u.eqntosolve  )
            if 'algebra' in u.solvemethod:
-               Aw = sp.Wild("Aw")
-               Bw = sp.Wild("Bw")
-               d = u.eqntosolve.RHS.match(Aw*u.symbol+Bw)
-               A = d[Aw]
-               B = d[Bw]
-               u.solutions.append( (u.eqntosolve.LHS-B)/A  )       # one solution 
+               #  algebra_id has already confirmed this shape; re-checking here
+               #  is defence in depth, and gives a graceful FAILURE (letting the
+               #  Priority try another leaf) instead of a TypeError on d[Aw]
+               #  when d is None, or a zoo solution when A is 0.
+               d = linear_match(u.eqntosolve.RHS, u.symbol)
+               if d is None:
+                   print('algebra_solve: ', u.symbol, ' is not linear in ',
+                         u.eqntosolve.RHS, ' -- declining')
+                   tick.blackboard.set('curr_unk', u)
+                   tick.blackboard.set('unknowns', unknowns)
+                   return b3.FAILURE
+               A, B = d
+               sol = (u.eqntosolve.LHS-B)/A
+               #  a solution that is still a function of its own unknown is not
+               #  a solution.  linear_match() should make this unreachable; the
+               #  guard is kept because this is the invariant that matters and
+               #  it is cheap.  Same check as sincos_solve.
+               if sol.has(u.symbol):
+                   print('algebra_solve: solution for ', u.symbol,
+                         ' contains itself: ', sol, ' -- declining')
+                   tick.blackboard.set('curr_unk', u)
+                   tick.blackboard.set('unknowns', unknowns)
+                   return b3.FAILURE
+               u.solutions.append( sol )       # one solution
                u.nsolutions = 1   # or 1
-               u.set_solved(R,unknowns)  # flag that this is solved 
+               u.set_solved(R,unknowns)  # flag that this is solved
        tick.blackboard.set('curr_unk', u)
        tick.blackboard.set('unknowns', unknowns)
        return b3.SUCCESS
@@ -182,13 +250,166 @@ class algebra_solve(b3.Action):    # Solve asincos equation pairs
 #  Test code:
 class TestSolver002(unittest.TestCase):
     def setUp(self):
-        self.DB = True  # debug flag
+        self.DB = False  # debug flag
         print('\n\n===============  Test algebra Solver  =====================')
         return
-    
+
     def runTest(self):
         self.test_algebra()
-            
+        self.test_algB_roundtrip_numeric()
+        self.test_algB_negative_coefficient_with_numeric_term()
+        self.test_algB_rejects_nonlinear()
+        self.test_algB_rejects_embedded_unknown()
+        self.test_algB_rejects_cancelled_unknown()
+        self.test_algB_scans_past_an_unusable_equation()
+        self.test_algB_solution_never_contains_its_own_unknown()
+
+    #####################################################################
+    #  Shape screening and numeric round-trip tests.
+    #
+    #  test_algebra() below compares against exact sympy expressions captured
+    #  from a run, over three linear cases with positive coefficients.  That
+    #  pins the FORM of the answer, not its correctness, and says nothing about
+    #  what the leaf does when handed a shape it cannot solve.
+    #
+    #  It could not: algebra_id's only screen was "does the equation mention u
+    #  and not sin(u)/cos(u)", so anything nonlinear in u was claimed, and
+    #  algebra_solve then divided by whatever an unconstrained Wild returned.
+    #  All three of these were emitted AND passed to set_solved():
+    #
+    #      0 = d_1**2 - l_1           ->  d_1 = l_1/d_1
+    #      r_11 = sin(th_1 + th_2)    ->  th_1 = r_11*th_1/sin(th_1 + th_2)
+    #      0 = -d_1*l_3 + 5           ->  d_1 = d_1**2*l_3/5
+    #
+    #  i.e. "solutions" that are functions of the variable being solved.
+
+    def run_alg(self, exprs, sym, others=()):
+        '''Drive algebra_id + algebra_solve over `exprs` (each meaning
+           "expr == 0"), trying to solve `sym`.  Returns (status, unknown).'''
+        u = unknown(sym)
+        aid = algebra_id();    aid.Name = 'Algebra ID';     aid.BHdebug = self.DB
+        asl = algebra_solve(); asl.Name = 'Algebra Solver'; asl.BHdebug = self.DB
+
+        t = b3.BehaviorTree()
+        t.root = b3.Sequence([aid, asl])
+
+        bb = b3.Blackboard()
+        bb.set('curr_unk', u)
+        bb.set('unknowns', [u] + [unknown(s) for s in others])
+        bb.set('eqns_1u', [kequation(sp.S.Zero, e) for e in exprs])
+        bb.set('eqns_2u', [])
+        bb.set('eqns_3pu', [])
+        bb.set('Robot', Robot())
+        bb.set('Tm', None)
+        status = t.tick('algebra shape test', bb)
+        return status, bb.get('curr_unk')
+
+    def assert_declined(self, status, u, fs):
+        '''The leaf must not claim the variable, and must leave it unsolved so
+           the Priority can offer it to another leaf.'''
+        self.assertEqual(status, b3.FAILURE, fs + ' (leaf did not decline)')
+        self.assertFalse(u.solved, fs + ' (marked solved)')
+        self.assertEqual(len(u.solutions), 0, fs + ' (emitted a solution anyway)')
+
+    def test_algB_roundtrip_numeric(self):
+        '''The ordinary linear case still solves, and the answer really
+           satisfies the equation -- checked by substituting numbers rather
+           than by comparing expression form.'''
+        sp.var('d_1 l_1 l_3 r_13')
+        fs = ' algebra numeric roundtrip FAIL'
+        expr = d_1*l_3 + l_1 - r_13
+
+        status, u = self.run_alg([expr], d_1)
+
+        self.assertEqual(status, b3.SUCCESS, fs + ' (leaf did not fire)')
+        self.assertTrue(u.solved, fs)
+        self.assertEqual(u.nsolutions, 1, fs)
+        vals = {l_1: 0.7, l_3: -2.5, r_13: 1.3}
+        got = complex(sp.N(u.solutions[0].subs(vals)))
+        self.assertAlmostEqual(got.imag, 0.0, places=9, msg=fs + ' (complex)')
+        resid = complex(sp.N(expr.subs(vals).subs(d_1, got.real)))
+        self.assertAlmostEqual(abs(resid), 0.0, places=9,
+                               msg=fs + ' (solution does not satisfy the equation)')
+
+    def test_algB_negative_coefficient_with_numeric_term(self):
+        '''Regression: a negative coefficient plus a loose numeric term is the
+           exact trigger for the degenerate Wild match.  Both signs must give
+           the same, correct answer.
+
+              -d_1*l_3 + 5  ->  {Aw: 5/d_1, Bw: -d_1*l_3}   (unconstrained)
+           so (LHS-B)/A came out as d_1**2*l_3/5.'''
+        sp.var('d_1 l_3')
+        fs = ' algebra negative-coefficient FAIL'
+
+        for sign in (1, -1):
+            expr = sign*d_1*l_3 + sign*5     # d_1 = -5/l_3 either way
+            status, u = self.run_alg([expr], d_1)
+            self.assertEqual(status, b3.SUCCESS,
+                             fs + ' (coeff sign %+d did not solve)' % sign)
+            self.assertFalse(u.solutions[0].has(d_1),
+                             fs + ' (coeff sign %+d: solution contains its own'
+                                  ' unknown: %s)' % (sign, u.solutions[0]))
+            self.assertEqual(sp.simplify(u.solutions[0] - (-5/l_3)), 0,
+                             fs + ' (coeff sign %+d: wrong answer %s)'
+                                  % (sign, u.solutions[0]))
+
+    def test_algB_rejects_nonlinear(self):
+        '''u**2 is not linear in u.  Used to give d_1 = l_1/d_1, solved.'''
+        sp.var('d_1 l_1')
+        status, u = self.run_alg([d_1**2 - l_1], d_1)
+        self.assert_declined(status, u, ' algebra nonlinear-reject FAIL')
+
+    def test_algB_rejects_embedded_unknown(self):
+        '''u inside a function of a SUM -- an un-substituted sum-of-angles term
+           -- mentions u but is not linear in it.  has(sin(th_1)) is False for
+           sin(th_1+th_2), so the sin/cos screen does not catch this one.
+           Used to give th_1 = r_11*th_1/sin(th_1 + th_2), solved.'''
+        sp.var('th_1 th_2 r_11')
+        status, u = self.run_alg([sp.sin(th_1 + th_2) - r_11], th_1,
+                                 others=[th_2])
+        self.assert_declined(status, u, ' algebra embedded-unknown reject FAIL')
+
+    def test_algB_rejects_cancelled_unknown(self):
+        '''u can vanish during expand(), leaving A == 0.  (LHS-B)/A is then zoo
+           rather than an exception, so nothing downstream notices.'''
+        sp.var('d_1 l_1 r_11')
+        expr = (d_1 + l_1) - (d_1 + r_11)          # expands to l_1 - r_11
+        status, u = self.run_alg([expr], d_1)
+        self.assert_declined(status, u, ' algebra zero-coefficient reject FAIL')
+
+    def test_algB_scans_past_an_unusable_equation(self):
+        '''The ID loop now `continue`s past a shape it cannot use instead of
+           breaking, so an unusable equation early in the list no longer hides
+           a usable one behind it.'''
+        sp.var('d_1 l_1 l_3 r_13')
+        fs = ' algebra scan-past FAIL'
+        status, u = self.run_alg([d_1**2 - l_1,            # unusable
+                                  d_1*l_3 + l_1 - r_13],   # usable
+                                 d_1)
+        self.assertEqual(status, b3.SUCCESS, fs + ' (gave up at the first eqn)')
+        self.assertTrue(u.solved, fs)
+        self.assertEqual(sp.simplify(u.solutions[0] - (r_13-l_1)/l_3), 0, fs)
+
+    def test_algB_solution_never_contains_its_own_unknown(self):
+        '''The invariant, swept over every shape above.  Cheap, and it catches
+           degenerate matches whatever their cause.'''
+        sp.var('d_1 th_1 th_2 l_1 l_3 r_11 r_13')
+        fs = ' algebra self-reference FAIL'
+        cases = [ (d_1*l_3 + l_1 - r_13,     d_1,  (),      True ),
+                  (-d_1*l_3 - 5,             d_1,  (),      True ),
+                  (d_1**2 - l_1,             d_1,  (),      False),
+                  (sp.sin(th_1+th_2) - r_11, th_1, (th_2,), False),
+                  (sp.cos(d_1) - l_1,        d_1,  (),      False) ]
+        n = 0
+        for expr, sym, others, solvable in cases:
+            status, u = self.run_alg([expr], sym, others=others)
+            self.assertEqual(status == b3.SUCCESS, solvable,
+                             fs + ' (%s: expected solvable=%s)' % (expr, solvable))
+            for s in u.solutions:
+                self.assertFalse(s.has(sym), fs + ' (%s -> %s)' % (expr, s))
+            n += 1
+        self.assertEqual(n, len(cases), fs + ' (assert count)')
+
     def test_algebra(self):
         algebra_tester = b3.BehaviorTree()
         bb = b3.Blackboard()  
