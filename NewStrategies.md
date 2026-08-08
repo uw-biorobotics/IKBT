@@ -27,13 +27,17 @@ Evidence in the code:
 So IKBT has no mechanism to **eliminate** a variable between two genuinely coupled equations.
 That is the hole all three candidates below aim at, from different directions.
 
-### Incidental finding
+### Incidental finding — RESOLVED
 
-`simu_id.tick()` begins with an unconditional `return b3.FAILURE`
+~~`simu_id.tick()` begins with an unconditional `return b3.FAILURE`
 (`ikbtleaves/two_eqn_m7.py:46`), with the comment *"temporarily block this and see what
 breaks!!!!"*. Paper-solver #5 is therefore dead in the tree at present, although it is still
 wired into the `worktools` Priority list in `ikSolver.py`. Worth resolving before measuring the
-effect of anything new.
+effect of anything new.~~
+
+**Fixed in commit `ad6542a`** ("Re-enable simu_id, fix three solver bugs, add real unit tests").
+The unconditional `return` is gone and `TestSolver005` in `two_eqn_m7.py` covers the leaf. Step 1
+of the recommended plan in `ImplementationThoughts.md` is therefore already done.
 
 ---
 
@@ -151,6 +155,33 @@ position/orientation decoupling gets found for arms that admit it.
 requires no new solution algebra, produces no new solution multiplicities, and therefore does not
 disturb the `n_s ≤ 2` machinery. Good stepping stone if Candidate 1's solution-set generalization
 needs to land first.
+
+### IMPLEMENTED, August 2026 — `ikbtleaves/invariant_gen.py`
+
+Shipped as the last child of the `worktools` `Priority`, so it is behavior-preserving by
+construction. Details and measurements in `ImplementationThoughts.md`; the headlines:
+
+- **Pairwise column dot products of the rotation block (bullet 3 above) do not work.** `Ts` is built
+  from real rotation matrices, so `col_a · col_b` simplifies to a literal 0 or 1 and the equation
+  carries zero unknowns. Only products involving the *position* column say anything, so the
+  implementation emits `‖P‖²`, `trace(R)`, and `P·col_k`.
+- **`‖P‖²` subsumes `x2y2_transform`, confirming the thesis.** Promoted ahead of `x2z2_Solver`,
+  Puma's `th_3` goes from `x2z2 transform and sinANDcos` to plain `sinANDcos` with a
+  character-for-character identical solution, and loses the `th_3 → th_1` dependency edge. (Not a
+  smaller solution *set* — `create_solution_set()` doubles rows on `nsolutions`, not dependencies.)
+- **`trace(R)` earns nothing on the reference robots** (4–5 unknowns, gated out). `P·col_k` never got
+  below 3. `‖P‖²` is doing all the work.
+- **It has not unlocked a single robot.** This is the result that matters, and it is negative. The
+  bullet above is architecture, not capability. On `KinovaLite` — the one non-solving robot to hand —
+  it emits one equation, solves nothing extra, and turns a 43s failure into a >14x grind. The
+  pre-implementation probe in `ImplementationThoughts.md` already predicted this ("no gain" for
+  KinovaLite: `‖P‖²` lands at 3–4 unknowns where the element equations are at 2) and that signal
+  should have been weighted more heavily before building.
+- **Cost:** ~5x wall clock wherever it fires — Puma 28s → 159s, Kawasaki 27s → 126s — for
+  byte-identical output. All of it `sp.simplify()` over full FK expressions.
+
+**Therefore: shipped `enabled = False`.** Wired into `build_worktools()` as a documented extension
+point, inert unless switched on, with the `‖P‖²` machinery available for Candidate 1 to reuse.
 
 ---
 

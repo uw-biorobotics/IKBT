@@ -775,3 +775,232 @@ the existing `test_x2z2`, actually counts its assertions.
 
 Unit suite green, 23 tests (was 21 at the start of the session). All four reference robots solve:
 exit 0, no tracebacks, completion detector reached. Nothing committed.
+
+---
+
+## Refactor of `ikSolver.py`, August 2026
+
+Step 2 of the recommended plan. (Step 1, `simu_id`, turned out to be already done in commit
+`ad6542a` — `NewStrategies.md` has been corrected.)
+
+### What moved where
+
+| new file | owns | was |
+|---|---|---|
+| `ikbtfunctions/bt_assembly.py` | `make_leaves()`, `build_worktools()`, `build_default_bt()` | `ikSolver.py:124–241` |
+| `ikbtfunctions/ik_driver.py` | `load_robot()`, `init_blackboard()`, `run_solver()`, `emit_outputs()`, `print_solved_equations()`, `ensure_logdir()` | `ikSolver.py:98–117`, `321–423` |
+| `tests/test_chair_helper.py` | the three Chair_Helper assertions | `ikSolver.py:436–455` |
+
+`ikSolver.py` went 466 → 145 lines and is now a CLI: banner, `argv` parsing, the
+`TEST_DATA_GENERATION` branch, `main()`, and an import guard. **`import ikSolver` no longer runs a
+solve** — which is the whole point.
+
+### Three latent problems the extraction exposed
+
+1. **`updateL = updateL()`** (`ikSolver.py:217`) rebound the imported class over its own name. Any
+   later `updateL()` in that module would have raised `TypeError`. The instance is now
+   `updateLNode`.
+2. **`updateL` and `comp_det` were never imported by `ikSolver.py`.** They arrived through
+   `from ikbtleaves.tan_solver import *`, which happens to `import *` from both. Removing an unused
+   import from `tan_solver.py` would have broken the solver. `bt_assembly.py` imports every leaf it
+   uses, by name.
+3. **The `VERSION02` block was unreachable** (`VERSION02 = False`, hard-coded) and its body depended
+   on `matching.matching_func` and `R.notation_collections` — the legacy V2 path. Deleted, with a
+   comment left in its place. This is the one deviation from "the refactor moves code, it does not
+   change behavior", and it is verified safe by the byte-comparison below.
+
+### Debug flags
+
+The ~200 lines of commented-out per-robot blocks are gone. `build_default_bt()` returns
+`(tree, nodes)` and every node is in `nodes`, so the replacement is one line:
+
+```python
+nodes['tanID'].BHdebug = True
+```
+
+`test_btaE_nodes_are_shared_not_copied` exists specifically to guarantee this keeps working — if
+the dict ever handed back copies, every debug flag in the repo would silently do nothing.
+
+### Verification
+
+`PYTHONHASHSEED=0` is mandatory for any output comparison: `solutionSet` is a Python `set`, and
+two identical runs otherwise differ by ~26 lines.
+
+All four reference robots — `Wrist`, `Puma`, `Chair_Helper`, `KawasakiRS007L` — produce
+**byte-identical** `LaTex/ik_solution_*.tex` before and after. Suite green throughout.
+
+### New: `tests/bt_assembly_test.py` (`TestSolver013`)
+
+The first test in the repo that inspects the *real* composite rather than a hand-assembled 2-leaf
+tree — closing gap #1 from the round-2 audit list. It pins the `worktools` child order (that
+`Priority` order is the solver's entire preference policy), that tan/sin-cos sit under a `b3.OrNode`
+and not a `Priority` (a `Priority` would short-circuit and leave `rank` nothing to choose between),
+and both loop budgets (10 and 6).
+
+Note for future test-writing: b3 **decorators** hold a single `.child`; **composites** hold
+`.children`. `RepeatUntilSuccess` is a decorator.
+
+---
+
+## Candidate 3 implemented: `ikbtleaves/invariant_gen.py`, August 2026
+
+Step 3 of the recommended plan, first half. Candidates 1 and 2 remain untouched — one at a time.
+
+### What it does
+
+For each matrix equation `Td = Ts`, both sides are the same transform written two ways, so any
+scalar `f` yields a valid new equation `f(Td) = f(Ts)`. The registry (`INVARIANTS`) holds `‖P‖²`,
+`trace(R)`, and `P·col_k` for k = 0,1,2. Survivors are appended to `R.kequation_aux_list`, which
+`updateL` already folds into L1/L2/L3p — the same route `x2y2_transform` uses.
+
+**Column–column dot products, which `NewStrategies.md` proposed, were dropped.** `Ts` is built from
+real rotation matrices, so `col_a · col_b` simplifies to a literal 0 or 1 and the equation carries
+zero unknowns. Only products involving the position column say anything.
+
+### Sum-of-angles back-substitution
+
+sympy cannot reduce `cos(th_2 − th_23)` because it does not know `th_23 = th_2 + th_3`. `best_form()`
+scores the raw and the SOA-expanded form and keeps the better one (fewer unknowns, then fewer ops).
+On Puma meqn 1 that is the difference between 2 unknowns and 1.
+
+The plan called for running the result back through `sum_of_angles_sub()`. **Not done, deliberately:**
+that function mutates `R` and appends to the unknowns list, which has no business happening inside a
+candidate evaluation. It is also unnecessary — an expansion that re-exposes a genuine sum of angles
+scores *worse* (`cos(th_2+th_3)` is 2 unknowns, `cos(th_23)` is 1), so the min-unknowns comparison
+rejects it automatically.
+
+### Three defects the measurement runs found, none of them predicted
+
+1. **`P·col_k` degenerates.** When the rotation block is or simplifies to the identity, it reduces to
+   the bare element equation for `P_k`, which `scan_for_equations()` already put on the blackboard.
+   Re-emitting it is worse than useless: `updateL` files aux equations as `kequation(0, LHS−RHS)`, a
+   different *shape* from the `kequation(Td, Ts)` the scanner produces, so the existing
+   `if e1 not in self.l1` dedup does not catch it.
+2. **Negated duplicates.** Two of nine Puma outputs were the same relation with every sign flipped,
+   produced by different matrix equations. `kequation` equality cannot see that.
+   → `is_redundant()` now compares flattened `LHS−RHS` forms at both signs, against element equations
+   *and* against every candidate accepted so far in the same run.
+3. **It fires mid-solve.** Puma logs 7 `set_solved` calls for 7 unknowns and the leaf still fires, so
+   the all-solved early return never triggers there. At that tick several variables are already
+   solved, and `count_unknowns` skips solved variables — so a large expression mentioning four solved
+   joints and one unsolved one scores as "1 unknown" and sails through the gate.
+
+### The gate measures the wrong thing
+
+Point 3 is a design problem, not a tuning nit. `MAX_OPS = 80` is the only thing between those
+expressions and the blackboard. Two honest options, neither yet chosen:
+
+- tighten `MAX_OPS` (Puma's *good* `‖P‖²` is 36 ops; the junk is 40–60+), which is tuning to one robot; or
+- score on **total symbol count** rather than unsolved-unknown count, which is the principled fix:
+  an equation carrying four solved joint variables is expensive to carry and unhelpful to a solver,
+  regardless of how many unknowns remain in it.
+
+### Guards, all mutation-tested
+
+`TestSolver012` has 10 cases. Each guard was reverted individually and the suite confirmed to go red:
+unknown-count gate, ops gate, redundancy screen (exact, negated, vacuous `0 == 0`, within-run),
+SOA back-substitution, one-shot flag, all-solved early return, and a sign flip in `inv_norm_P`.
+
+One case is worth recording because the obvious test was **blind**. Asserting only that the second
+tick returns `FAILURE` does not test the one-shot flag: `generate_invariants` already drops
+candidates already in the aux list, so with the guard deleted the second tick still finds nothing new
+and still returns `FAILURE`. What the flag actually buys is *cost* — the leaf can be ticked ~60 times
+per solve. The test now spies on `generate_invariants` and asserts it is not called again.
+
+### Placement measured: fallback vs promoted
+
+`PYTHONHASHSEED=0` throughout. "Overhead baseline" = the same tree with `N_MEQNS = 0`, so the leaf is
+present but mines nothing — isolates the generator's cost from everything else.
+
+| robot | no generator | fallback (last in Priority) | promoted (ahead of `x2z2_Solver`) |
+|---|---|---|---|
+| Wrist | — | 7s, identical, never fires | 7s, identical, never fires |
+| Chair_Helper | — | 12s, identical, never fires | 13s, identical, never fires |
+| Puma | 28s | 159s, **identical** | 135s, **differs** |
+| KawasakiRS007L | 27s | 126s, **identical** | 131s, **differs** |
+
+**Fallback is behavior-preserving, as designed** — all four byte-identical. That was the point of
+putting it last, and it holds.
+
+**Promoted is better, and in the way Candidate 3 was supposed to be better.** On both robots the
+generated `‖P‖²` equation *subsumes the x2y2 trick*:
+
+| | baseline | promoted |
+|---|---|---|
+| Puma `th_3` | `x2z2 transform and sinANDcos` | `sinANDcos` |
+| Kawasaki | `x2z2 transform and , arcsin` | `arcsin` |
+
+Puma's `th_3` **solution expression is character-for-character identical** — only the method label
+changed. The generator produced the same equation the hand-written x2y2 pattern match produces, one
+step earlier, and `sinANDcos` consumed it directly. This is exactly the claim in `NewStrategies.md`:
+`x2y2_transform` is a special case of the invariant generator.
+
+Puma's dependency graph also loses an edge:
+
+```
+baseline:  Edge:th_3 depends on: th_1        <- gone in promoted
+```
+
+x2y2 built `th_3`'s equation from a transform that had already folded in `th_1`'s solution. `‖P‖²` is
+`Px² + Py² + Pz² = f(th_2, th_3)` — no `th_1` anywhere.
+
+**Correction to an earlier draft of this section:** that is *not* "a smaller solution set".
+`create_solution_set()` builds rows by doubling on `nsolutions`, not on dependencies, so the number
+of solution rows is unchanged. What changes is `nversions` and the version naming. Fewer
+dependencies is the criterion `rank_leaf` uses for its tie-break, so it is not nothing — but the
+number of poses out is identical.
+
+(Incidental: `and , arcsin` in Kawasaki's baseline label is a cosmetic `solvemethod` string bug in
+`x2y2_transform`, unrelated to this work.)
+
+### The cost, stated plainly
+
+**4.8x on Puma, 4.7x on Kawasaki** (28s → 135s, 27s → 131s). All of it is `sp.simplify()` over full
+FK expressions: 6 matrix equations x 5 invariants, and the premultiplied `Td` for meqns 3-5 is a
+product of up to five inverse transforms. Levers, in order of expected value:
+
+1. `N_MEQNS = 3`. Every invariant that survived the gate in these runs came from meqns 0-2 — the
+   later ones have enormous `Td` and produced nothing. Untested claim: needs one sweep to confirm.
+2. Score on total symbol count instead of unsolved-unknown count (see the gate discussion above),
+   which would let `MAX_OPS` come down without tuning to a single robot.
+3. Memoize per `(matrix equation, invariant)`; the plan flagged this for Candidate 1 and it applies
+   here too.
+
+### KinovaLite: the decisive negative result
+
+`KinovaLite` (uncommitted, known not to solve) was run three ways:
+
+| configuration | outcome |
+|---|---|
+| generator disabled (control) | 43s, 0 variables solved, then `IndexError` in `make_LHS_versions()` |
+| generator, fallback placement | 1 equation generated, **0 variables solved**, >10 min and still grinding |
+| generator, promoted placement | 1827s, hit the 1800s timeout |
+
+So on the one robot in the set that Candidate 3 was supposed to help, it generates an equation, solves
+nothing extra, and multiplies the runtime by more than 14x.
+
+The control's crash is a **pre-existing bug unrelated to this work**: with nothing solved,
+`solListMatrix` is empty and `ik_classes.py:202` raises `IndexError: list index out of range` inside
+`make_LHS_versions()`. A robot that fails to solve dies in the LaTeX generator rather than reporting
+that it found no solution. Worth a guard; not touched here.
+
+### Verdict: wired in, DEFAULT OFF
+
+Correcting the framing of an earlier draft of this section, which said the cost "is only paid on
+robots where it fires". It fires on Puma and Kawasaki in the *fallback* placement too — 28s → 159s and
+27s → 126s — for byte-identical output. There is no configuration in which it is currently free.
+
+Summing up what was actually demonstrated:
+
+- it reproduces x2y2's result by a more general route (real, and architecturally the point)
+- it has **not** solved any robot that could not be solved without it
+- it costs ~5x on every robot where it fires
+- on the one non-solving robot available, it turns a 43s failure into a >14x grind
+
+That does not earn a place in the live tree. `invariant_gen.enabled` therefore defaults to `False`
+(`invariant_gen.py`, set explicitly in `make_leaves()`), with `TestSolver012.test_invK_is_off_by_default`
+guarding it. The leaf stays wired in as a documented extension point because the `‖P‖²` machinery is
+reusable — Candidate 1 will want it — and because the tests record what it does and does not do.
+
+Switch it on with `nodes['invariantGen'].enabled = True`. Before making that the default, the runtime
+work listed above has to land, and it has to unlock a robot.
