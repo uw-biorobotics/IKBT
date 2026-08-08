@@ -50,6 +50,10 @@ from ikbtleaves.updateL import *
 from ikbtleaves.x2y2_transform import *
 from ikbtleaves.rank_leaf import TestSolver011   # named import: rank_leaf also
                                                 #  defines count_variables()
+from ikbtleaves.invariant_gen import TestSolver012   # named imports: these two
+from tests.bt_assembly_test import TestSolver013     #  export helpers that would
+                                                     #  shadow (element_forms,
+                                                     #  make_leaves, ...)
 
 
 import b3 as b3          # behavior trees
@@ -419,6 +423,8 @@ if __name__ == '__main__':
     suite3 = unittest.TestLoader().loadTestsFromTestCase(TestSolver006)  # sub_transform.py
     suite3.addTest(TestSolver010())   # x2y2_transform.py
     suite3.addTest(TestSolver007())   # updateL.py  # updating matrix equation lists
+    suite3.addTest(TestSolver012())   # invariant_gen.py  # kinematic invariants
+    suite3.addTest(TestSolver013())   # bt_assembly.py    # shape of the real tree
     suite1.addTest(TestSolver009())   # helperfunctions.py
 
     if(not HTML):
