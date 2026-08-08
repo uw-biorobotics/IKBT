@@ -29,7 +29,8 @@ from sys import exit, argv
 import pickle     # for storing pre-computed FK eqns
 
 from ikbtfunctions.ik_driver   import (load_robot, run_solver, emit_outputs,
-                                       print_solved_equations, ensure_logdir)
+                                       print_solved_equations, ensure_logdir,
+                                       solved_anything)
 from ikbtfunctions.bt_assembly import build_default_bt
 
 TEST_DATA_GENERATION = False
@@ -129,6 +130,15 @@ def main(argv):
         name = test_pickle_dir + R.name + 'test_pickle.p'
         with open(name, 'wb') as pf:
             pickle.dump([R, unks], pf)
+        return
+
+    if not solved_anything(bb):
+        #  The tree gave up having solved nothing -- see comp_det.  There is no
+        #  solution set, so there is nothing to write;  going on would only get
+        #  us an IndexError deep in the LaTeX generator.
+        print('\n\n           No solution generated for ' + robot + '.')
+        print('           Nothing written to LaTex/ or CodeGen/.\n')
+        print('\n                  End of solution job \n                  (no solution) \n\n')
         return
 
     #

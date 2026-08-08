@@ -79,8 +79,9 @@ class TestSolver013(unittest.TestCase):
 
     def test_btaD_tree_shape(self):
         '''    RepeatUntilSuccess(x10)
-                 Sequence[ sub_transform,
-                           RepeatUntilSuccess(x6, Sequence[assigner, sum_id, worktools]),
+                 Sequence[ Priority[sub_transform, Succeeder],
+                           Priority[RepeatUntilSuccess(x6, Sequence[assigner, sum_id, worktools]),
+                                    Succeeder],
                            updateL,
                            comp_det ]                                            '''
         fs = ' bt_assembly tree shape FAIL'
@@ -95,9 +96,21 @@ class TestSolver013(unittest.TestCase):
 
         routine = nodes['solveRoutine']
         self.assertEqual(routine.children,
-                         [nodes['sub_trans'], nodes['subtree'],
+                         [nodes['tryTransform'], nodes['trySolve'],
                           nodes['updateLNode'], nodes['compDetect']],
                          fs + ' (solveRoutine children)')
+
+        #  updateL and comp_det MUST be reachable even when the transform and
+        #  the solve subtree both fail -- otherwise a robot that solves nothing
+        #  never reaches the completion detector and the tree cannot terminate
+        #  cleanly.  b3.Sequence aborts on first FAILURE, hence the Succeeders.
+        for key, wrapped in (('tryTransform', 'sub_trans'), ('trySolve', 'subtree')):
+            node = nodes[key]
+            self.assertIsInstance(node, b3.Priority,
+                                  fs + ' (%s must swallow failure)' % key)
+            self.assertIs(node.children[0], nodes[wrapped], fs + ' (%s child)' % key)
+            self.assertIsInstance(node.children[1], b3.Succeeder,
+                                  fs + ' (%s has no Succeeder fallback)' % key)
 
         inner = nodes['subtree']
         self.assertIsInstance(inner, b3.RepeatUntilSuccess, fs + ' (subtree)')

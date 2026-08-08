@@ -89,7 +89,11 @@ def run_solver(R, unknowns, bt, bb=None, create_solutions=True):
 
        create_solutions=False stops after the tick, before create_solution_set().
        That is what the TEST_DATA_GENERATION path in ikSolver.py wants:  it
-       pickles the raw post-solve state.'''
+       pickles the raw post-solve state.
+
+       If the tree gave up without solving anything, comp_det sets 'no_progress'
+       on the blackboard;  the solution set is then not built, and callers must
+       not call emit_outputs().  Check it with solved_anything(bb).'''
 
     if bb is None:
         bb = init_blackboard(R, unknowns)
@@ -102,11 +106,23 @@ def run_solver(R, unknowns, bt, bb=None, create_solutions=True):
     unks = bb.get('unknowns')
     R    = bb.get('Robot')
 
+    if bb.get('no_progress'):
+        #  Nothing was solved.  create_solution_set() would leave solListMatrix
+        #  empty, and the report generator then dies in make_LHS_versions() with
+        #  an IndexError instead of saying it found no solution.
+        return R, unks, bb
+
     if create_solutions:
         #  generate the solution sets (as a set of tuples (don't ask))
         R.create_solution_set()
 
     return R, unks, bb
+
+
+def solved_anything(bb):
+    '''False when the tree gave up having solved nothing.  Gate emit_outputs()
+       on this -- there is no solution set to report.'''
+    return not bb.get('no_progress')
 
 
 def emit_outputs(R, unks):

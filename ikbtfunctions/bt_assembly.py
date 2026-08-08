@@ -263,7 +263,26 @@ def build_default_bt(leaf_debug=False, solver_debug=False, nodes=None):
     subtree.Name = "Solve Subtree"
     nodes['subtree'] = subtree
 
-    solveRoutine = b3.Sequence([nodes['sub_trans'], subtree,
+    #  b3.Sequence aborts on its first FAILURE, so if sub_transform or the solve
+    #  subtree fails, updateL and comp_det never run at all.  On a robot that
+    #  solves NOTHING that is every pass -- measured: comp_det ticks 8 times on
+    #  Puma and 0 times on KawasakiRS05L -- so the tree had no termination logic
+    #  in exactly the case that needs it, and ran head-first into the report
+    #  generator with an empty solution set.
+    #
+    #  Priority([x, Succeeder()]) swallows x's failure, so the pass always
+    #  reaches updateL and the completion detector.  Both are safe to run on a
+    #  pass that achieved nothing:  updateL just re-scans, and comp_det only
+    #  reports and decides whether to stop.
+    tryTransform = b3.Priority([nodes['sub_trans'], b3.Succeeder()])
+    tryTransform.Name = "Sub Transform (optional)"
+    nodes['tryTransform'] = tryTransform
+
+    trySolve = b3.Priority([subtree, b3.Succeeder()])
+    trySolve.Name = "Solve Subtree (optional)"
+    nodes['trySolve'] = trySolve
+
+    solveRoutine = b3.Sequence([tryTransform, trySolve,
                                 nodes['updateLNode'], nodes['compDetect']])
     solveRoutine.Name = "Solve Routine"
     nodes['solveRoutine'] = solveRoutine
