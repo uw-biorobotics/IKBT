@@ -284,6 +284,43 @@ class Robot:
 
         return
 
+    #
+    #   Dedup key for an equation list:  collapse SIGN duplicates only.
+    #
+    #   `kequation` equality compares the LHS/RHS split, so it sees
+    #
+    #        -Px*sin(th_1) + Py*cos(th_1) = 0
+    #         Px*sin(th_1) - Py*cos(th_1) = 0        <- SAME statement, negated
+    #
+    #   as two different equations.  Those really do occur:  measured on the
+    #   shipped robots, half of KawasakiRS05L's eqns_2u and a quarter of
+    #   ArmRobo's were sign duplicates.  They inflate the lists every solver
+    #   scans and -- worse -- make a pair of equations look independent when
+    #   the pair carries no extra information at all.
+    #
+    #   DO NOT extend this to collapse a re-split of the same statement, i.e.
+    #
+    #        -Px*sin(th_1) + Py*cos(th_1)     = d_3
+    #        -Px*sin(th_1) + Py*cos(th_1)-d_3 = 0
+    #
+    #   Those are mathematically identical but NOT interchangeable:  every
+    #   solver here is an sp.Wild structural matcher, and a pattern that fits
+    #   one split does not fit the other.  Collapsing them was tried and it
+    #   dropped Pumaoffset from 7 solved variables to 1.  The split is
+    #   load-bearing, not cosmetic.
+    #
+    #   Hence the key keeps the split and normalizes only the sign.  str() of
+    #   an expanded sympy expression is deterministic, so this is stable.
+    #
+    @staticmethod
+    def eqn_key(e):
+        L, R = sp.expand(e.LHS), sp.expand(e.RHS)
+        if L - R == 0:
+            return None          # 0 == 0 states nothing;  caller should drop it
+        pos = '%s|%s' % (L, R)
+        neg = '%s|%s' % (sp.expand(-L), sp.expand(-R))
+        return min(pos, neg)
+
     # get lists of unsolved equations having 1 and 2 unks
     #
     def scan_for_equations(self,variables):
@@ -293,6 +330,10 @@ class Robot:
         sp.var('x')  #this will be used to generate 'algebraic zero'
         elist = self.mequation_list
         assert (len(elist) > 0), '  not enough equations '
+
+        def keep(e, lst):
+            lst.append(e)          # dedup happens after erank(), see below
+
         for eqn in elist:
             lhs = eqn.Td   #4x4 matrix
             rhs = eqn.Ts  #4x4 matrix
@@ -303,32 +344,52 @@ class Robot:
                     n = count_unknowns(variables, lh1x1) + count_unknowns(variables, rh1x1)
                     e1 = kc.kequation(lh1x1, rh1x1)
                     if(n==1):
-                        flag = False
-
-                        if e1 not in self.l1:
-                            self.l1.append(e1)   # only append if not already there
+                        keep(e1, self.l1)
                     if(n==2):
-                        flag = False
-
-                        if e1 not in self.l2:
-                            self.l2.append(e1)    # only append if not already there
+                        keep(e1, self.l2)
                     if(n > 2):
-
-                        if e1 not in self.l3p:
-                            self.l3p.append(e1)    # only append if not already there
+                        keep(e1, self.l3p)
         #Process the SOA equations
+        #   (these used to be appended with NO dedup at all)
         for e in self.kequation_aux_list:
             lhs = e.LHS
             rhs = e.RHS
             n = count_unknowns(variables, lhs) + count_unknowns(variables, rhs)
             if(n==1):
-                self.l1.append(kc.kequation(lhs, rhs))  # change from 0, rhs-lhs !!  ************
+                keep(kc.kequation(lhs, rhs), self.l1)  # change from 0, rhs-lhs !!  ************
             if(n==2):
-                self.l2.append(kc.kequation(lhs, rhs))
+                keep(kc.kequation(lhs, rhs), self.l2)
 
         self.l1 = erank(self.l1) # sort the equations (in place) so solvers get preferred eqns first
         self.l2 = erank(self.l2)
         self.l3p = erank(self.l3p)
+
+        #  Dedup AFTER erank, not before.  erank puts the shortest equations
+        #  first, so keeping the first member of each duplicate group keeps the
+        #  SIMPLEST way of writing that statement.  Deduping earlier would keep
+        #  whichever form the 4x4 scan happened to reach first, which is
+        #  arbitrary -- and measurably uglier:  it left Chair_Helper's th_5 as
+        #  atan2(.., -(-r_11*s2 + r_21*c2)/s4) instead of the equivalent
+        #  atan2(.., (r_11*s2 - r_21*c2)/s4).
+        #
+        #  One key set across all three lists:  an equation's unknown count puts
+        #  it in exactly one list, so a key seen anywhere is a duplicate.
+        seen = set()
+
+        def dedup(lst):
+            out = []
+            for e in lst:
+                k = Robot.eqn_key(e)
+                if k is None or k in seen:  # vacuous, or a restatement
+                    continue
+                seen.add(k)
+                out.append(e)
+            return out
+
+        self.l1  = dedup(self.l1)
+        self.l2  = dedup(self.l2)
+        self.l3p = dedup(self.l3p)
+
         return [self.l1, self.l2, self.l3p]
         #end of scan_for_eqns
 

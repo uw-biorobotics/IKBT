@@ -42,10 +42,26 @@ class updateL(b3.Action):    # Set up (update) the equation lists
         # below was a time waster!!!
         #R.sum_of_angles_transform(variables)
         [L1, L2, L3p] = R.scan_for_equations(variables)   # get the equation lists
-        # aux equation (e.g. th_45 = th_4+th+5
+
+        #  Aux equations (e.g. th_45 = th_4 + th_5) in flattened "0 = LHS-RHS"
+        #  form.  scan_for_equations() ALREADY folds kequation_aux_list into
+        #  these lists, in "LHS = RHS" form -- so appending blindly here added
+        #  every SOA definition a second time wearing a different hat.  Reuse
+        #  the same key so a restatement (either split, either sign) is dropped.
+        seen = set()
+        for lst in (L1, L2, L3p):
+            for e in lst:
+                k = Robot.eqn_key(e)
+                if k is not None:
+                    seen.add(k)
+
         for e in R.kequation_aux_list:
             sp.var('x')
             e1 = kequation(0, e.LHS-e.RHS)  # simplified form
+            k = Robot.eqn_key(e1)
+            if k is None or k in seen:
+                continue
+            seen.add(k)
             cu = count_unknowns(variables, e1.RHS)
             if cu == 1:
                 L1.append(e1)
@@ -53,7 +69,7 @@ class updateL(b3.Action):    # Set up (update) the equation lists
                 L2.append(e1)
             elif cu == 3:
                 L3p.append(e1)
-        
+
         tick.blackboard.set('eqns_1u', L1)  # eqns w/ 1 unknown
         tick.blackboard.set('eqns_2u', L2)  # eqns w/ 2 unknowns
         tick.blackboard.set('eqns_3pu', L3p)  # eqns w/ 3 unknowns
@@ -184,10 +200,63 @@ class TestSolver007(unittest.TestCase):    # change TEMPLATE to unique name (2 p
             L2.append(kequation(Pz - d_1, -a_2*sp.sin(th_2) - a_3*sp.sin(th_23) - d_4*sp.cos(th_23)))
 
 
+        #############################################
+        #  scan_for_equations must not report the same statement twice.
+        #
+        #  kequation equality compares the LHS/RHS split, so "e = 0" and
+        #  "-e = 0", and "a = b" and "a - b = 0", all looked like distinct
+        #  equations.  Measured on the shipped robots: half of KawasakiRS05L's
+        #  eqns_2u and a quarter of ArmRobo's were sign duplicates.  That
+        #  inflates every list the solvers scan, and -- worse -- makes a pair of
+        #  equations look independent when it carries no new information, which
+        #  is exactly the precondition a future elimination leaf would test.
+        #  NOTE: sign duplicates only.  A re-split of the same statement
+        #  ("a = b" vs "a - b = 0") must NOT be collapsed -- the solvers are
+        #  sp.Wild structural matchers and the split is load-bearing.  See
+        #  Robot.eqn_key().
+        fs2 = 'scan_for_equations duplicate FAIL'
+        for lname, lst in (('L1', L1), ('L2', L2)):
+            keys = []
+            for e in lst:
+                k = Robot.eqn_key(e)
+                self.assertIsNotNone(k, fs2 + ' (%s holds a vacuous 0 == 0)' % lname)
+                keys.append(k)
+            self.assertEqual(len(keys), len(set(keys)),
+                             fs2 + ' (%s has %d entries but only %d distinct statements)'
+                                 % (lname, len(keys), len(set(keys))))
+            #  the specific bug: e and -e both present
+            for e in lst:
+                neg = kequation(sp.expand(-e.LHS), sp.expand(-e.RHS))
+                matches = [x for x in lst if Robot.eqn_key(x) == Robot.eqn_key(neg)]
+                self.assertLessEqual(len(matches), 1,
+                                     fs2 + ' (%s holds both e and -e)' % lname)
+
         fs = 'Sum of Angles Transform  (2-way)   FAIL'
-        self.assertTrue(L2[0].RHS == -a_2*sp.sin(th_2)-a_3*sp.sin(th_23) + d_1 - d_4*(sp.cos(th_23)), fs)
-        self.assertTrue(L2[1].RHS == -a_2*sp.sin(th_2) - a_3*sp.sin(th_23) - d_4*sp.cos(th_23), fs)
-        self.assertTrue(L2[0].LHS == Pz, fs)
+        #  The 2-way SOA substitution must have happened:  th_2 + th_3 has been
+        #  replaced by th_23 in the Pz equation.
+        #
+        #  This used to assert two SEPARATE list entries:
+        #      Pz       =  -a_2*sin(th_2) - a_3*sin(th_23) + d_1 - d_4*cos(th_23)
+        #      Pz - d_1 =  -a_2*sin(th_2) - a_3*sin(th_23)       - d_4*cos(th_23)
+        #  which are the SAME statement split across '=' two ways.  scan_for_equations
+        #  now collapses those (Robot.eqn_key), so only one survives -- erank puts
+        #  the shorter form first, so it is the 'Pz - d_1' one that is kept.
+        #
+        #  Assert on the flattened content rather than on a particular split:  that
+        #  is what the test actually cares about, and it does not re-pin the
+        #  duplicate.
+        #  Both LHS/RHS splits of the Pz equation are legitimately present --
+        #  the solvers are structural matchers, so the split matters (see
+        #  Robot.eqn_key).  Assert on content, order-independently, rather than
+        #  pinning list indices.
+        want = [ (Pz,       -a_2*sp.sin(th_2) - a_3*sp.sin(th_23) + d_1 - d_4*sp.cos(th_23)),
+                 (Pz - d_1, -a_2*sp.sin(th_2) - a_3*sp.sin(th_23)       - d_4*sp.cos(th_23)) ]
+        for lhs, rhs in want:
+            hits = [e for e in L2
+                    if sp.simplify(e.LHS - lhs) == 0 and sp.simplify(e.RHS - rhs) == 0]
+            self.assertEqual(len(hits), 1,
+                             fs + ' (expected exactly one "%s = %s", found %d in %s)'
+                                 % (lhs, rhs, len(hits), [(e.LHS, e.RHS) for e in L2]))
 
         #########################################
         # test R.set_solved
