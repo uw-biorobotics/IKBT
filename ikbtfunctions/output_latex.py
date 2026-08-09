@@ -394,6 +394,65 @@ The following are the sets of joint solutions (poses) for this manipulator:
 #
 #      Generate a partial report: only the FK and Jacobian
 #
+def link_transforms(Mech):
+    '''Return [(i, T)] for each REAL link of the mechanism, where T is the
+       modified-DH link transformation  {i-1}_{i}T  built from DH row i-1.
+
+       The DH table always has six rows -- shorter arms pad with [0,0,0,0]
+       (see "Adding a robot" in CLAUDE.md) -- and a padding row yields the
+       identity, which is only noise in the report.  A row is a real joint iff
+       it carries a joint variable in d or theta;  that is the same test
+       Robot.__init__ uses to find max_index (ik_classes.py).'''
+
+    d, th = 2, 3                     # DH column indices for d_i and theta_i
+    #  forward_kinematics() stores the six link transforms in Mech.Ts.  Fall
+    #  back to the individual attributes for FK pickles written before that
+    #  list existed -- an old fk_eqns/*.p must not crash the report.
+    Ts = getattr(Mech, 'Ts', None)
+    if Ts is None:
+        Ts = [Mech.T_01, Mech.T_12, Mech.T_23, Mech.T_34, Mech.T_45, Mech.T_56]
+
+    out = []
+    for i, T in enumerate(Ts):
+        if Mech.DH[i, d] == 0 and Mech.DH[i, th] == 0:
+            continue                 # padding row, not a joint
+        out.append((i, T))
+    return out
+
+
+def link_transform_section(Robot):
+    '''LaTeX for the per-link transformation matrices.
+
+       These are the factors whose product is the forward kinematics, so the
+       section sits directly after the DH table it is derived from and before
+       the assembled FK.'''
+
+    eol = '\n'
+    links = link_transforms(Robot.Mech)
+
+    s = r'''\section{Link Transformation Matrices}
+Each row of the table above generates one link transformation matrix,
+$^{i-1}_{i}T$, relating frame $i$ to frame $i-1$ (modified, or Craig,
+DH convention).  The product of these matrices, in order, is the forward
+kinematics given in the next section:
+\[ ^{0}_{6}T = {}^{0}_{1}T \; {}^{1}_{2}T \; {}^{2}_{3}T \;
+               {}^{3}_{4}T \; {}^{4}_{5}T \; {}^{5}_{6}T \]
+Throughout, $c_i = \cos \theta_i$ and $s_i = \sin \theta_i$.
+'''+eol
+
+    if len(links) < 6:
+        s += (r'This mechanism has %d links;  the remaining rows of the '
+              r'parameter table are zero padding and are not shown.'
+              % len(links)) + eol
+
+    for i, T in links:
+        s += r'\begin{dmath}'+eol
+        s += r'^{%d}_{%d}T = ' % (i, i+1) + sp.latex(kc.notation_squeeze(T)) + eol
+        s += r'\end{dmath}'+eol
+
+    return s
+
+
 def output_FK_equations(Robot):
     GRAPH = True
     ''' Print out a latex document of the solution equations. '''
@@ -432,6 +491,10 @@ def output_FK_equations(Robot):
     \begin{dmath}''' + sp.latex(Robot.Mech.DH) +  r'\end{dmath}'
 
     LF.sections.append(paramsection.splitlines())
+
+    ####################  Individual link transforms
+
+    LF.sections.append(link_transform_section(Robot).splitlines())
 
     ####################  Forward Kinematics
 
@@ -488,3 +551,84 @@ def output_FK_equations(Robot):
     LF.output()
 
     print('\n\n\n                       End of LaTex Output work \n\n\n')
+
+
+#####################################################################
+#
+#   Test code
+#
+import unittest
+
+
+class TestSolver015(unittest.TestCase):
+    '''Per-link transformation matrices in the FK report (fkOnly.py).'''
+
+    def setUp(self):
+        print('\n\n===============  Test link transform output  =====================')
+        return
+
+    def runTest(self):
+        self.test_ltA_product_is_the_forward_kinematics()
+        self.test_ltB_padding_rows_are_skipped()
+        self.test_ltC_section_is_wellformed_latex()
+
+    def robot(self, name='Puma'):
+        '''Uses the cached FK pickle, so this stays fast.'''
+        from ikbtfunctions.ik_driver import load_robot
+        import io, contextlib
+        with contextlib.redirect_stdout(io.StringIO()):
+            M, R, unknowns = load_robot(name)
+        return M, R
+
+    def test_ltA_product_is_the_forward_kinematics(self):
+        '''The whole point of the section:  these are the factors of the FK.
+           If the report prints matrices whose product is not T_06, it is
+           telling the reader something false.'''
+        fs = ' link transform FAIL'
+        for name in ('Puma', 'Wrist'):
+            M, R = self.robot(name)
+            prod = sp.eye(4)
+            for i, T in link_transforms(M):
+                prod = prod * T
+            diff = sp.simplify(sp.trigsimp(prod - M.T_06))
+            self.assertTrue(all(e == 0 for e in diff),
+                            fs + ' (%s: product of link transforms != T_06)' % name)
+
+    def test_ltB_padding_rows_are_skipped(self):
+        '''The DH table always has six rows;  shorter arms pad with [0,0,0,0],
+           which yields an identity transform -- noise in the report.'''
+        fs = ' link transform padding FAIL'
+        M, R = self.robot('Wrist')
+        links = link_transforms(M)
+        self.assertLess(len(links), 6, fs + ' (Wrist should have padding rows)')
+        for i, T in links:
+            self.assertFalse(M.DH[i, 2] == 0 and M.DH[i, 3] == 0,
+                             fs + ' (emitted padding row %d)' % i)
+        #  and a full 6-DOF arm must lose nothing
+        M6, R6 = self.robot('Puma')
+        self.assertEqual(len(link_transforms(M6)), 6,
+                         fs + ' (dropped a real link from a 6-DOF arm)')
+
+    def test_ltC_section_is_wellformed_latex(self):
+        '''Balanced dmath environments and one matrix per real link.'''
+        fs = ' link transform latex FAIL'
+        M, R = self.robot('Puma')
+        R.Mech = M
+        s = link_transform_section(R)
+        n = len(link_transforms(M))
+        self.assertEqual(s.count(r'\begin{dmath}'), n, fs + ' (wrong matrix count)')
+        self.assertEqual(s.count(r'\begin{dmath}'), s.count(r'\end{dmath}'),
+                         fs + ' (unbalanced dmath)')
+        self.assertIn(r'\section{Link Transformation Matrices}', s, fs)
+        for i in range(n):
+            self.assertIn(r'^{%d}_{%d}T' % (i, i+1), s,
+                          fs + ' (missing label for link %d)' % i)
+
+
+def run_test():
+    suite = unittest.TestLoader().loadTestsFromTestCase(TestSolver015)
+    unittest.TextTestRunner(verbosity=2).run(suite)
+
+
+if __name__ == "__main__":
+    run_test()

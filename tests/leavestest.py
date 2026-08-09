@@ -55,6 +55,7 @@ from ikbtleaves.rank_leaf import TestSolver011   # named import: rank_leaf also
 from ikbtleaves.invariant_gen  import TestSolver012
 from tests.bt_assembly_test    import TestSolver013
 from ikbtleaves.comp_detect    import TestSolver014
+from ikbtfunctions.output_latex import TestSolver015
 
 
 import b3 as b3          # behavior trees
@@ -427,6 +428,7 @@ if __name__ == '__main__':
     suite3.addTest(TestSolver012())   # invariant_gen.py  # kinematic invariants
     suite3.addTest(TestSolver013())   # bt_assembly.py    # shape of the real tree
     suite3.addTest(TestSolver014())   # comp_detect.py    # termination / give up cleanly
+    suite3.addTest(TestSolver015())   # output_latex.py   # per-link transform section
     suite1.addTest(TestSolver009())   # helperfunctions.py
 
     if(not HTML):
