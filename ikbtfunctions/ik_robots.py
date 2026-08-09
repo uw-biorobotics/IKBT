@@ -32,7 +32,8 @@ from ikbtbasics.ik_classes import *     # special classes for Inverse kinematics
 #####
 def robot_params(name):
     pvals = {}   # null for most robots
-    List = ['ICP5p5_A21','KR16', 'Issue4',
+    List = [ 'KinovaLite',
+            'ICP5p5_A21','KR16', 'Issue4',
             'UR5', 
             'Puma', 'Pumaoffset',
             'Chair_Helper', 
@@ -53,8 +54,11 @@ def robot_params(name):
             'Khat6DOF',
             'Raven-II',
             'Wachtveitl', 'Frei13', 'Parkman13', 'Palm13', 'Minder13', 'Mackler13',
-            'Axtman13', 'Srisuan11', 'MiniDD', 'ICP5p5_A21', 'KR16', 'Issue4'
-            'DZhang',
+            'Axtman13', 'Srisuan11', 'MiniDD', 'ICP5p5_A21', 'KR16', 'Issue4',
+            'DZhang',      # <- the missing comma above silently concatenated
+                           #    'Issue4' + 'DZhang' into one bogus name,
+                           #    'Issue4DZhang', and made DZhang (defined below)
+                           #    unselectable.
             'JennyGuoSp24']
     
     if not (name in List):
@@ -63,6 +67,45 @@ def robot_params(name):
         for n in List:
             print('   ', n)
         quit()
+
+############################################################
+
+         #       Compare KawasakiRS007L  (does solve)
+         # dh = sp.Matrix([
+         #     [0,        0,    l_1,  th_1 ],
+         #     [sp.pi/2,  0,      0,  th_2 ],
+         #     [0,        l_2,    0,  th_3 ],
+         #     [ sp.pi/2, 0,    l_3,  th_4 ],
+         #     [-sp.pi/2, 0,      0,  th_5 ],
+         #     [ sp.pi/2, 0,      0,  th_6 ] ])
+
+    if(name == 'KinovaLite'):
+
+         # dh = sp.Matrix([   # Reference DH vaues based on BH analysis
+         #     [sp.pi/2,     0,     d_1,  th_1 ],
+         #     [sp.pi/2,     0,     d_2,  th_2 ],
+         #     [0,         l_2,     d_3,  th_3 ],
+         #     [-sp.pi/2,    0,     d_4,  th_4 ],
+         #     [sp.pi/2,     0,     d_5,  th_5 ],
+         #     [-sp.pi/2 ,   0,     d_6,  th_6 ]
+         #     ] )
+
+         dh = sp.Matrix([   # Simplified DH vaues based on BH analysis
+             [   0,        0,     0,  th_1 ],
+             [sp.pi/2,     0,     0,  th_2 ],
+             [0,         l_2,     d_3,  th_3 ],
+             [-sp.pi/2,    0,     d_4,  th_4 ],
+             [sp.pi/2,     0,     d_5,  th_5 ],
+             [-sp.pi/2 ,   0,     d_6,  th_6 ]
+             ] )
+
+         vv = [1, 1, 1, 1, 1, 1]
+         variables = [unknown(th_1), unknown(th_2), unknown(th_3), unknown(th_4), unknown(th_5), unknown(th_6)]
+         params = [ l_2, d_3, d_4, d_5, d_6]
+         pvals = {l_2: 280, d_3:10, d_4:245, d_5:57, d_6:105 }
+
+
+############################################################
 
     if(name == 'JennyGuoSp24'):         #  ECE543 Sp24
         #
