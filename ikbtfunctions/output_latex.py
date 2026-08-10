@@ -450,7 +450,47 @@ Throughout, $c_i = \cos \theta_i$ and $s_i = \sin \theta_i$.
         s += r'^{%d}_{%d}T = ' % (i, i+1) + sp.latex(kc.notation_squeeze(T)) + eol
         s += r'\end{dmath}'+eol
 
+
+    s += r'''\section{Link Transform inverses}'''
+
+    for i, T in links:
+        s += r'\begin{dmath}'+eol
+        s += r'^{%d}_{%d}T = ' % (i+1, i) + sp.latex(kc.notation_squeeze(pks.H_inv_S(T))) + eol
+        s += r'\end{dmath}'+eol
+
+
+    s += r'''\section{Some Useful Products}'''
+
+    # T_46
+    T_45 = Robot.Mech.T_45
+    T_56 = Robot.Mech.T_56
+    s += r'\begin{dmath}'+eol
+    s += r'^{%d}_{%d}T = ' % (4,6) + sp.latex(kc.notation_squeeze((T_45*T_56))) + eol
+    s += r'\end{dmath}'+eol
+
+    # T_46^{-1}
+    s += r'\begin{dmath}'+eol
+    s += r'^{%d}_{%d}T^{-1} = ' % (4,6) + sp.latex(kc.notation_squeeze(pks.H_inv_S(T_45*T_56))) + eol
+    s += r'\end{dmath}'+eol
+
+    #
+    #
+    # # T_46
+    # s += r'\begin{dmath}'+eol
+    #     s += r'^{%d}_{%d}T = ' % (i, i+1) + sp.latex(kc.notation_squeeze(pks.H_inv_S(T))) + eol
+    #     s += r'\end{dmath}'+eol
+    #
+    #
+    #
+    # # T_46
+    # s += r'\begin{dmath}'+eol
+    #     s += r'^{%d}_{%d}T = ' % (i, i+1) + sp.latex(kc.notation_squeeze(pks.H_inv_S(T))) + eol
+    #     s += r'\end{dmath}'+eol
+
+
     return s
+
+
 
 
 def output_FK_equations(Robot):
