@@ -2,7 +2,7 @@
 #
 # updated testing system for classes and BT leaves
 #
-# BH May 2017
+# BH May 2026
 
 
 # Copyright 2017 University of Washington
@@ -35,7 +35,7 @@ sys.path.append('../')
 sys.path.append('../ikbtfunctions')   # allow this test to go 'up' to project main dir.
 
 from ikbtfunctions.helperfunctions import *
-from tests.helpertest import *    # had to separate tests form helperfunctions b/c of circular imports
+from tests.helpertest import *    # had to separate tests from helperfunctions b/c of circular imports
 
 from ikbtbasics.kin_cl import *
 from ikbtbasics.ik_classes import *     # special classes for Inverse kinematics in sympy
@@ -81,7 +81,8 @@ class TestIkClass(unittest.TestCase):
         
         ############################################################3
         #
-        #  basic sum of angles testing:
+        #  basic sum of angles identification and substitution testing:
+        #
         s = 'Basic Sum of Angles Testing'
         print('\n\n ' + s + '\n\n')
         
@@ -135,8 +136,9 @@ class TestIkClass(unittest.TestCase):
                         #   must start with 1 for DH/Craig compatibility 
             v.n = i
             i+=1 
-    
 
+
+        # set up a specific term which should fire the sum-of-angle sub.
         eqnterm = Px*sp.sin(th_2 + th_3 + th_4)*sp.cos(th_1) + Py*sp.sin(th_1)*sp.sin(th_2 + th_3 + th_4) + Pz*sp.cos(th_2 + th_3 + th_4) - a_2*sp.sin(th_3 + th_4) - a_3*sp.sin(th_4) - d_1*sp.cos(th_2 + th_3 + th_4)
         
         term2, newj, newe = sum_of_angles_sub(rtest,eqnterm, unks01)
@@ -162,7 +164,7 @@ class TestIkClass(unittest.TestCase):
         print('----- Correct:')
         print(correctString)
         print('--------------')
-        # TODO:  Clean up this unreliable test!!
+        # TODO:  Clean up this unreliable test!! (as of 2026 seems reliable)
         print('WARNING:  this assertion seems to randomly fail!! Try running the test multiple times')
         print('The failure mode is that the 3-way SOA substitution fails and terms like (th_2 + th_34) appear')
         print('but just sometimes!!!')
@@ -174,7 +176,8 @@ class TestIkClass(unittest.TestCase):
         #
         #  advanced SOA testing 
         #
-        # Generate some SUM of Angles Kin eqns
+        # Generate some SUM of Angles Kin eqns using a full robot
+        #  arm which is known to have them. (Simplified UR5)
         
         s = 'Advanced Sum of Angles Testing: DH parameters/UR5'
         print('\n\n ' + s + '\n\n')
@@ -216,38 +219,17 @@ class TestIkClass(unittest.TestCase):
         assert len(variables) == 9, 'wrong number of variables'
         print('\n\n')
 
-        # Below replaced by pickle code above
-
-        #m = kc.mechanism(dh, params, vv)
-        #m.pvals = pvals  # store numerical values of parameters
-        #print "Starting SOA Test Forward Kinematics"
-        #m.forward_kinematics()
-        #print "Completed Forward Kinematics"
-        ##print 'Starting Sum of Angles scan (slow!)'
-        # set up Robot Object instance
-        #R = Robot(m, 'SOA 2,3 TEST Robot')              # set up IK structs et
-        #R.scan_for_equations(variables)       # generate equation lists
-        
-        
-        
-        ## below is commented out for testing and devel of sum_of_angles_transform
-        
-        # need to re-do for debugging if test fails. 
-        #R.sum_of_angles_transform(variables)  # find sum of angles
-
-
-
-        ####   Temp code:  manually review all the FK matrix equations(!)
-        eqn = 0
-        row = 2
-        col = 3
-        print('Equations: ')
-        enbr = 0
-        for eqn in R.mequation_list:
-            print(enbr, ':  ', eqn.Td[row,col], '    =    ', eqn.Ts[row,col])
-            enbr += 1
-        print('\n\n\n')
-        ####
+        # ###   Temp code:  manually review all the FK matrix equations(!)
+        # eqn = 0
+        # row = 2
+        # col = 3
+        # print('Equations: ')
+        # enbr = 0
+        # for eqn in R.mequation_list:
+        #     print(enbr, ':  ', eqn.Td[row,col], '    =    ', eqn.Ts[row,col])
+        #     enbr += 1
+        # print('\n\n\n')
+        # ###
 
 
         
@@ -273,7 +255,6 @@ class TestIkClass(unittest.TestCase):
         
         fs = 'ik_classes: sum_of_angles_transform FAILS 3-way sum'
         assert sp.simplify(A1-A2)== 0, fs 
-
 
         # Assertion 2
         sp.var('Px Py Pz')
@@ -309,23 +290,13 @@ class TestIkClass(unittest.TestCase):
 
 
     def test_atansubs(self):
+        #
+        #   Test correct behavior of substitution in the sp.atan2(y,x) function.
+        #
         sp.var('a b c d e')
-
         a = sp.atan2(b,c)   # make sure this function compiles
         a.subs(b,e), ' (Expect atanw(e, c))'
         self.assertEqual(a.subs(b,e), sp.atan2(e,c))
-
-    def test_lhsgen(self):
-        ###Test the Left Hand Side Generator
-        m = ik_lhs()
-        fs = 'ik_lhs() matrix generator FAIL'
-        self.assertEqual(m[0,0],sp.var('r_11'),fs)
-        self.assertEqual(m[0,1],sp.var('r_12'),fs)
-        self.assertEqual(m[3,3],1, fs)
-        self.assertEqual(m[3,2],0, fs)
-        self.assertEqual(m[3,1],0, fs)
-        self.assertEqual(m[3,0],0, fs)
- 
 
     def test_unknown(self):
        ####Test unknown class

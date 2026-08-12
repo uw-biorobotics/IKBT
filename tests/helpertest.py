@@ -2,7 +2,7 @@
 #
 #     Test the helper functions 
 #
-# Copyright 2017 University of Washington
+# Copyright 2026 University of Washington
 
 # Developed by Dianmu Zhang and Blake Hannaford
 # BioRobotics Lab, University of Washington
@@ -48,12 +48,20 @@ class TestSolver009(unittest.TestCase):    # change TEMPLATE to unique name (2 p
         return
             
     def test_lhs(self):
+        # Test if we correctly generate LHS of the basic FK eqn.
         x = ik_lhs()
         fs = 'ik_lhs()  FAIL'
         self.assertTrue(x[0,0] == sp.var('r_11'), fs)
         self.assertTrue(x[0,1] == sp.var('r_12'), fs)
+        self.assertTrue(x[0,2] == sp.var('r_13'), fs)
         self.assertTrue(x[1,0] == sp.var('r_21'), fs)
+        self.assertTrue(x[1,1] == sp.var('r_22'), fs)
+        self.assertTrue(x[1,2] == sp.var('r_23'), fs)
+        self.assertTrue(x[2,0] == sp.var('r_31'), fs)
+        self.assertTrue(x[2,1] == sp.var('r_32'), fs)
+        self.assertTrue(x[2,2] == sp.var('r_33'), fs)
         self.assertTrue(x[0,3] == sp.var('Px'), fs)
+        self.assertTrue(x[1,3] == sp.var('Py'), fs)
         self.assertTrue(x[2,3] == sp.var('Pz'), fs)
         t = 0
         for j in [0,1,2,3]:

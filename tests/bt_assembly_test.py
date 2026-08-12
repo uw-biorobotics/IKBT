@@ -14,6 +14,14 @@
 #   Developed by Blake Hannaford
 #   BioRobotics Lab, University of Washington
 
+#
+#   AI Statement by BH:   This test suite was developed by Claude.
+#   It tests the Behavior Tree assemebled in ikSolver.  This should be
+#   interpreted with CAUTION because these tests assume only one logic tree
+#   is correct.  In practice this test is moot because we so far have not
+#   modified the existing tree much.
+#
+
 import unittest
 
 import b3 as b3

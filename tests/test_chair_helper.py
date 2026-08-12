@@ -15,6 +15,11 @@
 #
 #   Copyright 2017-2026 University of Washington
 #
+#   AI Statement, Blake Hannaford:  As stated above, there were a few assertions
+#     at the end of ikSolver against the known solutions for this robot only.
+#     Claude helped to move this into a test on its own and out of the production
+#     code.
+#
 #   Developed by Dianmu Zhang and Blake Hannaford
 #   BioRobotics Lab, University of Washington
 
