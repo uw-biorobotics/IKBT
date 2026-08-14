@@ -1,5 +1,7 @@
 *.pyc
 fk_eqns/*
+LaTex/*
+CodeGen/*
 *_log.txt
 BT*_log.txt
 IK_*
