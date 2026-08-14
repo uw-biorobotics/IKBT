@@ -118,13 +118,16 @@ def make_leaves(leaf_debug=False, solver_debug=False):
     n['scSol'] = scSol
 
     ###  sin(th) AND cos(th) in the same eqn
+    #  NOTE the Names here must differ from the sin-OR-cos leaves above:  Name is
+    #  what shows up in the BT tick log, and two leaves sharing one Name makes
+    #  that log unreadable (they were both "Sin Cos ID" until Aug 2026).
     sacID = sinandcos_id()
-    sacID.Name = "Sin Cos ID"
+    sacID.Name = "Sin AND Cos ID"
     sacID.BHdebug = False
     n['sacID'] = sacID
 
     sacSolver = sinandcos_solve()
-    sacSolver.Name = "Sine Cosine Solver"
+    sacSolver.Name = "Sin AND Cos Solver"
     sacSolver.BHdebug = False
     n['sacSolver'] = sacSolver
 
