@@ -32,12 +32,17 @@
 #
 #   Developed by Blake Hannaford
 #   BioRobotics Lab, University of Washington
+
+
 #
-#
-#   AI Statement by BH:  the first version of this suite (written by Claude)
-#   asserted the exact shape of today's tree, which made every BT experiment
-#   look like a regression.  This version, also written by Claude, checks
-#   error CLASSES instead of the one tree we happen to ship.
+#   AI Statement by BH Aug 2026:   This is the second version of a
+#   test suite developed by Claude.
+#   It tests the Behavior Tree assembled in ikSolver. The test includes
+#   a BT "linter" written by Claude which syntacticly checks any BT.  Then
+#   it checks for some invalid cases such as a Priority or Sequence node with
+#   no children etc.   Finally, it assumes that all id/solver nodes that we now
+#   employ must be present in any BT used for robot arm IK.  This MIGHT cause
+#   a test failure for some experimental code.
 #
 
 import importlib
