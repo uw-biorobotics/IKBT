@@ -6,7 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 IKBT symbolically solves the closed-form inverse kinematics of a serial-chain manipulator. A behavior tree (BT)
 selects among rule-based "solver leaves" (the algorithms a human expert would apply) and ticks repeatedly until
-every joint variable is solved. Output is a LaTeX report plus generated Python and C++ code.
+every joint variable is solved. Output is a LaTeX report plus generated Python and C++ code.  Theory of 
+operation is documented in the peer-reviewed report:  @IKdocs/IKBT_JAIR_2019.pdf.
 
 Dependencies: Python 3, `sympy`, `numpy` (LaTeX distribution needed only to compile the report). No packaging
 files — everything runs from the repo root as modules.
@@ -34,6 +35,9 @@ Compile the report: `cd LaTex && pdflatex ik_solution_<RobotName>.tex` (the gene
 Generated artifacts, not source: `fk_eqns/` (FK pickle cache), `CodeGen/Python/`, `CodeGen/Cpp/`,
 `LaTex/ik_solution_*.tex`, `logs/`.
 
+FK pickle cache directory or individual files can be deleted at any time without penalty (except some added 
+execution time). 
+
 ## Architecture
 
 ### Pipeline (`ikSolver.py` is the whole story, top to bottom)
@@ -42,17 +46,18 @@ Generated artifacts, not source: `fk_eqns/` (FK pickle cache), `CodeGen/Python/`
    robot. This is the only file you edit to add a robot.
 2. `kinematics_pickle()` (`ikbtbasics/ik_classes.py`) returns `[M, R, unknowns]` — a `mechanism`, a `Robot`, and
    the (possibly extended) unknown list. **It caches to `fk_eqns/<name>_pickle.p`.** FK computation and the
-   sum-of-angles scan are slow, so they are done once. `check_the_pickle()` compares DH tables and tells you to
+   sum-of-angles scan are slow, so they are done once. `check_the_pickle()` compares DH tables and, if different,
+   tells you to
    delete the pickle; any other change to FK/SOA code also requires `rm fk_eqns/<name>_pickle.p`.
 3. `R.scan_for_equations(unknowns)` splits all scalar equations from the 4x4 matrix equations into
    `L1`/`L2`/`L3p` (1, 2, and 3+ unknowns) — these go on the blackboard.
-4. The BT is assembled by hand in `ikSolver.py` and ticked. Solving is a side effect on the blackboard objects.
+4. The BT is assembled "by hand" in `ikSolver.py` and ticked. Solving is a side effect on the blackboard objects.
 5. `R.create_solution_set()` then `ol.output_latex_solution()`, `op.output_python_code()`, `oc.output_cpp_code()`.
 
 ### The behavior tree
 
-`b3/` is a vendored, locally modified copy of Behavior3Py (nodes return `b3.SUCCESS`/`FAILURE`/`RUNNING`; state
-travels on a `Blackboard`). The tree in `ikSolver.py`:
+`b3/` is a   locally modified copy of Behavior3Py (nodes return `b3.SUCCESS`/`FAILURE`/`RUNNING`; state
+is stored on a `Blackboard`). The tree in `ikSolver.py`:
 
 ```
 RepeatUntilSuccess(x10)
@@ -112,8 +117,6 @@ must have **6 rows** — pad with `[0,0,0,0]`. Modified/Craig-style DH. Do not p
 matrix (sympy bug); use a symbolic constant declared in `params` with its value in `pvals`. Declare any new
 symbols with `sp.var()`.
 
-## Known rough edges
+# Future Work
+Optionally, if user asks about future work, see the file @futurework.md
 
-`ISSUE_NOTE.txt` tracks long-standing issues (3-parallel-axis sum-of-angles, `Arm_3`, UR5 regressions). Several
-robots in `List` are listed as not yet solvable. `Puma`, `Chair_Helper`, `Wrist`, `KawasakiRS007L` are the
-reliably-solving references — `ikSolver.py` ends with hard-coded assertions for `Chair_Helper`.
