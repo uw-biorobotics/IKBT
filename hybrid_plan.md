@@ -4,8 +4,8 @@ A plan for approach 1 of [futurework.md](futurework.md) — when IKBT cannot sol
 form, simplify its DH parameters until it *can*, solve the simplified robot symbolically, and correct
 the result numerically using the symbolic Jacobian.
 
-Written August 2026. Companion to [NewStrategies.md](NewStrategies.md) and
-[ImplementationThoughts.md](ImplementationThoughts.md).
+Written August 2026. Ignore earlier files OldWorkplans/.   [NewStrategies.md](NewStrategies.md) and
+[ImplementationThoughts.md](ImplementationThoughts.md) unless there are specific references here to consult.
 
 ---
 
