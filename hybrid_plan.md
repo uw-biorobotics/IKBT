@@ -14,9 +14,11 @@ Written August 2026. Companion to [NewStrategies.md](NewStrategies.md) and
 Approach 1 rests on three assumptions that are cheap to test, so they were tested first. All three
 hold, one with a useful surprise.
 
+### 0. Note that the Pieper test is a *sufficient* but not a *necessary* condition for a symbolic closed form solution to exist. 
+
 ### 1. The Pieper test is ~25 lines of DH arithmetic, and it separates the robot set cleanly
 
-In this repo's Craig-convention table, row `r` holds `[α_r, a_r, d_{r+1}, θ_{r+1}]`
+In this repo's Craig-convention table, row `r` holds `[α_r, a_r, d_{r+1}, θ_{r+1}]` (using 0 for the first row, the standard DH uses 1 for the first row).
 (`kin_cl.py:280`, "alpha N-1, a N-1, d N, theta N"). Therefore, with 0-indexed rows and 1-indexed
 joint axes:
 
@@ -44,13 +46,15 @@ kind — and in every one of the six, a *single* DH parameter is responsible:
 So the search in step 1.1 is **not an optimization problem**. It is at most 8 candidate triples ×
 2 condition types, enumerable exhaustively in milliseconds.
 
+
 Two things this also settles:
 
 - `ArmRobo` and `Raven-II` *do* have intersecting triples and still fail. Their empty-`eqns_1u`
   problem (`comp_detect.py:101`) is a defect in the solver, not a property of the geometry. The
-  hybrid method is not the fix for those two, and the detector is what tells us so.
+  hybrid method is not the fix for those two, and the detector is what tells us so.  It is noted that the `Raven-II` is an exceptionally difficult robot because it has \alpha parameter values which are not multiples of \pi/2.
+  
 - `Chair6DOF` appears in `List` with no definition block, so `robot_params('Chair6DOF')` raises
-  `UnboundLocalError` — same family as the missing-comma bug fixed in `b013d9c`.
+  `UnboundLocalError` — same family as the missing-comma bug fixed in `b013d9c`.  **TODO:** go ahead and delete the `Chair6DOF` model from `List`.
 
 ### 2. The premise of step 2.3 holds on the motivating robot
 
@@ -62,14 +66,11 @@ Two things this also settles:
 | `KinovaLite` as committed | 0 of 6 variables solved, ~43 s (recorded in `ImplementationThoughts.md`) |
 | `KinovaLite` with `d_5 = 0` | **all 6 solved, 27.7 s** |
 
-Methods chosen: `th_1` sinANDcos, `th_2` simultaneous eqn, `th_3` x2z2 + arcsin, `th_4` atan2,
-`th_5` atan2 (best ranked), `th_6` atan2 (best ranked), `th_23` algebra.
-
-No new solver leaf was required. The existing toolbox solves the simplified robot the moment the
-geometry admits a closed form. The FK pickle for this run is left in place as
+No new solver leaf was required. The existing toolbox solves the simplified robot. The FK pickle for this run is left in place as
 `fk_eqns/KinovaLite_d5zero_pickle.p`.
 
 ### 3. The simplification is a good Newton seed — and the obvious "compensation" heuristic is wrong
+
 
 Over 2000 uniformly sampled poses, comparing true FK against simplified FK:
 
@@ -83,12 +84,16 @@ intuitive fix of preserving total arm length by rolling the offset into `d_6` ma
 two offsets are orthogonal, so the errors add in quadrature (√2 × 57 = 80.6). Intuition gets this
 backwards, which is the argument for ranking candidates by a measured metric rather than by
 parameter magnitude.
+ 
+**TODO:**
+This analysis should be redone in terms of joint space error since the output of our IK system will be joint variables for a given end effector position.  Define a metric to measure the smallest difference in T0_6 between 1) a random joint position vector inputted to the forward kinematics of the "real" DH model and 2) One of the joint position solutions of the approximate model. 
+If these errors are too large (compared to e.g. \pi radians??) then they will not be useful for initialization of the numerical solution. 
 
 ---
 
 ## Phase 0 — prerequisites
 
-`ImplementationThoughts.md:127` already identifies the gap: there is no robot-level baseline.
+**TODO:**  Verify that the following **suspect-text** is accurate:  `ImplementationThoughts.md:127` already identifies the gap: there is no robot-level baseline.
 Nothing in approach 1 can be evaluated without one, because the deliverable is literally "robots
 that move from unsolved to solved".
 
@@ -105,6 +110,8 @@ that move from unsolved to solved".
      sum-of-angles scan. Every leaf proposed below constructs a robot programmatically, so this bites
      immediately. (It did.)
 
+**end of "suspect-text"**
+
 ---
 
 ## Step 1.1 — find the smallest DH modification that creates a triple
@@ -112,13 +119,21 @@ that move from unsolved to solved".
 New module **`ikbtbasics/dh_analysis.py`** — pure DH-table arithmetic, no FK and no symbolic solving,
 so it runs in milliseconds and unit-tests without pickles.
 
+**TODO:** Create a leaf node "ID_Peiper" which returns b3.SUCCESS based on point 1\. below.
+
 1. **`pieper_triples(dh, ndof)`** → the satisfied triples, by kind (intersecting / parallel).
    **Restrict `j` to real joints.** The zero-padded rows required of sub-6-DOF robots manufacture
    spurious triples — `Brad`, a 3-DOF arm, reports five.
+   
+
+**TODO:** Using the steps below, create a leaf node "Simplified_ARM" which places a list of simplified triples with numeric magnitudes on the blackboard and returns b3.SUCCESS.  If some pvals are missing, return b3.FAILURE. 
+
 2. **`candidate_simplifications(dh, pvals, ndof)`** → for each *unsatisfied* triple, the set of DH
    entries that would have to be zeroed (intersection) or snapped to a multiple of π (parallel), each
    with its numeric magnitude. Symbolic entries with no `pvals` value are reported as *undecidable*,
    never silently skipped — `Sims11` has one (`d_2`).
+   
+   
 3. **`displacement_metric(dh, dh_simp, pvals, ndof, n=2000)`** → mean and max position and orientation
    deviation over sampled joint space (`M.jlims` already holds limits). **This is the ranking key,
    not parameter magnitude**, for three reasons:
@@ -127,34 +142,37 @@ so it runs in milliseconds and unit-tests without pickles.
    - it is exactly the quantity that predicts whether the Newton seed in 2.2 converges, so steps 1.1
      and 2.4 end up sharing a single number.
 4. **`simplify(robot_name)`** → the ranked candidates plus the derived `dh`, `params`, `pvals`.
-5. **`scripts/simplify_dh.py <Robot>`** — CLI reporting triples, ranked candidates with displacement,
-   and the recommended table. This has standalone value as a *mechanical design* tool, independent of
-   any solver: "your 57 mm offset is what costs you closed-form IK" is a useful thing to be able to
-   tell a designer.
+
 
 **Validation:** the detector must find a triple for every robot that currently solves, and the
 no-triple set must be exactly the six in the table above. The expected answer is already measured, so
 this is a real assertion rather than a rubber stamp.
 
+**TODO:** do this later, lower priority: 
+
+5. **`scripts/simplify_dh.py <Robot>`** — CLI reporting triples, ranked candidates with displacement,
+   and the recommended table. This has standalone value as a *mechanical design* tool, independent of
+   any solver: "your 57 mm offset is what costs you closed-form IK" is a useful thing to be able to
+   tell a designer.
 ---
 
 ## Step 2.2 — numeric refinement seeded by the closed-form solution
 
-New module **`ikbtbasics/numeric_ik.py`**. Deliberately **not** a BT leaf: it produces no sympy
-expressions and cannot call `unknown.set_solved()`, so dressing it as a solver leaf would corrupt the
-solution-set machinery that every downstream generator consumes.
+New module **`ikbtbasics/numeric_ik.py`**. 
+Using the new BT leaves defined above (in TODO's), we can make this a fallback leaf which 
+executes iff the symbolic process fails.  Since the symbolic process fails, this node can 1) generate latex, python, and C++ output for the simplified IK solution. 2) Create a Python and C++ application which 2.1) performs the symbolic IK for the simplified robot 2.2)   initializes the numerical code with  simplified solutions. 2.3) performs the numerical IK solution on the true robot. 
 
 - **The symbolic Jacobian already exists and is already pickled.** `M.J66` (`kin_cl.py:454`) is built
   by velocity propagation whenever `JACOBIAN = True`, which is the default. No new symbolic
   computation is needed. It is expressed in frame 6, so refinement needs
   `J_0 = blkdiag(R_06, R_06) · J_66`.
-- **Error metric:** position in mm; orientation as the rotation vector of `R_d · R(q)ᵀ`, scaled by a
-  characteristic length so the 6-vector is dimensionally consistent. That scale factor drives the
-  conditioning of the least-squares step and must be an explicit, documented knob.
+- **Error metric:** The error metric for optimization should be the Frobenius Norm (the implicit 1m scale factor is OK for most of our robots).  
 - **Use damped least squares (Levenberg–Marquardt), not plain gradient descent.**
   `Δq = Jᵀ(JJᵀ + λ²I)⁻¹ e` behaves like Newton away from singularities and degrades gracefully *to*
   gradient descent as λ grows — which is precisely the singularity failure mode that step 2.4 asks
   about. Plain gradient descent would turn that failure mode into a permanent one.
+  
+  
 - **Refine every closed-form branch independently**, then deduplicate on wrapped joint values while
   keeping branch labels. Preserving the multi-branch structure is the one thing this hybrid offers
   that a generic numerical IK does not, and it is the reason to build it this way.
@@ -168,41 +186,36 @@ solution-set machinery that every downstream generator consumes.
 
 Smaller than it looks, with one non-obvious wrinkle.
 
-- **The symbolic branch does not signal failure as `b3.FAILURE`.** `comp_det` returns `SUCCESS` on
+- **TODO:** Refactor the BT top levels so that we can do
+  Evaluate whether or not `RepeatUntilSuccess` is still necesary. OR, incorportate that decorator into the `symbolic_tree`.
+
+  ```
+  Priority(Sequence([ symbolic_tree, hybrid_sequence ])
+  ```
+  
+  where `symbolic_tree` becomes a Sequence of `solve_tree` and `output_gen_full_solve`
+  and where `hybrid_sequence` becomes a Sequence of `solve_hybrid` and `output_gen_hybrid_solve`.
+
+**Fix problem that the  symbolic branch does not signal failure as `b3.FAILURE`.** `comp_det` returns `SUCCESS` on
   the give-up path in order to break the outer `RepeatUntilSuccess`, and records the real outcome as
   `blackboard['no_progress']` (`comp_detect.py:137`). The top-level `Priority` therefore needs a
   small `b3.Condition` adapter converting `no_progress` into `FAILURE`. Get this wrong and the
-  hybrid branch is silently unreachable.
-- **Top level** becomes, in `build_default_bt()`:
-
-  ```
-  Priority([ Sequence([ symbolic_tree, symbolic_succeeded? ]),
-             hybrid_sequence ])
-  ```
-
-  behind a `hybrid_enabled` flag defaulting **off** — following the `invariant_gen` precedent
-  (`bt_assembly.py:157`), which makes the change behavior-preserving for all currently-solving robots
-  by construction.
+  hybrid branch is silently unreachable. 
+  
 - **`hybrid_sequence`** = `Sequence([ simplify_dh_leaf, solve_simplified_leaf, mark_hybrid_leaf ])`.
   `solve_simplified_leaf` builds a *fresh* blackboard and ticks a nested `build_default_bt()` — legal
   in b3, and it avoids mutating the outer blackboard's `Robot`. Two traps:
   - the derived robot needs its **own pickle name** (`check_the_pickle()` compares DH tables and
     `quit()`s on mismatch — the experiment above used `KinovaLite_d5zero`);
-  - it needs **fresh `unknown` objects**, because `set_solved()` mutates them in place.
-- **`robot_params()` `quit()`s on unknown names**, so the derived robot cannot go through it.
-  `load_robot()` needs a sibling taking an explicit DH table — a ~10-line refactor of `ik_driver.py`.
-- **Codegen.** `output_python.py` gains `fk(q)` and `jac(q)` emission — `output_FK_python_code()`
-  already proves the `str(M.T_06)` dump works, though it currently emits a module-level matrix with
-  dummy joint values rather than a callable, so this doubles as a fix — plus a `refine()`
-  implementing 2.2 and an `ikin_<Robot>(T, refine=True)` chaining them. The generated file must state
-  prominently that the returned solutions are **numerical**, that the closed-form part solves a
-  **different, simplified robot**, and it must return per-branch residuals and convergence flags.
+  - it needs **fresh `unknown` objects**, because `set_solved()` mutates them in place. 
+   
 - **C++ is phase 2**, after Python is validated. The existing C++ output contains no linear algebra
   at all, so it needs either Eigen (a new dependency) or ~80 lines of self-contained damped 6×6 solve.
 
 ---
 
-## Step 2.4 — systematic study of the failure modes
+
+## **TODO:** Hold this for later. Step 2.4 — systematic study of the failure modes
 
 Fast unit tests over synthetic DH tables (no FK, so they belong with the rest in
 `tests/leavestest.py` — **next free class number is `TestSolver016`**; 015 is taken), plus a slow
@@ -235,11 +248,9 @@ Experiments, in order of value:
 
 ## One caveat to settle before publishing anything
 
-This changes what IKBT delivers. The JAIR position is *closed-form* IK; the hybrid output is
-numerical, seeded by closed form. That is defensible, and the branch-completeness property is a
-genuine advantage over generic numerical IK — but the LaTeX report and the generated code must say
+The LaTeX report and the generated code must say
 clearly **which robot the closed-form equations actually describe**, or the artifacts become
-misleading.
+misleading.  This will be easy to handle with the separate output generation leaves described above. 
 
 ## Suggested order
 
