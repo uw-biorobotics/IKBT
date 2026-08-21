@@ -79,19 +79,48 @@ def kinematics_pickle(rname, dh, constants, pvals, vv, unks, test):
 
     print('kinematics pickle: trying to open ', name,' in ', os.getcwd())
 
-    if(os.path.isfile(name)):
-        with open(name, 'rb') as pick:
-            print('\Trying to read pre-computed forward kinematics from '+name)
-            [m, R, unknowns]  = pickle.load(pick)
-            print('Successfully read pre-computed forward kinematics')
-            print('pickle contained ', len(unknowns), ' unknowns')
-    else:
-        #print 'WRONG - quitting, error: ',sys.exc_info()[0]
-        #sys.exit
+    #  The cache is a pure optimization:  fk_eqns/ and everything in it may be
+    #  deleted at any time, and a stale entry must cost time, not correctness.
+    #  So a pickle is USED only if it loads and its DH table still matches;
+    #  otherwise we recompute and overwrite.  This used to be the caller's job
+    #  via check_the_pickle(), which printed "please remove it" and called
+    #  quit() -- fatal in a batch sweep, and fatal inside a BT leaf.
+    m = R = unknowns = None
+
+    if os.path.isfile(name):
+        try:
+            with open(name, 'rb') as pick:
+                print('Trying to read pre-computed forward kinematics from '+name)
+                [m, R, unknowns] = pickle.load(pick)
+                print('Successfully read pre-computed forward kinematics')
+                print('pickle contained ', len(unknowns), ' unknowns')
+        except Exception as e:
+            #  truncated, written by another sympy version, half-written by an
+            #  interrupted run ... all the same answer: recompute.
+            print('   Could not read '+name+' ('+type(e).__name__+': '+str(e)+')')
+            m = R = unknowns = None
+
+        if m is not None and not dh_tables_match(getattr(m, 'DH', None), dh):
+            print('   Cached DH table differs from the current one -- recomputing.')
+            m = R = unknowns = None
+
+        if m is not None:
+            #  pvals never enter the symbolic FK (the subs() branch in
+            #  forward_kinematics() is dead code), so a pvals-only edit does not
+            #  justify a recompute -- but the cached mechanism must not go on
+            #  serving stale numbers either.  update(), NOT assignment:
+            #  forward_kinematics() adds ca_i/sa_i entries of its own for robots
+            #  whose alpha is not a multiple of pi/2, and those must survive.
+            if getattr(m, 'pvals', None) is None:
+                m.pvals = dict(pvals)
+            else:
+                m.pvals.update(pvals)
+
+    if m is None:
         # set up mechanism object instance
         m = kc.mechanism(dh, constants, vv)
         m.pvals = pvals  # store numerical values of parameters
-        print('Did not find VALID stored pickle file: ', name)
+        print('No usable stored pickle file: ', name)
         print("Starting Forward Kinematics")
         m.forward_kinematics()
         print("Completed Forward Kinematics")
@@ -115,24 +144,43 @@ def kinematics_pickle(rname, dh, constants, pvals, vv, unks, test):
     return [m,R,unknowns]
 
 
-def check_the_pickle(dh1, dh2):   # check that two mechanisms have identical DH params
-    flag = False
-    if (dh1.shape[0] != dh2.shape[0]):
-        print('   Wrong number of rows!')
-        flag = True
-    else:
-        for r in range(0,dh1.shape[0]):
-            for c in [0,1,2,3]:
-                if(dh1[r,c] != dh2[r,c]):
-                    flag = True
-    if(flag):
-        print('''\n\n -----------------------------------------------------
+def dh_tables_match(dh1, dh2):
+    '''True when two DH tables are structurally identical.
+
+       Structural (sympy `!=`) comparison, not sp.simplify: it is called on
+       every load, and two tables that differ only by an unsimplified form are
+       cheap to recompute and vanishingly rare in a hand-written table.'''
+
+    if dh1 is None or dh2 is None:
+        return False
+    if dh1.shape[0] != dh2.shape[0]:
+        return False
+    for r in range(0, dh1.shape[0]):
+        for c in [0, 1, 2, 3]:
+            if dh1[r, c] != dh2[r, c]:
+                return False
+    return True
+
+
+def check_the_pickle(dh1, dh2):
+    '''Warn if two DH tables differ.  Returns True when they match.
+
+       Kept for its callers, but it is now advisory:  kinematics_pickle()
+       recomputes a mismatched pickle by itself, so this should never fire from
+       the normal load path.  It used to call quit() -- which killed batch
+       sweeps and any BT leaf that reached it.'''
+
+    if dh_tables_match(dh1, dh2):
+        return True
+
+    print('''\n\n -----------------------------------------------------
                     DH parameters Differ
-                 Pickle file is out of date.
-                   please remove it and start again
+             (kinematics_pickle() recomputes in this case;
+              if you see this message the caller built its
+              mechanism some other way)
   -----------------------------------------------------
   ''')
-        quit()
+    return False
 
 ##############################################################################33
 #

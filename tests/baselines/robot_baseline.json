@@ -1,0 +1,637 @@
+{
+ "n_robots": 32,
+ "record_version": 1,
+ "robots": {
+  "ArmRobo": {
+   "comp_det_ticks": 2,
+   "error": null,
+   "methods": {
+    "d_6": "",
+    "th_1": "",
+    "th_12": "",
+    "th_2": "",
+    "th_3": "",
+    "th_4": "",
+    "th_5": ""
+   },
+   "n_solutions": null,
+   "n_solved": 0,
+   "n_unknowns": 7,
+   "name": "ArmRobo",
+   "no_progress": true,
+   "solution_set_error": null,
+   "status": "unsolved",
+   "wall_s": 4.27
+  },
+  "Arm_3": {
+   "comp_det_ticks": 6,
+   "error": null,
+   "methods": {
+    "th_1": "simultaneous eqnsinANDcos",
+    "th_12": "algebra",
+    "th_123": "atan2(y,x), arccos, best ranked, atan2(y,x)",
+    "th_2": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
+    "th_23": "atan2(y,x), arccos, best ranked, atan2(y,x)",
+    "th_3": "algebra"
+   },
+   "n_solutions": 2,
+   "n_solved": 6,
+   "n_unknowns": 6,
+   "name": "Arm_3",
+   "no_progress": false,
+   "solution_set_error": null,
+   "status": "solved",
+   "wall_s": 1.56
+  },
+  "Axtman13": {
+   "comp_det_ticks": 5,
+   "error": null,
+   "methods": {
+    "d_1": "algebra",
+    "th_2": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
+    "th_3": "arcsin",
+    "th_34": "algebra",
+    "th_4": "atan2(y,x), arccos, best ranked, atan2(y,x)"
+   },
+   "n_solutions": 2,
+   "n_solved": 5,
+   "n_unknowns": 5,
+   "name": "Axtman13",
+   "no_progress": false,
+   "solution_set_error": null,
+   "status": "solved",
+   "wall_s": 2.38
+  },
+  "Bartell": {
+   "comp_det_ticks": 5,
+   "error": null,
+   "methods": {
+    "d_2": "algebra",
+    "d_4": "algebra",
+    "th_1": "atan2(y,x)",
+    "th_3": "atan2(y,x), arccos, best ranked, atan2(y,x)",
+    "th_5": "atan2(y,x), arccos, best ranked, atan2(y,x)"
+   },
+   "n_solutions": 2,
+   "n_solved": 5,
+   "n_unknowns": 5,
+   "name": "Bartell",
+   "no_progress": false,
+   "solution_set_error": null,
+   "status": "solved",
+   "wall_s": 1.83
+  },
+  "Brad": {
+   "comp_det_ticks": 4,
+   "error": null,
+   "methods": {
+    "th_1": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
+    "th_2": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
+    "th_23": "algebra",
+    "th_3": "atan2(y,x), arccos, best ranked, atan2(y,x)"
+   },
+   "n_solutions": 1,
+   "n_solved": 4,
+   "n_unknowns": 4,
+   "name": "Brad",
+   "no_progress": false,
+   "solution_set_error": null,
+   "status": "solved",
+   "wall_s": 1.58
+  },
+  "Chair_Helper": {
+   "comp_det_ticks": 5,
+   "error": null,
+   "methods": {
+    "d_1": "algebra",
+    "th_2": "arcsin",
+    "th_3": "atan2(y,x)",
+    "th_4": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
+    "th_5": "atan2(y,x), arcsin, best ranked, atan2(y,x)"
+   },
+   "n_solutions": 4,
+   "n_solved": 5,
+   "n_unknowns": 5,
+   "name": "Chair_Helper",
+   "no_progress": false,
+   "solution_set_error": null,
+   "status": "solved",
+   "wall_s": 2.93
+  },
+  "Craig417": {
+   "comp_det_ticks": 5,
+   "error": null,
+   "methods": {
+    "th_1": "sinANDcos",
+    "th_2": "atan2(y,x), arccos, best ranked, atan2(y,x)",
+    "th_3": "arcsinsimultaneous eqnsinANDcos",
+    "th_34": "algebra",
+    "th_4": "atan2(y,x), arccos, best ranked, atan2(y,x)"
+   },
+   "n_solutions": 4,
+   "n_solved": 5,
+   "n_unknowns": 5,
+   "name": "Craig417",
+   "no_progress": false,
+   "solution_set_error": null,
+   "status": "solved",
+   "wall_s": 5.24
+  },
+  "DZhang": {
+   "comp_det_ticks": 7,
+   "error": null,
+   "methods": {
+    "th_1": "sinANDcos",
+    "th_2": "algebra",
+    "th_23": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
+    "th_3": "x2z2 transform and , arcsin",
+    "th_4": "arccos",
+    "th_5": "atan2(y,x), arcsin, best ranked, atan2(y,x)"
+   },
+   "n_solutions": 8,
+   "n_solved": 6,
+   "n_unknowns": 6,
+   "name": "DZhang",
+   "no_progress": false,
+   "solution_set_error": null,
+   "status": "solved",
+   "wall_s": 26.24
+  },
+  "Frei13": {
+   "comp_det_ticks": 5,
+   "error": null,
+   "methods": {
+    "d_1": "algebra",
+    "th_2": "arcsin",
+    "th_3": "atan2(y,x)",
+    "th_4": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
+    "th_5": "atan2(y,x), arcsin, best ranked, atan2(y,x)"
+   },
+   "n_solutions": 4,
+   "n_solved": 5,
+   "n_unknowns": 5,
+   "name": "Frei13",
+   "no_progress": false,
+   "solution_set_error": null,
+   "status": "solved",
+   "wall_s": 5.04
+  },
+  "ICP5p5_A21": {
+   "comp_det_ticks": 5,
+   "error": null,
+   "methods": {
+    "d_2": "algebra",
+    "th_1": "atan2(y,x)",
+    "th_3": "atan2(y,x), arccos, best ranked, atan2(y,x)",
+    "th_4": "atan2(y,x), arccos, best ranked, atan2(y,x)"
+   },
+   "n_solutions": 20,
+   "n_solved": 4,
+   "n_unknowns": 4,
+   "name": "ICP5p5_A21",
+   "no_progress": false,
+   "solution_set_error": null,
+   "status": "solved",
+   "wall_s": 2.48
+  },
+  "Issue4": {
+   "comp_det_ticks": 2,
+   "error": null,
+   "methods": {
+    "th_1": "",
+    "th_2": "",
+    "th_23": "",
+    "th_3": "",
+    "th_4": "",
+    "th_5": "",
+    "th_6": ""
+   },
+   "n_solutions": null,
+   "n_solved": 0,
+   "n_unknowns": 7,
+   "name": "Issue4",
+   "no_progress": true,
+   "solution_set_error": null,
+   "status": "unsolved",
+   "wall_s": 16.93
+  },
+  "JennyGuoSp24": {
+   "comp_det_ticks": 8,
+   "error": null,
+   "methods": {
+    "d_1": "algebra",
+    "th_2": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
+    "th_3": "simultaneous eqnsinANDcos",
+    "th_34": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
+    "th_345": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
+    "th_4": "algebra",
+    "th_45": "atan2(y,x), arccos, best ranked, atan2(y,x)",
+    "th_5": "simultaneous eqnsinANDcos"
+   },
+   "n_solutions": 4,
+   "n_solved": 8,
+   "n_unknowns": 8,
+   "name": "JennyGuoSp24",
+   "no_progress": false,
+   "solution_set_error": null,
+   "status": "solved",
+   "wall_s": 2.46
+  },
+  "KR16": {
+   "comp_det_ticks": 8,
+   "error": null,
+   "methods": {
+    "th_1": "sinANDcos",
+    "th_2": "algebra",
+    "th_23": "simultaneous eqn",
+    "th_3": "x2z2 transform and sinANDcos",
+    "th_4": "atan2(y,x)",
+    "th_5": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
+    "th_6": "atan2(y,x), arcsin, best ranked, atan2(y,x)"
+   },
+   "n_solutions": 8,
+   "n_solved": 7,
+   "n_unknowns": 7,
+   "name": "KR16",
+   "no_progress": false,
+   "solution_set_error": null,
+   "status": "solved",
+   "wall_s": 57.51
+  },
+  "KawasakiRS007L": {
+   "comp_det_ticks": 8,
+   "error": null,
+   "methods": {
+    "th_1": "sinANDcos",
+    "th_2": "algebra",
+    "th_23": "simultaneous eqn",
+    "th_3": "x2z2 transform and , arcsin",
+    "th_4": "atan2(y,x)",
+    "th_5": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
+    "th_6": "atan2(y,x), arccos, best ranked, atan2(y,x)"
+   },
+   "n_solutions": 8,
+   "n_solved": 7,
+   "n_unknowns": 7,
+   "name": "KawasakiRS007L",
+   "no_progress": false,
+   "solution_set_error": null,
+   "status": "solved",
+   "wall_s": 19.55
+  },
+  "KawasakiRS05L": {
+   "comp_det_ticks": 2,
+   "error": null,
+   "methods": {
+    "th_1": "",
+    "th_2": "",
+    "th_23": "",
+    "th_3": "",
+    "th_4": "",
+    "th_5": "",
+    "th_6": ""
+   },
+   "n_solutions": null,
+   "n_solved": 0,
+   "n_unknowns": 7,
+   "name": "KawasakiRS05L",
+   "no_progress": true,
+   "solution_set_error": null,
+   "status": "unsolved",
+   "wall_s": 14.56
+  },
+  "Khat6DOF": {
+   "comp_det_ticks": 8,
+   "error": null,
+   "methods": {
+    "th_1": "sinANDcos",
+    "th_2": "algebra",
+    "th_23": "simultaneous eqn",
+    "th_3": "x2z2 transform and sinANDcos",
+    "th_4": "atan2(y,x)",
+    "th_5": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
+    "th_6": "atan2(y,x), arccos, best ranked, atan2(y,x)"
+   },
+   "n_solutions": 8,
+   "n_solved": 7,
+   "n_unknowns": 7,
+   "name": "Khat6DOF",
+   "no_progress": false,
+   "solution_set_error": null,
+   "status": "solved",
+   "wall_s": 18.79
+  },
+  "KinovaLite": {
+   "comp_det_ticks": 2,
+   "error": null,
+   "methods": {
+    "th_1": "",
+    "th_2": "",
+    "th_23": "",
+    "th_3": "",
+    "th_4": "",
+    "th_5": "",
+    "th_6": ""
+   },
+   "n_solutions": null,
+   "n_solved": 0,
+   "n_unknowns": 7,
+   "name": "KinovaLite",
+   "no_progress": true,
+   "solution_set_error": null,
+   "status": "unsolved",
+   "wall_s": 18.0
+  },
+  "Mackler13": {
+   "comp_det_ticks": 5,
+   "error": null,
+   "methods": {
+    "d_1": "algebra",
+    "th_2": "arccos",
+    "th_3": "arccos",
+    "th_4": "arcsin",
+    "th_5": "simultaneous eqn"
+   },
+   "n_solutions": 8,
+   "n_solved": 5,
+   "n_unknowns": 5,
+   "name": "Mackler13",
+   "no_progress": false,
+   "solution_set_error": null,
+   "status": "solved",
+   "wall_s": 5.25
+  },
+  "Minder13": {
+   "comp_det_ticks": 4,
+   "error": null,
+   "methods": {
+    "d_1": "algebra",
+    "th_2": "atan2(y,x)",
+    "th_3": "atan2(y,x), arccos, best ranked, atan2(y,x)",
+    "th_4": "atan2(y,x), arcsin, best ranked, atan2(y,x)"
+   },
+   "n_solutions": 2,
+   "n_solved": 4,
+   "n_unknowns": 4,
+   "name": "Minder13",
+   "no_progress": false,
+   "solution_set_error": null,
+   "status": "solved",
+   "wall_s": 2.26
+  },
+  "MiniDD": {
+   "comp_det_ticks": 0,
+   "error": "IndexError: list index out of range",
+   "methods": {},
+   "n_solutions": null,
+   "n_solved": 0,
+   "n_unknowns": 0,
+   "name": "MiniDD",
+   "no_progress": false,
+   "solution_set_error": null,
+   "status": "crash",
+   "wall_s": 1.3
+  },
+  "Olson13": {
+   "comp_det_ticks": 7,
+   "error": null,
+   "methods": {
+    "d_1": "algebra",
+    "d_2": "algebra",
+    "th_3": "atan2(y,x)",
+    "th_4": "arcsin",
+    "th_45": "algebra",
+    "th_5": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
+    "th_6": "atan2(y,x), arcsin, best ranked, atan2(y,x)"
+   },
+   "n_solutions": 4,
+   "n_solved": 7,
+   "n_unknowns": 7,
+   "name": "Olson13",
+   "no_progress": false,
+   "solution_set_error": null,
+   "status": "solved",
+   "wall_s": 2.53
+  },
+  "Palm13": {
+   "comp_det_ticks": 4,
+   "error": null,
+   "methods": {
+    "d_2": "algebra",
+    "th_1": "atan2(y,x)",
+    "th_3": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
+    "th_4": "atan2(y,x), arccos, best ranked, atan2(y,x)"
+   },
+   "n_solutions": 2,
+   "n_solved": 4,
+   "n_unknowns": 4,
+   "name": "Palm13",
+   "no_progress": false,
+   "solution_set_error": null,
+   "status": "solved",
+   "wall_s": 2.07
+  },
+  "Parkman13": {
+   "comp_det_ticks": 8,
+   "error": null,
+   "methods": {
+    "d_4": "algebra",
+    "th_1": "atan2(y,x)",
+    "th_2": "algebra",
+    "th_23": "atan2(y,x), arccos, best ranked, atan2(y,x)",
+    "th_3": "x2z2 transform and sinANDcos",
+    "th_5": "atan2(y,x), arcsin, best ranked, atan2(y,x)"
+   },
+   "n_solutions": 40,
+   "n_solved": 6,
+   "n_unknowns": 6,
+   "name": "Parkman13",
+   "no_progress": false,
+   "solution_set_error": null,
+   "status": "solved",
+   "wall_s": 23.49
+  },
+  "Puma": {
+   "comp_det_ticks": 8,
+   "error": null,
+   "methods": {
+    "th_1": "sinANDcos",
+    "th_2": "algebra",
+    "th_23": "simultaneous eqn",
+    "th_3": "x2z2 transform and sinANDcos",
+    "th_4": "atan2(y,x)",
+    "th_5": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
+    "th_6": "atan2(y,x), arcsin, best ranked, atan2(y,x)"
+   },
+   "n_solutions": 8,
+   "n_solved": 7,
+   "n_unknowns": 7,
+   "name": "Puma",
+   "no_progress": false,
+   "solution_set_error": null,
+   "status": "solved",
+   "wall_s": 16.16
+  },
+  "Pumaoffset": {
+   "comp_det_ticks": 8,
+   "error": null,
+   "methods": {
+    "th_1": "sinANDcos",
+    "th_2": "simultaneous eqn",
+    "th_23": "algebra",
+    "th_3": "x2z2 transform and sinANDcos",
+    "th_4": "atan2(y,x)",
+    "th_5": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
+    "th_6": "atan2(y,x), arcsin, best ranked, atan2(y,x)"
+   },
+   "n_solutions": 8,
+   "n_solved": 7,
+   "n_unknowns": 7,
+   "name": "Pumaoffset",
+   "no_progress": false,
+   "solution_set_error": null,
+   "status": "solved",
+   "wall_s": 41.0
+  },
+  "Raven-II": {
+   "comp_det_ticks": 2,
+   "error": null,
+   "methods": {
+    "d_3": "",
+    "th_1": "",
+    "th_2": "",
+    "th_4": "",
+    "th_5": "",
+    "th_6": ""
+   },
+   "n_solutions": null,
+   "n_solved": 0,
+   "n_unknowns": 6,
+   "name": "Raven-II",
+   "no_progress": true,
+   "solution_set_error": null,
+   "status": "unsolved",
+   "wall_s": 10.04
+  },
+  "Sims11": {
+   "comp_det_ticks": 5,
+   "error": null,
+   "methods": {
+    "d_1": "algebra",
+    "d_2": "algebra",
+    "th_3": "atan2(y,x)",
+    "th_4": "atan2(y,x), arccos, best ranked, atan2(y,x)",
+    "th_5": "atan2(y,x), arcsin, best ranked, atan2(y,x)"
+   },
+   "n_solutions": 2,
+   "n_solved": 5,
+   "n_unknowns": 5,
+   "name": "Sims11",
+   "no_progress": false,
+   "solution_set_error": null,
+   "status": "solved",
+   "wall_s": 2.07
+  },
+  "Srisuan11": {
+   "comp_det_ticks": 6,
+   "error": null,
+   "methods": {
+    "d_1": "algebra",
+    "d_4": "algebra",
+    "th_2": "sinANDcos",
+    "th_3": "atan2(y,x)",
+    "th_5": "atan2(y,x), arccos, best ranked, atan2(y,x)",
+    "th_6": "atan2(y,x), arcsin, best ranked, atan2(y,x)"
+   },
+   "n_solutions": 4,
+   "n_solved": 6,
+   "n_unknowns": 6,
+   "name": "Srisuan11",
+   "no_progress": false,
+   "solution_set_error": null,
+   "status": "solved",
+   "wall_s": 2.78
+  },
+  "Stanford": {
+   "comp_det_ticks": 6,
+   "error": null,
+   "methods": {
+    "d_3": "algebra",
+    "th_1": "sinANDcos",
+    "th_2": "atan2(y,x)",
+    "th_4": "atan2(y,x)",
+    "th_5": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
+    "th_6": "atan2(y,x), arccos, best ranked, atan2(y,x)"
+   },
+   "n_solutions": 8,
+   "n_solved": 6,
+   "n_unknowns": 6,
+   "name": "Stanford",
+   "no_progress": false,
+   "solution_set_error": null,
+   "status": "solved",
+   "wall_s": 3.47
+  },
+  "UR5": {
+   "comp_det_ticks": 9,
+   "error": null,
+   "methods": {
+    "th_1": "sinANDcos",
+    "th_2": "simultaneous eqnsinANDcos",
+    "th_23": "algebra",
+    "th_234": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
+    "th_3": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
+    "th_34": "algebra",
+    "th_4": "algebra",
+    "th_5": "arccos",
+    "th_6": "atan2(y,x), arcsin, best ranked, atan2(y,x)"
+   },
+   "n_solutions": 8,
+   "n_solved": 9,
+   "n_unknowns": 9,
+   "name": "UR5",
+   "no_progress": false,
+   "solution_set_error": null,
+   "status": "solved",
+   "wall_s": 8.25
+  },
+  "Wachtveitl": {
+   "comp_det_ticks": 6,
+   "error": null,
+   "methods": {
+    "d_1": "algebra",
+    "th_2": "atan2(y,x)",
+    "th_3": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
+    "th_34": "algebra",
+    "th_4": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
+    "th_5": "atan2(y,x), arcsin, best ranked, atan2(y,x)"
+   },
+   "n_solutions": 2,
+   "n_solved": 6,
+   "n_unknowns": 6,
+   "name": "Wachtveitl",
+   "no_progress": false,
+   "solution_set_error": null,
+   "status": "solved",
+   "wall_s": 4.31
+  },
+  "Wrist": {
+   "comp_det_ticks": 3,
+   "error": null,
+   "methods": {
+    "A": "atan2(y,x)",
+    "B": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
+    "C": "atan2(y,x), arcsin, best ranked, atan2(y,x)"
+   },
+   "n_solutions": 2,
+   "n_solved": 3,
+   "n_unknowns": 3,
+   "name": "Wrist",
+   "no_progress": false,
+   "solution_set_error": null,
+   "status": "solved",
+   "wall_s": 1.59
+  }
+ },
+ "total_wall_s": 327.92
+}

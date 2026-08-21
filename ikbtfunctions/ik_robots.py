@@ -30,43 +30,72 @@ from ikbtbasics.ik_classes import *     # special classes for Inverse kinematics
 #         instead (like a_3 below), declare it in params, and give it your value in pvals
 #
 #####
+#
+#   Every robot this module can build.  ONE entry per robot:  the list used to
+#   carry five duplicates and 'Chair6DOF', which had no definition block at all
+#   and so fell through every `if(name == ...)` below and died with an
+#   UnboundLocalError on `variables`.  A duplicate is harmless to robot_params()
+#   itself but it makes any sweep over "all robots" solve the same arm twice.
+#
+#   Keep this sorted-ish and comma-checked:  a missing comma silently
+#   concatenates two names into one bogus entry and makes the second robot
+#   unselectable (that is what happened to 'Issue4' + 'DZhang' before b013d9c).
+#
+ROBOT_LIST = [ 'KinovaLite',
+               'ICP5p5_A21', 'KR16', 'Issue4',
+               'UR5',
+               'Puma', 'Pumaoffset', 'Panda',
+               'Chair_Helper',
+               'Bartell',
+               'Brad',
+               'Sims11',
+               'ArmRobo',
+               'Wrist',
+               'Arm_3',
+               'MiniDD',
+               'Olson13',
+               'Stanford',
+               'Khat6DOF',
+               'Craig417',
+               'KawasakiRS05L',
+               'KawasakiRS007L',
+               'Raven-II',
+               'Wachtveitl', 'Frei13', 'Parkman13', 'Palm13', 'Minder13', 'Mackler13',
+               'Axtman13', 'Srisuan11',
+               'DZhang',
+               'JennyGuoSp24' ]
+
+
+def number_unknowns(variables):
+    '''Give each unknown its 1-based position in the serial chain.
+
+       MUST be called on any list of `unknown` objects built outside
+       robot_params() -- get_variable_index() (ik_classes.py) treats `n == 0` as
+       "uninitialized" and calls quit() in the middle of the sum-of-angles scan.
+       Anything that constructs a robot programmatically (the hybrid method's
+       derived arms, tests) has to come through here.'''
+
+    for i, v in enumerate(variables, start=1):
+        v.n = i
+    return variables
+
+
 def robot_params(name):
     pvals = {}   # null for most robots
-    List = [ 'KinovaLite',
-            'ICP5p5_A21','KR16', 'Issue4',
-            'UR5', 
-            'Puma', 'Pumaoffset', 'Panda',
-            'Chair_Helper', 
-            'Bartell',
-            'Brad', 
-            'Sims11',
-            'ArmRobo', 
-            'Wrist', 
-            'Arm_3', 
-            'MiniDD', 
-            'Olson13',
-            'Stanford', 
-            'Chair6DOF',  # below not solvable yet
-            'Khat6DOF',    
-            'Craig417', 
-            'KawasakiRS05L',
-            'KawasakiRS007L',
-            'Khat6DOF',
-            'Raven-II',
-            'Wachtveitl', 'Frei13', 'Parkman13', 'Palm13', 'Minder13', 'Mackler13',
-            'Axtman13', 'Srisuan11', 'MiniDD', 'ICP5p5_A21', 'KR16', 'Issue4',
-            'DZhang',      # <- the missing comma above silently concatenated
-                           #    'Issue4' + 'DZhang' into one bogus name,
-                           #    'Issue4DZhang', and made DZhang (defined below)
-                           #    unselectable.
-            'JennyGuoSp24']
-    
+    List = ROBOT_LIST
+
     if not (name in List):
         print('robot_params(): Unknown robot, ' + name )
         print('Here are the defined robots: ')
         for n in List:
             print('   ', n)
         quit()
+
+    #  Sentinel:  every branch below assigns these.  If a name is in ROBOT_LIST
+    #  but has no definition block, the fall-through check after the blocks
+    #  reports which robot is missing instead of raising UnboundLocalError on
+    #  whichever name happens to be referenced first.
+    dh = vv = params = variables = None
 
 ############################################################
 
@@ -693,11 +722,19 @@ def robot_params(name):
         
         
     ################## (all robots) ######################
+
+    ##  A name in ROBOT_LIST with no definition block above lands here with the
+    ##  sentinels untouched.  Say so, instead of raising UnboundLocalError (or,
+    ##  now, TypeError) from whichever line touches `variables` first.
+    if dh is None or vv is None or params is None or variables is None:
+        print('robot_params(): "' + name + '" is in ROBOT_LIST but has no '
+              'definition block in ik_robots.py.')
+        print('   Add an  if(name == \'' + name + '\'):  block, or remove the '
+              'name from ROBOT_LIST.')
+        quit()
+
     ##  make sure each unknown knows its position (index)
-    i = 1
-    for v in variables:   
-        v.n = i
-        i+=1
-        
+    number_unknowns(variables)
+
     return [dh, vv, params, pvals, variables]
    
