@@ -1,0 +1,613 @@
+# Hybrid Symbolic–Numeric IK — Implementation Plan
+
+> **Working plan, now tracked.** BH's review comments are preserved inline as `USR:`;  every one of
+> them has been folded into the surrounding text. Phases A and B are **done** and their sections
+> record what was actually built, which is not in every respect what was planned. Phases C-F are
+> still plans. Insert further `USR:` comments anywhere and I will incorporate them.
+
+Plan for [hybrid_plan.md](hybrid_plan.md), reordered per BH's direction: **build the high-level BT
+changes first using stub leaves, prove the new tree reproduces today's successes and failures across
+every robot, then implement and test each new leaf in the order it would be ticked.**
+
+---
+
+## Context
+
+`futurework.md` item 1: when IKBT cannot solve a robot in closed form, simplify its DH parameters
+until it can, solve the simplified robot symbolically, and correct the result numerically using the
+symbolic Jacobian. Measurements in `hybrid_plan.md` show `KinovaLite` with `d_5 → 0` goes from
+0-of-6 variables solved to all 6 in 27.7 s using the unmodified tree.
+
+The Phase A baseline has since replaced this section's original guess of "six robots with no Pieper
+triple". Measured over all 32 defined robots: **26 solve completely, 5 solve nothing, 1 crashes**.
+The five that solve nothing are `{ArmRobo, Issue4, KawasakiRS05L, KinovaLite, Raven-II}`, and BH has
+excluded `Raven-II` from the hybrid evaluation. See Phase C for why "solves nothing" and "has no
+Pieper triple" are *not* the same set, and must not be asserted to be.
+
+The deliverable is literally "robots that move from unsolved to solved", so nothing here is
+measurable without a robot-level baseline. That is why the baseline comes first, before any tree
+change.
+
+### Why BT-first-with-stubs is the right order
+
+If every leaf on the new hybrid branch stubs out to a status that makes the branch inert, the
+restructured tree is **observably identical to today's**. The baseline diff then isolates exactly one
+variable: the restructure. Each leaf afterwards goes from stub to real one at a time, and the same
+diff proves what that leaf changed and nothing else. The tree shape is built once and never changes
+again.
+
+---
+
+## What I verified before planning
+
+`hybrid_plan.md`'s Phase 0 "suspect-text" is **substantially accurate**. Corrections that change the
+work:
+
+| Claim in the doc | Reality |
+|---|---|
+| `comp_detect.py:101` is an "empty `eqns_1u`" give-up condition | The real trigger is at `:127` — `ns == 0` **and** two consecutive passes with an identical progress signature `(ns, len(L1), len(L2), len(L3), len(kequation_aux_list))`. Empty `eqns_1u` only selects an extra diagnostic message (`:132`). |
+| The symbolic branch does not signal failure | Already half-solved: `comp_det` sets `no_progress` (`:137`), and `ik_driver.py:109`/`solved_anything()` (`:122`) already gate `emit_outputs()`. Only the in-tree `Priority` needs a new adapter. |
+| `build_default_bt()` is assumed to exist | It does — `ikbtfunctions/bt_assembly.py:243`, with `make_leaves()` (`:46`) and `build_worktools()` (`:212`) as documented extension points. `ikbtfunctions/ik_driver.py` already provides `load_robot`/`init_blackboard`/`run_solver`/`solved_anything`/`emit_outputs`. |
+| USR: Don't worry about joint limits for this refactor.  `M.jlims` already holds joint limits | **False in any useful sense.** It is a hardcoded ±π 6×2 array in `mechanism.__init__` (`kin_cl.py:257`) that nothing in the repo ever reads or sets per-robot; prismatic joints get ±π as a *length*. Sampling ranges must be defined explicitly. |
+| USR: Please de-duplicate the robot list.  Delete Chair6DOF and Issue4DZhang entries. 
+|  There are 33 entries in `List` | 41 entries, 33 unique names, **32 with a definition block**. Six names are duplicated (`ICP5p5_A21`, `KR16`, `Issue4`, `MiniDD`, `Khat6DOF`, `DZhang`); `Chair6DOF` is the only listed-but-undefined one (`Issue4DZhang` now survives only in a comment). Note this differs from the "27 arms" figure — worth reconciling. |
+| `fk_eqns/KinovaLite_d5zero_pickle.p` left in place | Not in the tree; `fk_eqns/` is gitignored. Measurement 2 must be re-run from a clean checkout. |
+| USR: Just find an open number.  Later we can renumber:   Test class 015 taken, 016 free | True. But **010 is double-booked** (`x2y2_transform.py:290` and `output_cpp.py:293`), so don't treat the sequence as clean. Phase B has since taken **016/017/018**; Phase C uses **019**. |
+
+Two hazards that shape the design:
+
+- **`quit()` on the unhappy path, in four places.** USR: If these quit()'s are from incorrect input, corrupt data, etc.  Then it is OK for interactive use if they print informative msgs.    Otherwise if they occur inside a leaf it may be appropriate to replace them with "return(b3.FAILURE)".  `check_the_pickle()` (`ik_classes.py:135`),
+  `Num_check()` (`pykinsym.py:84`), `get_variable_index()` (`ik_classes.py:596`), and
+  `robot_params()` on an unknown name (`ik_robots.py:66`) all terminate the *process*. Any sweep over
+  all robots must therefore run **one subprocess per robot**.
+- USR: pickles and the fk_eqns/ directory can dissapear at any time.  The code should just default to computing the FK and Jacobian if the pickle is out of date or not found.  Consider adding the dh parameters to the pickle if appropriate.  **`kinematics_pickle()` ignores `dh` and `pvals` when a pickle already exists**  USR: just rename the derived robots with a suffix and it should keep the pickles separate and clear. 
+  (`ik_classes.py:82-86`). A derived robot needs a pickle name that encodes *which* parameter was
+  changed, or a re-ranked candidate silently reuses the wrong FK — or trips `check_the_pickle()` and
+  kills the process.
+
+Reusable pieces found, to be used rather than rewritten: `Link_N(al,a,d,th)` (`pykinsym.py:102`, a
+pure-numpy DH link matrix — the right primitive for fast numeric FK, no sympy and no pickle),
+`forward_kinematics_N()` (`kin_cl.py:526`, sympy `subs`-based, slow, and it requires sum-of-angles
+keys such as `th_23` in the pose), `M.J66` (`kin_cl.py:454`, already pickled),
+`ManipJacobian_S()` (`pykinsym.py:356`), and `bt_problems()` (`tests/bt_assembly_test.py:201`, a
+shape-independent BT linter). There is **no** `lambdify` anywhere in the repo, and `M.Jacobian_N()`
+referenced at `kin_cl.py:639` does not exist (the block is dead under `JACOBIAN and False`).
+
+---
+
+## Phase A — baseline and the incidental defects  ✅ DONE
+
+Prerequisite for "reproduce our existing successes and failures". Per BH's note
+(`OldWorkplans/ImplementationThoughts.md:173`) this is **a record to be diffed, not a set of
+assertions**: "does not solve" is a legitimate and expected entry.
+
+**`scripts/robot_baseline.py`** (`scripts/` currently holds only an empty `__init__.py`)
+
+- Iterate the unique names in `robot_params()`'s `List`, **one subprocess per robot** (see the
+  `quit()` hazard above), with a per-robot wall-clock timeout.
+- Drive each child through `ik_driver.load_robot` → `bt_assembly.build_default_bt` →
+  `ik_driver.run_solver`. Set `nodes['compDetect'].read_pause = 0` — it is `2` by default
+  (`comp_detect.py:38`) and calls `time.sleep`.
+- Record per robot: solved/total unknown count, `no_progress`, per-variable `unknown.solvemethod`
+  (already accumulates e.g. `"best ranked, atan2(y,x)"`), `len(R.solutionSet)`, wall time, and the
+  number of outer `comp_det` ticks (this is the measurement that answers BH's
+  `RepeatUntilSuccess` question in step 2.3 — keep it or fold it in, decided by data).
+- Write a checked-in machine-readable record plus a human-readable summary, and provide a
+  `--diff <file>` mode that classifies each robot as unchanged / newly-solved / newly-unsolved /
+  changed-method. Newly-solved is the *goal*, not a failure.
+
+**Three incidental defects**
+
+1. Delete `'Chair6DOF'` from `List` (`ik_robots.py:49`) — BH's explicit TODO. Also add a
+   fall-through guard so any future listed-but-undefined name raises a named error instead of
+   `UnboundLocalError: variables` at `ik_robots.py:682`. Leave the six duplicate entries alone but
+   have the baseline runner de-duplicate.
+2. USR: defer this if possible. `solChecker.py` is Python 2 from line 207 (`print truncated_pose`) and cannot be imported under
+   py3. Rather than port the hand-pasted Puma expressions (`:92-171`), rewrite it as a **generic
+   round-trip checker**: take the robot name on the command line, import
+   `CodeGen/Python/IK_equations<name>.py`, sample poses, and *assert* max elementwise error against
+   `forward_kinematics_N()` rather than printing for a human to read. This is the harness Phase F and
+   step 2.4 both need. `tests/Wrist_IK_loop_test.py` is the working model.
+3. Factor the `v.n = i` loop (`ik_robots.py:681-684`) into an exported helper (e.g.
+   `number_unknowns(variables)`) and call it from every place that builds `unknown` objects
+   programmatically. Skip it and `get_variable_index()` hits `v.n == 0` and calls `quit()` mid-scan
+   (`ik_classes.py:594-596`).
+
+**Verify:** baseline runs to completion over all 32 defined robots; `--diff` against itself reports
+zero changes; `python3 -m tests.leavestest` and `python3 -m tests.test_chair_helper` still pass.
+
+### As built
+
+`scripts/robot_baseline.py`, plus the checked-in record in `tests/baselines/robot_baseline.{json,txt}`
+and per-robot child logs under `logs/baseline/`. 32 robots in 328 s.
+
+Deviations from the plan above, all deliberate:
+
+- **The solve and the solution-set construction are recorded separately.** The child calls
+  `run_solver(..., create_solutions=False)` and then `create_solution_set()` in its own `try`. On the
+  plan's single-call design a throw out of `make_LHS_versions()` would cost the whole row — which is
+  the thing being measured.
+- **`PYTHONHASHSEED=0` in every child.** Parts of the solver iterate over sets, so the choice between
+  equally-good solutions (and hence `unknown.solvemethod`) can vary run to run. Without pinning it,
+  an empty diff means "nothing changed, probably".
+- **`wall_s` and `comp_det_ticks` are recorded but NOT compared.** Wall time is noise, and the tick
+  count is a property of the tree's shape — Phase B was expected to change it without changing a
+  single solution, and it did.
+- **Defect 2 (`solChecker.py`) deferred** per BH's `USR: defer this if possible`. Still needed by
+  Phase F.
+- **Defect 1 went further than planned:** `List` was replaced by a de-duplicated module-level
+  `ROBOT_LIST` (41 entries → 32), since BH asked for de-duplication at the source rather than in the
+  runner.
+- **The `quit()` hazard was fixed rather than worked around** for the pickle path, per BH's
+  `USR:` note that pickles may vanish at any time: `kinematics_pickle()` now recomputes a pickle that
+  will not load or whose DH table no longer matches (`dh_tables_match()`), and `check_the_pickle()` is
+  advisory and no longer calls `quit()`. The subprocess-per-robot design is still required for the
+  other three `quit()` sites.
+
+**Measured results** (`tests/baselines/robot_baseline.txt` is the readable form):
+
+| | robots |
+|---|---|
+| solved completely | 26 |
+| solved nothing | 5 — `ArmRobo`, `Issue4`, `KawasakiRS05L`, `KinovaLite`, `Raven-II` |
+| crashed | 1 — `MiniDD` |
+| **partially** solved | **0** |
+
+Three findings that change later phases:
+
+1. **No robot is ever partially solved.** Every one either solves completely or solves nothing. This
+   makes the "should the hybrid fire on a partial solve" question moot for the current robot set —
+   both policies produce an identical baseline today.
+2. **The `RepeatUntilSuccess(x10)` budget is not slack** (BH's open question 5). The deepest solve is
+   `UR5` at 9 outer passes, and the pass count tracks the unknown count closely (`Puma` 8, `KR16` 8,
+   `JennyGuoSp24` 8). Keep 10; a robot with ≥10 unknowns would silently cap.
+3. **`MiniDD` crashes before the BT ever ticks.** `ik_robots.py:441` gives it `vv = [0,1,1,1,1]` —
+   five entries — while `forward_kinematics()` unconditionally reads `self.vv[5]`
+   (`kin_cl.py:409`). It is a 5-DOF arm whose `vv` was never padded to 6 the way the DH table is
+   required to be. Fix is `vv = [0,1,1,1,1,0]`, in its own commit: it moves `MiniDD` off `crash` and
+   so must not be folded into a phase whose gate is an empty diff.
+
+---
+
+## Phase B — the BT skeleton, with every new leaf stubbed  ✅ DONE
+
+All in `ikbtfunctions/bt_assembly.py`. Target shape:
+
+```
+Priority([ symbolic_branch, hybrid_branch ])
+
+symbolic_branch = Sequence([ Priority([ RepeatUntilSuccess(solveRoutine, 10), Succeeder() ]),
+                             symbolic_ok,
+                             output_gen_full ])
+
+hybrid_branch   = Sequence([ Inverter(pieper_id),
+                             simplified_arm,
+                             solve_simplified,
+                             output_gen_hybrid ])
+```
+
+`solveRoutine` and everything under it is unchanged from `build_default_bt()`.
+
+Four details that are easy to get wrong:
+
+- **The `Priority([RepeatUntilSuccess(...), Succeeder()])` wrapper is required.**
+  `RepeatUntilSuccess` returns FAILURE when it exhausts its 10 loops, which would abort the enclosing
+  `Sequence` before `symbolic_ok` ever ticks and hand control to the hybrid branch. Today a
+  loop-exhausted *partial* solve still emits outputs, and that must be preserved. This mirrors the
+  existing precedent at `bt_assembly.py:280,284`.  USR: the RepeatUntilSuccess node can be moved iside the symbolic solver leaf, "solveRoutine" to eliminate this problem.  
+- **`Inverter(pieper_id)`** is the gate, and it is diagnostic as well as functional: a robot that
+  *has* a triple and still failed symbolically (`ArmRobo`, `Raven-II`) is a solver defect, not a
+  geometry problem, so the hybrid must not fire. `b3.Inverter` exists at
+  `b3/decorators/inverter.py:5`. USR: Raven-II is a super challenging robot because it has \alpha_j values which are not multiples of \pi/2 (i.e. sin/cos do not evaluate to +-{0,1}) Do NOT use RAVEN-II in the evaluation of the hybrid method (yet).
+- **Codegen leaves must be opt-in.** `tests/test_chair_helper.py:14` documents that it deliberately
+  does not call `emit_outputs()` and leaves `LaTex/`/`CodeGen/` alone; an unconditional codegen leaf
+  would silently break that promise. Give `build_default_bt()` a default-off parameter (following the
+  `invariantGen.enabled` precedent at `bt_assembly.py:160`) so library and test callers get a tree
+  with no file side effects, and `ikSolver.py` opts in.
+
+**Stub statuses, chosen so the hybrid branch is inert:**
+
+| leaf | Phase B status | why |
+|---|---|---|
+| `symbolic_ok` | **real** | tiny, and it is the load-bearing adapter |
+| `output_gen_full` | **real** | calls `R.create_solution_set()` then `ik_driver.emit_outputs(R, unks)`; returns SUCCESS |
+USR: you can add the nodes below one at a time so that this is not a big deal. 
+| `pieper_id` | stub → **SUCCESS** | `Inverter` turns it into FAILURE, so `hybrid_branch` never advances. Semantically honest: "pretend every robot has a triple ⇒ never simplify" |USR: I don't understand this line at all. 
+| `simplified_arm` | stub → FAILURE | second line of defence |
+| `solve_simplified` | stub → FAILURE | |
+| `output_gen_hybrid` | stub → FAILURE | |
+
+Because `output_gen_full` now owns `create_solution_set()`, `run_solver()` must stop doing it when
+the tree owns codegen — thread that through rather than double-calling. Keep `solved_anything(bb)`
+for `ikSolver.py`'s "no solution generated" message.
+
+**Verify Phase B:** `bt_problems(bt)` returns `[]` (register the new leaves in `REQUIRED_SUPPORT` /
+`OPTIONAL_LEAVES` and give every one a unique `.Name` — the linter flags unnamed and
+duplicate-named nodes, and shared instances, which matters once a nested tree exists); the full
+baseline diff is **empty** across all 32 robots; `tests.leavestest`, `tests.bt_assembly_test` and
+`tests.test_chair_helper` pass. This is the checkpoint BH asked for.
+
+### As built
+
+Both of BH's steers above turned out to simplify the tree rather than complicate it, so the shape is
+**smaller** than the target at the top of this section:
+
+```
+Priority[ symbolic_branch, hybrid_branch ]
+
+symbolic_branch = Sequence[ symbolic_loop(x10, solveRoutine), output_gen_full ]
+
+solveRoutine    = Sequence[ sub_transform,
+                            RepeatUntilSuccess(x6, Sequence[ assigner, sum_id, worktools ]),
+                            updateL,
+                            comp_det ]        # unchanged
+
+hybrid_branch   = hybrid_stub                 # always FAILs
+```
+
+- **`symbolic_loop` replaced `RepeatUntilSuccess` at the root** (`ikbtleaves/symbolic_loop.py`), per
+  BH's `USR:` note at the first bullet. It runs the identical passes as a Python `while` inside
+  `tick()`, which lets it *choose* its exit status: SUCCESS if ≥1 variable was solved, FAILURE if
+  none. That killed **three** nodes at once — the `Priority([RepeatUntilSuccess, Succeeder()])`
+  wrapper and the separate `symbolic_ok` adapter both disappear, because the loop node *is* the
+  adapter. It keeps a `max_loop` attribute so `bt_problems()` still checks the budget, and sets
+  `symbolic_passes` / `symbolic_exhausted` on the blackboard for the Phase A measurement.
+- **The four-stub table is now one stub.** Per BH's `USR: you can add the nodes below one at a time`,
+  `hybrid_branch` is a single `hybrid_stub` that always FAILs. This also disposes of the
+  `pieper_id → SUCCESS` row BH could not parse: with `Inverter(pieper_id)` as the gate the hybrid runs
+  when a robot has **no** triple, so keeping the branch inert would have required `pieper_id` to lie
+  and claim every robot has one. One always-failing leaf says the same thing without the double
+  negative. The inverter polarity is recorded in a test (`test_hybB`) because it is the thing that
+  will get inverted by accident later.
+- **Codegen is a leaf, default off** (`ikbtleaves/output_gen.py`, `output_gen_full`), following the
+  `invariantGen.enabled` precedent. Disabled it does nothing whatsoever — not even
+  `create_solution_set()` — so `run_solver()` keeps ownership on the ordinary path. Exactly one of the
+  two must call it: it appends to `unknown.LHSversionNames` and is **not idempotent**.
+  `build_default_bt(codegen=True)` hands the tail end to the tree, and `ikSolver.py` is the only
+  caller that opts in (and then passes `create_solutions=False`).
+- **The three new leaves went into `OPTIONAL_LEAVES`, not `REQUIRED_SUPPORT`.** The linter's stated
+  philosophy is that the BT is an experimental surface and the file "does not compare the tree to a
+  stored shape"; none of the three is needed to solve a robot (the outer loop can be a plain
+  `RepeatUntilSuccess`, codegen can live in the caller, the hybrid does not exist yet). What the
+  *shipped* tree guarantees is asserted directly instead — `test_btaR` (codegen off unless asked,
+  including through the `nodes=` path) and `test_btaS` (hybrid inert, exactly one solve loop with a
+  finite budget, `require_complete` off).
+
+**Result:** `python3 -m scripts.robot_baseline --diff --no-save` → **32 robots, all unchanged**, exit
+0. `bt_problems()` `[]` on both the default and the `codegen=True` tree; `tests.bt_assembly_test`
+19/19; `tests.leavestest` clean over 6 consecutive runs; `tests.test_chair_helper` 3/3;
+`tests.helpertest` 4/4. End to end, `ikSolver.py Wrist` writes both artifacts through the new leaf and
+`ikSolver.py KinovaLite` writes nothing and says so.
+
+Test classes added: **016** `symbolic_loop`, **017** `output_gen`, **018** `hybrid_ik`. Note for later
+phases: a test double that lives in a leaf file must be named `test_*`, or `bt_assembly_test.py`'s
+leaf-inventory scan picks it up as a real leaf.
+
+**One loose end:** a single early `leavestest` run reported
+`ERROR: runTest (ikbtleaves.x2y2_transform.TestSolver010)`. It has not recurred in 6 subsequent
+full-suite runs and cannot be caused by the restructure (`x2y2_transform` does not import
+`bt_assembly`, and 010 runs before the new tests in `suite3`), but the traceback was not captured, so
+call it a pre-existing intermittent rather than resolved. Worth knowing the two run paths are not
+equivalent: standalone runs `test_x2y2B_*` and `test_x2z2` as separate instances, while the suite runs
+both through `runTest` sharing state — so a flake that only appears in the suite is plausible.
+
+---
+
+## Phases C–F — the leaves, in tick order
+
+Each phase replaces exactly one stub and is verified by a baseline diff before the next begins.
+
+### Phase C — `pieper_id`
+
+New module **`ikbtbasics/dh_analysis.py`**: pure DH-table arithmetic, no FK and no symbolic solving,
+so it runs in milliseconds and unit-tests without pickles.
+
+`pieper_triples(dh, pvals, ndof)` → satisfied triples by kind. With Craig-convention rows
+(`kin_cl.py:280`, row `r` = `[α_r, a_r, d_{r+1}, θ_{r+1}]`) and 0-indexed rows:
+
+- axes `j, j+1, j+2` **intersect** iff `dh[j,1] == 0 ∧ dh[j+1,1] == 0 ∧ dh[j,2] == 0`
+- axes `j, j+1, j+2` **parallel** iff `sin(dh[j,0]) == 0 ∧ sin(dh[j+1,0]) == 0`
+
+**Restrict `j` to real joints** — the zero-padded rows that sub-6-DOF robots are required to have
+manufacture spurious triples (`Brad`, a 3-DOF arm, reports five). Entries are sympy expressions, so
+resolve symbols through `pvals` before testing for zero; report a symbol with no `pvals` entry as
+*undecidable* rather than assuming non-zero.
+
+Leaf `pieper_id(b3.Action)` in **`ikbtleaves/hybrid_ik.py`** — alongside `hybrid_stub`, which it will
+sit in front of. (The plan originally said `ikbtleaves/simplify_dh.py`; Phase B already created
+`hybrid_ik.py` as the home for the hybrid branch's leaves, so they go there.) It reads `Robot`,
+computes triples from `R.Mech.DH` and `R.Mech.pvals`, sets `blackboard['pieper_triples']`, and returns
+SUCCESS iff at least one triple exists.
+
+Tree change — the hybrid branch goes from a bare stub to a gated stub:
+
+```
+hybrid_branch = Sequence[ Inverter(pieper_id), hybrid_stub ]
+```
+
+`hybrid_stub` still always FAILs, so the branch stays inert and the **baseline diff must still be
+empty**. Register `pieper_id` in `OPTIONAL_LEAVES` and give it a unique `.Name`.
+
+*Naming:* **resolved.** `pieper_id`, node `Name = 'Pieper Triple ID'` — BH asked for the correct
+spelling of Pieper (Donald Pieper, 1968; `hybrid_plan.md` writes `ID_Peiper`) and for consistency with
+the other `_id` leaves (`algebra_id`, `sum_id`, `tan_id`).
+
+#### Verify — and what must *not* be asserted
+
+The original criterion here was wrong, and BH's `USR:` note is what breaks it:
+
+> USR: in general, this rule is not proven.  Pieper condition is "sufficient" but not known to be
+> "necessary"
+
+That is decisive. Pieper's condition (three consecutive axes intersecting, or parallel) is
+**sufficient** for a closed form to exist, and is *not* known to be necessary. So neither half of the
+planned assertion holds:
+
+- *solves ⇏ has a triple.* IKBT's rule set is not Pieper's construction; it can solve arms about which
+  Pieper says nothing. "The detector must find a triple for every robot that currently solves" is
+  therefore not a valid test.
+- *no triple ⇏ unsolvable.* A general 6R still has a closed form (Raghavan–Roth, up to 16 solutions);
+  it is just not one IKBT's leaves can find.
+
+The one implication that *does* hold is the useful one:
+
+> **has a triple ⇒ a closed form exists**, so a robot with a triple that IKBT fails on is an **IKBT
+> defect**, not a geometry problem.
+
+That is exactly the diagnostic BH wanted, and it is what the `Inverter(pieper_id)` gate encodes: don't
+simplify an arm whose geometry is already good enough, because the bug is in the solver.
+
+The measured Phase A baseline also replaces the doc's guessed set. `Wachtveitl` (6/6), `Olson13` (7/7)
+and `Sims11` (5/5) **all solve completely**, so the planned no-triple set
+`{KinovaLite, Issue4, KawasakiRS05L, Wachtveitl, Olson13, Sims11}` is wrong on three of its six
+members. The robots that solve nothing are `{ArmRobo, Issue4, KawasakiRS05L, KinovaLite, Raven-II}` —
+which matches `comp_detect.py`'s empty-`eqns_1u` comment exactly — plus `MiniDD`, which crashes for an
+unrelated reason (see Phase A). Note that "solves nothing" is an *IKBT* fact, not a geometric one, so
+it still cannot be used as the expected output of a geometry function.
+
+**Hard assertions** — hand-verifiable geometry only, no reference to solve outcomes:
+
+- `KawasakiRS007L` reports the classic spherical wrist: intersecting at axes (4,5,6).
+- `Puma` reports its intersecting wrist triple.
+- `Brad` (3 DOF) reports **zero** triples. It reports five today, all artifacts of the mandatory
+  zero-padded DH rows, so this is the regression test for the restrict-`j`-to-real-joints rule and the
+  single most valuable assertion in the phase.
+- Synthetic tables: an all-parallel table reports a parallel triple at every legal `j`; a table with
+  `a_j ≠ 0` and `d_j ≠ 0` everywhere and no `sin(α)` zero reports none.
+- A symbol with no `pvals` entry is reported **undecidable**, never silently treated as non-zero
+  (`Sims11` has one, `d_2`).
+
+**Recorded, not asserted** — the cross-tabulation of {has triple, no triple} × {solved, unsolved}
+over all 32 robots, written alongside the baseline. *This* is the real deliverable of Phase C, because
+it is what defines the hybrid's target population:
+
+| cell | meaning | action |
+|---|---|---|
+| has triple + unsolved | IKBT solver defect — a closed form exists and we are not finding it | hybrid must **not** fire; file as a solver bug. BH names `ArmRobo` and `Raven-II` here |
+| no triple + unsolved | the hybrid's real target | Phases D–F |
+| no triple + solved | direct evidence that Pieper is not necessary | gate declines to help a robot that needs no help — harmless |
+| has triple + solved | the ordinary case | nothing to do |
+
+`Raven-II` is **excluded from the hybrid evaluation entirely**, per BH: its `α_j` are not multiples of
+π/2, so `sin`/`cos` do not evaluate to `±{0,1}` and it is a hard case for reasons that have nothing to
+do with simplification. Removing it from the five unsolved robots leaves **at most four** candidates —
+`ArmRobo`, `Issue4`, `KawasakiRS05L`, `KinovaLite` — and BH expects `ArmRobo` to have a triple and so
+to land in the solver-defect cell, which would leave **three**. Any of the remaining three that also
+turns out to have a triple drops out too, so Phase C's cross-tab is what actually sizes the job.
+`KinovaLite` is the one known-good candidate, since `hybrid_plan.md` already measured it solving 6/6
+with `d_5 → 0`.
+
+New test class **`TestSolver019`** — 016, 017 and 018 were taken by Phase B — wired into
+`tests/leavestest.py` by named import plus `suite3.addTest(...)`, with a `runTest()` method.
+`python3 -m ikbtbasics.dh_analysis` for the module self-test.
+
+### Phase D — `simplified_arm`
+
+Adds to `dh_analysis.py`:
+
+- `candidate_simplifications(dh, pvals, ndof)` → for each *unsatisfied* triple, the DH cells that
+  would have to be zeroed (intersection) or snapped to a multiple of π (parallel), each with its
+  numeric magnitude. At most 8 candidate triples × 2 condition types — enumerable exhaustively in
+  milliseconds, not an optimization problem. Symbols with no `pvals` value are reported as
+  **undecidable, never silently skipped** (`Sims11` has one, `d_2`). USR: Let's set missing pvals to a sensible value for now.   d_x = 1.0, angles = \pi/2
+- `displacement_metric(dh, dh_simp, pvals, vv, ndof, n, seed)` → mean and max position and
+  orientation deviation over sampled joint space. **Build this on `Link_N` (`pykinsym.py:102`)** —
+  pure numpy, ~100× faster than `forward_kinematics_N`'s `subs`, and it sidesteps the sum-of-angles
+  key requirement entirely. Since `M.jlims` is a dead placeholder, define and document the sampling
+  ranges explicitly: ±π for revolute joints, and for prismatic joints a range derived from the DH
+  length scale. Take a `seed` so results are reproducible.
+
+Leaf `simplified_arm(b3.Action)`: puts the ranked candidate list, with numeric magnitudes, on the
+blackboard; returns FAILURE if a required `pval` is missing or no candidate exists.
+
+**Ranking key.** Task-space displacement, for three reasons the doc already establishes: it puts
+length-zeroing and angle-snapping in comparable units; it caught the compensation error in
+measurement 3 (rolling the 57 mm offset into `d_6` makes things *worse*, 80.6 mm vs 57.0, because the
+offsets are orthogonal and add in quadrature); and it is cheap enough to run inside a leaf.
+
+**Your TODO at `hybrid_plan.md:89` (joint-space error) is a separate, later function**, because the
+only way to get "one of the joint position solutions of the approximate model" is to actually solve
+the approximate model — minutes per candidate. So: `joint_seed_error(...)` samples `q_true`, computes
+`T = FK_true(q_true)`, runs the simplified robot's generated `ikin_<name>(T)`, and reports
+`min_k ‖wrap(q_k − q_true)‖` plus the fraction of samples where `ikin` returned `False`. It runs
+**once on the chosen candidate** as the go/no-go on whether the seed is usable (your ~π yardstick),
+not as the ranking key for all candidates. Flag if you want ranking itself moved to joint space —
+that makes `simplified_arm` a batch tool rather than a leaf.
+
+**Verify:** unit tests over synthetic DH tables; on `KinovaLite` the top candidate must be `d_5 = 0`
+with mean ‖Δp‖ ≈ 57.0 mm and Δθ = 0, reproducing the doc's measurement. Baseline diff still empty.
+
+### Phase E — `solve_simplified`
+
+Builds the derived robot and ticks a nested `build_default_bt()` on a **fresh** blackboard, which
+avoids mutating the outer blackboard's `Robot`. Three traps:
+
+- **Its own pickle name, encoding the modification** (e.g. `KinovaLite_d5_0`), so that a re-ranked
+  candidate cannot silently reuse the wrong FK. `kinematics_pickle(rname, dh, ...)` takes the name
+  independently of the DH table, so no change to `robot_params()` is needed. Phase A already removed
+  the sharp edge here — a pickle whose DH table no longer matches is now recomputed rather than
+  triggering `quit()` — but a distinct name is still wanted, both to keep the cache useful across
+  candidates and because the name is what a human reads in `fk_eqns/`.
+- **Fresh `unknown` objects**, because `set_solved()` mutates them in place — and they must go
+  through `number_unknowns()` (`ikbtfunctions/ik_robots.py`), the Phase A helper.
+- **A separate node instance set** for the nested tree; `bt_problems()` correctly rejects a node
+  instance appearing twice, since b3 keys per-node state on the blackboard by node id.
+
+**Verify:** `KinovaLite` reaches all 6 variables solved via the hybrid branch, matching the doc's
+27.7 s measurement. The baseline diff now shows exactly the intended change — whichever robots Phase
+C's cross-tab put in the **no triple + unsolved** cell move to a new "solved (hybrid)" status, and
+**nothing else moves**. That is at most four robots and possibly two, not the "six" this plan
+originally assumed: `Raven-II` is excluded, `ArmRobo` is expected to classify as a solver defect, and
+`Wachtveitl` / `Olson13` / `Sims11` were never unsolved in the first place.
+
+Note the baseline record will need a new status value (or a flag) to distinguish "solved (hybrid)"
+from "solved"; `COMPARED` in `scripts/robot_baseline.py` already includes `status`, so the diff picks
+it up for free, but `RANK` needs an entry or the classifier will call it `changed-status` rather than
+`newly-solved`.
+
+### Phase F — `numeric_ik` and `output_gen_hybrid`
+
+New module **`ikbtbasics/numeric_ik.py`**.
+
+- `pvals_numeric(M)` first — `M.pvals` is **not uniformly numeric**: `forward_kinematics()` writes
+  the *strings* `'np.cos(...)'`/`'np.sin(...)'` into it for robots whose α is not a multiple of π/2
+  (`kin_cl.py:296-297`; `Raven-II`, `ICP5p5_A21`). A naive `subs(M.pvals)` injects strings.
+- `sp.lambdify` of `M.T_06` and `M.J66` with `pvals` substituted. Sum-of-angles symbols (`th_23`, …)
+  appear in both and must be resolved from `R.kequation_aux_list` first — exactly what
+  `output_python.py` already emits as `th_23 = th_2 + th_3`. Cross-check the lambdified FK against
+  the `Link_N` implementation from Phase D in a test; two independent paths to the same matrix is
+  cheap insurance. No new symbolic computation is needed — `J66` is already pickled.
+- `J_0 = blkdiag(R_06, R_06) · J_66` (`J66` is expressed in frame 6).
+- **Damped least squares (Levenberg–Marquardt), not plain gradient descent:**
+  `Δq = Jᵀ(JJᵀ + λ²I)⁻¹ e`, which behaves like Newton away from singularities and degrades
+  gracefully *to* gradient descent as λ grows — precisely the singularity failure mode step 2.4 asks
+  about. Plain gradient descent would make that failure mode permanent.
+- **Residual and metric — settled, see question 3.** The LM *step* uses the 6-vector residual
+  `e = [Δp; w · rotvec(R_d Rᵀ)]`. Convergence is reported and thresholded on BH's scalar,
+  `‖Δp‖ + (1 m) · θ`, where `θ` is the rotation angle of `R_d Rᵀ` in radians — so `w = 1 m/rad` and
+  the step and the metric use the same rotation parameterisation and the same weighting. Frobenius is
+  dropped: the angle/axis scalar is metrically interpretable (it states the position/orientation trade
+  explicitly and adjustably) and is linear in the error, so one threshold means the same thing near and
+  far from convergence.
+- **Refine every closed-form branch independently**, then deduplicate on wrapped joint values while
+  keeping branch labels. Preserving the multi-branch structure is the one thing this hybrid offers
+  that a generic numerical IK does not, and it is the reason to build it this way.
+- **A first-order failure mode the doc files under 2.4, item 4.** Generated IK returns `False` when
+  `solvable_pose` is falsified by an out-of-domain `asin`/`acos` (`output_python.py:274-275, 327-330`).
+  A pose reachable on the *true* robot can be unreachable on the *simplified* one, so the hybrid can
+  get **no seed at all** — distinct from Newton diverging, and it needs an explicit fallback
+  (multi-start from perturbed seeds) rather than feeding `NaN` into the refinement.
+
+`output_gen_hybrid` then emits the simplified closed form plus the LM refinement. Two requirements:
+
+- **Artifacts must say which robot the closed-form equations actually describe**, or they are
+  misleading — the doc's one caveat before publishing. Name the artifacts for the *true* robot
+  (`Robot.name` drives every output path: `output_latex.py:87`, `output_python.py:185`,
+  `output_cpp.py:65`) and carry a header banner naming the derived DH table and the parameter that
+  was changed.
+- **C++ is phase 2**, after Python is validated. The existing C++ output contains no linear algebra
+  at all, so it needs either Eigen (a new dependency) or ~80 lines of self-contained damped 6×6
+  solve.
+
+**Verify:** standalone first, before any tree wiring — on `Puma`/`KawasakiRS007L` (which solve
+exactly), perturb the true solution and confirm quadratic convergence; then on `KinovaLite`, seed
+from the `d_5 = 0` solution and measure convergence against true FK. Then end-to-end with the
+rewritten `solChecker.py` from Phase A.
+
+---
+
+## Explicitly deferred
+
+- **Step 1.1 item 5** — `scripts/simplify_dh.py` CLI. Lower priority per the doc, but it has
+  standalone value as a mechanical-design tool: "your 57 mm offset is what costs you closed-form IK"
+  is a useful thing to tell a designer.
+- **Step 2.4** — the systematic failure-mode study (basin of attraction vs. simplification size,
+  singularity stratification, branch loss and numerical continuation, joint-limit poses, branch
+  mislabeling). Held for later per the doc. Note the branch-loss item is a *structural* limit, not a
+  numerical one: a 6R with a spherical wrist has at most 8 IK solutions and a general 6R at most 16,
+  so zeroing `d_5` can produce a provably incomplete seed set and no amount of Newton polish recovers
+  a branch that was never seeded.
+
+---
+
+## Verification summary
+
+```bash
+# from the repo root, always
+python3 -m tests.leavestest              # leaf suite (016/017/018 done; add 019 for Phase C)
+python3 -m tests.bt_assembly_test        # bt_problems() linter over the new tree shape
+python3 -m tests.test_chair_helper       # full solve; must still write nothing to LaTex/ or CodeGen/
+python3 -m ikbtbasics.dh_analysis        # new module self-test (Phases C, D)
+
+python3 -m scripts.robot_baseline                # capture (writes tests/baselines/)
+python3 -m scripts.robot_baseline --diff         # the gate at every phase boundary; exit 1 if moved
+python3 -m scripts.robot_baseline --diff --no-save          # gate without overwriting the record
+python3 -m scripts.robot_baseline --robots KinovaLite Puma  # one or two robots only
+
+python3 ikSolver.py KinovaLite           # the motivating robot: unsolved -> hybrid-solved
+python3 ikSolver.py Puma                 # unchanged control
+python3 solChecker.py KinovaLite         # numeric round-trip, generic rewrite (deferred from Phase A)
+```
+
+The phase gate is the same each time: **`--diff` shows only the change that phase was supposed to
+make.** Phases B, C and D must show an empty diff; Phase E is the first one allowed to move a robot.
+Use `--no-save` while iterating, so the checked-in baseline is not overwritten by the run that is
+supposed to be measured against it.
+
+The FK pickle cache is self-healing as of Phase A: `kinematics_pickle()` recomputes any pickle that
+will not load or whose DH table no longer matches, and a `pvals`-only edit updates `M.pvals` in place
+without a recompute (`pvals` never enter the symbolic FK). A change to the FK or sum-of-angles *code*
+is still invisible to it — delete `fk_eqns/<name>_pickle.p` by hand for those.
+
+---
+
+## Questions — all five answered
+
+BH's answers are preserved verbatim as `USR:`. What each one turned into:
+
+1. **Robot count** — I measure 33 unique names / 32 with a definition block, not 27. Which set did
+   you have in mind for "reproduce our existing successes and failures"? USR: please de-dupe, eliminate comment-only robots etc. and use the remaining number. 
+   → **32.** `List` became a de-duplicated module-level `ROBOT_LIST` (41 entries → 32), `Chair6DOF`
+   removed, and a fall-through guard added so a listed-but-undefined name says so instead of raising
+   `UnboundLocalError`. Done in Phase A.
+2. **Ranking metric (Phase D)** — task-space displacement to rank all candidates, joint-space seed
+   error as go/no-go on the winner? Or must ranking itself be joint-space (making it a batch tool
+   rather than a BT leaf)? USR: task space.
+   → **Task space for ranking**, `joint_seed_error()` as the go/no-go on the winner only.
+   `simplified_arm` stays a leaf.
+3. **LM residual (Phase F)** — 6-vector twist residual with Frobenius norm reported, or the exact
+   12-element Frobenius least-squares form?   Should be a scalar I belive.  Alternative to Frobenius: 
+   convert the rotation submatrix to angle/axis and multiply the angle (in radians) by 1meter then add that to the magnitude of the XYZ position error. 
+   → **BH's angle/axis scalar.** The reported convergence metric is
+   `‖Δp‖ + (1 m) · θ`, where `θ` is the angle of the angle/axis form of `R_d Rᵀ` in radians. This is
+   better than the Frobenius norm for the stated purpose: it is metrically interpretable (a
+   1-radian orientation error counts as 1 m of position error, an explicit and adjustable trade), and
+   it is linear in the error rather than quadratic-ish, so the threshold means the same thing near and
+   far from convergence. The LM *step* still uses the 6-vector residual
+   `e = [Δp; rotvec(R_d Rᵀ)]` — same rotation parameterisation, so the step and the metric agree — and
+   the 1 m weight becomes the scale factor on the rotation block. Frobenius is dropped.
+4. **Leaf naming** — `pieper_id` / `simplified_arm` (repo convention), or `ID_Peiper` /
+   `Simplified_ARM` as written in `hybrid_plan.md`? (USR: try to make naming have correct spelling of Pieper and be consistent with other "id" and "solver" leaf names.)
+   → **`pieper_id`, `simplified_arm`, `solve_simplified`, `output_gen_hybrid`.** Correct Pieper
+   spelling, lowercase, `_id` suffix consistent with `algebra_id` / `sum_id` / `tan_id`.
+5. **`RepeatUntilSuccess(x10)`** — I kept it and added a measurement (outer `comp_det` tick counts
+   per robot) to answer your "is it still necessary" question with data rather than by inspection.
+   Say if you would rather just fold it into `symbolic_branch` now. (USR: you could move this inside the solver leaf by implementing a code-based loop to enforce the "repeatuntilsuccess" limit.)
+   → **Done, and the measurement says keep the budget.** The loop now lives inside
+   `symbolic_loop.tick()` as a Python `while`, which is what let the node choose its own exit status
+   and delete two other nodes. The data says 10 is a real limit, not slack: `UR5` uses 9 passes.
+
+---
+
+## Open question
+
+One decision Phase A's data made free, so it is worth asking rather than assuming:
+
+- **Should the hybrid fire on a *partial* symbolic solve, or only when nothing at all was solved?**
+  `symbolic_loop.require_complete` is the switch, currently `False` (= fire only when nothing was
+  solved), which reproduces the pre-existing `solved_anything()` contract exactly. Because **no robot
+  in the current set is ever partially solved**, both settings produce an identical baseline today —
+  so flipping it costs nothing now and can be flipped back. The argument for `True` is that a partial
+  closed form is not usable IK, so a robot that stalls halfway is exactly as stuck as one that never
+  started. The argument for `False` is that IKBT has always reported partial solves, and a future
+  robot that stalls at 5-of-6 would silently stop getting its report.
