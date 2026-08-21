@@ -454,7 +454,12 @@ def robot_params(name):
             [ -sp.pi/2 ,     0  ,   0   , th_5  ],
             [   0      ,     0  ,   0   ,   0   ]     
             ])
-        vv = [0,1,1,1,1]
+        #  SIX entries, like the DH table's six rows:  forward_kinematics()
+        #  reads self.vv[5] unconditionally when it builds the angular velocity
+        #  chain (kin_cl.py:409), so a 5-DOF arm whose vv was not padded died
+        #  with IndexError before the BT ever ticked.  The padding row is a
+        #  fixed joint, so 0 or 1 is equally inert -- but it must be present.
+        vv = [0,1,1,1,1,0]
 
         variables = [unknown(d_1), unknown(th_2), unknown(th_3), unknown(th_4), unknown(th_5) ]
 

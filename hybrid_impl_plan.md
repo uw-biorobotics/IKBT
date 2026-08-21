@@ -164,8 +164,16 @@ Three findings that change later phases:
 3. **`MiniDD` crashes before the BT ever ticks.** `ik_robots.py:441` gives it `vv = [0,1,1,1,1]` —
    five entries — while `forward_kinematics()` unconditionally reads `self.vv[5]`
    (`kin_cl.py:409`). It is a 5-DOF arm whose `vv` was never padded to 6 the way the DH table is
-   required to be. Fix is `vv = [0,1,1,1,1,0]`, in its own commit: it moves `MiniDD` off `crash` and
-   so must not be folded into a phase whose gate is an empty diff.
+   required to be. Fixed by padding to `vv = [0,1,1,1,1,0]`, in its own commit because it moves
+   `MiniDD` off `crash` and so must not be folded into a phase whose gate is an empty diff.
+   `MiniDD` now solves 5/5 with 8 solutions.
+
+   Two follow-ons worth recording. **`Sims11` has the same class of defect in the other direction** —
+   `vv` is *seven* entries long against a six-row DH table. It is harmless today because nothing reads
+   past `vv[5]`, and `Sims11` solves 5/5, so it was left alone; but it is an off-by-one somebody
+   should look at, and it means `len(vv) == 6` is worth asserting rather than assumed. **And the DH
+   6-row rule should extend to `vv`:** `CLAUDE.md` tells you to pad the DH table to six rows and says
+   nothing about `vv`, which is exactly how this got in.
 
 ---
 

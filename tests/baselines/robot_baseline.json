@@ -21,7 +21,7 @@
    "no_progress": true,
    "solution_set_error": null,
    "status": "unsolved",
-   "wall_s": 4.27
+   "wall_s": 3.69
   },
   "Arm_3": {
    "comp_det_ticks": 6,
@@ -41,7 +41,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 1.56
+   "wall_s": 1.36
   },
   "Axtman13": {
    "comp_det_ticks": 5,
@@ -60,7 +60,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 2.38
+   "wall_s": 1.59
   },
   "Bartell": {
    "comp_det_ticks": 5,
@@ -79,7 +79,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 1.83
+   "wall_s": 1.64
   },
   "Brad": {
    "comp_det_ticks": 4,
@@ -97,7 +97,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 1.58
+   "wall_s": 1.3
   },
   "Chair_Helper": {
    "comp_det_ticks": 5,
@@ -116,7 +116,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 2.93
+   "wall_s": 2.5
   },
   "Craig417": {
    "comp_det_ticks": 5,
@@ -135,7 +135,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 5.24
+   "wall_s": 2.72
   },
   "DZhang": {
    "comp_det_ticks": 7,
@@ -155,7 +155,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 26.24
+   "wall_s": 21.48
   },
   "Frei13": {
    "comp_det_ticks": 5,
@@ -174,7 +174,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 5.04
+   "wall_s": 2.52
   },
   "ICP5p5_A21": {
    "comp_det_ticks": 5,
@@ -192,7 +192,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 2.48
+   "wall_s": 1.79
   },
   "Issue4": {
    "comp_det_ticks": 2,
@@ -213,7 +213,7 @@
    "no_progress": true,
    "solution_set_error": null,
    "status": "unsolved",
-   "wall_s": 16.93
+   "wall_s": 12.19
   },
   "JennyGuoSp24": {
    "comp_det_ticks": 8,
@@ -235,7 +235,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 2.46
+   "wall_s": 2.33
   },
   "KR16": {
    "comp_det_ticks": 8,
@@ -256,7 +256,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 57.51
+   "wall_s": 37.34
   },
   "KawasakiRS007L": {
    "comp_det_ticks": 8,
@@ -277,7 +277,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 19.55
+   "wall_s": 10.65
   },
   "KawasakiRS05L": {
    "comp_det_ticks": 2,
@@ -298,7 +298,7 @@
    "no_progress": true,
    "solution_set_error": null,
    "status": "unsolved",
-   "wall_s": 14.56
+   "wall_s": 7.81
   },
   "Khat6DOF": {
    "comp_det_ticks": 8,
@@ -319,7 +319,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 18.79
+   "wall_s": 14.45
   },
   "KinovaLite": {
    "comp_det_ticks": 2,
@@ -340,7 +340,7 @@
    "no_progress": true,
    "solution_set_error": null,
    "status": "unsolved",
-   "wall_s": 18.0
+   "wall_s": 12.22
   },
   "Mackler13": {
    "comp_det_ticks": 5,
@@ -359,7 +359,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 5.25
+   "wall_s": 4.01
   },
   "Minder13": {
    "comp_det_ticks": 4,
@@ -377,20 +377,26 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 2.26
+   "wall_s": 1.51
   },
   "MiniDD": {
-   "comp_det_ticks": 0,
-   "error": "IndexError: list index out of range",
-   "methods": {},
-   "n_solutions": null,
-   "n_solved": 0,
-   "n_unknowns": 0,
+   "comp_det_ticks": 5,
+   "error": null,
+   "methods": {
+    "d_1": "algebra",
+    "th_2": "arccos",
+    "th_3": "arccos",
+    "th_4": "arcsin",
+    "th_5": "simultaneous eqn"
+   },
+   "n_solutions": 8,
+   "n_solved": 5,
+   "n_unknowns": 5,
    "name": "MiniDD",
    "no_progress": false,
    "solution_set_error": null,
-   "status": "crash",
-   "wall_s": 1.3
+   "status": "solved",
+   "wall_s": 3.35
   },
   "Olson13": {
    "comp_det_ticks": 7,
@@ -411,7 +417,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 2.53
+   "wall_s": 2.32
   },
   "Palm13": {
    "comp_det_ticks": 4,
@@ -429,7 +435,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 2.07
+   "wall_s": 1.55
   },
   "Parkman13": {
    "comp_det_ticks": 8,
@@ -449,7 +455,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 23.49
+   "wall_s": 8.94
   },
   "Puma": {
    "comp_det_ticks": 8,
@@ -470,7 +476,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 16.16
+   "wall_s": 11.87
   },
   "Pumaoffset": {
    "comp_det_ticks": 8,
@@ -491,7 +497,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 41.0
+   "wall_s": 29.82
   },
   "Raven-II": {
    "comp_det_ticks": 2,
@@ -511,7 +517,7 @@
    "no_progress": true,
    "solution_set_error": null,
    "status": "unsolved",
-   "wall_s": 10.04
+   "wall_s": 6.9
   },
   "Sims11": {
    "comp_det_ticks": 5,
@@ -530,7 +536,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 2.07
+   "wall_s": 1.81
   },
   "Srisuan11": {
    "comp_det_ticks": 6,
@@ -550,7 +556,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 2.78
+   "wall_s": 2.29
   },
   "Stanford": {
    "comp_det_ticks": 6,
@@ -570,7 +576,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 3.47
+   "wall_s": 3.19
   },
   "UR5": {
    "comp_det_ticks": 9,
@@ -593,7 +599,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 8.25
+   "wall_s": 5.67
   },
   "Wachtveitl": {
    "comp_det_ticks": 6,
@@ -613,7 +619,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 4.31
+   "wall_s": 2.22
   },
   "Wrist": {
    "comp_det_ticks": 3,
@@ -630,8 +636,8 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 1.59
+   "wall_s": 1.39
   }
  },
- "total_wall_s": 327.92
+ "total_wall_s": 224.42
 }

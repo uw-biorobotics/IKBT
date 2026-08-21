@@ -151,12 +151,16 @@ mentioning `notation_collections`, `notation_graph_edges`, or `matching_func` is
 
 ## Adding a robot
 
-Edit `ikbtfunctions/ik_robots.py`: add the name to `List` at the top of `robot_params()`, then add an
+Edit `ikbtfunctions/ik_robots.py`: add the name to `ROBOT_LIST` at the top of the module (one entry per
+robot — a duplicate makes any sweep over "all robots" solve the same arm twice), then add an
 `if(name == 'X'):` block copied from a similar robot setting `dh`, `vv` (1 = rotary, 0 = prismatic), `variables`
 (a list of `unknown(...)`), `params`, and optionally `pvals` (numeric values for verification). The DH table
-must have **6 rows** — pad with `[0,0,0,0]`. Modified/Craig-style DH. Do not put bare numeric literals in the DH
+must have **6 rows** — pad with `[0,0,0,0]` — and **`vv` must have 6 entries** to match: a shorter `vv`
+kills `forward_kinematics()` with `IndexError` at `kin_cl.py:409`, which is how `MiniDD` sat broken.
+Modified/Craig-style DH. Do not put bare numeric literals in the DH
 matrix (sympy bug); use a symbolic constant declared in `params` with its value in `pvals`. Declare any new
-symbols with `sp.var()`.
+symbols with `sp.var()`. A name in `ROBOT_LIST` with no `if` block is reported by name rather than
+raising `UnboundLocalError`.
 
 ## git etiquette
 
