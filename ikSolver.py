@@ -28,7 +28,7 @@ import sympy as sp
 from sys import exit, argv
 import pickle     # for storing pre-computed FK eqns
 
-from ikbtfunctions.ik_driver   import (load_robot, run_solver, emit_outputs,
+from ikbtfunctions.ik_driver   import (load_robot, run_solver,
                                        print_solved_equations, ensure_logdir,
                                        solved_anything)
 from ikbtfunctions.bt_assembly import build_default_bt
@@ -95,7 +95,12 @@ def main(argv):
     ##
     #                                   Set up the BT
     #
-    ikbt, nodes = build_default_bt(leaf_debug=False, solver_debug=False)
+    #  codegen=True: the TREE writes LaTex/ and CodeGen/, through the
+    #  output_gen_full leaf on the end of the symbolic branch.  This front end is
+    #  the one caller that wants file side effects -- library and test callers
+    #  get the default, codegen=False, and leave the generated artifacts alone.
+    ikbt, nodes = build_default_bt(leaf_debug=False, solver_debug=False,
+                                   codegen=not TEST_DATA_GENERATION)
 
     ensure_logdir()
 
@@ -120,8 +125,12 @@ def main(argv):
     #
     #           Perform the Computation via ticking the BT
     #
-    R, unks, bb = run_solver(R, unknowns, ikbt,
-                             create_solutions=not TEST_DATA_GENERATION)
+    #  create_solutions=False always:  with codegen in the tree, the
+    #  output_gen_full leaf owns create_solution_set().  It must be called
+    #  exactly once -- it appends to unknown.LHSversionNames -- so run_solver()
+    #  must not also do it.  On the TEST_DATA_GENERATION path nobody calls it,
+    #  which is what that path wants (it pickles the raw post-solve state).
+    R, unks, bb = run_solver(R, unknowns, ikbt, create_solutions=False)
 
     if TEST_DATA_GENERATION:
         # Now we're going to save some results for use in tests.
@@ -133,19 +142,20 @@ def main(argv):
         return
 
     if not solved_anything(bb):
-        #  The tree gave up having solved nothing -- see comp_det.  There is no
-        #  solution set, so there is nothing to write;  going on would only get
-        #  us an IndexError deep in the LaTeX generator.
+        #  The tree gave up having solved nothing -- see comp_det.  The symbolic
+        #  branch FAILed, so the codegen leaf never ticked and nothing was
+        #  written;  this is just the report to the user.
         print('\n\n           No solution generated for ' + robot + '.')
         print('           Nothing written to LaTex/ or CodeGen/.\n')
         print('\n                  End of solution job \n                  (no solution) \n\n')
         return
 
     #
-    #  Version 3 of solution set finding (non tree).  Version 2 was tree-based and
-    #  used R.notation_collections / matching.matching_func(); that path is gone.
+    #  The solution set and all three output formats were produced inside the
+    #  tick, by the output_gen_full leaf at the end of the symbolic branch.
+    #  (Version 3 of solution-set finding.  Version 2 was tree-based and used
+    #   R.notation_collections / matching.matching_func(); that path is gone.)
     #
-    emit_outputs(R, unks)
 
     #################################################
     # print out all equations that used to solve variables

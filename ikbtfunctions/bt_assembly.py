@@ -39,6 +39,13 @@ from ikbtleaves.sum_id          import sum_id      # detect and sub sum-of-angle
 from ikbtleaves.updateL         import updateL
 from ikbtleaves.comp_detect     import comp_det
 
+#  Top-of-tree leaves.  symbolic_loop is the outer solve loop (it replaced
+#  b3.RepeatUntilSuccess -- see below), output_gen_full is codegen-as-a-leaf,
+#  and hybrid_stub is the placeholder for the hybrid symbolic-numeric branch.
+from ikbtleaves.symbolic_loop   import symbolic_loop
+from ikbtleaves.output_gen      import output_gen_full
+from ikbtleaves.hybrid_ik       import hybrid_stub
+
 #  (updateL and comp_det used to arrive in ikSolver.py by accident, via
 #   `from ikbtleaves.tan_solver import *`.  Imported explicitly here.)
 
@@ -199,6 +206,27 @@ def make_leaves(leaf_debug=False, solver_debug=False):
     compDetect.BHdebug = True
     n['compDetect'] = compDetect
 
+    ###  Report and code generation.
+    #  DEFAULT OFF.  Enabled, this leaf owns create_solution_set() and writes
+    #  LaTex/ and CodeGen/;  disabled it does nothing whatsoever, and
+    #  ik_driver.run_solver() keeps ownership of the solution set exactly as
+    #  before.  Exactly one of the two must call create_solution_set() -- it
+    #  appends to unknown.LHSversionNames and is not idempotent.
+    #
+    #  Off by default because every unit test that builds a tree would otherwise
+    #  overwrite the repo's generated artifacts;  tests/test_chair_helper.py
+    #  documents that it leaves them alone.  ikSolver.py opts in.
+    outputGen = output_gen_full()
+    outputGen.BHdebug = False
+    n['outputGen'] = outputGen
+
+    ###  The hybrid symbolic-numeric branch (futurework.md item 1) -- a stub.
+    #  Always FAILs, so the branch is inert and the tree is observably identical
+    #  to the one that had no branch at all.  See ikbtleaves/hybrid_ik.py.
+    hybridStub = hybrid_stub()
+    hybridStub.BHdebug = False
+    n['hybridStub'] = hybridStub
+
     ###  tan and sin/cos compete, then rank picks the nicer solution.
     #  b3.OrNode (unlike b3.Priority) runs ALL its children -- that is deliberate
     #  and load-bearing:  rank needs both candidate solutions to choose between.
@@ -240,14 +268,32 @@ def build_worktools(nodes):
                         nodes['invariantGen']])
 
 
-def build_default_bt(leaf_debug=False, solver_debug=False, nodes=None):
+def build_default_bt(leaf_debug=False, solver_debug=False, nodes=None,
+                     codegen=False):
     '''Build the standard IKBT tree.  Returns (BehaviorTree, nodes dict).
 
-           RepeatUntilSuccess(x10)
-             Sequence[ sub_transform,
-                       RepeatUntilSuccess(x6, Sequence[assigner, sum_id, worktools]),
-                       updateL,
-                       comp_det ]
+           Priority[ symbolic_branch, hybrid_branch ]
+
+           symbolic_branch = Sequence[ symbolic_loop(x10, solveRoutine),
+                                       output_gen_full ]
+
+           solveRoutine    = Sequence[ sub_transform,
+                                       RepeatUntilSuccess(x6, Sequence[assigner,
+                                                          sum_id, worktools]),
+                                       updateL,
+                                       comp_det ]
+
+           hybrid_branch   = hybrid_stub          (always FAILs, for now)
+
+       Everything from solveRoutine down is unchanged.  What is new is the top:
+       the solver now reports whether it got anywhere, so a SECOND strategy can
+       be tried when it did not, and each branch can emit its own artifacts.
+
+       codegen=False (the default) leaves output_gen_full inert, so building a
+       tree has no file side effects and run_solver() still owns
+       create_solution_set().  codegen=True hands the whole tail end to the
+       tree, and the caller must then pass run_solver(..., create_solutions=False)
+       -- create_solution_set() is not idempotent.
 
        Pass `nodes` (from a prior make_leaves() call) to build a tree over nodes
        you have already customized.'''
@@ -290,9 +336,38 @@ def build_default_bt(leaf_debug=False, solver_debug=False, nodes=None):
     solveRoutine.Name = "Solve Routine"
     nodes['solveRoutine'] = solveRoutine
 
-    topnode = b3.RepeatUntilSuccess(solveRoutine, 10)   # max 10 loops
+    #  The outer loop and its budget.  This was b3.RepeatUntilSuccess(x10),
+    #  which returns FAILURE when it exhausts its loops -- and a FAILURE at the
+    #  head of a Sequence aborts the Sequence, so a loop-exhausted PARTIAL solve
+    #  would never reach the codegen leaf, though IKBT has always reported
+    #  partial solves.  Wrapping it in Priority([..., Succeeder()]) hides that
+    #  failure, but it hides the REAL one too, and then the tree can no longer
+    #  tell "solved nothing" from "ran out of passes".
+    #
+    #  symbolic_loop runs the identical passes and then reports what happened:
+    #  SUCCESS if anything was solved, FAILURE if nothing was.  That FAILURE is
+    #  the gate on the hybrid branch.  (Measured over all 32 robots, the
+    #  deepest solve is UR5 at 9 passes -- so 10 is a real budget, not slack.)
+    symLoop = symbolic_loop(solveRoutine, 10)
+    symLoop.BHdebug = solver_debug
+    nodes['symLoop'] = symLoop
+
+    symbolicBranch = b3.Sequence([symLoop, nodes['outputGen']])
+    symbolicBranch.Name = "Symbolic Branch"
+    nodes['symbolicBranch'] = symbolicBranch
+
+    #  b3.Priority stops at its first non-FAILURE child, so the hybrid branch is
+    #  ticked ONLY when the symbolic solver came up completely empty.  The stub
+    #  always FAILs, which makes this Priority a no-op wrapper today -- the
+    #  point of building the shape before the behavior.
+    nodes['hybridBranch'] = nodes['hybridStub']
+
+    topnode = b3.Priority([symbolicBranch, nodes['hybridBranch']])
     topnode.Name = "Top Node"
     nodes['topnode'] = topnode
+
+    #  Opt-in, last, so it applies whether or not the caller passed `nodes`.
+    nodes['outputGen'].enabled = bool(codegen)
 
     ikbt = b3.BehaviorTree()
     ikbt.root = topnode

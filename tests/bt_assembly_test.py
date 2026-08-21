@@ -70,6 +70,9 @@ from ikbtleaves.sub_transform    import sub_transform
 from ikbtleaves.sum_id           import sum_id, sum_solve
 from ikbtleaves.updateL          import updateL
 from ikbtleaves.comp_detect      import comp_det
+from ikbtleaves.symbolic_loop    import symbolic_loop
+from ikbtleaves.output_gen       import output_gen_full
+from ikbtleaves.hybrid_ik        import hybrid_stub
 
 
 ###############################################################################
@@ -95,7 +98,17 @@ REQUIRED_SUPPORT = [assigner, rank, sum_id, sub_transform, updateL, comp_det]
 
 #  Legal in a tree, not required in one.  invariant_gen is a documented,
 #  off-by-default extension point;  sum_solve is superseded by the algebra leaf.
-OPTIONAL_LEAVES = [invariant_gen, sum_solve]
+#
+#  The three top-of-tree leaves are OPTIONAL on purpose, and it is worth saying
+#  why, because they are all in the shipped tree.  This file lints ANY candidate
+#  tree, and none of the three is needed to solve a robot:  the outer loop can be
+#  a plain b3.RepeatUntilSuccess (it was, until Aug 2026), codegen can stay with
+#  the caller (it did), and the hybrid branch does not exist yet.  Requiring them
+#  would tell somebody experimenting with a simpler tree that they are wrong.
+#  What the shipped tree actually guarantees is asserted directly instead -- see
+#  test_btaR / test_btaS below.
+OPTIONAL_LEAVES = [invariant_gen, sum_solve,
+                   symbolic_loop, output_gen_full, hybrid_stub]
 
 #  An ID leaf stashes state on the blackboard that its solver leaf then consumes,
 #  so the ID must be sequenced AHEAD of the solver.  sum_id is deliberately
@@ -419,6 +432,8 @@ class TestSolver013(unittest.TestCase):
         self.test_btaO_debug_flags_reach_the_leaves()
         self.test_btaP_nodes_dict_is_the_tree()
         self.test_btaQ_leaf_inventory_advisory()
+        self.test_btaR_codegen_is_off_unless_asked()
+        self.test_btaS_hybrid_branch_is_inert()
 
     #  ------------------------------------------------  the shipped tree
 
@@ -722,6 +737,64 @@ class TestSolver013(unittest.TestCase):
                   'OPTIONAL_LEAVES.')
         else:
             print('  bt_assembly: all ikbtleaves node classes are classified.')
+
+    #  ------------------------------------  what the shipped tree promises
+
+    def test_btaR_codegen_is_off_unless_asked(self):
+        '''Building a tree must have NO file side effects unless the caller asks.
+
+           tests/test_chair_helper.py runs a complete solve and documents that
+           it leaves LaTex/ and CodeGen/ alone;  so does every structural test
+           in this file.  A codegen leaf that fired by default would silently
+           overwrite the repo's generated artifacts from inside the unit
+           suite.'''
+        fs = ' bt_assembly codegen FAIL'
+
+        bt, nodes = build_default_bt()
+        gens = [n for n in bt_nodes(bt) if isinstance(n, output_gen_full)]
+        self.assertEqual(len(gens), 1, fs + ' (expected exactly one codegen leaf)')
+        self.assertFalse(gens[0].enabled,
+                         fs + ' (codegen is ON by default -- it must not be)')
+
+        bt, nodes = build_default_bt(codegen=True)
+        gens = [n for n in bt_nodes(bt) if isinstance(n, output_gen_full)]
+        self.assertTrue(gens[0].enabled, fs + ' (codegen=True did not enable it)')
+
+        #  ... and the opt-in must survive the documented nodes= path, which is
+        #  where it would be easy to drop it.
+        pre = make_leaves()
+        bt, nodes = build_default_bt(nodes=pre, codegen=True)
+        self.assertTrue(pre['outputGen'].enabled,
+                        fs + ' (codegen=True lost through nodes=)')
+
+    def test_btaS_hybrid_branch_is_inert(self):
+        '''The hybrid branch must not change any outcome while it is a stub.
+
+           The whole point of building the branch before the behavior is that
+           the restructure can be proven to move nothing (see
+           scripts/robot_baseline.py --diff).  That rests on the stub always
+           FAILing, so the enclosing Priority falls through as though the branch
+           were not there.'''
+        fs = ' bt_assembly hybrid FAIL'
+
+        bt, nodes = build_default_bt()
+        stubs = [n for n in bt_nodes(bt) if isinstance(n, hybrid_stub)]
+        self.assertEqual(len(stubs), 1, fs + ' (expected exactly one hybrid stub)')
+
+        t = b3.BehaviorTree()
+        t.root = stubs[0]
+        self.assertEqual(t.tick('hybrid stub', b3.Blackboard()), b3.FAILURE,
+                         fs + ' (the stub must always FAIL)')
+
+        #  The gate is the symbolic loop's status, so the loop must be the thing
+        #  the Priority chooses on -- exactly one, with a finite budget.
+        loops = [n for n in bt_nodes(bt) if isinstance(n, symbolic_loop)]
+        self.assertEqual(len(loops), 1, fs + ' (expected exactly one solve loop)')
+        self.assertTrue(loops[0].max_loop > 0,
+                        fs + ' (solve loop has no usable budget)')
+        self.assertFalse(loops[0].require_complete,
+                         fs + ' (require_complete ON would discard partial '
+                         'solves, which IKBT has always reported)')
 
 
 def run_test():

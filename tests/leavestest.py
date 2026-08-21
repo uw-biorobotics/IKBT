@@ -56,6 +56,9 @@ from ikbtleaves.invariant_gen  import TestSolver012
 from tests.bt_assembly_test    import TestSolver013
 from ikbtleaves.comp_detect    import TestSolver014
 from ikbtfunctions.output_latex import TestSolver015
+from ikbtleaves.symbolic_loop   import TestSolver016
+from ikbtleaves.output_gen      import TestSolver017
+from ikbtleaves.hybrid_ik       import TestSolver018
 
 
 import b3 as b3          # behavior trees
@@ -400,6 +403,9 @@ if __name__ == '__main__':
     suite3.addTest(TestSolver013())   # bt_assembly.py    # shape of the real tree
     suite3.addTest(TestSolver014())   # comp_detect.py    # termination / give up cleanly
     suite3.addTest(TestSolver015())   # output_latex.py   # per-link transform section
+    suite3.addTest(TestSolver016())   # symbolic_loop.py   # outer solve loop + exit status
+    suite3.addTest(TestSolver017())   # output_gen.py      # codegen leaf, default OFF
+    suite3.addTest(TestSolver018())   # hybrid_ik.py       # hybrid branch placeholder
     suite1.addTest(TestSolver009())   # helperfunctions.py
 
     if(not HTML):
