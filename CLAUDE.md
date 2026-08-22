@@ -78,19 +78,26 @@ execution time).
 is stored on a `Blackboard`). The tree, built in `ikbtfunctions/bt_assembly.py`:
 
 ```
-Sequence[ pieper_id, Priority[ symbolic_branch, hybrid_branch ] ]
+Sequence[ analysis, report_gen ]
 
-symbolic_branch = Sequence[ symbolic_loop(x10, solveRoutine), output_gen_full ]
+analysis        = Priority[ symbolic_branch, hybrid_branch ]      # Priority == Selector
+
+symbolic_branch = symbolic_loop(x10, solveRoutine)
 
 solveRoutine    = Sequence[ sub_transform,
                             RepeatUntilSuccess(x6, Sequence[ assigner, sum_id, worktools ]),
                             updateL,
                             comp_det ]
 
-hybrid_branch   = hybrid_stub          # always FAILs -- placeholder, see below
+hybrid_branch   = Sequence[ Inverter(pieper_id), hybrid_stub ]    # stub always FAILs
 
 worktools = Priority[ algSol, Sequence[OrNode[tanSol, scSol], rank], Simu_Eqn_Sol, sacSol, x2z2_transform ]
 ```
+
+**Node vocabulary.** `b3.Priority` is the standard **Selector** (a.k.a. Fallback): it ticks children in
+order and stops at the first non-FAILURE. `b3.OrNode` is a local addition and is *not* a Selector — it
+runs **all** its children and returns SUCCESS if any succeeded, which is load-bearing for `rank` (it
+needs both the tan and sin/cos candidates to choose between).
 
 `symbolic_loop` (`ikbtleaves/symbolic_loop.py`) replaced `b3.RepeatUntilSuccess(solveRoutine, 10)` at
 the root. It runs the identical passes, but as a Python loop inside `tick()`, so it can **choose** its
@@ -101,14 +108,21 @@ failure too, leaving the tree unable to tell "solved nothing" from "ran out of p
 is the gate on the hybrid branch. Measured over all 32 robots the deepest solve is UR5 at 9 passes,
 so the budget of 10 is real and not slack.
 
-`pieper_id` (`ikbtleaves/hybrid_ik.py`) ticks **outside** the branch Priority, and that position is
-load-bearing: it writes a LaTeX statement of the robot's joint-axis geometry into
-`Robot.pieper_latex`, which `output_latex.output_latex_solution()` puts in the report — and the report
-must carry it whichever branch produced the solution. Inside a branch it would only run when that
-branch ran. It **always returns SUCCESS** (a FAILURE at the head of a Sequence would abort the whole
-solve), so its result is read off the blackboard: `pieper_triples`, plus `pieper_ok` which
-distinguishes "no triples" from "the analysis could not run". The geometry itself lives in
-`ikbtbasics/dh_analysis.py`; `scripts/axis_triple_check.py` validates it against numeric FK.
+`report_gen` (`ikbtleaves/output_gen.py`) is a **single** generator at the end of the tree, ticked
+after whichever branch produced the solution — the report is a property of the finished solve, not of
+the branch that made it. `b3.Sequence` aborts on FAILURE, so a solve that got nowhere never reaches it
+and no empty report is written. It also generates the joint-axis geometry statement into
+`Robot.pieper_latex`, which `output_latex_solution()` places after Kinematic Parameters.
+
+`pieper_id` (`ikbtleaves/hybrid_ik.py`) is SUCCESS iff the arm has a Pieper triple, and gates **only
+the hybrid branch**, under an `Inverter` so the hybrid admits exactly the arms that lack the
+structure. It must never gate the symbolic branch: Pieper's condition is *sufficient* for a closed
+form and is **not** known to be necessary — measured, 9 of the 32 robots have no triple and solve
+completely (Axtman13, Brad, DZhang, ICP5p5_A21, Mackler13, MiniDD, Olson13, Sims11, Wachtveitl), and
+`Sequence[pieper_id, symbolic_branch]` stops the symbolic solver ticking at all for those nine. It
+publishes `pieper_triples` and `pieper_ok`, the latter distinguishing "no triple" (a real answer) from
+"could not analyse the table". The geometry itself lives in `ikbtbasics/dh_analysis.py`;
+`scripts/axis_triple_check.py` validates it against numeric FK.
 
 `hybrid_branch` is a stub for `futurework.md` item 1 (simplify the DH parameters until the robot
 solves, then correct numerically). It always FAILs, so the `Priority` is currently a no-op wrapper

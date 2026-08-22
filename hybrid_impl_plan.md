@@ -380,7 +380,46 @@ sit in front of. (The plan originally said `ikbtleaves/simplify_dh.py`; Phase B 
 computes triples from `R.Mech.DH` and `R.Mech.pvals`, sets `blackboard['pieper_triples']`, and returns
 SUCCESS iff at least one triple exists.
 
-#### Tree change — and why `Inverter(pieper_id)` is gone
+#### Tree change — BH's shape, with the gate on the hybrid only
+
+BH proposed, and this is what is built:
+
+```
+root     = Sequence[ analysis, report_gen ]
+analysis = Priority[ symbolic_branch, hybrid_branch ]        # Priority == Selector
+```
+
+with `pieper_id` keeping standard `_id` semantics (SUCCESS iff a triple qualifies). Two clear wins
+over what preceded it: **one** report generator instead of one per branch, and no always-SUCCESS
+special case.
+
+**One correction to the proposal.** BH's `analysis = Selector[ Sequence[pieper_id, symbolic_branch],
+hybrid_branch ]` puts the gate ahead of the *symbolic* solver, which assumes Pieper's condition is
+necessary — the very thing BH corrected earlier. Measured by building that exact tree and ticking it:
+`Brad` and `Sims11` go from solving completely to solving **nothing**, because `symbolic_loop` never
+ticks. It would break all **9** robots in the no-triple + solved cell (`Axtman13`, `Brad`, `DZhang`,
+`ICP5p5_A21`, `Mackler13`, `MiniDD`, `Olson13`, `Sims11`, `Wachtveitl`).
+
+So the gate moved to the hybrid branch only:
+
+```
+hybrid_branch = Sequence[ Inverter(pieper_id), hybrid_stub ]
+```
+
+`b3.Priority` tries the symbolic branch **first and unconditionally**, so a no-triple arm still gets
+the full symbolic solver; the hybrid is reached only when symbolic came up empty *and* the geometry
+really lacks the structure. `ArmRobo` and `Raven-II` — triple present, IKBT still failed — correctly
+get no hybrid, which is the diagnostic BH wanted.
+
+`Sims11` is the case that demonstrates it: no triple, solves 5/5, and its report now says "no
+triple ... this does not prove that no closed form exists" — the report is its own evidence.
+
+*Terminology, since BH asked:* **`b3.Priority` is the standard Selector** (a.k.a. Fallback) — ticks in
+order, stops at the first non-FAILURE. **`b3.OrNode` is not a Selector**: it is a local 2017 addition
+that runs *all* its children and returns SUCCESS if any succeeded. That difference is load-bearing at
+`bt_assembly.py:196`, where `rank` needs both the tan and sin/cos candidates to choose between.
+
+#### Superseded — why `pieper_id` was briefly always-SUCCESS
 
 BH's added requirement is what forced this:  *"the pieper_id leaf should generate a concise statement
 of its results (in LaTeX format) which can be incorporated in the final report, **regardless of which
@@ -415,10 +454,13 @@ empty**. `pieper_id` is registered in `OPTIONAL_LEAVES` with a unique `.Name`.
 #### The report statement
 
 `dh_analysis.pieper_latex(dh, pvals, ndof, robot_name)` returns a `\section{Joint Axis Geometry
-(Pieper Condition)}` block; `pieper_id` stashes it on `Robot.pieper_latex`, and
-`output_latex_solution()` appends it right after Kinematic Parameters via
-`getattr(Robot, 'pieper_latex', None)` — a Robot restored from an older pickle has no such attribute,
-and a missing statement must not break the report.
+(Pieper Condition)}` block. **`report_gen` generates it**, not `pieper_id` — which is what dissolves
+the placement problem entirely: the statement is a *report* concern, so the report generator makes it,
+and it therefore appears whichever branch won without anything having to tick in a special position.
+`report_gen` stashes it on `Robot.pieper_latex` and `output_latex_solution()` appends it right after
+Kinematic Parameters via `getattr(Robot, 'pieper_latex', None)` — a Robot restored from an older
+pickle has no such attribute, and a missing statement must not break the report. A failure to build
+the statement is a printed warning, never a blocked report.
 
 It carries the **witness**, not just a verdict — which cells are zero — so a reader can check our
 arithmetic against their own drawing, and so the collinear case is visibly distinct from the ordinary

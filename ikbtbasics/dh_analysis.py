@@ -522,6 +522,18 @@ def describe_edits(cand):
 #    A LaTeX statement of the geometry, for the report
 #
 
+def ndof_from_unknowns(unknowns, fallback=6):
+    '''How many real joints, from a solver's unknown list.
+
+       kinematics_pickle() EXTENDS that list with sum-of-angles variables whose
+       .n is 23 or 234, so a plain len() would inflate the DOF count past 6 and
+       invent triples over the mandatory zero-padded rows.'''
+
+    n = len([u for u in (unknowns or [])
+             if getattr(u, 'n', 0) and u.n <= 6])
+    return n or fallback
+
+
 def latex_symbol(name):
     '''DH cell name -> LaTeX math.  'al_4' -> '\\alpha_4', 'd_5' -> 'd_5'.'''
     if name.startswith('al_'):

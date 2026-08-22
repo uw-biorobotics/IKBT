@@ -2,10 +2,15 @@
 #
 #   output_gen.py --  report and code generation, as a BT leaf
 #
-#   Moving codegen into the tree is what lets a SECOND solution strategy exist:
-#   each branch can finish with its own output generator, emitting artifacts that
-#   describe the way that branch actually solved the robot.  While codegen sat in
-#   the caller, there was exactly one way to finish.
+#   ONE report generator, ticked after whichever branch produced the solution:
+#
+#       Sequence[ analysis, report_gen ]
+#       analysis = Priority[ symbolic_branch, hybrid_branch ]
+#
+#   Per BH:  the report is a property of the finished solve, not of the branch
+#   that produced it, so it is generated once at the end rather than duplicated
+#   inside each branch.  b3.Sequence aborts on FAILURE, so a solve that got
+#   nowhere never reaches this leaf and no empty report is written.
 #
 #   OFF BY DEFAULT, and that is a promise being kept rather than caution.
 #   tests/test_chair_helper.py runs a complete solve and documents that it leaves
@@ -25,10 +30,12 @@ import b3 as b3          # behavior trees
 
 from ikbtfunctions.ik_driver import emit_outputs
 
+import ikbtbasics.dh_analysis as da
 
-class output_gen_full(b3.Action):
+
+class report_gen(b3.Action):
     '''Build the solution set and write the LaTeX report plus generated Python
-       and C++, for a robot solved entirely in closed form.
+       and C++.
 
            SUCCESS  artifacts written, or the leaf is disabled
            FAILURE  the solution set could not be built
@@ -41,8 +48,8 @@ class output_gen_full(b3.Action):
        tail end, and the caller passes create_solutions=False.'''
 
     def __init__(self):
-        super(output_gen_full, self).__init__()
-        self.Name = 'Output Generator (closed form)'
+        super(report_gen, self).__init__()
+        self.Name = 'Report Generator'
         self.BHdebug = False
 
         #  Follows the invariant_gen precedent:  a documented, default-off node
@@ -62,6 +69,19 @@ class output_gen_full(b3.Action):
         if R is None or not unks:
             print(self.Name, ': no Robot or no unknowns on the blackboard.')
             return b3.FAILURE
+
+        #  The joint-axis geometry statement.  Generated HERE, not by pieper_id,
+        #  and that is the point:  it has to appear whichever branch produced the
+        #  solution, and pieper_id ticks only on the hybrid path (it is the gate
+        #  there).  Making it a report concern removes the dependency entirely.
+        #  It must never block the report, so a failure here is a warning.
+        try:
+            R.pieper_latex = da.pieper_latex(
+                R.Mech.DH, R.Mech.pvals,
+                da.ndof_from_unknowns(unks), R.name)
+        except Exception as e:
+            print(self.Name, ': no joint-axis geometry statement --',
+                  '%s: %s' % (type(e).__name__, e))
 
         try:
             R.create_solution_set()
@@ -131,7 +151,7 @@ class TestSolver017(unittest.TestCase):
         bb.set('Robot', R)
         bb.set('unknowns', ['not really an unknown'])
 
-        node = output_gen_full()
+        node = report_gen()
         self.assertFalse(node.enabled, fs + ' (must default to OFF)')
         st = self.tick(node, bb)
         self.assertEqual(st, b3.SUCCESS, fs)
@@ -142,7 +162,7 @@ class TestSolver017(unittest.TestCase):
         '''A disabled leaf must succeed even on an empty blackboard -- the BT
            structural tests tick trees that were never given a robot.'''
         fs = ' output_gen empty-blackboard FAIL'
-        st = self.tick(output_gen_full(), b3.Blackboard())
+        st = self.tick(report_gen(), b3.Blackboard())
         self.assertEqual(st, b3.SUCCESS, fs)
 
     def test_outC_enabled_reports_a_bad_solution_set(self):
@@ -160,13 +180,13 @@ class TestSolver017(unittest.TestCase):
         bb.set('Robot', boom())
         bb.set('unknowns', ['not really an unknown'])
 
-        node = output_gen_full()
+        node = report_gen()
         node.enabled = True
         st = self.tick(node, bb)
         self.assertEqual(st, b3.FAILURE, fs)
 
         #  ... and with nothing on the blackboard at all
-        node2 = output_gen_full()
+        node2 = report_gen()
         node2.enabled = True
         self.assertEqual(self.tick(node2, b3.Blackboard()), b3.FAILURE, fs)
 
