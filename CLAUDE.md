@@ -29,6 +29,7 @@ python3 -m ikbtbasics.kin_cl         # basic kinematic classes self-test
 
 python3 -m scripts.robot_baseline           # solve every robot, record the outcome
 python3 -m scripts.robot_baseline --diff    # ... and diff it against the checked-in record
+python3 -m scripts.axis_triple_check       # DH joint-axis geometry vs. numeric FK (exit 1 on mismatch)
 ```
 
 `scripts/robot_baseline.py` is the regression gate for anything that touches the tree or a solver

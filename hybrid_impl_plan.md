@@ -310,16 +310,69 @@ Each phase replaces exactly one stub and is verified by a baseline diff before t
 New module **`ikbtbasics/dh_analysis.py`**: pure DH-table arithmetic, no FK and no symbolic solving,
 so it runs in milliseconds and unit-tests without pickles.
 
-`pieper_triples(dh, pvals, ndof)` → satisfied triples by kind. With Craig-convention rows
-(`kin_cl.py:280`, row `r` = `[α_r, a_r, d_{r+1}, θ_{r+1}]`) and 0-indexed rows:
+`pieper_triples(dh, pvals, ndof)` → satisfied triples by kind.
+
+#### The DH convention, confirmed against the code
+
+`kin_cl.py:280` says it outright — *"standardize on the order `alpha N-1, a N-1, d N, theta N` for
+the DH table columns"* — and `Link_S`/`Link_N` (`pykinsym.py:92,102`) are exactly Craig's
+`Rot_x(α_{n-1}) Trans_x(a_{n-1}) Rot_z(θ_n) Trans_z(d_n)`. So 0-indexed row `r` holds
+`[α_r, a_r, d_{r+1}, θ_{r+1}]`, as this plan said.
+
+Deriving the geometry from that transform rather than from memory: **joint `n`'s axis is the Z line of
+frame `{n}`**, because `θ_n` enters as `Rot_z(θ_n)` and `Trans_z(d_n)` only slides along that same
+line. Expressed in frame `{n}`,
+
+- axis `n`   passes through the origin along `z`
+- axis `n+1` passes through `[a_n, −sin(α_n)·d_{n+1}, cos(α_n)·d_{n+1}]` along `[0, −sin(α_n), cos(α_n)]`
+
+so axes `n`,`n+1` meet iff `a_n = 0` (at the origin of `{n}`), axes `n+1`,`n+2` meet iff
+`a_{n+1} = 0` (at the origin of `{n+1}`), and all three share a point iff those two meeting points
+coincide — `d_{n+1} = 0`. Every cell involved lives in rows `n` and `n+1`:
 
 - axes `j, j+1, j+2` **intersect** iff `dh[j,1] == 0 ∧ dh[j+1,1] == 0 ∧ dh[j,2] == 0`
-- axes `j, j+1, j+2` **parallel** iff `sin(dh[j,0]) == 0 ∧ sin(dh[j+1,0]) == 0`
+- axes `j, j+1, j+2` **parallel**  iff `sin(dh[j,0]) == 0 ∧ sin(dh[j+1,0]) == 0`
 
-**Restrict `j` to real joints** — the zero-padded rows that sub-6-DOF robots are required to have
-manufacture spurious triples (`Brad`, a 3-DOF arm, reports five). Entries are sympy expressions, so
-resolve symbols through `pvals` before testing for zero; report a symbol with no `pvals` entry as
-*undecidable* rather than assuming non-zero.
+**The cell references are right, but `j` is a 1-based JOINT number used as a 0-based ROW index.**
+That is the easy thing to get wrong here. `j` runs `1 … ndof−2`. Starting the loop at `j = 0` invents
+a triple containing a nonexistent joint 0 and reads `a_0`/`d_1`, which are zero for most robots — so
+it manufactures a spurious triple on almost every arm. With `j` correctly restricted, `Brad` (3 DOF)
+reports **zero** triples, not the five this plan previously recorded.
+
+#### Three corrections the verification turned up
+
+All three were found by computing the axes numerically from `Link_N` and testing concurrency
+geometrically, then comparing against the rule — **99 triples over all 32 robots, and after these
+fixes the rule and the geometry agree on every one**, at three random configurations each.
+
+1. **Use `.is_zero`, never `== 0`.** `sp.Float(0.0) == 0` is `False` in sympy, and the DH tables mix
+   Integer `0` with Float `0.0` (`Stanford`, `Bartell`, `Palm13`, … use float zeros). With `== 0` the
+   detector reports **no triples at all** for those robots — silently, and it looks like bad geometry
+   rather than a broken test. `.is_zero` also returns `None` for an undecidable symbol, which is the
+   three-valued answer this plan asks for, for free.
+2. **The intersect rule needs a collinear-axes clause.** `a_n = 0 ∧ a_{n+1} = 0 ∧ d_{n+1} = 0` misses
+   the case where two of the three axes are *the same line*, which happens iff `a = 0 ∧ sin(α) = 0`
+   between them (α = π gives the same line, only reversed). Then there are only two distinct lines,
+   and they are concurrent for **any** `d_{n+1}` — including when `d_{n+1}` is a prismatic joint
+   *variable*, which is the common "prismatic joint sliding along the axis the next joint rotates
+   about" design. This is exactly `Stanford`, and it also affects `Bartell`, `Palm13`, `Srisuan11` and
+   `Raven-II`. Corrected rule:
+
+   ```
+   collinear(n, n+1)   ==  a_n   == 0  and  sin(al_n)   == 0
+   collinear(n+1, n+2) ==  a_n+1 == 0  and  sin(al_n+1) == 0
+
+   intersect(j) == a_j == 0 and a_j+1 == 0
+                   and ( d_j+1 == 0 or collinear(j+1, j+2) or collinear(j, j+1) )
+   ```
+3. **There are no unvalued constants to worry about.** Every undecidable cell across all 32 robots is a
+   *prismatic joint variable* (`d_2`/`d_3`/`d_4` on `ICP5p5_A21`, `Bartell`, `Sims11`, `Olson13`,
+   `Stanford`, `Raven-II`, `Parkman13`, `Palm13`, `Srisuan11`) — **not** a symbol missing a `pvals`
+   entry. So this plan's claim that "`Sims11` has one, `d_2`" is wrong: `d_2` is `Sims11`'s prismatic
+   joint variable. For a prismatic variable the correct answer is "not identically zero", which
+   falsy-`None` already gives, and the collinear clause then recovers the genuinely-concurrent cases.
+   BH's `USR: Let's set missing pvals to a sensible value` therefore does not apply to the triple
+   detector at all — it may still be needed for Phase D's displacement metric, which does need numbers.
 
 Leaf `pieper_id(b3.Action)` in **`ikbtleaves/hybrid_ik.py`** — alongside `hybrid_stub`, which it will
 sit in front of. (The plan originally said `ikbtleaves/simplify_dh.py`; Phase B already created
@@ -373,37 +426,48 @@ which matches `comp_detect.py`'s empty-`eqns_1u` comment exactly — plus `MiniD
 unrelated reason (see Phase A). Note that "solves nothing" is an *IKBT* fact, not a geometric one, so
 it still cannot be used as the expected output of a geometry function.
 
-**Hard assertions** — hand-verifiable geometry only, no reference to solve outcomes:
+**Hard assertions** — geometry only, no reference to solve outcomes. All of these have been
+**measured** with the verified rule (see `scripts/axis_triple_check.py`), so they are known-good
+expected values, not guesses:
 
-- `KawasakiRS007L` reports the classic spherical wrist: intersecting at axes (4,5,6).
-- `Puma` reports its intersecting wrist triple.
-- `Brad` (3 DOF) reports **zero** triples. It reports five today, all artifacts of the mandatory
-  zero-padded DH rows, so this is the regression test for the restrict-`j`-to-real-joints rule and the
-  single most valuable assertion in the phase.
+- `Puma`, `Pumaoffset`, `KawasakiRS007L`, `KR16`, `Khat6DOF` report the classic spherical wrist:
+  intersecting at (4,5,6).
+- `UR5`, `Arm_3`, `Parkman13`, `JennyGuoSp24` report a **parallel** triple — `par(2,3,4)`,
+  `par(1,2,3)`, `par(2,3,4)`, `par(3,4,5)` respectively. Worth having: parallel is the branch of the
+  rule with no test coverage otherwise.
+- `Stanford` reports `int(2,3,4)`, `int(3,4,5)`, `int(4,5,6)` — the collinear-axes regression test.
+  With the plan's original rule it reported **none of them**, on two counts at once (float zeros and
+  the missing collinear clause).
+- `Brad` (3 DOF) reports **zero** triples — the regression test for restricting `j` to real joints.
+- `KinovaLite`, `Issue4`, `KawasakiRS05L`, `Sims11`, `Olson13`, `Wachtveitl`, `MiniDD`, `DZhang`,
+  `Mackler13`, `Axtman13`, `ICP5p5_A21` report **no** triples.
 - Synthetic tables: an all-parallel table reports a parallel triple at every legal `j`; a table with
-  `a_j ≠ 0` and `d_j ≠ 0` everywhere and no `sin(α)` zero reports none.
-- A symbol with no `pvals` entry is reported **undecidable**, never silently treated as non-zero
-  (`Sims11` has one, `d_2`).
+  `a_j ≠ 0` everywhere and no `sin(α)` zero reports none.
+- Cross-check against the independent geometric oracle (axes computed from `Link_N`, concurrency
+  tested numerically) — 99 triples over 32 robots, at several configurations each.
 
-**Recorded, not asserted** — the cross-tabulation of {has triple, no triple} × {solved, unsolved}
-over all 32 robots, written alongside the baseline. *This* is the real deliverable of Phase C, because
-it is what defines the hybrid's target population:
+**The cross-tab — measured, not pending.** This was the intended deliverable of Phase C and the
+verified rule already produces it:
 
-| cell | meaning | action |
+| cell | n | robots |
 |---|---|---|
-| has triple + unsolved | IKBT solver defect — a closed form exists and we are not finding it | hybrid must **not** fire; file as a solver bug. BH names `ArmRobo` and `Raven-II` here |
-| no triple + unsolved | the hybrid's real target | Phases D–F |
-| no triple + solved | direct evidence that Pieper is not necessary | gate declines to help a robot that needs no help — harmless |
-| has triple + solved | the ordinary case | nothing to do |
+| has triple + solved | 18 | `Arm_3`, `Bartell`, `Chair_Helper`, `Craig417`, `Frei13`, `JennyGuoSp24`, `KR16`, `KawasakiRS007L`, `Khat6DOF`, `Minder13`, `Palm13`, `Parkman13`, `Puma`, `Pumaoffset`, `Srisuan11`, `Stanford`, `UR5`, `Wrist` |
+| **has triple + UNSOLVED** | **2** | **`ArmRobo`, `Raven-II`** — IKBT solver defects: a closed form exists and we are not finding it. Hybrid must not fire. |
+| NO triple + solved | 9 | `Axtman13`, `Brad`, `DZhang`, `ICP5p5_A21`, `Mackler13`, `MiniDD`, `Olson13`, `Sims11`, `Wachtveitl` |
+| **NO triple + UNSOLVED** | **3** | **`Issue4`, `KawasakiRS05L`, `KinovaLite`** — the hybrid's target population |
 
-`Raven-II` is **excluded from the hybrid evaluation entirely**, per BH: its `α_j` are not multiples of
-π/2, so `sin`/`cos` do not evaluate to `±{0,1}` and it is a hard case for reasons that have nothing to
-do with simplification. Removing it from the five unsolved robots leaves **at most four** candidates —
-`ArmRobo`, `Issue4`, `KawasakiRS05L`, `KinovaLite` — and BH expects `ArmRobo` to have a triple and so
-to land in the solver-defect cell, which would leave **three**. Any of the remaining three that also
-turns out to have a triple drops out too, so Phase C's cross-tab is what actually sizes the job.
-`KinovaLite` is the one known-good candidate, since `hybrid_plan.md` already measured it solving 6/6
-with `d_5 → 0`.
+Two things fall out of this that matter more than the detector itself:
+
+- **BH's prediction is confirmed exactly.** The has-triple-but-unsolved cell is `{ArmRobo, Raven-II}`
+  and nothing else — precisely the two robots BH named as solver defects rather than geometry problems.
+  Those are IKBT bugs with a guaranteed closed form, and worth their own work item.
+- **Pieper is empirically not necessary**, exactly as BH said: **9 robots have no triple and solve
+  completely**. Any test asserting "solves ⇒ has a triple" would have failed on nine arms.
+
+So the hybrid's target population is **three robots** — `Issue4`, `KawasakiRS05L`, `KinovaLite` —
+with `Raven-II` excluded anyway (its `α_j` are not multiples of π/2, so `sin`/`cos` do not evaluate to
+`±{0,1}`; a hard case for reasons unrelated to simplification). `KinovaLite` is the known-good one,
+already measured solving 6/6 with `d_5 → 0`.
 
 New test class **`TestSolver019`** — 016, 017 and 018 were taken by Phase B — wired into
 `tests/leavestest.py` by named import plus `suite3.addTest(...)`, with a `runTest()` method.
@@ -546,6 +610,7 @@ python3 -m tests.leavestest              # leaf suite (016/017/018 done; add 019
 python3 -m tests.bt_assembly_test        # bt_problems() linter over the new tree shape
 python3 -m tests.test_chair_helper       # full solve; must still write nothing to LaTex/ or CodeGen/
 python3 -m ikbtbasics.dh_analysis        # new module self-test (Phases C, D)
+python3 -m scripts.axis_triple_check     # the DH rule vs. an independent geometric oracle
 
 python3 -m scripts.robot_baseline                # capture (writes tests/baselines/)
 python3 -m scripts.robot_baseline --diff         # the gate at every phase boundary; exit 1 if moved
