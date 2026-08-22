@@ -115,6 +115,18 @@ def output_latex_solution(Robot, variables, groups):
 
     LF.sections.append(paramsection.splitlines())
 
+    ####################  Joint axis geometry (Pieper condition)
+
+    #  Written by the pieper_id leaf, which ticks ahead of the branch split so
+    #  that this statement appears whichever branch produced the solution.
+    #  getattr: a Robot restored from a pickle written before this existed will
+    #  not carry the attribute, and a missing statement must not break the
+    #  report.  (output_FK_equations() below deliberately does not get this --
+    #  fkOnly.py never ticks the BT, so nothing would have written it.)
+    pieper_section = getattr(Robot, 'pieper_latex', None)
+    if pieper_section:
+        LF.sections.append(pieper_section.splitlines())
+
 
 
 

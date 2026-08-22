@@ -44,7 +44,7 @@ from ikbtleaves.comp_detect     import comp_det
 #  and hybrid_stub is the placeholder for the hybrid symbolic-numeric branch.
 from ikbtleaves.symbolic_loop   import symbolic_loop
 from ikbtleaves.output_gen      import output_gen_full
-from ikbtleaves.hybrid_ik       import hybrid_stub
+from ikbtleaves.hybrid_ik       import hybrid_stub, pieper_id
 
 #  (updateL and comp_det used to arrive in ikSolver.py by accident, via
 #   `from ikbtleaves.tan_solver import *`.  Imported explicitly here.)
@@ -220,6 +220,16 @@ def make_leaves(leaf_debug=False, solver_debug=False):
     outputGen.BHdebug = False
     n['outputGen'] = outputGen
 
+    ###  Joint-axis geometry (Pieper's condition)
+    #  Ticks at the FRONT of the tree, ahead of the branch split, and always
+    #  SUCCEEDs -- it describes the robot rather than solving it, and the report
+    #  must carry its statement whichever branch produces the solution.  The
+    #  hybrid branch's gate reads 'pieper_triples' off the blackboard rather than
+    #  inverting this leaf's status.
+    pieperID = pieper_id()
+    pieperID.BHdebug = leaf_debug
+    n['pieperID'] = pieperID
+
     ###  The hybrid symbolic-numeric branch (futurework.md item 1) -- a stub.
     #  Always FAILs, so the branch is inert and the tree is observably identical
     #  to the one that had no branch at all.  See ikbtleaves/hybrid_ik.py.
@@ -272,7 +282,7 @@ def build_default_bt(leaf_debug=False, solver_debug=False, nodes=None,
                      codegen=False):
     '''Build the standard IKBT tree.  Returns (BehaviorTree, nodes dict).
 
-           Priority[ symbolic_branch, hybrid_branch ]
+           Sequence[ pieper_id, Priority[ symbolic_branch, hybrid_branch ] ]
 
            symbolic_branch = Sequence[ symbolic_loop(x10, solveRoutine),
                                        output_gen_full ]
@@ -362,7 +372,15 @@ def build_default_bt(leaf_debug=False, solver_debug=False, nodes=None,
     #  point of building the shape before the behavior.
     nodes['hybridBranch'] = nodes['hybridStub']
 
-    topnode = b3.Priority([symbolicBranch, nodes['hybridBranch']])
+    branches = b3.Priority([symbolicBranch, nodes['hybridBranch']])
+    branches.Name = "Solution Branches"
+    nodes['branches'] = branches
+
+    #  pieper_id first, and OUTSIDE the Priority.  Inside either branch it would
+    #  only run when that branch ran, so the 18 robots that solve symbolically
+    #  would get no geometry statement in their report.  It always SUCCEEDs, so
+    #  the Sequence always reaches the branches.
+    topnode = b3.Sequence([nodes['pieperID'], branches])
     topnode.Name = "Top Node"
     nodes['topnode'] = topnode
 

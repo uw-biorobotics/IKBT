@@ -380,14 +380,65 @@ sit in front of. (The plan originally said `ikbtleaves/simplify_dh.py`; Phase B 
 computes triples from `R.Mech.DH` and `R.Mech.pvals`, sets `blackboard['pieper_triples']`, and returns
 SUCCESS iff at least one triple exists.
 
-Tree change — the hybrid branch goes from a bare stub to a gated stub:
+#### Tree change — and why `Inverter(pieper_id)` is gone
+
+BH's added requirement is what forced this:  *"the pieper_id leaf should generate a concise statement
+of its results (in LaTeX format) which can be incorporated in the final report, **regardless of which
+branch ultimately produces a solution**."*
+
+That cannot work with `pieper_id` inside the hybrid branch. `b3.Priority` stops at its first
+non-FAILURE child, so when the symbolic branch succeeds the hybrid branch never ticks — and the 18
+robots that solve symbolically would silently get no geometry section. `pieper_id` has to tick **ahead
+of the split**:
 
 ```
-hybrid_branch = Sequence[ Inverter(pieper_id), hybrid_stub ]
+root = Sequence[ pieper_id, Priority[ symbolic_branch, hybrid_branch ] ]
 ```
+
+Two consequences, both improvements:
+
+- **`pieper_id` always returns SUCCESS.** At the head of a Sequence a FAILURE would abort the whole
+  solve, which is an absurd power for a leaf whose job is to *describe* the robot. Its answer goes on
+  the blackboard instead — `pieper_triples`, plus a `pieper_ok` flag — and nothing is gated on its
+  status. Note this breaks the repo's `_id` convention (SUCCESS iff something was identified); the
+  convention exists for ID leaves paired with a solver in a Sequence, which this is not.
+- **The `Inverter` disappears.** The hybrid branch's gate now reads `pieper_triples` off the
+  blackboard and says what it means — "fire when there is no triple" — instead of expressing it as
+  the inverse of a leaf that has to succeed in order to mean failure. That was the construction BH
+  could not parse in the original Phase B table, and it is now gone for a structural reason rather
+  than a stylistic one. **The gate must also refuse to fire when `pieper_ok` is False:** "we could not
+  tell" is not "there is no triple".
 
 `hybrid_stub` still always FAILs, so the branch stays inert and the **baseline diff must still be
-empty**. Register `pieper_id` in `OPTIONAL_LEAVES` and give it a unique `.Name`.
+empty**. `pieper_id` is registered in `OPTIONAL_LEAVES` with a unique `.Name`.
+
+#### The report statement
+
+`dh_analysis.pieper_latex(dh, pvals, ndof, robot_name)` returns a `\section{Joint Axis Geometry
+(Pieper Condition)}` block; `pieper_id` stashes it on `Robot.pieper_latex`, and
+`output_latex_solution()` appends it right after Kinematic Parameters via
+`getattr(Robot, 'pieper_latex', None)` — a Robot restored from an older pickle has no such attribute,
+and a missing statement must not break the report.
+
+It carries the **witness**, not just a verdict — which cells are zero — so a reader can check our
+arithmetic against their own drawing, and so the collinear case is visibly distinct from the ordinary
+one. `Stanford` renders as
+
+> Axes $(2,3,4)$ intersect in a common point, since $a_2 = 0, a_3 = 0, \sin(\alpha_3) = 0$
+> (axes 3 and 4 are collinear).
+
+The wording is careful about the logic on purpose, because the tempting sentence is false. It says
+Pieper's condition is **sufficient** and *not known to be necessary*, and for a robot with no triple it
+says so does **not** prove no closed form exists — 9 of the 32 robots have no triple and solve
+completely. A report claiming otherwise would be worse than no report, so both phrasings are asserted
+in the tests.
+
+Verified end to end: `Wrist`, `Stanford` and `Chair_Helper` reports all compile under `pdflatex` with
+zero errors, which also covers escaping (`Chair\_Helper`) and `\alpha` rendering.
+
+Deliberately **not** added to `output_FK_equations()` (the `fkOnly.py` report) — that path never ticks
+the BT, so nothing would have written the statement. Worth doing if you want it there;  it would mean
+calling `dh_analysis` directly from the FK generator.
 
 *Naming:* **resolved.** `pieper_id`, node `Name = 'Pieper Triple ID'` — BH asked for the correct
 spelling of Pieper (Donald Pieper, 1968; `hybrid_plan.md` writes `ID_Peiper`) and for consistency with

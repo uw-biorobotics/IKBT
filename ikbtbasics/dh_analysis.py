@@ -517,6 +517,106 @@ def describe_edits(cand):
                      for e in cand['edits']) or '(no change needed)'
 
 
+###############################################################################
+#
+#    A LaTeX statement of the geometry, for the report
+#
+
+def latex_symbol(name):
+    '''DH cell name -> LaTeX math.  'al_4' -> '\\alpha_4', 'd_5' -> 'd_5'.'''
+    if name.startswith('al_'):
+        return r'\alpha_{%s}' % name[3:]
+    head, _, sub = name.partition('_')
+    return '%s_{%s}' % (head, sub) if sub else head
+
+
+def triple_witness(report, kind):
+    '''The LaTeX math showing WHY a triple qualifies -- which cells are zero.
+
+       Reporting the witness rather than just "satisfied" is what makes the
+       statement useful to a reader checking our arithmetic against their own
+       drawing, and it distinguishes the collinear case from the ordinary one.'''
+
+    j = report['axes'][0]
+    a_j, a_j1 = 'a_%d' % j, 'a_%d' % (j+1)
+    d_j1 = 'd_%d' % (j+1)
+    al_j, al_j1 = 'al_%d' % j, 'al_%d' % (j+1)
+    z = lambda n: '%s = 0' % latex_symbol(n)
+    sz = lambda n: r'\sin \left( %s \right) = 0' % latex_symbol(n)
+
+    if kind == 'parallel':
+        return ', \\quad '.join([sz(al_j), sz(al_j1)]), None
+
+    #  intersecting:  say which of the three routes actually holds
+    if _z(report['terms'][d_j1]):
+        return ', \\quad '.join([z(a_j), z(a_j1), z(d_j1)]), None
+    if report['collinear_j1_j2']:
+        return (', \\quad '.join([z(a_j), z(a_j1), sz(al_j1)]),
+                'axes %d and %d are collinear' % (j+1, j+2))
+    if report['collinear_j_j1']:
+        return (', \\quad '.join([z(a_j), z(a_j1), sz(al_j)]),
+                'axes %d and %d are collinear' % (j, j+1))
+    return ', \\quad '.join([z(a_j), z(a_j1)]), None
+
+
+def pieper_latex(dh, pvals, ndof, robot_name=None):
+    '''A short LaTeX section stating which joint-axis triples satisfy Pieper's
+       condition.  Returns the section as a string.
+
+       This goes into the report whichever branch produced the solution, so it
+       must be true of the ROBOT and say nothing about how it was solved.
+
+       The wording is deliberately careful about the logic, because the
+       tempting statement is wrong:  Pieper's condition is **sufficient** for a
+       closed form to exist and is NOT known to be necessary.  Measured over the
+       32 robots in ROBOT_LIST, 9 have no triple and still solve completely, so
+       "no triple" must never be reported as "no closed form".'''
+
+    name = (robot_name or '').replace('_', r'\_')
+    triples = pieper_triples(dh, pvals, ndof)
+
+    out = [r'\section{Joint Axis Geometry (Pieper Condition)}']
+    out.append(r"""Pieper's condition -- that three consecutive joint axes either intersect in a
+common point or are mutually parallel -- is \emph{sufficient} for a closed-form
+inverse kinematic solution to exist.  It is not known to be necessary, so its
+absence does not imply that no closed form exists.""")
+
+    if triples:
+        out.append('The following consecutive axis triples of %s satisfy it:'
+                   % (name or 'this robot'))
+        out.append(r'\begin{itemize}')
+        for t in triples:
+            j, j1, j2 = t['axes']
+            wit, note = triple_witness(t['report'], t['kind'])
+            verb = ('intersect in a common point' if t['kind'] == 'intersect'
+                    else 'are mutually parallel')
+            line = r'\item Axes $(%d, %d, %d)$ %s, since $%s$' % (j, j1, j2, verb, wit)
+            if note:
+                line += ' (%s)' % note
+            out.append(line + '.')
+        out.append(r'\end{itemize}')
+        out.append(r"""A closed-form solution therefore exists for this manipulator, whether or not
+IKBT succeeded in finding one.""")
+    else:
+        out.append(r"""No triple of consecutive joint axes of %s satisfies Pieper's condition.
+Because the condition is sufficient rather than necessary, this does not prove
+that no closed form exists;  it does mean that the structure IKBT's solvers
+exploit most readily is absent."""
+                   % (name or 'this robot'))
+
+    undecided = sorted(set(u for t in triples for u in t['report']['undecidable']))
+    if not triples:
+        for j in joint_triples(ndof):
+            undecided += triple_report(dh, pvals, j)['undecidable']
+        undecided = sorted(set(undecided))
+    if undecided:
+        out.append(r"""The following kinematic parameters are joint variables or carry no numeric
+value, so they were treated as non-zero: $%s$."""
+                   % ', '.join(latex_symbol(u) for u in undecided))
+
+    return '\n'.join(out) + '\n'
+
+
 #####################################################################
 #
 #   Test code
@@ -577,6 +677,7 @@ class TestSolver019(unittest.TestCase):
         self.test_dhI_kinovalite_top_candidate()
         self.test_dhJ_compensation_adds_in_quadrature()
         self.test_dhK_prismatic_route_is_blocked_not_dropped()
+        self.test_dhL_latex_statement()
 
     #  ----------------------------------------------------  the zero test
 
@@ -775,6 +876,48 @@ class TestSolver019(unittest.TestCase):
                         fs + ' (expected a blocked zero_offsets route for the '
                         'prismatic joint variable)')
         self.assertIn('prismatic', blocked[0]['blocked'], fs + ' (say why)')
+
+
+    def test_dhL_latex_statement(self):
+        '''The report statement must be true, and must state the logic right.
+
+           The tempting sentence -- "no triple, therefore no closed form" -- is
+           false:  9 of the 32 robots have no triple and solve completely.  A
+           report that claimed otherwise would be worse than no report.'''
+        fs = ' dh_analysis latex FAIL'
+
+        #  a robot WITH a wrist
+        dh, vv, pvals, ndof = _robot('Puma')
+        tex = pieper_latex(dh, pvals, ndof, 'Puma')
+        self.assertIn(r'\section{Joint Axis Geometry', tex, fs + ' (no section)')
+        self.assertIn('(4, 5, 6)', tex, fs + ' (Puma wrist missing)')
+        self.assertIn('sufficient', tex, fs)
+        self.assertIn('not known to be necessary', tex,
+                      fs + ' (must not claim Pieper is necessary)')
+
+        #  a robot with NONE
+        dh, vv, pvals, ndof = _robot('KinovaLite')
+        tex = pieper_latex(dh, pvals, ndof, 'KinovaLite')
+        self.assertIn('No triple', tex, fs + ' (should say none were found)')
+        self.assertIn('does not prove', tex,
+                      fs + ' (must not imply no closed form exists)')
+        self.assertNotIn(r'\begin{itemize}', tex,
+                         fs + ' (no list when there is nothing to list)')
+
+        #  underscores in a robot name must be escaped or LaTeX breaks
+        dh, vv, pvals, ndof = _robot('Chair_Helper')
+        tex = pieper_latex(dh, pvals, ndof, 'Chair_Helper')
+        self.assertIn(r'Chair\_Helper', tex, fs + ' (unescaped underscore)')
+        self.assertNotIn('Chair_Helper', tex, fs + ' (raw underscore survives)')
+
+        #  the collinear case must be labelled as such, not silently lumped in
+        dh, vv, pvals, ndof = _robot('Stanford')
+        tex = pieper_latex(dh, pvals, ndof, 'Stanford')
+        self.assertIn('collinear', tex,
+                      fs + ' (Stanford has a collinear pair -- say so)')
+        #  alpha must render as a greek letter, not the raw 'al_' name
+        self.assertNotIn('al_', tex, fs + " ('al_4' leaked into the LaTeX")
+        self.assertIn(r'\alpha', tex, fs + ' (alpha not rendered)')
 
 
 def run_test():

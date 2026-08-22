@@ -78,7 +78,7 @@ execution time).
 is stored on a `Blackboard`). The tree, built in `ikbtfunctions/bt_assembly.py`:
 
 ```
-Priority[ symbolic_branch, hybrid_branch ]
+Sequence[ pieper_id, Priority[ symbolic_branch, hybrid_branch ] ]
 
 symbolic_branch = Sequence[ symbolic_loop(x10, solveRoutine), output_gen_full ]
 
@@ -101,6 +101,15 @@ failure too, leaving the tree unable to tell "solved nothing" from "ran out of p
 is the gate on the hybrid branch. Measured over all 32 robots the deepest solve is UR5 at 9 passes,
 so the budget of 10 is real and not slack.
 
+`pieper_id` (`ikbtleaves/hybrid_ik.py`) ticks **outside** the branch Priority, and that position is
+load-bearing: it writes a LaTeX statement of the robot's joint-axis geometry into
+`Robot.pieper_latex`, which `output_latex.output_latex_solution()` puts in the report — and the report
+must carry it whichever branch produced the solution. Inside a branch it would only run when that
+branch ran. It **always returns SUCCESS** (a FAILURE at the head of a Sequence would abort the whole
+solve), so its result is read off the blackboard: `pieper_triples`, plus `pieper_ok` which
+distinguishes "no triples" from "the analysis could not run". The geometry itself lives in
+`ikbtbasics/dh_analysis.py`; `scripts/axis_triple_check.py` validates it against numeric FK.
+
 `hybrid_branch` is a stub for `futurework.md` item 1 (simplify the DH parameters until the robot
 solves, then correct numerically). It always FAILs, so the `Priority` is currently a no-op wrapper
 and the tree is observably identical to the one that had no branch at all — which is what lets
@@ -108,7 +117,8 @@ and the tree is observably identical to the one that had no branch at all — wh
 See `ikbtleaves/hybrid_ik.py` for the leaves that will replace it.
 
 Blackboard keys: `Robot`, `unknowns`, `curr_unk`, `counter`, `Tm`, `eqns_1u`, `eqns_2u`, `eqns_3pu`,
-`no_progress` (comp_det gave up), `symbolic_passes` / `symbolic_exhausted` (set by `symbolic_loop`).
+`no_progress` (comp_det gave up), `symbolic_passes` / `symbolic_exhausted` (set by `symbolic_loop`),
+`pieper_triples` / `pieper_ok` (set by `pieper_id`).
 
 ### Leaf conventions (`ikbtleaves/`)
 
@@ -128,7 +138,7 @@ algebra leaf), `sub_transform` / `x2y2_transform` (equation transforms, the latt
 Test-class numbers are global and referenced by `tests/leavestest.py` (001 sincos, 002 algebra, 003 sinANDcos,
 004 tan, 006 sub_transform, 007 updateL, 008 kin_cl, 009 helperfunctions, 010 x2y2 — note `output_cpp.py` also
 defines a `TestSolver010` — 011 rank, 012 invariant_gen, 013 bt_assembly, 014 comp_detect,
-015 output_latex, 016 symbolic_loop, 017 output_gen, 018 hybrid_ik). A test double that lives in a
+015 output_latex, 016 symbolic_loop, 017 output_gen, 018 hybrid_ik, 019 dh_analysis). A test double that lives in a
 leaf file must be named `test_*`, or the `bt_assembly_test.py` leaf-inventory scan picks it up as a
 real leaf.
 

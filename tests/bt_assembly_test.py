@@ -72,7 +72,7 @@ from ikbtleaves.updateL          import updateL
 from ikbtleaves.comp_detect      import comp_det
 from ikbtleaves.symbolic_loop    import symbolic_loop
 from ikbtleaves.output_gen       import output_gen_full
-from ikbtleaves.hybrid_ik        import hybrid_stub
+from ikbtleaves.hybrid_ik        import hybrid_stub, pieper_id
 
 
 ###############################################################################
@@ -108,7 +108,8 @@ REQUIRED_SUPPORT = [assigner, rank, sum_id, sub_transform, updateL, comp_det]
 #  What the shipped tree actually guarantees is asserted directly instead -- see
 #  test_btaR / test_btaS below.
 OPTIONAL_LEAVES = [invariant_gen, sum_solve,
-                   symbolic_loop, output_gen_full, hybrid_stub]
+                   symbolic_loop, output_gen_full, hybrid_stub,
+                   pieper_id]
 
 #  An ID leaf stashes state on the blackboard that its solver leaf then consumes,
 #  so the ID must be sequenced AHEAD of the solver.  sum_id is deliberately
@@ -434,6 +435,7 @@ class TestSolver013(unittest.TestCase):
         self.test_btaQ_leaf_inventory_advisory()
         self.test_btaR_codegen_is_off_unless_asked()
         self.test_btaS_hybrid_branch_is_inert()
+        self.test_btaT_pieper_id_ticks_ahead_of_the_branches()
 
     #  ------------------------------------------------  the shipped tree
 
@@ -795,6 +797,45 @@ class TestSolver013(unittest.TestCase):
         self.assertFalse(loops[0].require_complete,
                          fs + ' (require_complete ON would discard partial '
                          'solves, which IKBT has always reported)')
+
+
+    def test_btaT_pieper_id_ticks_ahead_of_the_branches(self):
+        '''pieper_id must sit OUTSIDE the branch Priority, ahead of it.
+
+           Its LaTeX statement goes into the report whichever branch produced
+           the solution.  Placed inside either branch it would only tick when
+           that branch ran -- so the 18 robots that solve symbolically would
+           silently get no geometry section.  Position is normally not this
+           file\'s business, but here position IS the behaviour.'''
+        fs = ' bt_assembly pieper_id placement FAIL'
+
+        bt, nodes = build_default_bt()
+        root = bt.root
+        self.assertTrue(isinstance(root, SEQUENCE_TYPES),
+                        fs + ' (root must be a Sequence: pieper_id then branches)')
+
+        kids = [k for k in child_slots(root) if isinstance(k, b3.BaseNode)]
+        self.assertTrue(kids, fs + ' (empty root)')
+        self.assertTrue(isinstance(kids[0], pieper_id),
+                        fs + ' (pieper_id must be the FIRST thing ticked, got %s)'
+                        % kids[0].__class__.__name__)
+
+        #  ... and it must NOT also live inside a branch
+        memo = {}
+        for kid in kids[1:]:
+            self.assertNotIn(pieper_id, _subtree_classes(kid, memo),
+                             fs + ' (pieper_id also appears inside the branches)')
+
+        #  exactly one instance, and it must always SUCCEED or the Sequence
+        #  aborts before any solving happens
+        found = [n for n in bt_nodes(bt) if isinstance(n, pieper_id)]
+        self.assertEqual(len(found), 1, fs + ' (expected exactly one pieper_id)')
+        t = b3.BehaviorTree()
+        t.root = found[0]
+        self.assertEqual(t.tick('pieper_id on an empty blackboard', b3.Blackboard()),
+                         b3.SUCCESS,
+                         fs + ' (must SUCCEED even with no Robot -- a FAILURE '
+                         'here would abort the whole solve)')
 
 
 def run_test():
