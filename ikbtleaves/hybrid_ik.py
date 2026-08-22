@@ -125,6 +125,95 @@ class pieper_id(b3.Action):
             return b3.FAILURE
 
 
+class simplified_arm(b3.Action):
+    """Rank the DH changes that would give this arm a Pieper triple, cheapest
+       first, and put the ranked list on the blackboard.
+
+           SUCCESS  at least one usable candidate.  Blackboard carries
+                    `simplification_candidates` (ranked, cheapest first) and
+                    `simplification_choice` (the winner), each candidate holding
+                    its edits, their numeric magnitudes, the derived DH table and
+                    its measured task-space cost.
+           FAILURE  no usable candidate, or the Pieper analysis was unreliable.
+
+       REFUSES TO ACT WHEN `pieper_ok` IS FALSE.  `Inverter(pieper_id)` turns
+       BOTH "this arm has no triple" and "I could not read the DH table" into
+       SUCCESS, so this leaf is where that ambiguity has to be resolved -- it is
+       the first thing downstream that would act on the conclusion.  Simplifying
+       an arm because we failed to parse its parameters would be the worst kind
+       of silent wrong answer:  a derived robot, solved perfectly, describing
+       nothing.
+
+       Ranking is by task-space displacement (see dh_analysis.rank_candidates),
+       which is what puts zeroing a length and snapping an angle in comparable
+       units.  `seed` is fixed so the choice is reproducible -- the whole
+       phase-gate discipline depends on a rerun giving the same answer."""
+
+    def __init__(self):
+        super(simplified_arm, self).__init__()
+        self.Name = 'Simplified Arm'
+        self.BHdebug = False
+
+        #  Sampling for the displacement metric.  200 samples over ~28
+        #  candidates is a couple of seconds -- affordable, because this leaf
+        #  ticks at most once per solve and only for an arm that already failed.
+        self.n_samples = 200
+        self.seed = 0
+        self.w_rot = None          # None -> dh_analysis picks the length scale
+
+    def tick(self, tick):
+        bb = tick.blackboard
+        R = bb.get('Robot')
+
+        bb.set('simplification_candidates', [])
+        bb.set('simplification_choice', None)
+
+        if not bb.get('pieper_ok'):
+            print(self.Name, ': the Pieper analysis did not run, so "no triple"'
+                  ' is not established -- refusing to simplify.')
+            return b3.FAILURE
+
+        try:
+            M = R.Mech
+            ndof = da.ndof_from_unknowns(
+                bb.get('unknowns'),
+                fallback=len(getattr(R, 'variables', []) or []) or 6)
+            ranked = da.rank_candidates(M.DH, M.pvals, M.vv, ndof,
+                                        n=self.n_samples, seed=self.seed,
+                                        w_rot=self.w_rot)
+        except Exception as e:
+            print(self.Name, ': could not rank simplifications --',
+                  '%s: %s' % (type(e).__name__, e))
+            return b3.FAILURE
+
+        #  Blocked routes (a prismatic joint variable in the way) and no-op
+        #  entries are kept by rank_candidates for reporting;  they are not
+        #  something we can act on.
+        usable = [c for c in ranked if c.get('dh_simp') is not None and c['edits']]
+        bb.set('simplification_candidates', usable)
+
+        if not usable:
+            print(self.Name, ':', getattr(R, 'name', '?'),
+                  '-- no DH change would produce a Pieper triple.')
+            return b3.FAILURE
+
+        choice = usable[0]
+        bb.set('simplification_choice', choice)
+
+        print('\n', self.Name, ':', getattr(R, 'name', '?'), '-- cheapest of',
+              len(usable), 'candidates is', da.describe_edits(choice),
+              '(axes %s, cost %.3f)' % (choice['axes'], choice['cost']))
+
+        if self.BHdebug:
+            print('   %-9s %-13s %-30s %10s' % ('axes', 'route', 'edits', 'cost'))
+            for c in usable[:8]:
+                print('   %-9s %-13s %-30s %10.3f'
+                      % (str(c['axes']), c['route'],
+                         da.describe_edits(c)[:30], c['cost']))
+
+        return b3.SUCCESS
+
+
 #####################################################################
 #
 #   Test code
@@ -147,6 +236,9 @@ class TestSolver018(unittest.TestCase):
         self.test_hybD_pieper_id_finds_the_wrist()
         self.test_hybE_pieper_id_ignores_sum_of_angle_unknowns()
         self.test_hybF_pieper_id_fails_with_no_triple()
+        self.test_hybG_simplified_arm_refuses_when_pieper_unreliable()
+        self.test_hybH_simplified_arm_ranks_cheapest_first()
+        self.test_hybI_simplified_arm_fails_with_nothing_to_buy()
 
     def test_hybA_always_fails(self):
         '''FAILURE on an empty blackboard and on a populated one alike.  The
@@ -174,11 +266,13 @@ class TestSolver018(unittest.TestCase):
 
     #  Small stand-ins, so these stay fast and need no FK pickle.
     class mech(object):
-        def __init__(self, dh, pvals): self.DH, self.pvals = dh, pvals
+        def __init__(self, dh, pvals, vv=None):
+            self.DH, self.pvals = dh, pvals
+            self.vv = vv or [1]*6                 # all rotary unless told
 
     class robot(object):
-        def __init__(self, dh, pvals, name='Fake'):
-            self.Mech = TestSolver018.mech(dh, pvals)
+        def __init__(self, dh, pvals, name='Fake', vv=None):
+            self.Mech = TestSolver018.mech(dh, pvals, vv)
             self.name = name
 
     class unk(object):
@@ -277,6 +371,88 @@ class TestSolver018(unittest.TestCase):
         self.assertTrue(bb.get('pieper_ok'),
                         fs + ' ("no triple" is an ANSWER, not a failure to run')
         self.assertEqual(bb.get('pieper_triples'), [], fs)
+
+
+    #  ------------------------------------------------  simplified_arm
+
+    def tick_simplify(self, bb, n=20):
+        node = simplified_arm()
+        node.n_samples = n                 # small: these tests check logic, not
+        node.seed = 1                      # statistics
+        t = b3.BehaviorTree()
+        t.root = node
+        return t.tick('testing simplified_arm', bb)
+
+    def test_hybG_simplified_arm_refuses_when_pieper_unreliable(self):
+        """pieper_ok False -> FAILURE, even though candidates could be found.
+
+           Inverter(pieper_id) turns BOTH "no triple" and "could not read the DH
+           table" into SUCCESS, so this leaf is the only thing standing between a
+           parse failure and a derived robot that describes nothing."""
+        fs = ' simplified_arm pieper_ok FAIL'
+        R = TestSolver018.robot(self.no_triple_table(), {}, 'Plain')
+        bb = b3.Blackboard()
+        bb.set('Robot', R)
+        bb.set('unknowns', [TestSolver018.unk(i) for i in range(1, 7)])
+        bb.set('pieper_ok', False)          # analysis did not run
+        bb.set('pieper_triples', [])
+
+        self.assertEqual(self.tick_simplify(bb), b3.FAILURE,
+                         fs + ' (must not simplify on an unreliable analysis)')
+        self.assertIsNone(bb.get('simplification_choice'), fs)
+        self.assertEqual(bb.get('simplification_candidates'), [], fs)
+
+    def test_hybH_simplified_arm_ranks_cheapest_first(self):
+        """A no-triple arm gets a ranked candidate list, cheapest first."""
+        fs = ' simplified_arm FAIL'
+        R = TestSolver018.robot(self.no_triple_table(), {}, 'Plain')
+        bb = b3.Blackboard()
+        bb.set('Robot', R)
+        bb.set('unknowns', [TestSolver018.unk(i) for i in range(1, 7)])
+        bb.set('pieper_ok', True)
+        bb.set('pieper_triples', [])
+
+        self.assertEqual(self.tick_simplify(bb), b3.SUCCESS, fs)
+        cands = bb.get('simplification_candidates')
+        self.assertTrue(cands, fs + ' (no candidates on the blackboard)')
+
+        costs = [c['cost'] for c in cands]
+        self.assertEqual(costs, sorted(costs), fs + ' (not sorted by cost)')
+
+        choice = bb.get('simplification_choice')
+        self.assertIs(choice, cands[0], fs + ' (choice is not the cheapest)')
+        #  every usable candidate must carry what Phase E will consume
+        for c in cands:
+            self.assertTrue(c['edits'], fs + ' (a candidate with no edits)')
+            self.assertIsNotNone(c['dh_simp'], fs + ' (no derived DH table)')
+            self.assertIsNotNone(c['metric'], fs + ' (unscored candidate)')
+
+    def test_hybI_simplified_arm_fails_with_nothing_to_buy(self):
+        """An arm that already satisfies Pieper everywhere has no candidates, so
+           the leaf FAILs rather than returning an empty choice.
+
+           This is not a hypothetical:  the leaf sits behind Inverter(pieper_id),
+           so reaching it normally means no triple -- but a caller ticking it
+           directly (or a future gate change) must not get a SUCCESS with
+           nothing selected."""
+        fs = ' simplified_arm nothing-to-buy FAIL'
+        R = TestSolver018.robot(self.puma_like(), {}, 'Wristy')
+        bb = b3.Blackboard()
+        bb.set('Robot', R)
+        bb.set('unknowns', [TestSolver018.unk(i) for i in range(1, 7)])
+        bb.set('pieper_ok', True)
+        bb.set('pieper_triples', [{'axes': (4, 5, 6), 'kind': 'intersect'}])
+
+        st = self.tick_simplify(bb)
+        if bb.get('simplification_candidates'):
+            #  puma_like has non-zero offsets on the other triples, so some
+            #  candidates may exist;  then SUCCESS with a real choice is correct
+            self.assertEqual(st, b3.SUCCESS, fs)
+            self.assertIsNotNone(bb.get('simplification_choice'), fs)
+        else:
+            self.assertEqual(st, b3.FAILURE,
+                             fs + ' (no candidates must mean FAILURE)')
+            self.assertIsNone(bb.get('simplification_choice'), fs)
 
 
 def run_test():

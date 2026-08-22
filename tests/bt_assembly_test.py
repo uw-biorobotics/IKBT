@@ -72,7 +72,7 @@ from ikbtleaves.updateL          import updateL
 from ikbtleaves.comp_detect      import comp_det
 from ikbtleaves.symbolic_loop    import symbolic_loop
 from ikbtleaves.output_gen       import report_gen
-from ikbtleaves.hybrid_ik        import hybrid_stub, pieper_id
+from ikbtleaves.hybrid_ik        import hybrid_stub, pieper_id, simplified_arm
 
 
 ###############################################################################
@@ -109,7 +109,7 @@ REQUIRED_SUPPORT = [assigner, rank, sum_id, sub_transform, updateL, comp_det]
 #  test_btaR / test_btaS below.
 OPTIONAL_LEAVES = [invariant_gen, sum_solve,
                    symbolic_loop, report_gen, hybrid_stub,
-                   pieper_id]
+                   pieper_id, simplified_arm]
 
 #  An ID leaf stashes state on the blackboard that its solver leaf then consumes,
 #  so the ID must be sequenced AHEAD of the solver.  sum_id is deliberately
@@ -437,6 +437,7 @@ class TestSolver013(unittest.TestCase):
         self.test_btaS_hybrid_branch_is_inert()
         self.test_btaT_pieper_id_gates_only_the_hybrid()
         self.test_btaU_report_gen_is_last_and_shared()
+        self.test_btaV_simplified_arm_is_behind_the_gate()
 
     #  ------------------------------------------------  the shipped tree
 
@@ -888,6 +889,50 @@ class TestSolver013(unittest.TestCase):
             if isinstance(node, b3.Priority) and node.Name == 'Analysis':
                 self.assertNotIn(report_gen, _subtree_classes(node, memo),
                                  fs + ' (report_gen is inside a branch)')
+
+
+    def test_btaV_simplified_arm_is_behind_the_gate(self):
+        '''simplified_arm must sit inside the hybrid branch, sequenced AFTER the
+           Pieper gate, and must not be reachable from the symbolic branch.
+
+           Ranking simplifications costs a couple of seconds of joint-space
+           sampling per arm.  On the symbolic path that is pure waste, and worse,
+           a simplification chosen for an arm that solved exactly would be a
+           standing invitation to use it.'''
+        fs = ' bt_assembly simplified_arm placement FAIL'
+
+        bt, nodes = build_default_bt()
+        memo = {}
+
+        arms = [n for n in bt_nodes(bt) if isinstance(n, simplified_arm)]
+        self.assertEqual(len(arms), 1, fs + ' (expected exactly one)')
+
+        #  not under the symbolic loop's subtree, and not ahead of it
+        sym = [n for n in bt_nodes(bt) if isinstance(n, symbolic_loop)]
+        self.assertEqual(len(sym), 1, fs + ' (expected one symbolic_loop)')
+        self.assertNotIn(simplified_arm, _subtree_classes(sym[0], memo),
+                         fs + ' (simplified_arm is inside the symbolic branch)')
+
+        #  it must share a Sequence with the Pieper gate, and come after it
+        placed = False
+        for node, path in walk_bt(bt.root):
+            if not isinstance(node, SEQUENCE_TYPES):
+                continue
+            kids = [k for k in child_slots(node) if isinstance(k, b3.BaseNode)]
+            sets = [_subtree_classes(k, memo) for k in kids]
+            gi = next((i for i, st in enumerate(sets) if pieper_id in st), None)
+            ai = next((i for i, st in enumerate(sets) if simplified_arm in st), None)
+            #  gi == ai means both are inside the SAME child subtree, so this
+            #  Sequence is not the node that orders them -- only the Sequence
+            #  that holds them in separate slots decides who ticks first.
+            if gi is not None and ai is not None and gi != ai:
+                self.assertLess(gi, ai,
+                                fs + ' (simplified_arm runs BEFORE the Pieper '
+                                'gate in "%s")' % node.Name)
+                placed = True
+        self.assertTrue(placed,
+                        fs + ' (simplified_arm does not share a Sequence with '
+                        'the Pieper gate -- nothing gates it)')
 
 
 def run_test():

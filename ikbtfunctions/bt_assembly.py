@@ -44,7 +44,7 @@ from ikbtleaves.comp_detect     import comp_det
 #  and hybrid_stub is the placeholder for the hybrid symbolic-numeric branch.
 from ikbtleaves.symbolic_loop   import symbolic_loop
 from ikbtleaves.output_gen      import report_gen
-from ikbtleaves.hybrid_ik       import hybrid_stub, pieper_id
+from ikbtleaves.hybrid_ik       import hybrid_stub, pieper_id, simplified_arm
 
 #  (updateL and comp_det used to arrive in ikSolver.py by accident, via
 #   `from ikbtleaves.tan_solver import *`.  Imported explicitly here.)
@@ -232,6 +232,13 @@ def make_leaves(leaf_debug=False, solver_debug=False):
     pieperID.BHdebug = leaf_debug
     n['pieperID'] = pieperID
 
+    ###  Rank the DH changes that would give the arm a Pieper triple.
+    #  Reads pieper_ok and refuses to act if the analysis was unreliable -- the
+    #  Inverter above cannot tell "no triple" from "could not tell".
+    simplifiedArm = simplified_arm()
+    simplifiedArm.BHdebug = leaf_debug
+    n['simplifiedArm'] = simplifiedArm
+
     ###  The hybrid symbolic-numeric branch (futurework.md item 1) -- a stub.
     #  Always FAILs, so the branch is inert and the tree is observably identical
     #  to the one that had no branch at all.  See ikbtleaves/hybrid_ik.py.
@@ -290,7 +297,8 @@ def build_default_bt(leaf_debug=False, solver_debug=False, nodes=None,
 
            symbolic_branch = symbolic_loop(x10, solveRoutine)
 
-           hybrid_branch   = Sequence[ Inverter(pieper_id), hybrid_stub ]
+           hybrid_branch   = Sequence[ Inverter(pieper_id), simplified_arm,
+                                       hybrid_stub ]
 
            solveRoutine    = Sequence[ sub_transform,
                                        RepeatUntilSuccess(x6, Sequence[assigner,
@@ -383,7 +391,8 @@ def build_default_bt(leaf_debug=False, solver_debug=False, nodes=None,
     noPieper.Name = "No Pieper Triple"
     nodes['noPieper'] = noPieper
 
-    hybridBranch = b3.Sequence([noPieper, nodes['hybridStub']])
+    hybridBranch = b3.Sequence([noPieper, nodes['simplifiedArm'],
+                                nodes['hybridStub']])
     hybridBranch.Name = "Hybrid Branch"
     nodes['hybridBranch'] = hybridBranch
 

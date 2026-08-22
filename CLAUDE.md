@@ -89,7 +89,8 @@ solveRoutine    = Sequence[ sub_transform,
                             updateL,
                             comp_det ]
 
-hybrid_branch   = Sequence[ Inverter(pieper_id), hybrid_stub ]    # stub always FAILs
+hybrid_branch   = Sequence[ Inverter(pieper_id), simplified_arm,  # stub always FAILs
+                            hybrid_stub ]
 
 worktools = Priority[ algSol, Sequence[OrNode[tanSol, scSol], rank], Simu_Eqn_Sol, sacSol, x2z2_transform ]
 ```
@@ -123,6 +124,11 @@ completely (Axtman13, Brad, DZhang, ICP5p5_A21, Mackler13, MiniDD, Olson13, Sims
 publishes `pieper_triples` and `pieper_ok`, the latter distinguishing "no triple" (a real answer) from
 "could not analyse the table". The geometry itself lives in `ikbtbasics/dh_analysis.py`;
 `scripts/axis_triple_check.py` validates it against numeric FK.
+
+`simplified_arm` ranks the DH changes that would give the arm a triple, cheapest first by task-space
+displacement, and publishes `simplification_candidates` / `simplification_choice`. It **refuses to run
+when `pieper_ok` is False**: the `Inverter` cannot distinguish "no triple" from "could not read the
+table", and simplifying on a parse failure would produce a derived robot describing nothing.
 
 `hybrid_branch` is a stub for `futurework.md` item 1 (simplify the DH parameters until the robot
 solves, then correct numerically). It always FAILs, so the `Priority` is currently a no-op wrapper

@@ -566,7 +566,7 @@ New test class **`TestSolver019`** — 016, 017 and 018 were taken by Phase B �
 `tests/leavestest.py` by named import plus `suite3.addTest(...)`, with a `runTest()` method.
 `python3 -m ikbtbasics.dh_analysis` for the module self-test.
 
-### Phase D — `simplified_arm`  (module done, leaf pending)
+### Phase D — `simplified_arm`  ✅ DONE
 
 Adds to `dh_analysis.py`:
 
@@ -686,11 +686,49 @@ quirk: with `a_5 = d_6 = 0` the frame origin is independent of `α_5`, but chang
 joint 6 rotates about*, which is a real loss of orientation capability. A position-only ranking would
 have called that free and picked it first. It is the clearest argument for the combined scalar.
 
-**Still pending for Phase D:** the `simplified_arm` leaf itself, which is a thin wrapper — put
-`rank_candidates()` on the blackboard, FAIL if the list is empty. It is deliberately not built yet
-because it sits *behind* `pieper_id` in the branch, and that leaf (Phase C) does not exist either; both
-leaves plus the `Sequence[Inverter(pieper_id), simplified_arm, hybrid_stub]` wiring should land
-together, in one step whose gate is an empty baseline diff.
+#### As built — the `simplified_arm` leaf
+
+```
+hybrid_branch = Sequence[ Inverter(pieper_id), simplified_arm, hybrid_stub ]
+```
+
+`SUCCESS` with `simplification_candidates` (ranked, cheapest first) and `simplification_choice` (the
+winner) on the blackboard; `FAILURE` when nothing is buyable. Each candidate carries its edits and
+their magnitudes, the derived DH table, and its measured cost — everything Phase E needs to build the
+derived robot.
+
+**It refuses to act when `pieper_ok` is False, and that is the load-bearing detail.**
+`Inverter(pieper_id)` turns *both* "this arm has no triple" and "I could not read the DH table" into
+SUCCESS, because `pieper_id` returns FAILURE for both. `simplified_arm` is the first thing downstream
+that would act on that conclusion, so it is where the ambiguity has to be resolved. Simplifying an arm
+because we failed to parse its parameters would be the worst available outcome: a derived robot,
+solved perfectly, describing nothing.
+
+`seed` is fixed (and `n_samples` is a leaf attribute, default 200) because the phase-gate discipline
+needs a rerun to make the same choice.
+
+**Measured, live through the real gate:**
+
+| robot | gate + rank | candidates | choice | cost | wall |
+|---|---|---|---|---|---|
+| `KinovaLite` | SUCCESS | 28 | `d_5: 57 → 0` | 57.000 | 2.9 s |
+| `Issue4` | SUCCESS | 28 | `d_5: 0.029 → 0` | 0.029 | 2.9 s |
+| `KawasakiRS05L` | SUCCESS | 28 | `a_3: 80 → 0` | 80.000 | 2.6 s |
+| `Puma` | **FAILURE** | — | — | — | 0.4 s |
+
+`Puma` is the control: it *has* a triple, so `Inverter(pieper_id)` fails and the Sequence aborts before
+`simplified_arm` ever ticks. ~2.9 s is affordable because the leaf ticks at most once per solve, and
+only for an arm that already failed symbolically.
+
+New structural test `test_btaV` asserts the leaf is inside the hybrid branch, sequenced *after* the
+Pieper gate, and unreachable from the symbolic branch — ranking simplifications on the symbolic path
+would be pure waste, and a simplification chosen for an arm that solved exactly would be a standing
+invitation to use it.
+
+**Not built:** a LaTeX section stating the chosen simplification. It would never appear yet —
+`hybrid_stub` still FAILs, so the hybrid path produces no report at all. It belongs with Phase F's
+requirement that the artifacts say which robot the equations actually describe, and `report_gen` being
+shared means it is a few lines there rather than a second generator.
 
 ### Phase E — `solve_simplified`
 
