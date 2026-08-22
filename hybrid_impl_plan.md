@@ -473,7 +473,7 @@ New test class **`TestSolver019`** — 016, 017 and 018 were taken by Phase B �
 `tests/leavestest.py` by named import plus `suite3.addTest(...)`, with a `runTest()` method.
 `python3 -m ikbtbasics.dh_analysis` for the module self-test.
 
-### Phase D — `simplified_arm`
+### Phase D — `simplified_arm`  (module done, leaf pending)
 
 Adds to `dh_analysis.py`:
 
@@ -482,6 +482,11 @@ Adds to `dh_analysis.py`:
   numeric magnitude. At most 8 candidate triples × 2 condition types — enumerable exhaustively in
   milliseconds, not an optimization problem. Symbols with no `pvals` value are reported as
   **undecidable, never silently skipped** (`Sims11` has one, `d_2`). USR: Let's set missing pvals to a sensible value for now.   d_x = 1.0, angles = \pi/2
+  → BH's defaults are implemented (`DEFAULT_LENGTH = 1.0`, `DEFAULT_ANGLE = π/2`) and any use of them
+  is reported in the metric's `defaulted` field rather than hidden. But **measured, no robot needs
+  them**: every undecidable triple-relevant cell across all 32 robots is a *prismatic joint variable*,
+  not a missing `pvals` entry, so `Sims11`'s `d_2` is its joint variable and not an unvalued constant.
+  The defaults are a safety net for future robots, not a live code path.
 - `displacement_metric(dh, dh_simp, pvals, vv, ndof, n, seed)` → mean and max position and
   orientation deviation over sampled joint space. **Build this on `Link_N` (`pykinsym.py:102`)** —
   pure numpy, ~100× faster than `forward_kinematics_N`'s `subs`, and it sidesteps the sum-of-angles
@@ -508,6 +513,91 @@ that makes `simplified_arm` a batch tool rather than a leaf.
 
 **Verify:** unit tests over synthetic DH tables; on `KinovaLite` the top candidate must be `d_5 = 0`
 with mean ‖Δp‖ ≈ 57.0 mm and Δθ = 0, reproducing the doc's measurement. Baseline diff still empty.
+
+#### As built — `ikbtbasics/dh_analysis.py`
+
+One module carrying both phases' arithmetic, 11 tests (`TestSolver019`), no FK, no pickles, ~1.4 s.
+`scripts/axis_triple_check.py` now validates **the shipped module** rather than a copy of the rule, so
+the two cannot drift.
+
+`pieper_triples` / `triple_report` / `has_pieper_triple` (Phase C's arithmetic),
+`candidate_simplifications`, `displacement_metric`, `rank_candidates`.
+
+**Candidate routes.** An unsatisfied triple can be bought in four ways, not one, and the extra three
+matter:
+
+- `zero_offsets` — zero whichever of `a_j`, `a_{j+1}`, `d_{j+1}` are non-zero. **Unavailable when
+  `d_{j+1}` is a prismatic joint variable** — you cannot zero a joint variable. That route is reported
+  `blocked` with a reason rather than silently omitted, because a missing route looks exactly like
+  "this triple needs no work".
+- `collinear_hi` / `collinear_lo` — zero the `a`s and snap one `α` to a multiple of π, making two of
+  the three axes one line. Needs no `d_{j+1} = 0`, so it is *the* route for a prismatic arm.
+- `parallel` — snap both `α`s to multiples of π.
+
+**Both π-multiples are enumerated**, not just the nearest. `sin(α) = 0` is satisfied by 0 and by π
+alike, but α = π flips the axis, so the two give materially different arms — and π/2, the commonest
+value in these tables, is exactly equidistant from both. Which is cheaper is not decidable from the
+angle, so both become candidates and the ranking settles it.
+
+**Ranking key** is BH's angle/axis scalar from question 3, not position alone:
+`mean(‖Δp‖ + w_rot·θ)`, with `θ` the rotation angle of `R_trueᵀ R_simp`. This is what puts zeroing a
+length and snapping an angle in comparable units — the stated reason for ranking in task space at all.
+`w_rot` defaults to `length_scale()` (one radian costs one characteristic link length) because **the
+DH tables carry no units** — `KinovaLite` is in mm, `Issue4` in m — so BH's "1 metre per radian"
+cannot be applied blind; pass `w_rot=1000.0` for a mm table to get exactly that convention.
+
+`length_scale()` is the median magnitude of the non-zero constant `a`/`d` cells, and it also sets the
+prismatic sampling range (±`length_scale`, revolute ±π). Both ranges are **declared here**, since
+`M.jlims` is a dead ±π placeholder nothing sets per robot.
+
+**Two numerical traps found while building it**, both of which produce plausible-looking wrong
+numbers:
+
+1. **The rotation angle must come from `atan2`, not `arccos((tr−1)/2)`.** `arccos` has infinite
+   derivative at `R = I`, so an O(1e-16) rounding error in the trace emerges as **O(1e-8) radians** —
+   and that is exactly the regime that matters, because a candidate which changes only a *length* has
+   to measure a clean zero orientation error. `atan2(‖skew‖/2, (tr−1)/2)` is linear in the
+   perturbation and returns exactly 0.0 for `R = I`.
+2. **Resolve the constant cells once, outside the sampling loop.** Doing `subs()` per sample makes the
+   metric far too slow to rank ~28 candidates inside a leaf. `compile_rows()` pre-resolves every
+   constant to a float and leaves one slot per joint, so the loop is pure numpy over `Link_N`.
+
+#### Measured — the metric reproduces both of `hybrid_plan.md`'s numbers
+
+| candidate | mean ‖Δp‖ | Δθ |
+|---|---|---|
+| `d_5 → 0` | **57.000** | 0 |
+| `d_5 → 0` *and* `d_6 += 57` ("compensated") | **80.610** = 57√2 | 0 |
+
+The second is the doc's 80.6 mm, and it is an *independent* check: nothing in the code knows that
+number, and it confirms the doc's explanation that the two offsets are orthogonal and add in
+quadrature. Both are asserted in `TestSolver019`.
+
+#### Measured — every target robot has a single-parameter winner
+
+Ranked over all 28 candidates each (`rank_candidates`, n=120, seed=1):
+
+| robot | top candidate | cost | next-best | margin |
+|---|---|---|---|---|
+| `KinovaLite` | `d_5: 57 → 0` | 57.0 | `d_4: 245 → 0` | 4.3× |
+| `Issue4` | `d_5: 0.029 → 0` | 0.03 | `a_3, d_4 → 0` | 15× |
+| `KawasakiRS05L` | `a_3: 80 → 0` | 80.0 | `a_2, a_3 → 0` | 4.3× |
+
+So this plan's claim that "in each one a *single* DH parameter is responsible" now holds for **all
+three** target robots, not just the one that was measured by hand. Note `Issue4` fails on `d_5` at the
+wrist, structurally the same defect as `KinovaLite`.
+
+One case worth knowing about, from `KawasakiRS05L`: snapping `al_5` scores `mean ‖Δp‖ = 0.00` exactly —
+the wrist origin does not move — while costing 341 through the rotation term. That is correct, not a
+quirk: with `a_5 = d_6 = 0` the frame origin is independent of `α_5`, but changing it changes *the axis
+joint 6 rotates about*, which is a real loss of orientation capability. A position-only ranking would
+have called that free and picked it first. It is the clearest argument for the combined scalar.
+
+**Still pending for Phase D:** the `simplified_arm` leaf itself, which is a thin wrapper — put
+`rank_candidates()` on the blackboard, FAIL if the list is empty. It is deliberately not built yet
+because it sits *behind* `pieper_id` in the branch, and that leaf (Phase C) does not exist either; both
+leaves plus the `Sequence[Inverter(pieper_id), simplified_arm, hybrid_stub]` wiring should land
+together, in one step whose gate is an empty baseline diff.
 
 ### Phase E — `solve_simplified`
 

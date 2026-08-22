@@ -59,6 +59,7 @@ from ikbtfunctions.output_latex import TestSolver015
 from ikbtleaves.symbolic_loop   import TestSolver016
 from ikbtleaves.output_gen      import TestSolver017
 from ikbtleaves.hybrid_ik       import TestSolver018
+from ikbtbasics.dh_analysis     import TestSolver019
 
 
 import b3 as b3          # behavior trees
@@ -406,6 +407,7 @@ if __name__ == '__main__':
     suite3.addTest(TestSolver016())   # symbolic_loop.py   # outer solve loop + exit status
     suite3.addTest(TestSolver017())   # output_gen.py      # codegen leaf, default OFF
     suite3.addTest(TestSolver018())   # hybrid_ik.py       # hybrid branch placeholder
+    suite3.addTest(TestSolver019())   # dh_analysis.py     # Pieper triples + simplification cost
     suite1.addTest(TestSolver009())   # helperfunctions.py
 
     if(not HTML):

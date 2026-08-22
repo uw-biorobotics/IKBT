@@ -40,6 +40,7 @@ import sys
 import numpy as np, sympy as sp
 from ikbtfunctions.ik_robots import robot_params
 from ikbtbasics.pykinsym import Link_N
+from ikbtbasics.dh_analysis import triple_report, joint_triples
 
 def numeric_rows(dh, vv, pvals, q, ndof):
     '''Substitute pvals + a joint configuration; return 6 rows of floats.'''
@@ -127,35 +128,14 @@ def triple_kind(ax, n, tol=1e-6):
     return {'concurrent': True, 'parallel': False}
 
 def formula(dh, vv, pvals, n):
-    """Corrected rule for 'axes n, n+1, n+2 share a common point'.
+    """The rule AS SHIPPED -- delegates to ikbtbasics.dh_analysis.
 
-       Axis n is the Z line of frame {n}.  In frame {n}:
-         axis n   : through origin, along z
-         axis n+1 : through [a_n, -sa_n*d_n1, ca_n*d_n1], along [0,-sa_n,ca_n]
-       so axes n,n+1 meet (at origin{n}) iff a_n == 0, and axes n+1,n+2 meet
-       (at origin{n+1}) iff a_n1 == 0.  All THREE share a point iff those two
-       meeting points coincide -- d_n1 == 0 -- OR one of the pairs is actually
-       COLLINEAR, in which case there are only two distinct lines and the
-       meeting point is free to slide along the shared one.
+       This is the point of the script:  it validates the module the solver
+       actually uses, not a copy of it that can drift.  If dh_analysis changes
+       and this stops agreeing with the geometry, that is the bug report."""
+    r = triple_report(dh, pvals, n)
+    return {'concurrent': bool(r['intersect']), 'parallel': bool(r['parallel'])}
 
-       Two axes are collinear iff a == 0 and sin(alpha) == 0 (alpha = pi still
-       gives the same LINE, only the direction flips).
-
-       .is_zero, never == 0:  sp.Float(0.0) == 0 is False in sympy and the DH
-       tables mix Integer 0 with Float 0.0.  is_zero returns None for an
-       undecidable symbol, which is the third value we want."""
-    num = {k: v for k, v in pvals.items() if not isinstance(v, str)}
-    def z(r, c, sine=False):
-        e = sp.sympify(dh[r, c]).subs(num)
-        if sine: e = sp.sin(e)
-        return bool(sp.simplify(e).is_zero)
-    a_n,  a_n1 = z(n,1),          z(n+1,1)
-    d_n1       = z(n,2)
-    sa_n, sa_n1 = z(n,0,True),    z(n+1,0,True)
-    collin_n_n1  = a_n  and sa_n          # axes n,   n+1 are one line
-    collin_n1_n2 = a_n1 and sa_n1         # axes n+1, n+2 are one line
-    conc = a_n and a_n1 and (d_n1 or collin_n1_n2 or collin_n_n1)
-    return {'concurrent': bool(conc), 'parallel': bool(sa_n and sa_n1)}
 
 from ikbtfunctions.ik_robots import ROBOT_LIST
 ROBOTS = sys.argv[1:] or [r for r in ROBOT_LIST]
@@ -180,7 +160,7 @@ for name in ROBOTS:
         rows = numeric_rows(dh, vv, pvals, q, ndof)
         ax = axes_in_base(rows, ndof)
         res = {}
-        for n in range(1, ndof-1):
+        for n in joint_triples(ndof):
             g = triple_kind(ax, n)
             if g is None: continue
             res[n] = g
