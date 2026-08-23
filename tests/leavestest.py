@@ -61,6 +61,7 @@ from ikbtleaves.output_gen      import TestSolver017
 from ikbtleaves.hybrid_ik       import TestSolver018
 from ikbtbasics.dh_analysis     import TestSolver019
 from ikbtleaves.clear_state     import TestSolver020
+from ikbtfunctions.progress    import TestSolver021
 
 
 import b3 as b3          # behavior trees
@@ -410,6 +411,7 @@ if __name__ == '__main__':
     suite3.addTest(TestSolver018())   # hybrid_ik.py       # hybrid branch placeholder
     suite3.addTest(TestSolver019())   # dh_analysis.py     # Pieper triples + simplification cost
     suite3.addTest(TestSolver020())   # clear_state.py     # state hygiene at each solver head
+    suite3.addTest(TestSolver021())   # progress.py       # per-pass ledger, ETA, sympy meter
     suite1.addTest(TestSolver009())   # helperfunctions.py
 
     if(not HTML):

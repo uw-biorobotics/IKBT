@@ -32,6 +32,7 @@ from ikbtfunctions.ik_driver   import (load_robot, run_solver,
                                        print_solved_equations, ensure_logdir,
                                        solved_anything)
 from ikbtfunctions.bt_assembly import build_default_bt
+from ikbtfunctions.progress    import enable_sympy_meter
 
 TEST_DATA_GENERATION = False
 
@@ -101,6 +102,14 @@ def main(argv):
     #  get the default, codegen=False, and leave the generated artifacts alone.
     ikbt, nodes = build_default_bt(leaf_debug=False, solver_debug=False,
                                    codegen=not TEST_DATA_GENERATION)
+
+    #  A human is waiting on this front end, so meter the sympy calls:  37-85 %
+    #  of a solve's wall clock is inside sp.simplify(), and a call slower than
+    #  the threshold prints as it happens.  That is the only output that can
+    #  appear DURING a blocking simplify -- symbolic_loop's per-pass line cannot
+    #  print until the pass returns.  Batch callers (robot_baseline, tests) do
+    #  not enable it;  it wraps a third-party class, so it stays opt-in.
+    enable_sympy_meter()
 
     ensure_logdir()
 

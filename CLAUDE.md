@@ -187,9 +187,51 @@ Test-class numbers are global and referenced by `tests/leavestest.py` (001 sinco
 004 tan, 006 sub_transform, 007 updateL, 008 kin_cl, 009 helperfunctions, 010 x2y2 — note `output_cpp.py` also
 defines a `TestSolver010` — 011 rank, 012 invariant_gen, 013 bt_assembly, 014 comp_detect,
 015 output_latex, 016 symbolic_loop, 017 output_gen, 018 hybrid_ik, 019 dh_analysis,
-020 clear_state). A test double that lives in a
+020 clear_state, 021 progress). A test double that lives in a
 leaf file must be named `test_*`, or the `bt_assembly_test.py` leaf-inventory scan picks it up as a
 real leaf.
+
+### Progress reporting (`ikbtfunctions/progress.py`)
+
+Solves run from 1 s (`Wrist`) to minutes, and used to be silent throughout, so "is this working or
+stuck?" had no answer. `symbolic_loop` now owns a `SolveProgress` and prints a banner plus **one
+compact line per pass**:
+
+```
+  pass 4/10  solved 3/7 (+1: th_23)  eqns 1u/2u/3pu 13/21/32  1s this pass  11s total
+            making progress -- 4 variables left -- about 14s more, at most 16s
+```
+
+The solved count is **monotonic** (`set_solved()` never un-solves), so rising = working. Flat with
+changed equation pools = "still working"; flat twice running = "stuck, not slow" — which is
+`comp_det`'s own stop condition, so the wording escalates exactly when the solve is about to end.
+The ETA is a **range**, deliberately: the optimistic figure extrapolates cost per solved variable, the
+pessimistic one is remaining budget x cost per pass, a genuine upper bound. It is clamped so the
+optimistic number can never exceed the bound, and it is never a countdown — `comp_det` routinely
+stops a solve well before the budget (pass 2 of 10 on `KawasakiRS05L`).
+
+**`count_ops` was measured and rejected as the cost predictor.** Every expression IKBT simplifies is
+under 50 ops on every robot (`Puma` 33, `KR16` 46, `KinovaLite` 44) while the call count varies 34x
+(22 / 69 / 746) — and the *same* 18-op expression was seen taking 3.2 s and then 7.0 s in one run. Size
+discriminates nothing; cost is driven by structure `count_ops` flattens away. Long runtime is
+thousands of small sympy calls, not a few huge ones, so the meter counts **calls and cumulative
+seconds** (37-98 % of wall clock is inside `sp.simplify`). `enable_sympy_meter()` wraps
+`Basic.simplify` and is **opt-in** — only `ikSolver.py` calls it, since it patches a third-party
+class. Individual calls over `slow_call_s` (default 2 s) print as they happen, which is the only
+output possible *during* a blocking simplify and so doubles as the live heartbeat.
+
+Two non-obvious requirements, both learned the hard way:
+
+- **Everything flushes** (`_say()`). Python buffers stdout when it is not a tty, so on `> log`,
+  `| tee`, and `robot_baseline`'s captured logs every line was withheld until exit — an Issue4 solve
+  printed nothing for 12 minutes and then everything at once.
+- **Reporting may never break a solve.** `pass_done()` and `finished()` are wrapped and degrade to a
+  warning: they run on the hot path of every pass, and a solve that took minutes must not be thrown
+  away because a status line would not format.
+
+Output is **line-oriented, never `\r`-animated** — the sum-of-angles progress bar collapses in
+`logs/baseline/<robot>.log` into one unreadable multi-kilobyte line, which is what made `Issue4`'s log
+useless for diagnosis. Do not add animation.
 
 ### Core data model (`ikbtbasics/`, see also `IKdocs/classes.md`)
 

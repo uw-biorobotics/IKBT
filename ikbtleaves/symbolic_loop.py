@@ -25,6 +25,8 @@
 
 import b3 as b3          # behavior trees
 
+from ikbtfunctions.progress import SolveProgress
+
 
 class symbolic_loop(b3.Decorator):
     '''Tick the solve routine up to max_loop times;  SUCCEED if the symbolic
@@ -60,11 +62,38 @@ class symbolic_loop(b3.Decorator):
 
         self.require_complete = False
 
+        #  Per-pass progress reporting (ikbtfunctions/progress.py).  This node
+        #  is the only place that knows both the pass number and the budget, so
+        #  it is the only place that can say "pass 4 of 10" -- which is the
+        #  whole answer to "is this stuck or just slow".  On by default:  a
+        #  silent 700 s solve is the defect being fixed.  Set False in tests
+        #  that assert on captured output.
+        self.progress = True
+
     def tick(self, tick):
         if not self.child:
             return b3.ERROR
 
         bb = tick.blackboard
+
+        #  Reported per pass, so a user watching a 700 s solve can see whether
+        #  anything is improving.  Built here rather than in __init__ because
+        #  the robot and the unknown count are blackboard state, and on the
+        #  hybrid branch this node is ticked against a DERIVED arm.
+        R0 = bb.get('Robot')
+        unks0 = bb.get('unknowns') or []
+        prog = SolveProgress(getattr(R0, 'name', None), self.max_loop,
+                             len(unks0), enabled=self.progress,
+                             tag=' (hybrid)' if 'hybrid' in self.Name else '')
+        prog.banner()
+
+        def pools():
+            '''Equation-pool sizes.  A pass that solves nothing but changes
+               these is transforming equations, which is progress of a kind and
+               reads very differently from a pass that changed nothing.'''
+            return (len(bb.get('eqns_1u') or []),
+                    len(bb.get('eqns_2u') or []),
+                    len(bb.get('eqns_3pu') or []))
 
         #  Identical to RepeatUntilSuccess.tick(): re-_execute() the child while
         #  it FAILs.  The child is a Sequence, which _open()s and _close()s on
@@ -74,10 +103,12 @@ class symbolic_loop(b3.Decorator):
         while passes < self.max_loop:
             status = self.child._execute(tick)
             passes += 1
+            prog.pass_done(passes, bb.get('unknowns') or [], pools())
             if status != b3.FAILURE:
                 break
 
         exhausted = (status == b3.FAILURE)
+        prog.finished(bb.get('unknowns') or [], exhausted)
         bb.set('symbolic_passes', passes)
         bb.set('symbolic_exhausted', exhausted)
 
@@ -133,9 +164,17 @@ class test_fake_pass(b3.Action):
 
 
 class fake_unk(object):
-    '''Just the one attribute symbolic_loop reads.'''
+    '''The attributes symbolic_loop reads.  `name` is here for the progress
+       reporter -- which tolerates its absence deliberately, but a double that
+       carries it produces readable test output instead of "<fake_unk object
+       at 0x...>".'''
+
+    _n = [0]
+
     def __init__(self):
         self.solved = False
+        fake_unk._n[0] += 1
+        self.name = 'fake_%d' % fake_unk._n[0]
 
 
 class TestSolver016(unittest.TestCase):
