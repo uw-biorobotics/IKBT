@@ -13,7 +13,7 @@ every robot, then implement and test each new leaf in the order it would be tick
 
 ## Context
 
-`futurework.md` item 1: when IKBT cannot solve a robot in closed form, simplify its DH parameters
+Item 1 of the old `futurework.md` (removed in c66b7e6): when IKBT cannot solve a robot in closed form, simplify its DH parameters
 until it can, solve the simplified robot symbolically, and correct the result numerically using the
 symbolic Jacobian. Measurements in `hybrid_plan.md` show `KinovaLite` with `d_5 → 0` goes from
 0-of-6 variables solved to all 6 in 27.7 s using the unmodified tree.

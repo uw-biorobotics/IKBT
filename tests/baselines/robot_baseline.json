@@ -5,6 +5,7 @@
   "ArmRobo": {
    "comp_det_ticks": 2,
    "error": null,
+   "hybrid": null,
    "methods": {
     "d_6": "",
     "th_1": "",
@@ -21,11 +22,12 @@
    "no_progress": true,
    "solution_set_error": null,
    "status": "unsolved",
-   "wall_s": 3.69
+   "wall_s": 3.59
   },
   "Arm_3": {
    "comp_det_ticks": 6,
    "error": null,
+   "hybrid": null,
    "methods": {
     "th_1": "simultaneous eqnsinANDcos",
     "th_12": "algebra",
@@ -41,11 +43,12 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 1.36
+   "wall_s": 1.32
   },
   "Axtman13": {
    "comp_det_ticks": 5,
    "error": null,
+   "hybrid": null,
    "methods": {
     "d_1": "algebra",
     "th_2": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
@@ -60,11 +63,12 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 1.59
+   "wall_s": 1.71
   },
   "Bartell": {
    "comp_det_ticks": 5,
    "error": null,
+   "hybrid": null,
    "methods": {
     "d_2": "algebra",
     "d_4": "algebra",
@@ -79,11 +83,12 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 1.64
+   "wall_s": 1.55
   },
   "Brad": {
    "comp_det_ticks": 4,
    "error": null,
+   "hybrid": null,
    "methods": {
     "th_1": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
     "th_2": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
@@ -97,11 +102,12 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 1.3
+   "wall_s": 1.29
   },
   "Chair_Helper": {
    "comp_det_ticks": 5,
    "error": null,
+   "hybrid": null,
    "methods": {
     "d_1": "algebra",
     "th_2": "arcsin",
@@ -116,11 +122,12 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 2.5
+   "wall_s": 2.38
   },
   "Craig417": {
    "comp_det_ticks": 5,
    "error": null,
+   "hybrid": null,
    "methods": {
     "th_1": "sinANDcos",
     "th_2": "atan2(y,x), arccos, best ranked, atan2(y,x)",
@@ -135,11 +142,12 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 2.72
+   "wall_s": 2.9
   },
   "DZhang": {
    "comp_det_ticks": 7,
    "error": null,
+   "hybrid": null,
    "methods": {
     "th_1": "sinANDcos",
     "th_2": "algebra",
@@ -155,11 +163,12 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 21.48
+   "wall_s": 22.87
   },
   "Frei13": {
    "comp_det_ticks": 5,
    "error": null,
+   "hybrid": null,
    "methods": {
     "d_1": "algebra",
     "th_2": "arcsin",
@@ -174,11 +183,12 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 2.52
+   "wall_s": 2.68
   },
   "ICP5p5_A21": {
    "comp_det_ticks": 5,
    "error": null,
+   "hybrid": null,
    "methods": {
     "d_2": "algebra",
     "th_1": "atan2(y,x)",
@@ -192,13 +202,26 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 1.79
+   "wall_s": 2.92
   },
   "Issue4": {
    "comp_det_ticks": 2,
    "error": null,
+   "hybrid": {
+    "axes": [
+     4,
+     5,
+     6
+    ],
+    "derived_robot": "Issue4_d_5_0",
+    "edits": [
+     "d_5: 0.0290000000000000 -> 0"
+    ],
+    "kind": "intersect",
+    "route": "zero_offsets"
+   },
    "methods": {
-    "th_1": "",
+    "th_1": "sinANDcos",
     "th_2": "",
     "th_23": "",
     "th_3": "",
@@ -206,18 +229,19 @@
     "th_5": "",
     "th_6": ""
    },
-   "n_solutions": null,
-   "n_solved": 0,
+   "n_solutions": 2,
+   "n_solved": 1,
    "n_unknowns": 7,
    "name": "Issue4",
-   "no_progress": true,
+   "no_progress": false,
    "solution_set_error": null,
-   "status": "unsolved",
-   "wall_s": 12.19
+   "status": "partial (hybrid)",
+   "wall_s": 705.29
   },
   "JennyGuoSp24": {
    "comp_det_ticks": 8,
    "error": null,
+   "hybrid": null,
    "methods": {
     "d_1": "algebra",
     "th_2": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
@@ -235,11 +259,12 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 2.33
+   "wall_s": 2.61
   },
   "KR16": {
    "comp_det_ticks": 8,
    "error": null,
+   "hybrid": null,
    "methods": {
     "th_1": "sinANDcos",
     "th_2": "algebra",
@@ -256,11 +281,12 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 37.34
+   "wall_s": 46.41
   },
   "KawasakiRS007L": {
    "comp_det_ticks": 8,
    "error": null,
+   "hybrid": null,
    "methods": {
     "th_1": "sinANDcos",
     "th_2": "algebra",
@@ -277,11 +303,24 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 10.65
+   "wall_s": 11.27
   },
   "KawasakiRS05L": {
    "comp_det_ticks": 2,
    "error": null,
+   "hybrid": {
+    "axes": [
+     3,
+     4,
+     5
+    ],
+    "derived_robot": "KawasakiRS05L_a_3_0",
+    "edits": [
+     "a_3: 80 -> 0"
+    ],
+    "kind": "intersect",
+    "route": "zero_offsets"
+   },
    "methods": {
     "th_1": "",
     "th_2": "",
@@ -298,11 +337,12 @@
    "no_progress": true,
    "solution_set_error": null,
    "status": "unsolved",
-   "wall_s": 7.81
+   "wall_s": 21.83
   },
   "Khat6DOF": {
    "comp_det_ticks": 8,
    "error": null,
+   "hybrid": null,
    "methods": {
     "th_1": "sinANDcos",
     "th_2": "algebra",
@@ -319,32 +359,46 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 14.45
+   "wall_s": 15.66
   },
   "KinovaLite": {
    "comp_det_ticks": 2,
    "error": null,
-   "methods": {
-    "th_1": "",
-    "th_2": "",
-    "th_23": "",
-    "th_3": "",
-    "th_4": "",
-    "th_5": "",
-    "th_6": ""
+   "hybrid": {
+    "axes": [
+     4,
+     5,
+     6
+    ],
+    "derived_robot": "KinovaLite_d_5_0",
+    "edits": [
+     "d_5: 57 -> 0"
+    ],
+    "kind": "intersect",
+    "route": "zero_offsets"
    },
-   "n_solutions": null,
-   "n_solved": 0,
+   "methods": {
+    "th_1": "sinANDcos",
+    "th_2": "simultaneous eqn",
+    "th_23": "algebra",
+    "th_3": "x2z2 transform and , arcsin",
+    "th_4": "atan2(y,x)",
+    "th_5": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
+    "th_6": "atan2(y,x), arccos, best ranked, atan2(y,x)"
+   },
+   "n_solutions": 8,
+   "n_solved": 7,
    "n_unknowns": 7,
    "name": "KinovaLite",
-   "no_progress": true,
+   "no_progress": false,
    "solution_set_error": null,
-   "status": "unsolved",
-   "wall_s": 12.22
+   "status": "solved (hybrid)",
+   "wall_s": 49.69
   },
   "Mackler13": {
    "comp_det_ticks": 5,
    "error": null,
+   "hybrid": null,
    "methods": {
     "d_1": "algebra",
     "th_2": "arccos",
@@ -359,11 +413,12 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 4.01
+   "wall_s": 4.16
   },
   "Minder13": {
    "comp_det_ticks": 4,
    "error": null,
+   "hybrid": null,
    "methods": {
     "d_1": "algebra",
     "th_2": "atan2(y,x)",
@@ -377,11 +432,12 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 1.51
+   "wall_s": 1.62
   },
   "MiniDD": {
    "comp_det_ticks": 5,
    "error": null,
+   "hybrid": null,
    "methods": {
     "d_1": "algebra",
     "th_2": "arccos",
@@ -396,11 +452,12 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 3.35
+   "wall_s": 3.24
   },
   "Olson13": {
    "comp_det_ticks": 7,
    "error": null,
+   "hybrid": null,
    "methods": {
     "d_1": "algebra",
     "d_2": "algebra",
@@ -417,11 +474,12 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 2.32
+   "wall_s": 2.22
   },
   "Palm13": {
    "comp_det_ticks": 4,
    "error": null,
+   "hybrid": null,
    "methods": {
     "d_2": "algebra",
     "th_1": "atan2(y,x)",
@@ -435,11 +493,12 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 1.55
+   "wall_s": 1.62
   },
   "Parkman13": {
    "comp_det_ticks": 8,
    "error": null,
+   "hybrid": null,
    "methods": {
     "d_4": "algebra",
     "th_1": "atan2(y,x)",
@@ -455,11 +514,12 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 8.94
+   "wall_s": 9.41
   },
   "Puma": {
    "comp_det_ticks": 8,
    "error": null,
+   "hybrid": null,
    "methods": {
     "th_1": "sinANDcos",
     "th_2": "algebra",
@@ -476,11 +536,12 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 11.87
+   "wall_s": 11.28
   },
   "Pumaoffset": {
    "comp_det_ticks": 8,
    "error": null,
+   "hybrid": null,
    "methods": {
     "th_1": "sinANDcos",
     "th_2": "simultaneous eqn",
@@ -497,11 +558,12 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 29.82
+   "wall_s": 28.58
   },
   "Raven-II": {
    "comp_det_ticks": 2,
    "error": null,
+   "hybrid": null,
    "methods": {
     "d_3": "",
     "th_1": "",
@@ -517,11 +579,12 @@
    "no_progress": true,
    "solution_set_error": null,
    "status": "unsolved",
-   "wall_s": 6.9
+   "wall_s": 7.4
   },
   "Sims11": {
    "comp_det_ticks": 5,
    "error": null,
+   "hybrid": null,
    "methods": {
     "d_1": "algebra",
     "d_2": "algebra",
@@ -536,11 +599,12 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 1.81
+   "wall_s": 1.74
   },
   "Srisuan11": {
    "comp_det_ticks": 6,
    "error": null,
+   "hybrid": null,
    "methods": {
     "d_1": "algebra",
     "d_4": "algebra",
@@ -556,11 +620,12 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 2.29
+   "wall_s": 2.5
   },
   "Stanford": {
    "comp_det_ticks": 6,
    "error": null,
+   "hybrid": null,
    "methods": {
     "d_3": "algebra",
     "th_1": "sinANDcos",
@@ -576,11 +641,12 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 3.19
+   "wall_s": 2.99
   },
   "UR5": {
    "comp_det_ticks": 9,
    "error": null,
+   "hybrid": null,
    "methods": {
     "th_1": "sinANDcos",
     "th_2": "simultaneous eqnsinANDcos",
@@ -599,11 +665,12 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 5.67
+   "wall_s": 5.55
   },
   "Wachtveitl": {
    "comp_det_ticks": 6,
    "error": null,
+   "hybrid": null,
    "methods": {
     "d_1": "algebra",
     "th_2": "atan2(y,x)",
@@ -619,11 +686,12 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 2.22
+   "wall_s": 2.25
   },
   "Wrist": {
    "comp_det_ticks": 3,
    "error": null,
+   "hybrid": null,
    "methods": {
     "A": "atan2(y,x)",
     "B": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
@@ -636,8 +704,8 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 1.39
+   "wall_s": 1.3
   }
  },
- "total_wall_s": 224.42
+ "total_wall_s": 981.83
 }

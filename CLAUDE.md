@@ -145,11 +145,21 @@ Because `install_simplified` swaps the `Robot`, `pieper_id` **snapshots** its La
 blackboard before the swap and `report_gen` prefers that snapshot — otherwise the report would describe
 the simplified arm rather than the robot that was asked for.
 
-`hybrid_branch` is a stub for `futurework.md` item 1 (simplify the DH parameters until the robot
-solves, then correct numerically). It always FAILs, so the `Priority` is currently a no-op wrapper
-and the tree is observably identical to the one that had no branch at all — which is what lets
-`scripts/robot_baseline.py --diff` prove the restructure moved nothing before any new solver exists.
-See `ikbtleaves/hybrid_ik.py` for the leaves that will replace it.
+`hybrid_branch` implements `hybrid_impl_plan.md` item 1 (simplify the DH parameters until the robot
+solves, then correct numerically). It is no longer inert: `simplified_arm` and `install_simplified`
+build a derived robot and the second solver really solves it, so the branch **does move
+`scripts/robot_baseline.py --diff`**. Only the trailing `hybrid_stub` still always FAILs, which
+withholds the report — the closed form on the blackboard describes the *derived* arm, and emitting it
+as though it were the real robot is the one thing this method must never do. Removing that block is
+Phase F's job, together with naming the artifacts for the true robot.
+
+Measured, the branch is gated to three robots (the ones with no Pieper triple) and is 1-for-3:
+`KinovaLite` solves 7/7 via `d_5: 57 → 0`; `KawasakiRS05L` simplifies (`a_3: 80 → 0`) but the derived
+arm still solves 0/7; `Issue4` simplifies (`d_5 → 0`) and reaches only 1 of 7 -- the set's ONLY
+partial solve. `ArmRobo` and `Raven-II` *have* triples, so the gate correctly declines them — those
+are IKBT solver gaps, not geometry gaps. `simplified_arm` commits to its cheapest candidate with no
+fall-through to the next-ranked one, which is why two of the three fall short. Both shortfalls share
+a signature: `eqns_1u` is empty and stays empty, so no ID node can fire.
 
 Blackboard keys: `Robot`, `unknowns`, `curr_unk`, `counter`, `Tm`, `eqns_1u`, `eqns_2u`, `eqns_3pu`,
 `no_progress` (comp_det gave up), `symbolic_passes` / `symbolic_exhausted` (set by `symbolic_loop`),
@@ -217,5 +227,7 @@ raising `UnboundLocalError`.
 Please keep commit messages to 5 lines or less. 
 
 # Future Work
-Optionally, if user asks about future work, see the file @futurework.md
+Optionally, if user asks about future work, see @hybrid_impl_plan.md (the tracked working plan;
+Phases A-E are done and record what was actually built, Phase F and the deferred items are the
+remaining work) and @hybrid_plan.md (the original design rationale).
 

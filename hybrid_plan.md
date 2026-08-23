@@ -1,6 +1,7 @@
 # Hybrid Symbolic–Numeric IK: Implementation Plan
 
-A plan for approach 1 of [futurework.md](futurework.md) — when IKBT cannot solve a robot in closed
+A plan for approach 1 of the old `futurework.md` (removed in c66b7e6; the tracked successor is
+[hybrid_impl_plan.md](hybrid_impl_plan.md)) — when IKBT cannot solve a robot in closed
 form, simplify its DH parameters until it *can*, solve the simplified robot symbolically, and correct
 the result numerically using the symbolic Jacobian.
 
