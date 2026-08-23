@@ -803,9 +803,15 @@ class TestSolver013(unittest.TestCase):
         for L in loops:
             self.assertTrue(L.max_loop > 0,
                             fs + ' ("%s" has no usable budget)' % L.Name)
-            self.assertFalse(L.require_complete,
-                             fs + ' (require_complete ON would discard partial '
-                             'solves, which IKBT has always reported)')
+            #  ON, per BH 2026-08-23:  a closed form for some of the joints
+            #  is not inverse kinematics, so the solver must not report SUCCESS
+            #  for it and let a report be written.  Nothing is discarded -- the
+            #  solved unknowns keep their solutions and still appear in the
+            #  baseline record;  only the tree's verdict changes.  Issue4's
+            #  derived arm (1 of 7) is the case that made this a live choice.
+            self.assertTrue(L.require_complete,
+                            fs + ' ("%s" would report a PARTIAL solve as a '
+                            'success' % L.Name)
         #  distinct instances, or their blackboard state would collide
         self.assertIsNot(loops[0], loops[1],
                          fs + ' (the two branches share one loop INSTANCE)')

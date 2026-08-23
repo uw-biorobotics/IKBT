@@ -111,7 +111,11 @@ needs both the tan and sin/cos candidates to choose between).
 
 `symbolic_loop` (`ikbtleaves/symbolic_loop.py`) replaced `b3.RepeatUntilSuccess(solveRoutine, 10)` at
 the root. It runs the identical passes, but as a Python loop inside `tick()`, so it can **choose** its
-exit status: SUCCESS if at least one variable was solved, FAILURE if none. `RepeatUntilSuccess`
+exit status. `require_complete` is **True**: SUCCESS only when *every* unknown is solved, because a
+closed form for some of the joints is not inverse kinematics and must not be reported as an answer.
+Nothing is discarded — the solved unknowns keep their solutions and still appear in the baseline
+record; only the verdict changes. Setting it False restores "SUCCESS if anything was solved" and is
+the hook for the future partial-analytic + lower-dimensional-numeric work. `RepeatUntilSuccess`
 returns FAILURE when it exhausts its loops, which would abort the enclosing `Sequence` and discard a
 loop-exhausted *partial* solve — and wrapping it in `Priority([..., Succeeder()])` hides the real
 failure too, leaving the tree unable to tell "solved nothing" from "ran out of passes". That FAILURE

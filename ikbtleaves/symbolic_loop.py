@@ -32,9 +32,9 @@ class symbolic_loop(b3.Decorator):
     '''Tick the solve routine up to max_loop times;  SUCCEED if the symbolic
        solver got anywhere at all.
 
-           SUCCESS  at least one unknown is solved   (or all of them, if
-                    require_complete is set)
-           FAILURE  nothing was solved -- there is no closed form to report
+           SUCCESS  every unknown is solved
+           FAILURE  one or more unknowns are still unsolved -- there is no
+                    complete closed form to report
 
        Blackboard, set every tick for whoever wants to measure the loop:
 
@@ -43,11 +43,13 @@ class symbolic_loop(b3.Decorator):
                                failing (as opposed to the child terminating on
                                its own, which is what comp_det does)
 
-       require_complete is OFF by default, and that is deliberate:  IKBT has
-       always emitted a report for a partial solve, and turning it on would
-       change the outcome for every partially-solving robot.  It is here because
-       "solved some of the variables" is not usable IK, so a fallback strategy
-       may eventually want the stricter gate -- as a measured, separate change.'''
+       require_complete is ON by default:  a closed form for some of the joints
+       is not inverse kinematics, so a partial solve is a failure of this node
+       even though the variables it did solve keep their solutions.  Setting it
+       False restores the older "SUCCESS if anything was solved" behaviour, and
+       is the hook for the future work that makes deliberate use of a partial
+       result (solve what closes analytically, finish the rest numerically at
+       lower dimension).'''
 
     def __init__(self, child=None, max_loop=10):
         super(symbolic_loop, self).__init__(child)
@@ -60,7 +62,26 @@ class symbolic_loop(b3.Decorator):
         #  any node carrying that attribute for a finite, non-zero budget.
         self.max_loop = max_loop
 
-        self.require_complete = False
+        #  A SOLVE THAT DID NOT SOLVE EVERY UNKNOWN IS A FAILURE (BH,
+        #  2026-08-23).  A closed form for 1 of 7 joints is not inverse
+        #  kinematics;  it cannot be handed to a caller as an answer, so the
+        #  node must not report SUCCESS for it and let a report be written.
+        #
+        #  This was False, which reported SUCCESS whenever ANY variable was
+        #  solved.  That reproduced the old `solved_anything()` contract, and
+        #  while no robot in the set was ever partial the two settings were
+        #  indistinguishable -- so it looked like a free choice.  It stopped
+        #  being free when Issue4's derived arm came in at 1 of 7, the set's
+        #  first partial solve.
+        #
+        #  NOTHING IS DISCARDED by this.  The solved unknowns keep their
+        #  solutions -- set_solved() already mutated them -- so the partial
+        #  result is still on the blackboard, still in the baseline record, and
+        #  still available to any caller that wants it.  What changes is only
+        #  whether the TREE calls the solve a success and therefore reports it.
+        #  Making deliberate use of a partial result is future work (see
+        #  hybrid_impl_plan.md, the lower-dimensional numeric solve).
+        self.require_complete = True
 
         #  Per-pass progress reporting (ikbtfunctions/progress.py).  This node
         #  is the only place that knows both the pass number and the budget, so
@@ -187,14 +208,20 @@ class TestSolver016(unittest.TestCase):
     def runTest(self):
         self.test_loopA_stops_when_child_succeeds()
         self.test_loopB_honors_the_budget()
-        self.test_loopC_partial_solve_is_success()
+        self.test_loopC_partial_solve_is_failure()
         self.test_loopD_nothing_solved_is_failure()
-        self.test_loopE_require_complete()
+        self.test_loopE_require_complete_can_be_relaxed()
         self.test_loopF_no_unknowns_is_failure()
 
-    def run_loop(self, child, nunk=3, max_loop=10, require_complete=False):
+    def run_loop(self, child, nunk=3, max_loop=10, require_complete=None):
+        #  require_complete=None means "leave the node's own default alone".
+        #  It used to default to False and assign unconditionally, which
+        #  silently overrode the default in EVERY test -- so no test could
+        #  detect a change to it.
         node = symbolic_loop(child, max_loop=max_loop)
-        node.require_complete = require_complete
+        if require_complete is not None:
+            node.require_complete = require_complete
+        node.progress = False
         bb = b3.Blackboard()
         bb.set('unknowns', [fake_unk() for _ in range(nunk)])
         t = b3.BehaviorTree()
@@ -223,19 +250,23 @@ class TestSolver016(unittest.TestCase):
         self.assertEqual(bb.get('symbolic_passes'), 4, fs)
         self.assertTrue(bb.get('symbolic_exhausted'), fs + ' (should flag exhaustion)')
 
-    def test_loopC_partial_solve_is_success(self):
-        '''Exhausting the budget with SOME variables solved is a SUCCESS.
+    def test_loopC_partial_solve_is_failure(self):
+        '''A partial solve is a FAILURE:  a closed form for some of the joints
+           is not inverse kinematics, so the tree must not treat it as an
+           answer and write a report for it (BH, 2026-08-23).
 
-           This is the behavior RepeatUntilSuccess could not express:  it
-           returns FAILURE on exhaustion, which would abort the enclosing
-           Sequence and discard a partial solve that IKBT has always
-           reported.'''
+           The solved variables are NOT discarded -- set_solved() already
+           recorded them and they stay on the blackboard.  Only the node's
+           verdict changes.'''
         fs = ' symbolic_loop partial FAIL'
         child = test_fake_pass(never_succeeds=True, solves=1)
         st, bb, _ = self.run_loop(child, nunk=3, max_loop=3)
         self.assertTrue(bb.get('symbolic_exhausted'), fs + ' (should be exhausted)')
-        self.assertEqual(st, b3.SUCCESS,
-                         fs + ' (partial solve must not be thrown away)')
+        self.assertEqual(st, b3.FAILURE,
+                         fs + ' (1 of 3 solved is not a solution)')
+        #  ... but the partial result survives for whoever wants it.
+        self.assertEqual(len([u for u in bb.get('unknowns') if u.solved]), 1,
+                         fs + ' (the solved variable must not be lost)')
 
     def test_loopD_nothing_solved_is_failure(self):
         '''Nothing solved is the one case that must FAIL -- that FAILURE is
@@ -245,15 +276,23 @@ class TestSolver016(unittest.TestCase):
         st, bb, _ = self.run_loop(child, max_loop=3)
         self.assertEqual(st, b3.FAILURE, fs)
 
-    def test_loopE_require_complete(self):
-        '''With require_complete set, a partial solve FAILs instead.'''
+    def test_loopE_require_complete_can_be_relaxed(self):
+        '''require_complete=False restores the older "SUCCESS if anything was
+           solved" behaviour.  That is the hook for the future work which makes
+           deliberate use of a partial result, so it has to keep working.'''
         fs = ' symbolic_loop require_complete FAIL'
         child = test_fake_pass(never_succeeds=True, solves=1)
-        st, _, _ = self.run_loop(child, nunk=3, max_loop=2, require_complete=True)
-        self.assertEqual(st, b3.FAILURE, fs + ' (partial should fail)')
+        st, _, _ = self.run_loop(child, nunk=3, max_loop=2,
+                                 require_complete=False)
+        self.assertEqual(st, b3.SUCCESS, fs + ' (relaxed: partial succeeds)')
+
+        #  And the default stays strict.
+        child = test_fake_pass(never_succeeds=True, solves=1)
+        st, _, _ = self.run_loop(child, nunk=3, max_loop=2)
+        self.assertEqual(st, b3.FAILURE, fs + ' (default must be strict)')
 
         child = test_fake_pass(fails=0, solves=3)
-        st, _, _ = self.run_loop(child, nunk=3, require_complete=True)
+        st, _, _ = self.run_loop(child, nunk=3)
         self.assertEqual(st, b3.SUCCESS, fs + ' (complete should succeed)')
 
     def test_loopF_no_unknowns_is_failure(self):
