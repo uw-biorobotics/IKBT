@@ -260,10 +260,17 @@ ns == 0                                            ->  no_progress  (nothing to 
 
 `no_progress` does *not* mean "stop": `run_solver()` skips `create_solution_set()` when it is set and
 `solved_anything()` gates `emit_outputs()` on it — so setting it for a partial solve would **discard
-the partial closed form**, which IKBT has always reported. Keeping them separate is what lets a
-stalled *partial* solve stop without losing its result. `Issue4` went from 705 s to ~100-250 s, still
-`partial (hybrid)` 1/7, because it used to re-derive an identical state for nine ~80 s passes and
-`comp_det`'s own summary admitted it: *"the 10-pass budget ran out; comp_det did not stop it."*
+the partial closed form**. Keeping them separate is what lets a stalled *partial* solve stop without
+losing its result.
+
+The reason to stop is **not** speed — these are hard problems and a long solve is legitimate. It is
+that the node was continuing past its own proof: once a pass leaves the solved set and every equation
+pool exactly as it found them, the identical pass cannot produce a different result. `comp_det` had
+already established there was nothing left to do, carried on regardless, and then reported *"the
+10-pass budget ran out; comp_det did not stop it"* — a wrong answer about why the solve ended, which
+buried the real diagnosis. `Issue4` repeated the signature `(1, 0, 13, 60, …)` for nine passes after
+solving `th_1`. Stopping at the repeat reports what actually happened; it is also faster, which is a
+side effect and not the point.
 
 Two traps, both caught by the 32-robot gate rather than by inspection:
 
@@ -278,8 +285,9 @@ Two traps, both caught by the 32-robot gate rather than by inspection:
   "swapped one equation for another" as "nothing happened".
 
 `comp_detect.read_pause` was **2 s per tick** — a sleep so a human could read the scrolling status
-wall, costing ~18 s of an interactive `Puma`'s ~27 s. It is now **0**: one line per pass replaced the
-wall. `scripts/robot_baseline.py` already forced it to 0, so the recorded baseline is unaffected.
+wall. It is now **0**, not to reclaim the time but because what it compensated for is gone: one
+compact line per pass means nothing scrolls past unread, and a pause that no longer buys legibility is
+just a pause. `scripts/robot_baseline.py` already forced it to 0, so the record is unaffected.
 
 ### Core data model (`ikbtbasics/`, see also `IKdocs/classes.md`)
 

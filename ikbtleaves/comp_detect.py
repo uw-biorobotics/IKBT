@@ -61,12 +61,13 @@ class comp_det(b3.Action):
         self.FailAllDone = False   # we can set up to succeed when all are done or succeed when more to do. 
         self.Name = '*completion_detect*'
         #  Was 2 seconds:  a deliberate pause so a human could read the status
-        #  wall as it scrolled by.  Now 0, because symbolic_loop prints ONE
-        #  compact line per pass (ikbtfunctions/progress.py) and there is no
-        #  longer a wall to keep up with -- so the pause bought nothing and cost
-        #  ~18 s of an interactive Puma's ~27 s.  scripts/robot_baseline.py
-        #  already forced it to 0, so the recorded baseline is unaffected;  this
-        #  only speeds up ikSolver.py.  Raise it if you want the old behaviour.
+        #  wall as it scrolled by.  Now 0 -- not to reclaim the time, but
+        #  because what it compensated for is gone:  symbolic_loop prints ONE
+        #  compact line per pass (ikbtfunctions/progress.py), so nothing
+        #  scrolls past unread and a pause that no longer buys legibility is
+        #  just a pause.  scripts/robot_baseline.py already forced it to 0, so
+        #  the recorded baseline is unaffected.  Raise it to get the old
+        #  scroll-and-pause behaviour back.
         self.read_pause = 0
         
     def tick(self,tick):
@@ -147,12 +148,20 @@ class comp_det(b3.Action):
         #
         #   TWO DECISIONS, NOT ONE.  This block used to make the stop
         #   conditional on `ns == 0`, which quietly meant a PARTIAL solve that
-        #   stalled could never stop:  it ran the whole pass budget re-deriving
-        #   an identical state.  Measured on Issue4's derived arm -- th_1 solved
-        #   in pass 1, then NINE passes averaging 71 s each, every one leaving
-        #   the signature at (1, 0, 13, 60, ...).  636 of its 637 seconds were
-        #   provably futile, and comp_det's own summary said so:  "the 10-pass
-        #   budget ran out;  comp_det did not stop it."
+        #   stalled could never stop.  The reason to fix that is NOT speed --
+        #   these are hard problems and a long solve is entirely legitimate --
+        #   it is that the node was CONTINUING PAST ITS OWN PROOF.  Once a pass
+        #   has left the solved set and every equation pool exactly as it found
+        #   them, re-running the identical pass cannot produce a different
+        #   result;  comp_det had already established there was nothing to do,
+        #   carried on anyway, and then reported "the budget ran out" as though
+        #   the budget were the reason it stopped.  That is a wrong answer about
+        #   WHY the solve ended, and it buries the real diagnosis.
+        #
+        #   Observed on Issue4's derived arm:  th_1 solved in pass 1, then nine
+        #   further passes each leaving the signature at (1, 0, 13, 60, ...).
+        #   Ending at the repeat reports what actually happened.  It is also
+        #   faster, which is welcome but is a side effect, not the point.
         #
         #   The `ns == 0` was not simply redundant, though -- it was load-bearing
         #   for a DIFFERENT question, which is why removing it alone would be a
@@ -365,9 +374,10 @@ class TestSolver014(unittest.TestCase):
 
            This is the Issue4 defect.  The stop used to be conditional on
            `ns == 0`, so a solve that got one variable and then stalled could
-           never trigger it:  Issue4's derived arm solved th_1 in pass 1 and
-           then re-derived an identical state for NINE more passes averaging
-           71 s each -- 636 of 637 seconds wasted.
+           never trigger it, and the node went on re-deriving a state it had
+           already proven static -- then blamed the pass budget for the stop.
+           Issue4's derived arm solved th_1 in pass 1 and then repeated an
+           identical signature for nine further passes.
 
            But `no_progress` must NOT be set here.  It does not mean "stop
            ticking";  ik_driver.run_solver() skips create_solution_set() when it

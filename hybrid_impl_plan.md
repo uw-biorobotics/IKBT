@@ -933,6 +933,55 @@ But two things must land in the same step as un-blocking it, or the artifacts li
 
 Neither is hard, but neither can be skipped, so `hybrid_stub` stays where it is until they are done.
 
+## Candidate selection for the fall-through (BH, 2026-08-23)
+
+`simplified_arm` ranks candidates by task-space displacement and `install_simplified` commits to the
+cheapest one. Measured, that picks a geometrically-cheap edit with no regard for whether the derived
+arm is solvable, and 2 of 3 target robots fail as a result:
+
+| robot | winning edit | derived arm |
+|---|---|---|
+| `KinovaLite` | `d_5: 57 → 0` | **7/7** |
+| `KawasakiRS05L` | `a_3: 80 → 0` | 0/7 — pools `0/2/69` before *and* after |
+| `Issue4` | `d_5: 0.029 → 0` | 1/7 — pools stuck at `0/13/60` |
+
+Both failures share one signature: **`eqns_1u` is empty and stays empty.** Every solver leaf needs an
+equation in one unknown to start, which is what `comp_det` already says when it gives up. So the
+candidate test is "does this derived arm yield any one-unknown equations?", with displacement still
+deciding *which* of the survivors to prefer — BH's metric keeps its job, and the new test only removes
+candidates that provably cannot work.
+
+**Cost is explicitly not a reason to avoid this (BH).** Getting `eqns_1u` for a candidate means
+building its forward kinematics and running `scan_for_equations()`, and FK plus the sum-of-angles scan
+is the slow part that gets pickled. **Go ahead and invoke FK and `scan_for_equations()` as needed for
+alternate candidates.** An experienced human takes days on these problems; minutes of FK to avoid
+committing to a useless simplification is a good trade. Each derived arm gets its own pickle
+(`install_simplified.suffix()` already names them), so the cost is paid once per candidate ever.
+
+Note `eqns_1u > 0` is necessary-looking, not sufficient: `ICP5p5_A21` had `eqns_1u = 6` and still
+needed several passes. It is a filter that removes hopeless candidates, not a solvability oracle.
+
+## Later work — partial analytic solve plus a lower-dimensional numeric solve
+
+BH, 2026-08-23. `Issue4`'s derived arm solving 1 of 7 points at an avenue better than discarding it:
+**solve analytically whatever closes, then run the numeric solution over only the joints that are
+left.** The numeric problem is then lower-dimensional than a general 6-DOF IK, with the analytic
+results as exact constraints rather than as a seed.
+
+Stronger still, and observed on another robot during this work: sometimes if just **one** variable is
+found numerically, the remaining joints have a clean closed form. So the split need not be "analytic
+prefix, numeric remainder" — a single numeric unknown can unlock an otherwise-analytic chain, which
+makes the search for *which* variable to solve numerically part of the problem.
+
+Reference: Friedman, Diana C. W., Tim Kowalewski, Radivoje Jovanovic, Jacob Rosen, and Blake
+Hannaford. "Freeing the serial mechanism designer from inverse kinematic solvability constraints."
+*Applied Bionics and Biomechanics* 7, no. 3 (2010): 209-216.
+Local copy: [`IKdocs/Applied Bionics and Biomechanics - 2010 - Friedman - Freeing the Serial Mechanism Designer from Inverse Kinematic.pdf`](IKdocs/Applied%20Bionics%20and%20Biomechanics%20-%202010%20-%20Friedman%20-%20Freeing%20the%20Serial%20Mechanism%20Designer%20from%20Inverse%20Kinematic.pdf)
+
+This is the concrete use for a partial result, and therefore the thing that would eventually want
+`symbolic_loop.require_complete = False` again — deliberately, on a branch built to consume a partial,
+rather than as today's default. Filed for later; not Phase F.
+
 ## Explicitly deferred
 
 - **Step 1.1 item 5** — `scripts/simplify_dh.py` CLI. Lower priority per the doc, but it has
@@ -1033,9 +1082,7 @@ BH's answers are preserved verbatim as `USR:`. What each one turned into:
 
 ---
 
-## Open question
-
-One decision Phase A's data made free, so it is worth asking rather than assuming:
+## Resolved — `require_complete` (BH, 2026-08-23)
 
 - **Should the hybrid fire on a *partial* symbolic solve, or only when nothing at all was solved?**
   `symbolic_loop.require_complete` is the switch, currently `False` (= fire only when nothing was
@@ -1044,7 +1091,20 @@ One decision Phase A's data made free, so it is worth asking rather than assumin
   stuck as one that never started. The argument for `False` is that IKBT has always reported partial
   solves, and a future robot that stalls at 5-of-6 would silently stop getting its report.
 
-  **This is no longer a free decision (BH, 2026-08-23).** The section above used to argue it was,
+  **DECIDED: `require_complete = True`.** BH: *"It should always fail unless ALL unknowns are solved.
+  Nevertheless, there could be conditions in which we might want to make use of a partial result but
+  we are putting this off for the future."* A closed form for some of the joints is not inverse
+  kinematics, so the solver must not report SUCCESS for it and let a report be written. **Nothing is
+  discarded**: the solved unknowns keep their solutions, so the partial result is still on the
+  blackboard and still in the baseline record — only the tree's verdict changes. `require_complete`
+  stays as the switch, and the future work that consumes a partial result (see the
+  lower-dimensional numeric solve above) is what would set it False again, deliberately, on a branch
+  built for it.
+
+  Measured, the flip is baseline-neutral: no robot solves partially on a *symbolic* branch, and
+  `Issue4`'s 1-of-7 is on the hybrid branch, which was already failing at `hybrid_stub`.
+
+  The section below used to argue the decision was free,
   on the grounds that *"no robot in the current set is ever partially solved,"* so both settings
   produced an identical baseline. That premise died with Phase E. Measured over all 32 robots:
   **28 complete, 3 solve nothing (`ArmRobo`, `KawasakiRS05L`, `Raven-II`), and `Issue4` is a
