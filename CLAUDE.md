@@ -39,6 +39,15 @@ each robot as unchanged / newly-solved / newly-unsolved / changed-method and exi
 anything moved.  It **asserts nothing** — "does not solve" is a legitimate entry.  The record lives
 in `tests/baselines/`; per-robot child output goes to `logs/baseline/`.
 
+**`wall_s` is recorded but deliberately NOT compared** (`COMPARED` holds `status`, `n_solved`,
+`n_unknowns`, `methods`, `n_solutions`, `solution_set_error`, `hybrid`) — the slow robots vary far too
+much for a timing comparison to mean anything. Measured over back-to-back full sweeps, every robot
+repeated at 1.0-1.1x **except** `DZhang` (20.7 s → 78.9 s, 3.8x) and `Issue4` (101 s, 187 s, 246 s,
+then >900 s on identical code at `PYTHONHASHSEED=0`). `DEFAULT_TIMEOUT` was raised 900 → **1800 s**
+for exactly that reason: `Issue4` sat close enough to the old ceiling that its *status* flipped
+between `partial (hybrid)` and `timeout` run to run, and `status` **is** compared — so `--diff`
+reported a regression that did not exist. A flaky gate trains you to ignore it.
+
 Compile the report: `cd LaTex && pdflatex ik_solution_<RobotName>.tex` (the generated file is standalone —
 `IK_preamble.tex` and `IK_close.tex` are already spliced in; `ik_report_template.tex` is a legacy wrapper that
 `\input`s a no-longer-generated `IK_solution.tex`).
@@ -232,6 +241,37 @@ Two non-obvious requirements, both learned the hard way:
 Output is **line-oriented, never `\r`-animated** — the sum-of-angles progress bar collapses in
 `logs/baseline/<robot>.log` into one unreadable multi-kilobyte line, which is what made `Issue4`'s log
 useless for diagnosis. Do not add animation.
+
+**`comp_det`'s stall detection** (`comp_detect.py`). Termination and reportability used to be one
+flag; they are now two decisions:
+
+```
+signature repeated  and (ns == 0 or eqns_1u empty)  ->  stop ticking
+ns == 0                                            ->  no_progress  (nothing to report)
+```
+
+`no_progress` does *not* mean "stop": `run_solver()` skips `create_solution_set()` when it is set and
+`solved_anything()` gates `emit_outputs()` on it — so setting it for a partial solve would **discard
+the partial closed form**, which IKBT has always reported. Keeping them separate is what lets a
+stalled *partial* solve stop without losing its result. `Issue4` went from 705 s to ~100-250 s, still
+`partial (hybrid)` 1/7, because it used to re-derive an identical state for nine ~80 s passes and
+`comp_det`'s own summary admitted it: *"the 10-pass budget ran out; comp_det did not stop it."*
+
+Two traps, both caught by the 32-robot gate rather than by inspection:
+
+- **A repeated signature is NOT proof of being stuck.** `assigner_leaf` round-robins `curr_unk`, so a
+  pass can change nothing merely because it was offered a variable it cannot solve yet — the next
+  pass, offered another, succeeds. Traced on `ICP5p5_A21`: pass 4 changed nothing with `eqns_1u = 6`,
+  and the solve went on to finish. Stopping on the repeat alone took `ICP5p5_A21` and `Parkman13` from
+  `solved` to `partial`. An **empty `eqns_1u`** is the sound condition — no ID node can fire for *any*
+  variable, so the assigner's cursor stops mattering. The `ns == 0` path keeps its original condition,
+  so every previously-stopping robot stops exactly as before.
+- **The signature compares equation CONTENTS, not `len()`** (`_pool_signature()`). Counts alone treat
+  "swapped one equation for another" as "nothing happened".
+
+`comp_detect.read_pause` was **2 s per tick** — a sleep so a human could read the scrolling status
+wall, costing ~18 s of an interactive `Puma`'s ~27 s. It is now **0**: one line per pass replaced the
+wall. `scripts/robot_baseline.py` already forced it to 0, so the recorded baseline is unaffected.
 
 ### Core data model (`ikbtbasics/`, see also `IKdocs/classes.md`)
 

@@ -61,7 +61,21 @@ RECORD_VERSION = 1
 
 #  A full solve is minutes for the slow robots (FK on a cold pickle plus the
 #  BT itself).  This is a backstop against a hang, not a performance target.
-DEFAULT_TIMEOUT = 900
+#
+#  RAISED FROM 900 s, because at 900 s it made the record NON-REPRODUCIBLE.
+#  Wall time on the slow robots varies far more than the rest:  measured over
+#  two back-to-back sweeps of all 32, every robot came in at 1.0-1.1x except
+#  DZhang (20.7 s -> 78.9 s, 3.8x) and Issue4, which landed at 187 s, 246 s and
+#  then >900 s on identical code at PYTHONHASHSEED=0.  Issue4 sat close enough
+#  to the ceiling that its recorded STATUS flipped between 'partial (hybrid)'
+#  and 'timeout' run to run -- and `status` is compared, so --diff reported a
+#  regression that did not exist.  A flaky gate is worse than a slow one:  it
+#  trains you to ignore it.
+#
+#  1800 s gives Issue4 (typically ~250 s) roughly a 7x margin, which covers the
+#  3.8x variance actually observed.  It remains a hang backstop:  nothing in the
+#  set legitimately approaches it.  Override per run with --timeout.
+DEFAULT_TIMEOUT = 1800
 
 #  The child hands its result back on stdout, fenced, because everything else
 #  in IKBT prints freely and the solver output is thousands of lines.

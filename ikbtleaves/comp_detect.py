@@ -27,19 +27,47 @@ import b3 as b3          # behavior trees
 import time       
 
        
+def _pool_signature(eqns):
+    '''A comparable fingerprint of an equation pool's CONTENTS.
+
+       Used by comp_det to decide whether a whole pass changed anything.  It
+       must be content-sensitive:  comparing len() alone treats "swapped one
+       equation for another" as "nothing happened", which stopped ICP5p5_A21
+       and Parkman13 mid-solve when the stall check was opened up to partial
+       solves.
+
+       str() rather than sp.expand() or sp.simplify():  this runs on every
+       comp_det tick and only needs to detect CHANGE, not to canonicalise.  Two
+       mathematically equal but differently written equations reading as
+       "changed" is the safe direction to err -- it keeps the solver running.
+       Sorted, so a reordered pool is not mistaken for progress.'''
+
+    out = []
+    for e in eqns:
+        try:
+            out.append('%s|%s' % (e.LHS, e.RHS))
+        except AttributeError:
+            out.append(repr(e))
+    return tuple(sorted(out))
+
+
 #   Detect when all unknowns are solved
-#   
- 
+#
+
 class comp_det(b3.Action):
     
     def __init__(self):
         super(b3.Action, self).__init__()
         self.FailAllDone = False   # we can set up to succeed when all are done or succeed when more to do. 
         self.Name = '*completion_detect*'
-        #  Deliberate pause so a human can read the status as it scrolls by.
-        #  It is NOT free:  comp_det ticks ~9 times in a Puma solve, so this is
-        #  ~18s of Puma's ~27s wall clock.  Set to 0 for batch runs and tests.
-        self.read_pause = 2
+        #  Was 2 seconds:  a deliberate pause so a human could read the status
+        #  wall as it scrolled by.  Now 0, because symbolic_loop prints ONE
+        #  compact line per pass (ikbtfunctions/progress.py) and there is no
+        #  longer a wall to keep up with -- so the pause bought nothing and cost
+        #  ~18 s of an interactive Puma's ~27 s.  scripts/robot_baseline.py
+        #  already forced it to 0, so the recorded baseline is unaffected;  this
+        #  only speeds up ikSolver.py.  Raise it if you want the old behaviour.
+        self.read_pause = 0
         
     def tick(self,tick):
         unks = tick.blackboard.get('unknowns')
@@ -117,25 +145,113 @@ class comp_det(b3.Action):
         #   when a whole pass changed nothing at all -- no variable solved and
         #   no equation added -- which no amount of further ticking can undo.
         #
+        #   TWO DECISIONS, NOT ONE.  This block used to make the stop
+        #   conditional on `ns == 0`, which quietly meant a PARTIAL solve that
+        #   stalled could never stop:  it ran the whole pass budget re-deriving
+        #   an identical state.  Measured on Issue4's derived arm -- th_1 solved
+        #   in pass 1, then NINE passes averaging 71 s each, every one leaving
+        #   the signature at (1, 0, 13, 60, ...).  636 of its 637 seconds were
+        #   provably futile, and comp_det's own summary said so:  "the 10-pass
+        #   budget ran out;  comp_det did not stop it."
+        #
+        #   The `ns == 0` was not simply redundant, though -- it was load-bearing
+        #   for a DIFFERENT question, which is why removing it alone would be a
+        #   regression.  `no_progress` does not mean "stop ticking";  it means
+        #   "there is nothing to report".  ik_driver.run_solver() skips
+        #   create_solution_set() when it is set, and solved_anything() gates
+        #   emit_outputs() on it -- so setting it for a partial solve would
+        #   DISCARD the partial closed form, and IKBT has always reported
+        #   partial solves.
+        #
+        #   So the two are now separated:
+        #
+        #       stalled      -> stop ticking            (signature repeated)
+        #       ns == 0      -> nothing to report       (no_progress)
+        #
         L1 = tick.blackboard.get('eqns_1u') or []
         L2 = tick.blackboard.get('eqns_2u') or []
         L3 = tick.blackboard.get('eqns_3pu') or []
-        signature = (ns, len(L1), len(L2), len(L3), len(R.kequation_aux_list))
+
+        #   CONTENTS, not counts.  The signature used to be
+        #
+        #       (ns, len(L1), len(L2), len(L3), len(aux))
+        #
+        #   which is not a sound "nothing changed" test:  a pass that REPLACES
+        #   an equation with a different one of the same count looks identical.
+        #   That unsoundness was harmless only because the stop was also gated
+        #   on `ns == 0` -- a solve that had never solved anything.  Opening the
+        #   stop to partial solves exposed it immediately:  measured over all 32
+        #   robots, ICP5p5_A21 and Parkman13 went `solved -> partial`, because
+        #   both complete via a pass whose pool counts happen to match the
+        #   previous pass while its contents move on.
+        #
+        #   Comparing the equations themselves costs a str() per equation --
+        #   about 75 of them on Issue4, a few milliseconds against passes that
+        #   run 80 s.  Sorted, because a reordered pool is not progress either.
+        signature = (tuple(sorted(u.name for u in unks if u.solved)),
+                     _pool_signature(L1),
+                     _pool_signature(L2),
+                     _pool_signature(L3),
+                     _pool_signature(R.kequation_aux_list))
         previous  = tick.blackboard.get('comp_det_signature')
         tick.blackboard.set('comp_det_signature', signature)
 
-        if ns == 0 and previous is not None and signature == previous:
+        repeated = (previous is not None and signature == previous)
+
+        #   A REPEATED SIGNATURE IS NOT PROOF OF BEING STUCK, and that is the
+        #   subtle part.  assigner_leaf round-robins `curr_unk` over the unsolved
+        #   variables, so a pass can change nothing simply because it was offered
+        #   a variable it cannot currently solve -- and the NEXT pass, offered a
+        #   different one, succeeds.  `curr_unk` is solver state the signature
+        #   cannot see.  Traced on ICP5p5_A21:
+        #
+        #       pass 3  solved th_1,th_3,th_4  L1=6  curr_unk=th_4  changed
+        #       pass 4  solved th_1,th_3,th_4  L1=6  curr_unk=th_1  NO CHANGE
+        #       pass 5+ ... goes on to solve the 4th variable
+        #
+        #   Stopping on the repeat alone took ICP5p5_A21 and Parkman13 from
+        #   `solved` to `partial`.
+        #
+        #   What IS sound is an EMPTY eqns_1u:  every solver leaf needs an
+        #   equation in one unknown to start, so with L1 empty nothing can fire
+        #   for ANY variable and the assigner's cursor stops mattering.  Combined
+        #   with unchanged pool contents -- meaning no transform produced
+        #   anything either -- that is a real dead end.
+        #
+        #   The ns == 0 path keeps its ORIGINAL condition (repeat alone), so
+        #   every previously-stopping robot stops exactly as before.  Requiring
+        #   an empty L1 there too would risk letting a 0-solved robot run to
+        #   budget without `no_progress`, and create_solution_set() would then
+        #   crash on an empty solution set -- the bug that guard exists for.
+        stalled = repeated and (ns == 0 or len(L1) == 0)
+
+        if stalled:
             print('')
-            print('   No solution found.')
-            print('   Nothing was solved and the last pass changed nothing:')
-            print('     one-unknown equations available: ', len(L1))
-            if len(L1) == 0:
-                print('     -- eqns_1u is EMPTY, so no ID node can fire.  Every')
-                print('        solver leaf needs an equation in one unknown to start.')
-            print('   Stopping here rather than generating an empty report.')
+            if ns == 0:
+                #  Nothing solved at all:  there is no solution to report, and
+                #  create_solution_set() must not be called on an empty set.
+                print('   No solution found.')
+                print('   Nothing was solved and the last pass changed nothing:')
+                print('     one-unknown equations available: ', len(L1))
+                if len(L1) == 0:
+                    print('     -- eqns_1u is EMPTY, so no ID node can fire.  Every')
+                    print('        solver leaf needs an equation in one unknown to start.')
+                print('   Stopping here rather than generating an empty report.')
+                tick.blackboard.set('no_progress', True)
+            else:
+                #  A real partial result.  Stop ticking, but KEEP it -- the
+                #  solution set for the solved variables is still valid.
+                print('   Partial solution:  %d of %d variables solved.' % (ns, n))
+                print('   The last pass changed nothing at all -- same variables,')
+                print('     same equation counts (1u/2u/3pu = %d/%d/%d).'
+                      % (len(L1), len(L2), len(L3)))
+                if len(L1) == 0:
+                    print('     -- eqns_1u is EMPTY, so no ID node can fire on the')
+                    print('        remaining variables.')
+                print('   Stopping here rather than re-deriving the same state')
+                print('     for the rest of the pass budget.')
             print('')
-            tick.blackboard.set('no_progress', True)
-            return DONEComplete   # break out of RepeatUntilSuccess
+            return DONEComplete   # break out of the outer solve loop
 
         return DONEIncomplete # we still have unsolved vars
         
@@ -159,6 +275,9 @@ class TestSolver014(unittest.TestCase):
         self.test_compB_reports_complete()
         self.test_compC_gives_up_when_nothing_can_change()
         self.test_compD_keeps_going_while_equations_are_still_appearing()
+        self.test_compE_stalled_partial_stops_but_keeps_its_result()
+        self.test_compF_partial_still_progressing_is_not_stopped()
+        self.test_compG_stalled_partial_with_equations_left_keeps_going()
 
     def make_bb(self, nsolved, nunk=3, nL1=0, naux=0):
         '''A blackboard with `nsolved` of `nunk` unknowns solved.'''
@@ -239,6 +358,76 @@ class TestSolver014(unittest.TestCase):
         st, node = self.tick(bb, node)
         self.assertEqual(st, b3.FAILURE, fs + ' (gave up while progress was happening)')
         self.assertFalse(bb.get('no_progress'), fs + ' (flagged no-progress too early)')
+
+
+    def test_compE_stalled_partial_stops_but_keeps_its_result(self):
+        """A PARTIAL solve that stalls must stop -- but keep what it solved.
+
+           This is the Issue4 defect.  The stop used to be conditional on
+           `ns == 0`, so a solve that got one variable and then stalled could
+           never trigger it:  Issue4's derived arm solved th_1 in pass 1 and
+           then re-derived an identical state for NINE more passes averaging
+           71 s each -- 636 of 637 seconds wasted.
+
+           But `no_progress` must NOT be set here.  It does not mean "stop
+           ticking";  ik_driver.run_solver() skips create_solution_set() when it
+           is set and solved_anything() gates emit_outputs() on it, so setting
+           it for a partial solve would DISCARD the partial closed form.  Two
+           separate decisions, and this test pins both."""
+
+        fs = ' comp_det stalled-partial FAIL'
+        #  nL1=0 matters:  an EMPTY eqns_1u is what makes the stall sound.
+        bb = self.make_bb(nsolved=1, nunk=3, nL1=0)
+
+        st, node = self.tick(bb)
+        self.assertEqual(st, b3.FAILURE, fs + ' (bailed on the first pass)')
+
+        #  An identical second pass:  same solved count, same equation counts.
+        st, node = self.tick(bb, node)
+        self.assertEqual(st, b3.SUCCESS,
+                         fs + ' (a stalled partial must stop the outer loop)')
+        self.assertFalse(bb.get('no_progress'),
+                         fs + ' (must NOT discard a real partial result)')
+
+    def test_compF_partial_still_progressing_is_not_stopped(self):
+        """A partial solve that is still solving must not be stopped."""
+
+        fs = ' comp_det premature partial stop FAIL'
+        bb = self.make_bb(nsolved=1, nunk=3, nL1=1)
+        st, node = self.tick(bb)
+        self.assertEqual(st, b3.FAILURE, fs)
+
+        #  Another variable falls:  the signature changes, so keep going.
+        bb2 = self.make_bb(nsolved=2, nunk=3, nL1=1)
+        bb2.set('comp_det_signature', bb.get('comp_det_signature'))
+        st, node = self.tick(bb2, node)
+        self.assertEqual(st, b3.FAILURE,
+                         fs + ' (stopped while variables were still falling)')
+        self.assertFalse(bb2.get('no_progress'), fs)
+
+    def test_compG_stalled_partial_with_equations_left_keeps_going(self):
+        """THE REGRESSION TEST.  A partial solve whose pass changed nothing but
+           which still HAS one-unknown equations must NOT be stopped.
+
+           assigner_leaf round-robins curr_unk, so an unchanged pass often just
+           means "offered a variable it could not solve this time";  the next
+           pass, offered a different one, succeeds.  Traced on ICP5p5_A21:
+           pass 4 changed nothing with L1=6, and the solve went on to finish.
+           Stopping on the repeat alone took ICP5p5_A21 and Parkman13 from
+           `solved` to `partial` across the 32-robot sweep."""
+
+        fs = ' comp_det stalled-partial-with-L1 FAIL'
+        bb = self.make_bb(nsolved=1, nunk=3, nL1=6)
+
+        st, node = self.tick(bb)
+        self.assertEqual(st, b3.FAILURE, fs + ' (bailed on the first pass)')
+
+        #  An IDENTICAL second pass -- but eqns_1u is not empty, so an ID node
+        #  can still fire once the assigner offers a different variable.
+        st, node = self.tick(bb, node)
+        self.assertEqual(st, b3.FAILURE,
+                         fs + ' (stopped a partial that could still progress)')
+        self.assertFalse(bb.get('no_progress'), fs)
 
 
 def run_test():

@@ -1039,9 +1039,20 @@ One decision Phase A's data made free, so it is worth asking rather than assumin
 
 - **Should the hybrid fire on a *partial* symbolic solve, or only when nothing at all was solved?**
   `symbolic_loop.require_complete` is the switch, currently `False` (= fire only when nothing was
-  solved), which reproduces the pre-existing `solved_anything()` contract exactly. Because **no robot
-  in the current set is ever partially solved**, both settings produce an identical baseline today —
-  so flipping it costs nothing now and can be flipped back. The argument for `True` is that a partial
-  closed form is not usable IK, so a robot that stalls halfway is exactly as stuck as one that never
-  started. The argument for `False` is that IKBT has always reported partial solves, and a future
-  robot that stalls at 5-of-6 would silently stop getting its report.
+  solved), which reproduces the pre-existing `solved_anything()` contract exactly. The argument for
+  `True` is that a partial closed form is not usable IK, so a robot that stalls halfway is exactly as
+  stuck as one that never started. The argument for `False` is that IKBT has always reported partial
+  solves, and a future robot that stalls at 5-of-6 would silently stop getting its report.
+
+  **This is no longer a free decision (BH, 2026-08-23).** The section above used to argue it was,
+  on the grounds that *"no robot in the current set is ever partially solved,"* so both settings
+  produced an identical baseline. That premise died with Phase E. Measured over all 32 robots:
+  **28 complete, 3 solve nothing (`ArmRobo`, `KawasakiRS05L`, `Raven-II`), and `Issue4` is a
+  partial at 1 of 7** — the first partial solve in the set.
+
+  Two details decide how much it matters. `Issue4`'s partial is on the **hybrid** branch, over the
+  derived arm; its true arm is 0/7, so the gate that *fires* the hybrid is unaffected either way.
+  But the hybrid's own `symbolic_loop` now returns SUCCESS at 1/7, and the only thing keeping that
+  out of the report is `hybrid_stub`'s unconditional FAILURE. **The moment Phase F removes that
+  block, a 1-of-7 closed form over a simplified arm reaches `report_gen`** — which is precisely the
+  case `require_complete = True` exists to catch. Decide it as part of Phase F, not before.
