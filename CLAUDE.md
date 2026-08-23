@@ -98,7 +98,7 @@ solveRoutine    = Sequence[ sub_transform,
                             updateL,
                             comp_det ]
 
-hybrid_branch   = Sequence[ Inverter(pieper_id), simplified_arm, install_simplified,
+hybrid_branch   = Sequence[ no_pieper_id, simplified_arm, install_simplified,
                             symbolic_branch (2nd instance set), hybrid_stub ]
 
 worktools = Priority[ algSol, Sequence[OrNode[tanSol, scSol], rank], Simu_Eqn_Sol, sacSol, x2z2_transform ]
@@ -124,9 +124,13 @@ the branch that made it. `b3.Sequence` aborts on FAILURE, so a solve that got no
 and no empty report is written. It also generates the joint-axis geometry statement into
 `Robot.pieper_latex`, which `output_latex_solution()` places after Kinematic Parameters.
 
-`pieper_id` (`ikbtleaves/hybrid_ik.py`) is SUCCESS iff the arm has a Pieper triple, and gates **only
-the hybrid branch**, under an `Inverter` so the hybrid admits exactly the arms that lack the
-structure. It must never gate the symbolic branch: Pieper's condition is *sufficient* for a closed
+`no_pieper_id` (`ikbtleaves/hybrid_ik.py`) is SUCCESS iff the arm has **no** Pieper triple, which is
+exactly what the hybrid branch gates on, so it sits in the branch directly. It was `pieper_id` under
+an `Inverter` — the only `Inverter` in the tree; the polarity was swapped instead so the branch reads
+as the condition it gates on, and `tests/bt_assembly_test.py` now asserts the tree contains no
+`Inverter` at all. The swap also buys correctness: `Inverter` could not tell "no triple" from "could
+not read the table" (both became SUCCESS), so the branch opened on a parse failure; `no_pieper_id`
+FAILs on an unreadable table, at the gate. It gates **only the hybrid branch**. It must never gate the symbolic branch: Pieper's condition is *sufficient* for a closed
 form and is **not** known to be necessary — measured, 9 of the 32 robots have no triple and solve
 completely (Axtman13, Brad, DZhang, ICP5p5_A21, Mackler13, MiniDD, Olson13, Sims11, Wachtveitl), and
 `Sequence[pieper_id, symbolic_branch]` stops the symbolic solver ticking at all for those nine. It
@@ -136,8 +140,8 @@ publishes `pieper_triples` and `pieper_ok`, the latter distinguishing "no triple
 
 `simplified_arm` ranks the DH changes that would give the arm a triple, cheapest first by task-space
 displacement, and publishes `simplification_candidates` / `simplification_choice`. It **refuses to run
-when `pieper_ok` is False**: the `Inverter` cannot distinguish "no triple" from "could not read the
-table", and simplifying on a parse failure would produce a derived robot describing nothing.
+when `pieper_ok` is False** — now defence in depth, since `no_pieper_id` already FAILs on a table it
+could not read, but simplifying on a parse failure would produce a derived robot describing nothing.
 `install_simplified` then builds the derived robot — fresh `unknown` objects (`set_solved()` mutates in
 place), its own pickle name (`KinovaLite_d_5_0`) — and leaves `hybrid_source` on the blackboard.
 
@@ -150,7 +154,7 @@ default and keeps by exception: it preserves the problem and the findings about 
 `comp_det_signature` from the failed first solve. A keep-list rather than a clear-list, so a new
 blackboard key that should survive fails loudly instead of leaking stale state silently.
 
-Because `install_simplified` swaps the `Robot`, `pieper_id` **snapshots** its LaTeX statement onto the
+Because `install_simplified` swaps the `Robot`, `no_pieper_id` **snapshots** its LaTeX statement onto the
 blackboard before the swap and `report_gen` prefers that snapshot — otherwise the report would describe
 the simplified arm rather than the robot that was asked for.
 
@@ -172,7 +176,7 @@ a signature: `eqns_1u` is empty and stays empty, so no ID node can fire.
 
 Blackboard keys: `Robot`, `unknowns`, `curr_unk`, `counter`, `Tm`, `eqns_1u`, `eqns_2u`, `eqns_3pu`,
 `no_progress` (comp_det gave up), `symbolic_passes` / `symbolic_exhausted` (set by `symbolic_loop`),
-`pieper_triples` / `pieper_ok` / `pieper_latex` (set by `pieper_id`),
+`pieper_triples` / `pieper_ok` / `pieper_latex` (set by `no_pieper_id`),
 `simplification_candidates` / `simplification_choice` (set by `simplified_arm`), `hybrid_source` (set
 by `install_simplified` — names the derived robot, so nothing downstream reports a simplified solve as
 though it solved the real arm).

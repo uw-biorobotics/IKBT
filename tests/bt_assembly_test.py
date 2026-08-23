@@ -72,7 +72,7 @@ from ikbtleaves.updateL          import updateL
 from ikbtleaves.comp_detect      import comp_det
 from ikbtleaves.symbolic_loop    import symbolic_loop
 from ikbtleaves.output_gen       import report_gen
-from ikbtleaves.hybrid_ik        import (hybrid_stub, pieper_id, simplified_arm,
+from ikbtleaves.hybrid_ik        import (hybrid_stub, no_pieper_id, simplified_arm,
                                          install_simplified)
 from ikbtleaves.clear_state      import clear_state
 
@@ -111,7 +111,7 @@ REQUIRED_SUPPORT = [assigner, rank, sum_id, sub_transform, updateL, comp_det]
 #  test_btaR / test_btaS below.
 OPTIONAL_LEAVES = [invariant_gen, sum_solve,
                    symbolic_loop, report_gen, hybrid_stub,
-                   pieper_id, simplified_arm, install_simplified,
+                   no_pieper_id, simplified_arm, install_simplified,
                    clear_state]
 
 #  An ID leaf stashes state on the blackboard that its solver leaf then consumes,
@@ -438,7 +438,7 @@ class TestSolver013(unittest.TestCase):
         self.test_btaQ_leaf_inventory_advisory()
         self.test_btaR_codegen_is_off_unless_asked()
         self.test_btaS_hybrid_branch_is_inert()
-        self.test_btaT_pieper_id_gates_only_the_hybrid()
+        self.test_btaT_no_pieper_id_gates_only_the_hybrid()
         self.test_btaU_report_gen_is_last_and_shared()
         self.test_btaV_simplified_arm_is_behind_the_gate()
 
@@ -817,9 +817,9 @@ class TestSolver013(unittest.TestCase):
                          'for %d solvers)' % (len(clears), len(loops)))
 
 
-    def test_btaT_pieper_id_gates_only_the_hybrid(self):
+    def test_btaT_no_pieper_id_gates_only_the_hybrid(self):
         '''The FIRST branch the Analysis selector tries must be reachable
-           without pieper_id succeeding.
+           without consulting Pieper's condition at all.
 
            Pieper's condition is sufficient for a closed form to exist and is
            not known to be necessary:  9 of the 32 robots have no triple and
@@ -828,9 +828,15 @@ class TestSolver013(unittest.TestCase):
            on it and -- measured -- Brad and Sims11 go from solving completely to
            solving nothing.
 
-           pieper_id gating the HYBRID branch is correct and expected;  it is
-           ahead of the hybrid branch's own solver on purpose.'''
-        fs = ' bt_assembly pieper_id gating FAIL'
+           Gating the HYBRID branch is correct and expected;  it is ahead of the
+           hybrid branch's own solver on purpose.
+
+           AND THERE MUST BE NO INVERTER.  This was Inverter(pieper_id) -- the
+           only Inverter in the tree.  The node's polarity was swapped instead,
+           so the branch reads as the condition it gates on rather than as the
+           negation of a differently-named one.  Asserting the Inverter is gone
+           keeps it from creeping back.'''
+        fs = ' bt_assembly no_pieper_id gating FAIL'
 
         bt, nodes = build_default_bt()
         memo = {}
@@ -844,21 +850,22 @@ class TestSolver013(unittest.TestCase):
         first = _subtree_classes(kids[0], memo)
         self.assertIn(symbolic_loop, first,
                       fs + ' (the first branch tried is not a symbolic solver)')
-        self.assertNotIn(pieper_id, first,
-                         fs + ' (pieper_id gates the PRIMARY symbolic path -- '
+        self.assertNotIn(no_pieper_id, first,
+                         fs + ' (Pieper gates the PRIMARY symbolic path -- '
                          'that assumes Pieper is necessary, and it is not)')
 
-        #  exactly one pieper_id instance, inverted, and inside a later branch
-        found = [n for n in bt_nodes(bt) if isinstance(n, pieper_id)]
-        self.assertEqual(len(found), 1, fs + ' (expected exactly one pieper_id)')
-        inverted = any(isinstance(n, b3.Inverter) and n.child is found[0]
-                       for n in bt_nodes(bt))
-        self.assertTrue(inverted,
-                        fs + ' (pieper_id must be inverted -- the hybrid fires '
-                        'when there is NO triple)')
-        self.assertTrue(any(pieper_id in _subtree_classes(k, memo)
+        #  exactly one instance, NOT inverted, and inside a later branch
+        found = [n for n in bt_nodes(bt) if isinstance(n, no_pieper_id)]
+        self.assertEqual(len(found), 1,
+                         fs + ' (expected exactly one no_pieper_id)')
+        self.assertTrue(any(no_pieper_id in _subtree_classes(k, memo)
                             for k in kids[1:]),
-                        fs + ' (pieper_id is not in a fallback branch)')
+                        fs + ' (no_pieper_id is not in a fallback branch)')
+
+        inverters = [n for n in bt_nodes(bt) if isinstance(n, b3.Inverter)]
+        self.assertEqual(inverters, [],
+                         fs + ' (the tree should contain no Inverter at all -- '
+                         'swap a node\'s polarity instead of negating it here)')
 
     def test_btaU_report_gen_is_last_and_shared(self):
         '''One report generator, ticked after whichever branch solved.
@@ -920,7 +927,7 @@ class TestSolver013(unittest.TestCase):
                 continue
             kids = [k for k in child_slots(node) if isinstance(k, b3.BaseNode)]
             sets = [_subtree_classes(k, memo) for k in kids]
-            gi = next((i for i, st in enumerate(sets) if pieper_id in st), None)
+            gi = next((i for i, st in enumerate(sets) if no_pieper_id in st), None)
             ai = next((i for i, st in enumerate(sets) if simplified_arm in st), None)
             #  gi == ai means both are inside the SAME child subtree, so this
             #  Sequence is not the node that orders them -- only the Sequence
