@@ -82,15 +82,15 @@ Sequence[ analysis, report_gen ]
 
 analysis        = Priority[ symbolic_branch, hybrid_branch ]      # Priority == Selector
 
-symbolic_branch = symbolic_loop(x10, solveRoutine)
+symbolic_branch = Sequence[ clear_state, symbolic_loop(x10, solveRoutine) ]
 
 solveRoutine    = Sequence[ sub_transform,
                             RepeatUntilSuccess(x6, Sequence[ assigner, sum_id, worktools ]),
                             updateL,
                             comp_det ]
 
-hybrid_branch   = Sequence[ Inverter(pieper_id), simplified_arm,  # stub always FAILs
-                            hybrid_stub ]
+hybrid_branch   = Sequence[ Inverter(pieper_id), simplified_arm, install_simplified,
+                            symbolic_branch (2nd instance set), hybrid_stub ]
 
 worktools = Priority[ algSol, Sequence[OrNode[tanSol, scSol], rank], Simu_Eqn_Sol, sacSol, x2z2_transform ]
 ```
@@ -129,6 +129,21 @@ publishes `pieper_triples` and `pieper_ok`, the latter distinguishing "no triple
 displacement, and publishes `simplification_candidates` / `simplification_choice`. It **refuses to run
 when `pieper_ok` is False**: the `Inverter` cannot distinguish "no triple" from "could not read the
 table", and simplifying on a parse failure would produce a derived robot describing nothing.
+`install_simplified` then builds the derived robot — fresh `unknown` objects (`set_solved()` mutates in
+place), its own pickle name (`KinovaLite_d_5_0`) — and leaves `hybrid_source` on the blackboard.
+
+**The solver appears TWICE**, over two separate leaf sets (the second renamed ` (hybrid)`). One
+*instance* in two tree slots really would collide — b3 keys per-node state on the blackboard by node id
+and `bt_problems()` rejects it — but two instances are legal and get that state fresh for free. What is
+not free is the unscoped application state, so **each solver starts with `clear_state`**, which wipes by
+default and keeps by exception: it preserves the problem and the findings about the true robot
+(`pieper_*`, `simplification_*`, `hybrid_source`) and drops everything else, notably `no_progress` and
+`comp_det_signature` from the failed first solve. A keep-list rather than a clear-list, so a new
+blackboard key that should survive fails loudly instead of leaking stale state silently.
+
+Because `install_simplified` swaps the `Robot`, `pieper_id` **snapshots** its LaTeX statement onto the
+blackboard before the swap and `report_gen` prefers that snapshot — otherwise the report would describe
+the simplified arm rather than the robot that was asked for.
 
 `hybrid_branch` is a stub for `futurework.md` item 1 (simplify the DH parameters until the robot
 solves, then correct numerically). It always FAILs, so the `Priority` is currently a no-op wrapper
@@ -138,7 +153,10 @@ See `ikbtleaves/hybrid_ik.py` for the leaves that will replace it.
 
 Blackboard keys: `Robot`, `unknowns`, `curr_unk`, `counter`, `Tm`, `eqns_1u`, `eqns_2u`, `eqns_3pu`,
 `no_progress` (comp_det gave up), `symbolic_passes` / `symbolic_exhausted` (set by `symbolic_loop`),
-`pieper_triples` / `pieper_ok` (set by `pieper_id`).
+`pieper_triples` / `pieper_ok` / `pieper_latex` (set by `pieper_id`),
+`simplification_candidates` / `simplification_choice` (set by `simplified_arm`), `hybrid_source` (set
+by `install_simplified` — names the derived robot, so nothing downstream reports a simplified solve as
+though it solved the real arm).
 
 ### Leaf conventions (`ikbtleaves/`)
 
@@ -158,7 +176,8 @@ algebra leaf), `sub_transform` / `x2y2_transform` (equation transforms, the latt
 Test-class numbers are global and referenced by `tests/leavestest.py` (001 sincos, 002 algebra, 003 sinANDcos,
 004 tan, 006 sub_transform, 007 updateL, 008 kin_cl, 009 helperfunctions, 010 x2y2 — note `output_cpp.py` also
 defines a `TestSolver010` — 011 rank, 012 invariant_gen, 013 bt_assembly, 014 comp_detect,
-015 output_latex, 016 symbolic_loop, 017 output_gen, 018 hybrid_ik, 019 dh_analysis). A test double that lives in a
+015 output_latex, 016 symbolic_loop, 017 output_gen, 018 hybrid_ik, 019 dh_analysis,
+020 clear_state). A test double that lives in a
 leaf file must be named `test_*`, or the `bt_assembly_test.py` leaf-inventory scan picks it up as a
 real leaf.
 

@@ -114,6 +114,7 @@ def solve_one(name):
            'n_solutions': None,
            'solution_set_error': None,
            'comp_det_ticks': 0,
+           'hybrid': None,
            'wall_s': 0.0}
 
     t0 = time.time()
@@ -162,10 +163,27 @@ def solve_one(name):
                 #  robot that solved nothing.
                 rec['solution_set_error'] = '%s: %s' % (type(e).__name__, e)
 
+        #  Did the hybrid branch take over?  If so the equations describe a
+        #  DERIVED arm, not the one we asked for, and recording that as plain
+        #  'solved' would be the single most misleading thing this file could
+        #  do -- the whole point of the record is to say what IKBT can actually
+        #  deliver for a named robot.
+        hs = bb.get('hybrid_source')
+        if hs:
+            rec['hybrid'] = {
+                'derived_robot': hs.get('derived_robot'),
+                'axes': list(hs.get('axes') or []),
+                'kind': hs.get('kind'),
+                'route': hs.get('route'),
+                'edits': ['%s: %s -> %s' % (e['symbol'], e['from'], e['to'])
+                          for e in hs.get('edits') or []],
+            }
+
+        suffix = ' (hybrid)' if hs else ''
         if rec['n_unknowns'] and nsolved == rec['n_unknowns']:
-            rec['status'] = 'solved'
+            rec['status'] = 'solved' + suffix
         elif nsolved:
-            rec['status'] = 'partial'
+            rec['status'] = 'partial' + suffix
         else:
             rec['status'] = 'unsolved'
 
@@ -303,10 +321,24 @@ def sweep(names, timeout=DEFAULT_TIMEOUT, logdir=DEFAULT_LOGDIR, progress=True):
 #  tree's shape -- restructuring the outer loop is expected to change it
 #  without changing a single solution.  Both are reported, neither is a change.
 COMPARED = ['status', 'n_solved', 'n_unknowns', 'methods', 'n_solutions',
-            'solution_set_error']
+            'solution_set_error', 'hybrid']
 
 #  For deciding whether a status change is an improvement or a regression.
-RANK = {'crash': 0, 'timeout': 0, 'unsolved': 1, 'partial': 2, 'solved': 3}
+#  'solved (hybrid)' ranks BELOW 'solved':  it is a real improvement over
+#  unsolved, so unsolved -> solved (hybrid) classifies as newly-solved, but a
+#  robot that moves from an exact closed form to a simplified one has REGRESSED
+#  and must not be reported as an improvement.
+RANK = {'crash': 0, 'timeout': 0, 'unsolved': 1,
+        'partial (hybrid)': 2, 'partial': 3,
+        'solved (hybrid)': 4, 'solved': 5}
+
+
+def _hybrid_str(rec):
+    """'no' or 'KinovaLite_d5_0 (d_5: 57 -> 0)' for a record's hybrid field."""
+    h = rec.get('hybrid')
+    if not h:
+        return 'no simplification'
+    return '%s (%s)' % (h.get('derived_robot'), '; '.join(h.get('edits') or []))
 
 
 def classify(old, new):
@@ -343,6 +375,22 @@ def classify(old, new):
                 'solution set error: %r -> %r' % (old['solution_set_error'],
                                                   new['solution_set_error']))
 
+    #  A change in WHICH arm the equations describe, at an unchanged status --
+    #  e.g. the same robot simplified a different way.  .get() throughout:  a
+    #  record captured before this field existed simply has no 'hybrid' key, and
+    #  an old baseline must stay diffable rather than raising KeyError.
+    if old.get('hybrid') != new.get('hybrid'):
+        return ('changed-simplification',
+                '%s -> %s' % (_hybrid_str(old), _hybrid_str(new)))
+
+    #  Backstop:  anything in COMPARED that is not hand-checked above.  COMPARED
+    #  used to be documentation that only LOOKED like configuration -- adding a
+    #  field to it changed nothing.  Now it is authoritative, so a future field
+    #  cannot be silently uncompared.
+    for f in COMPARED:
+        if old.get(f) != new.get(f):
+            return 'changed-other', '%s: %r -> %r' % (f, old.get(f), new.get(f))
+
     return 'unchanged', ''
 
 
@@ -363,7 +411,8 @@ def diff_records(old, new):
             rows.append((verdict, name, detail))
 
     order = ['newly-unsolved', 'newly-solved', 'changed-status',
-             'changed-count', 'changed-method', 'changed-solutions',
+             'changed-count', 'changed-method', 'changed-simplification',
+             'changed-solutions', 'changed-other',
              'added', 'removed', 'unchanged']
     rows.sort(key=lambda r: (order.index(r[0]) if r[0] in order else 99, r[1]))
     return rows
@@ -409,15 +458,15 @@ def format_summary(record):
     lines.append('%d robots, %.1f s total' % (record['n_robots'],
                                               record['total_wall_s']))
     lines.append('')
-    lines.append('%-18s %-9s %7s %7s %8s %8s'
+    lines.append('%-18s %-16s %7s %7s %8s %8s'
                  % ('robot', 'status', 'solved', 'solns', 'cd_ticks', 'wall_s'))
-    lines.append('-' * 62)
+    lines.append('-' * 70)
 
     counts = {}
     for name in sorted(robots):
         r = robots[name]
         counts[r['status']] = counts.get(r['status'], 0) + 1
-        lines.append('%-18s %-9s %3d/%-3d %7s %8d %8.1f'
+        lines.append('%-18s %-16s %3d/%-3d %7s %8d %8.1f'
                      % (name, r['status'], r['n_solved'], r['n_unknowns'],
                         '-' if r['n_solutions'] is None else r['n_solutions'],
                         r['comp_det_ticks'], r['wall_s']))
@@ -440,7 +489,13 @@ def format_summary(record):
         if r.get('solution_set_error'):
             lines.append('%-18s solution set: %s' % (name, r['solution_set_error']))
             quiet = False
-        if r['status'] == 'partial':
+        if r.get('hybrid'):
+            lines.append('%-18s SIMPLIFIED to %s -- %s (axes %s, %s)'
+                         % (name, r['hybrid']['derived_robot'],
+                            '; '.join(r['hybrid']['edits']),
+                            r['hybrid']['axes'], r['hybrid']['kind']))
+            quiet = False
+        if r['status'].startswith('partial'):
             unsolved = [k for k, v in sorted(r['methods'].items()) if not v]
             lines.append('%-18s unsolved: %s' % (name, ', '.join(unsolved)))
             quiet = False

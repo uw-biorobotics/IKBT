@@ -44,7 +44,9 @@ from ikbtleaves.comp_detect     import comp_det
 #  and hybrid_stub is the placeholder for the hybrid symbolic-numeric branch.
 from ikbtleaves.symbolic_loop   import symbolic_loop
 from ikbtleaves.output_gen      import report_gen
-from ikbtleaves.hybrid_ik       import hybrid_stub, pieper_id, simplified_arm
+from ikbtleaves.hybrid_ik       import (hybrid_stub, pieper_id, simplified_arm,
+                                        install_simplified)
+from ikbtleaves.clear_state     import clear_state
 
 #  (updateL and comp_det used to arrive in ikSolver.py by accident, via
 #   `from ikbtleaves.tan_solver import *`.  Imported explicitly here.)
@@ -206,6 +208,15 @@ def make_leaves(leaf_debug=False, solver_debug=False):
     compDetect.BHdebug = True
     n['compDetect'] = compDetect
 
+    ###  State hygiene.  Heads every solver:  drops the previous solve's
+    #  leftover blackboard state (comp_det's verdict, the assigner's cursor)
+    #  while keeping the problem and the findings about the true robot.  On the
+    #  first solve there is nothing to drop;  on the hybrid branch's second
+    #  solve it is what makes "wipe and retry" true.
+    clearState = clear_state()
+    clearState.BHdebug = leaf_debug
+    n['clearState'] = clearState
+
     ###  Report and code generation.  ONE generator, at the end of the tree,
     #  ticked after whichever branch produced the solution -- the report is a
     #  property of the finished solve, not of the branch that produced it.
@@ -238,6 +249,12 @@ def make_leaves(leaf_debug=False, solver_debug=False):
     simplifiedArm = simplified_arm()
     simplifiedArm.BHdebug = leaf_debug
     n['simplifiedArm'] = simplifiedArm
+
+    ###  Build the derived robot and install it, so the solver that follows
+    #  solves the SIMPLIFIED arm.  Fresh unknown objects and its own pickle name.
+    installSimplified = install_simplified()
+    installSimplified.BHdebug = leaf_debug
+    n['installSimplified'] = installSimplified
 
     ###  The hybrid symbolic-numeric branch (futurework.md item 1) -- a stub.
     #  Always FAILs, so the branch is inert and the tree is observably identical
@@ -287,6 +304,110 @@ def build_worktools(nodes):
                         nodes['invariantGen']])
 
 
+def _reachable(node, seen=None):
+    '''Every b3 node at or below `node`, by identity.'''
+    seen = [] if seen is None else seen
+    if any(n is node for n in seen):
+        return seen
+    seen.append(node)
+    kids = list(getattr(node, 'children', None) or [])
+    child = getattr(node, 'child', None)
+    if child is not None and not isinstance(child, list):
+        kids.append(child)
+    for k in kids:
+        if isinstance(k, b3.BaseNode):
+            _reachable(k, seen)
+    return seen
+
+
+def rename_leaves(nodes, suffix):
+    '''Append `suffix` to every node Name in a leaf set.
+
+       Needed because the tree carries the symbolic solver TWICE -- once on the
+       symbolic branch and once on the hybrid branch, over a simplified arm.  The
+       two are separate INSTANCES (b3 keys per-node state by node id, so sharing
+       one instance across two tree positions really would collide), but they
+       start out with identical Names, and two nodes logging under one label make
+       the tick log unreadable.  bt_problems() flags it.'''
+
+    for node in nodes.values():
+        nm = getattr(node, 'Name', None)
+        if isinstance(nm, str):
+            node.Name = nm + suffix
+    return nodes
+
+
+def build_symbolic_branch(nodes, tag='', solver_debug=False):
+    '''Assemble one complete symbolic solver from one leaf set.
+
+           Sequence[ clear_state, symbolic_loop(x10, solveRoutine) ]
+
+           solveRoutine = Sequence[ sub_transform,
+                                    RepeatUntilSuccess(x6, Sequence[assigner,
+                                                       sum_id, worktools]),
+                                    updateL,
+                                    comp_det ]
+
+       Called TWICE by build_default_bt(), over two separate leaf sets:  the
+       hybrid branch re-solves a simplified arm with its own solver rather than
+       hiding a second solve inside a leaf, so the tree shows what happens.
+
+       Composite Names carry `tag` for the same reason the leaves do.'''
+
+    worktools = build_worktools(nodes)
+    worktools.Name = "Work Tools" + tag
+    nodes['worktools'] = worktools
+
+    #  The SOA cases must be ID'd every pass so that algSol has equations to
+    #  work on for the sum-of-angles variables.
+    subtree = b3.RepeatUntilSuccess(
+        b3.Sequence([nodes['asgn'], nodes['sumOfAnglesID'], worktools]), 6)
+    subtree.Name = "Solve Subtree" + tag
+    nodes['subtree'] = subtree
+
+    #  b3.Sequence aborts on its first FAILURE, so if sub_transform or the solve
+    #  subtree fails, updateL and comp_det never run at all.  On a robot that
+    #  solves NOTHING that is every pass -- measured: comp_det ticks 8 times on
+    #  Puma and 0 times on KawasakiRS05L -- so the tree had no termination logic
+    #  in exactly the case that needs it, and ran head-first into the report
+    #  generator with an empty solution set.
+    #
+    #  Priority([x, Succeeder()]) swallows x's failure, so the pass always
+    #  reaches updateL and the completion detector.  Both are safe to run on a
+    #  pass that achieved nothing:  updateL just re-scans, and comp_det only
+    #  reports and decides whether to stop.
+    tryTransform = b3.Priority([nodes['sub_trans'], b3.Succeeder()])
+    tryTransform.Name = "Sub Transform (optional)" + tag
+    nodes['tryTransform'] = tryTransform
+
+    trySolve = b3.Priority([subtree, b3.Succeeder()])
+    trySolve.Name = "Solve Subtree (optional)" + tag
+    nodes['trySolve'] = trySolve
+
+    solveRoutine = b3.Sequence([tryTransform, trySolve,
+                                nodes['updateLNode'], nodes['compDetect']])
+    solveRoutine.Name = "Solve Routine" + tag
+    nodes['solveRoutine'] = solveRoutine
+
+    #  The outer loop and its budget.  This was b3.RepeatUntilSuccess(x10),
+    #  which returns FAILURE when it exhausts its loops -- and a FAILURE at the
+    #  head of a Sequence aborts the Sequence, so a loop-exhausted PARTIAL solve
+    #  would never reach the report generator, though IKBT has always reported
+    #  partial solves.  symbolic_loop runs the identical passes and then reports
+    #  what happened:  SUCCESS if anything was solved, FAILURE if nothing was.
+    #  That FAILURE is the gate on the hybrid branch.  (Measured over all 32
+    #  robots the deepest solve is UR5 at 9 passes, so 10 is a real budget.)
+    symLoop = symbolic_loop(solveRoutine, 10)
+    symLoop.Name = "Symbolic Solver Loop" + tag
+    symLoop.BHdebug = solver_debug
+    nodes['symLoop'] = symLoop
+
+    branch = b3.Sequence([nodes['clearState'], symLoop])
+    branch.Name = "Symbolic Branch" + tag
+    nodes['symbolicBranch'] = branch
+    return branch
+
+
 def build_default_bt(leaf_debug=False, solver_debug=False, nodes=None,
                      codegen=False):
     '''Build the standard IKBT tree.  Returns (BehaviorTree, nodes dict).
@@ -295,9 +416,13 @@ def build_default_bt(leaf_debug=False, solver_debug=False, nodes=None,
 
            analysis        = Priority[ symbolic_branch, hybrid_branch ]
 
-           symbolic_branch = symbolic_loop(x10, solveRoutine)
+           symbolic_branch = Sequence[ clear_state,
+                                       symbolic_loop(x10, solveRoutine) ]
 
-           hybrid_branch   = Sequence[ Inverter(pieper_id), simplified_arm,
+           hybrid_branch   = Sequence[ Inverter(pieper_id),
+                                       simplified_arm,
+                                       install_simplified,
+                                       symbolic_branch (2nd instance set),
                                        hybrid_stub ]
 
            solveRoutine    = Sequence[ sub_transform,
@@ -322,60 +447,7 @@ def build_default_bt(leaf_debug=False, solver_debug=False, nodes=None,
     if nodes is None:
         nodes = make_leaves(leaf_debug=leaf_debug, solver_debug=solver_debug)
 
-    worktools = build_worktools(nodes)
-    worktools.Name = "Work Tools"
-    nodes['worktools'] = worktools
-
-    #  The SOA cases must be ID'd every pass so that algSol has equations to
-    #  work on for the sum-of-angles variables.
-    subtree = b3.RepeatUntilSuccess(
-        b3.Sequence([nodes['asgn'], nodes['sumOfAnglesID'], worktools]), 6)
-    subtree.Name = "Solve Subtree"
-    nodes['subtree'] = subtree
-
-    #  b3.Sequence aborts on its first FAILURE, so if sub_transform or the solve
-    #  subtree fails, updateL and comp_det never run at all.  On a robot that
-    #  solves NOTHING that is every pass -- measured: comp_det ticks 8 times on
-    #  Puma and 0 times on KawasakiRS05L -- so the tree had no termination logic
-    #  in exactly the case that needs it, and ran head-first into the report
-    #  generator with an empty solution set.
-    #
-    #  Priority([x, Succeeder()]) swallows x's failure, so the pass always
-    #  reaches updateL and the completion detector.  Both are safe to run on a
-    #  pass that achieved nothing:  updateL just re-scans, and comp_det only
-    #  reports and decides whether to stop.
-    tryTransform = b3.Priority([nodes['sub_trans'], b3.Succeeder()])
-    tryTransform.Name = "Sub Transform (optional)"
-    nodes['tryTransform'] = tryTransform
-
-    trySolve = b3.Priority([subtree, b3.Succeeder()])
-    trySolve.Name = "Solve Subtree (optional)"
-    nodes['trySolve'] = trySolve
-
-    solveRoutine = b3.Sequence([tryTransform, trySolve,
-                                nodes['updateLNode'], nodes['compDetect']])
-    solveRoutine.Name = "Solve Routine"
-    nodes['solveRoutine'] = solveRoutine
-
-    #  The outer loop and its budget.  This was b3.RepeatUntilSuccess(x10),
-    #  which returns FAILURE when it exhausts its loops -- and a FAILURE at the
-    #  head of a Sequence aborts the Sequence, so a loop-exhausted PARTIAL solve
-    #  would never reach the codegen leaf, though IKBT has always reported
-    #  partial solves.  Wrapping it in Priority([..., Succeeder()]) hides that
-    #  failure, but it hides the REAL one too, and then the tree can no longer
-    #  tell "solved nothing" from "ran out of passes".
-    #
-    #  symbolic_loop runs the identical passes and then reports what happened:
-    #  SUCCESS if anything was solved, FAILURE if nothing was.  That FAILURE is
-    #  the gate on the hybrid branch.  (Measured over all 32 robots, the
-    #  deepest solve is UR5 at 9 passes -- so 10 is a real budget, not slack.)
-    symLoop = symbolic_loop(solveRoutine, 10)
-    symLoop.BHdebug = solver_debug
-    nodes['symLoop'] = symLoop
-
-    #  The symbolic branch IS the loop -- codegen moved out to the single
-    #  report generator at the end of the tree.
-    nodes['symbolicBranch'] = symLoop
+    symbolicBranch = build_symbolic_branch(nodes, solver_debug=solver_debug)
 
     #  The hybrid branch is gated on the arm actually LACKING the structure:
     #  Inverter(pieper_id) succeeds exactly when no triple of consecutive joint
@@ -391,16 +463,48 @@ def build_default_bt(leaf_debug=False, solver_debug=False, nodes=None,
     noPieper.Name = "No Pieper Triple"
     nodes['noPieper'] = noPieper
 
-    hybridBranch = b3.Sequence([noPieper, nodes['simplifiedArm'],
+    #  A SECOND, complete symbolic solver over its own leaf set, applied to the
+    #  simplified arm.  Two instances, not one instance twice:  b3 keys per-node
+    #  state on the blackboard by node id, so one instance in two tree positions
+    #  really would collide (bt_problems() rejects it).  Two instances get that
+    #  state fresh for free;  what does NOT come free is the unscoped
+    #  application state, which is why each solver starts with clear_state.
+    #
+    #  The alternative was to hide the second solve inside a leaf.  This way the
+    #  tree shows what actually happens.
+    hybrid_nodes = rename_leaves(
+        make_leaves(leaf_debug=leaf_debug, solver_debug=solver_debug),
+        ' (hybrid)')
+    symbolicBranch2 = build_symbolic_branch(hybrid_nodes, tag=' (hybrid)',
+                                            solver_debug=solver_debug)
+
+    #  Merge the second set in under suffixed keys, but ONLY the nodes that
+    #  actually ended up in the branch.  make_leaves() builds the whole
+    #  inventory, including the hybrid-branch leaves (pieper_id, report_gen, the
+    #  stub), and the second set's copies of those are never wired to anything.
+    #  The nodes dict is contracted to hold nodes reachable from the root -- a
+    #  dangling entry means somebody built a leaf and forgot to connect it, which
+    #  is a real defect the test suite checks for, so it must not be manufactured
+    #  here.
+    in_branch = _reachable(symbolicBranch2)
+    for k, v in hybrid_nodes.items():
+        if any(n is v for n in in_branch):
+            nodes[k + '_hybrid'] = v
+
+    hybridBranch = b3.Sequence([noPieper,
+                                nodes['simplifiedArm'],
+                                nodes['installSimplified'],
+                                symbolicBranch2,
                                 nodes['hybridStub']])
     hybridBranch.Name = "Hybrid Branch"
     nodes['hybridBranch'] = hybridBranch
 
     #  b3.Priority (the standard Selector/Fallback node) stops at its first
     #  non-FAILURE child, so the hybrid branch is ticked ONLY when the symbolic
-    #  solver came up completely empty.  hybrid_stub always FAILs, so this is a
-    #  no-op wrapper today -- the point of building the shape first.
-    analysis = b3.Priority([nodes['symbolicBranch'], hybridBranch])
+    #  solver came up completely empty.  hybrid_stub still always FAILs, which
+    #  keeps the branch from reporting a solution it cannot yet finish -- the
+    #  numeric refinement of Phase F goes where the stub is.
+    analysis = b3.Priority([symbolicBranch, hybridBranch])
     analysis.Name = "Analysis"
     nodes['analysis'] = analysis
 

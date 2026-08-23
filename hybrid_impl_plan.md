@@ -730,33 +730,116 @@ invitation to use it.
 requirement that the artifacts say which robot the equations actually describe, and `report_gen` being
 shared means it is a few lines there rather than a second generator.
 
-### Phase E — `solve_simplified`
+### Phase E — `solve_simplified`  ✅ DONE (as a second solver in the tree)
 
-Builds the derived robot and ticks a nested `build_default_bt()` on a **fresh** blackboard, which
-avoids mutating the outer blackboard's `Robot`. Three traps:
+Built to BH's design: **the symbolic solver appears TWICE in the tree**, once on the symbolic branch
+and once on the hybrid branch over a simplified arm. Not a nested `build_default_bt()` hidden inside a
+leaf — the tree shows what happens.
 
-- **Its own pickle name, encoding the modification** (e.g. `KinovaLite_d5_0`), so that a re-ranked
-  candidate cannot silently reuse the wrong FK. `kinematics_pickle(rname, dh, ...)` takes the name
-  independently of the DH table, so no change to `robot_params()` is needed. Phase A already removed
-  the sharp edge here — a pickle whose DH table no longer matches is now recomputed rather than
-  triggering `quit()` — but a distinct name is still wanted, both to keep the cache useful across
-  candidates and because the name is what a human reads in `fk_eqns/`.
-- **Fresh `unknown` objects**, because `set_solved()` mutates them in place — and they must go
-  through `number_unknowns()` (`ikbtfunctions/ik_robots.py`), the Phase A helper.
-- **A separate node instance set** for the nested tree; `bt_problems()` correctly rejects a node
-  instance appearing twice, since b3 keys per-node state on the blackboard by node id.
+```
+analysis = Priority[ Sequence[ clear_state, symbolic_loop ],
+                     Sequence[ Inverter(pieper_id),
+                               simplified_arm,
+                               install_simplified,
+                               Sequence[ clear_state, symbolic_loop ]   (hybrid)
+                               hybrid_stub ] ]
+```
 
-**Verify:** `KinovaLite` reaches all 6 variables solved via the hybrid branch, matching the doc's
-27.7 s measurement. The baseline diff now shows exactly the intended change — whichever robots Phase
-C's cross-tab put in the **no triple + unsolved** cell move to a new "solved (hybrid)" status, and
-**nothing else moves**. That is at most four robots and possibly two, not the "six" this plan
-originally assumed: `Raven-II` is excluded, `ArmRobo` is expected to classify as a solver defect, and
-`Wachtveitl` / `Olson13` / `Sims11` were never unsolved in the first place.
+#### Trap 3 was wrong — deleted
 
-Note the baseline record will need a new status value (or a flag) to distinguish "solved (hybrid)"
-from "solved"; `COMPARED` in `scripts/robot_baseline.py` already includes `status`, so the diff picks
-it up for free, but `RANK` needs an entry or the classifier will call it `changed-status` rather than
-`newly-solved`.
+This plan said a nested tree needs "a separate node instance set … since b3 keys per-node state on the
+blackboard by node id". The second half is true and the conclusion did not follow. **All per-node
+state lives in `Blackboard._tree_memory[tree_scope]['node_memory'][node_scope]` — on the blackboard,
+not the node.** So the rule against duplication is narrower than the plan assumed. Measured, with
+`bt_problems()`:
+
+| arrangement | verdict |
+|---|---|
+| the SAME instance in two tree slots | **33 "shared node" errors** — correctly rejected, both slots share one memory entry |
+| two separate instance sets, Names untouched | 29 **duplicate-Name** complaints — a legibility rule, not a state rule |
+| two separate instance sets, second renamed | **0 problems** — fully legal |
+
+So "two solvers" never needed a rule change. And separately verified: the same instance ticked twice
+against *different* blackboards also works — `KinovaLite` failed 0/7 on the true arm, then the same
+node objects solved 7/7 on the derived arm from a fresh blackboard. Two instances were chosen anyway,
+because BH wants the second solve visible in the tree rather than buried in a leaf, and because fresh
+node ids make b3's own per-node state clean for free.
+
+#### `clear_state` — wipe by default, keep by exception
+
+What is *not* free is the **unscoped** application state. Each solver therefore starts with
+`clear_state` (`ikbtleaves/clear_state.py`, `TestSolver020`). The design decision is the direction of
+the list: an enumerated *clear*-list rots silently — add a blackboard key next year, forget to list it,
+and stale state leaks into the second solve with no symptom until some robot solves wrongly. A
+**keep-list** inverts the failure mode: a new key that should have survived is dropped instead, which
+surfaces at once as a missing value.
+
+Keeps the problem (`Robot`, `unknowns`, `eqns_1u/2u/3pu`), the findings about the *true* robot
+(`pieper_triples`, `pieper_ok`, `pieper_latex`, `simplification_*`, `hybrid_source`) and `TotalCost`.
+Drops `no_progress` (left set, `solved_anything()` reports the *successful* second solve as a
+failure), `comp_det_signature` (a stale signature that happens to match makes `comp_det` give up on
+the first pass), `curr_unk`, `invariants_done`, and anything unlisted.
+
+#### The report statement has to be snapshotted — BH's catch
+
+`install_simplified` replaces the blackboard's `Robot` with the derived arm, so by the time
+`report_gen` runs, generating the geometry statement "from the Robot" would describe the **simplified**
+arm — a quietly misleading report about a robot nobody asked about. So `pieper_id` now snapshots
+`pieper_latex` onto the blackboard *before* the swap, `clear_state` keeps that key, and `report_gen`
+prefers the snapshot, falling back to computing from `R` only when absent — which is exactly the
+symbolic path, where `pieper_id` never ticked and `R` *is* the true robot.
+
+#### `install_simplified`
+
+Two things must be fresh, and neither is the node set:
+
+- **Fresh `unknown` objects.** `set_solved()` mutates in place and `create_solution_set()` appends to
+  `LHSversionNames`; the tan/sincos leaves may also have recorded candidate solutions on the outer
+  objects even though that solve failed. So `robot_params()` is called again for a clean set, numbered
+  by `number_unknowns()`.
+- **Its own pickle name** encoding the change (`KinovaLite_d_5_0`). `kinematics_pickle()` takes the
+  name independently of the DH table, so the derived arm gets its own cache entry; sharing the true
+  robot's name would either serve the wrong FK or throw the cache away every run. The name is also
+  what a human reads in `fk_eqns/`.
+
+It leaves `hybrid_source` on the blackboard — true robot, derived robot, axes, route, edits, cost — for
+`report_gen` and for the baseline record.
+
+`hybrid_stub` now sits **after** the second solver, holding the place of Phase F's numeric refinement.
+It still always FAILs, so the hybrid branch reports a failure it cannot yet finish and no report is
+written for a hybrid solve. That is deliberate: the closed form currently on the blackboard describes
+the derived arm, and emitting it as though it were the real robot is the one thing this method must
+never do.
+
+#### Baseline record changes
+
+A derived-arm solve recorded as plain `solved` would be the most misleading thing
+`scripts/robot_baseline.py` could produce. So:
+
+- `status` becomes `solved (hybrid)` / `partial (hybrid)` when `hybrid_source` is present, and a
+  `hybrid` block records the derived robot, axes, kind, route and edits.
+- `RANK` orders `solved (hybrid)` **below** `solved`, so `unsolved → solved (hybrid)` classifies as
+  *newly-solved* while `solved → solved (hybrid)` classifies as a **regression** — losing an exact
+  closed form to a simplified one is not an improvement.
+- New verdict `changed-simplification` for a robot simplified a different way at unchanged status.
+- Old records without the `hybrid` key stay diffable (`.get()` throughout) — verified.
+
+**A latent defect found doing this:** `COMPARED` was documentation that only *looked* like
+configuration. `classify()` hand-compared its fields, so adding a name to `COMPARED` changed nothing
+at all. It is now authoritative, with a `changed-other` backstop, so a future field cannot be silently
+uncompared.
+
+#### Measured — end to end through the real tree
+
+| robot | status | solved | via | wall |
+|---|---|---|---|---|
+| `KinovaLite` | hybrid branch | **7/7** | `KinovaLite_d_5_0`, `d_5: 57 → 0` | 72.5 s |
+| `Puma` | symbolic branch | 7/7 | — (has a triple; gate declines) | 12.1 s |
+
+72.5 s is a failed symbolic solve plus ranking plus a cold derived-FK computation plus the second
+solve; the plan's 27.7 s figure was the derived solve alone. Only the three no-triple/unsolved robots
+pay it.
+
 
 ### Phase F — `numeric_ik` and `output_gen_hybrid`
 
@@ -809,11 +892,68 @@ rewritten `solChecker.py` from Phase A.
 
 ---
 
+#### The hybrid report — BH's structure
+
+For a robot solved by the hybrid branch the report must describe **both arms**, and be unmistakable
+about which one the equations belong to:
+
+1. **Kinematic parameters — both.** The true DH table and the derived one, side by side, with the
+   changed cell marked. `hybrid_source` already carries `edits` (symbol, from, to, delta) and the
+   derived robot's name.
+2. **Forward kinematics and Jacobian — both.** Two `T_06` and two `J_66`. Both mechanisms exist
+   already: the true one from the outer `load_robot()`, the derived one from
+   `install_simplified`'s `kinematics_pickle()` call. **The outer `Robot` must be kept for this** —
+   today `install_simplified` overwrites `blackboard['Robot']` and the true `Robot` is only still
+   reachable because nothing dropped it. Make that explicit: stash it as `true_robot` on the
+   blackboard and add the key to `clear_state.KEEP`.
+3. **Closed-form solution — the simplified arm ONLY**, under a heading that says so. There is no
+   closed form for the true arm; that is why we are here.
+4. **Numerical refinement — hooks and parameters.** Which seed the closed form provides, the damped
+   least-squares step, the convergence metric and threshold, and the joint-limit / branch caveats.
+   Stubbed with "not yet implemented" text until `numeric_ik` lands, so the report is honest about
+   its own gaps rather than silently omitting them.
+
+**Ordering constraint, and it bites.** Right now the hybrid path produces **no report at all**:
+`hybrid_stub` FAILs after the second solver, so the root `Sequence` aborts before `report_gen`. That
+was deliberate — the closed form on the blackboard describes the derived arm, and emitting it as
+though it were the real robot is the one thing this method must never do. BH's structure is what
+*licenses* removing that block, because a report that names both arms and attributes the solution to
+the simplified one is no longer misleading.
+
+But two things must land in the same step as un-blocking it, or the artifacts lie:
+
+- **Artifact naming.** `Robot.name` drives every output path (`output_latex.py:87`,
+  `output_python.py:185`, `output_cpp.py:65`), and on the hybrid path it is the *derived* name — so
+  today we would write `LaTex/ik_solution_KinovaLite_d_5_0.tex` and
+  `CodeGen/Python/IK_equationsKinovaLite_d_5_0.py`. The artifacts must be named for the **true**
+  robot, with the derived name in a header banner.
+- **The generated code's own honesty.** `ikin_<name>()` returns joint values for the *simplified*
+  arm. Until `numeric_ik` refines them, the generated Python must say so in its docstring, or a user
+  will call it and quietly get the wrong arm's answer.
+
+Neither is hard, but neither can be skipped, so `hybrid_stub` stays where it is until they are done.
+
 ## Explicitly deferred
 
 - **Step 1.1 item 5** — `scripts/simplify_dh.py` CLI. Lower priority per the doc, but it has
   standalone value as a mechanical-design tool: "your 57 mm offset is what costs you closed-form IK"
   is a useful thing to tell a designer.
+- **A separate numerical-evaluation application** (BH, 2026-08-22). Rather than grow the solution
+  report, a standalone tool that takes a hybrid solution and *exercises* it: sample many poses across
+  the workspace, run the simplified closed form, refine numerically, and report convergence,
+  residuals, branch coverage and failure rates — emitting its **own** LaTeX report.
+
+  Two reasons this wants to be its own application, not a section:
+  the solution report is a *derivation* (here is the algebra, here is why it is valid) and is read
+  once; an evaluation report is *evidence* (here is how well it works, over how much of the workspace)
+  and is re-read every time the numerics change. And it is the natural home for the step 2.4 study
+  below, which needs to run hundreds of solves — far too slow to sit inside `ikSolver.py`.
+
+  It should reuse rather than reinvent: `displacement_metric`'s sampling and `Link_N` FK
+  (`ikbtbasics/dh_analysis.py`), the generic round-trip checker deferred from Phase A
+  (`solChecker.py`), and `scripts/robot_baseline.py`'s subprocess-per-robot + fixed-seed discipline so
+  its numbers are reproducible and diffable the same way.
+
 - **Step 2.4** — the systematic failure-mode study (basin of attraction vs. simplification size,
   singularity stratification, branch loss and numerical continuation, joint-limit poses, branch
   mislabeling). Held for later per the doc. Note the branch-loss item is a *structural* limit, not a

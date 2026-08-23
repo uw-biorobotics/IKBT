@@ -36,6 +36,8 @@
 import b3 as b3          # behavior trees
 
 import ikbtbasics.dh_analysis as da
+from ikbtbasics.ik_classes  import kinematics_pickle
+from ikbtfunctions.ik_robots import robot_params
 
 
 class hybrid_stub(b3.Action):
@@ -87,9 +89,14 @@ class pieper_id(b3.Action):
        distinguishes the two -- a gate that needs "there is definitely no
        triple" must check it.
 
-       The LaTeX statement for the report is NOT written here.  It is generated
-       by report_gen (ikbtleaves/output_gen.py), because it belongs to whichever
-       branch produced the report and this leaf ticks only on the hybrid path."""
+       It ALSO stashes the report's geometry statement on the blackboard as
+       `pieper_latex`, and that is not redundant with report_gen generating its
+       own.  On the hybrid path `install_simplified` replaces the blackboard's
+       Robot with a DERIVED arm, so by the time report_gen runs, describing
+       "the robot" would describe the simplified one -- the wrong answer, and a
+       quietly misleading report.  The statement made here describes the arm we
+       actually started from, and report_gen prefers it when present.
+       clear_state keeps the key for exactly this reason."""
 
     def __init__(self):
         super(pieper_id, self).__init__()
@@ -110,6 +117,11 @@ class pieper_id(b3.Action):
             triples = da.pieper_triples(M.DH, M.pvals, ndof)
             bb.set('pieper_triples', triples)
             bb.set('pieper_ok', True)
+
+            #  Snapshot the report section for the TRUE robot, before anything
+            #  downstream swaps the Robot for a derived one.
+            bb.set('pieper_latex',
+                   da.pieper_latex(M.DH, M.pvals, ndof, getattr(R, 'name', None)))
 
             if self.BHdebug:
                 print('\n', self.Name, ':', getattr(R, 'name', '?'), '->',
@@ -210,6 +222,112 @@ class simplified_arm(b3.Action):
                 print('   %-9s %-13s %-30s %10.3f'
                       % (str(c['axes']), c['route'],
                          da.describe_edits(c)[:30], c['cost']))
+
+        return b3.SUCCESS
+
+
+class install_simplified(b3.Action):
+    """Build the derived robot from simplification_choice and install it on the
+       blackboard, so the solver that follows solves the SIMPLIFIED arm.
+
+           SUCCESS  blackboard now carries the derived Robot, a fresh unknown
+                    list, freshly scanned equation lists, and `hybrid_source`
+                    describing what was changed
+           FAILURE  no choice on the blackboard, or the derived FK could not be
+                    built
+
+       Two things must be fresh, and neither is the node set:
+
+       FRESH `unknown` OBJECTS.  `set_solved()` mutates them in place and
+       `create_solution_set()` appends to `LHSversionNames`, so the outer
+       solve's objects cannot be reused even though that solve failed --
+       tan/sincos leaves may have recorded candidate solutions on them.  We call
+       robot_params() again for a clean set, through number_unknowns().
+
+       ITS OWN PICKLE NAME, encoding the change (e.g. `KinovaLite_d5_0`).
+       kinematics_pickle() takes the name independently of the DH table, so a
+       derived arm gets its own cache entry;  sharing the true robot's name would
+       either serve the wrong FK or throw the cache away on every run.  The name
+       is also what a human reads in fk_eqns/.
+
+       `hybrid_source` is left on the blackboard for report_gen and for
+       scripts/robot_baseline.py:  a solve of a derived arm must not be recorded,
+       or reported, as though it solved the real one."""
+
+    def __init__(self):
+        super(install_simplified, self).__init__()
+        self.Name = 'Install Simplified Arm'
+        self.BHdebug = False
+
+    def suffix(self, choice):
+        """A pickle-name suffix naming what changed:  'd_5_0', 'al_4_snap'."""
+        bits = []
+        for e in choice['edits']:
+            nm = str(e['symbol'])
+            bits.append(nm + ('_0' if e['kind'] == 'zero' else '_snap'))
+        return '_'.join(bits) or 'simplified'
+
+    def tick(self, tick):
+        bb = tick.blackboard
+        choice = bb.get('simplification_choice')
+        R_true = bb.get('Robot')
+
+        if not choice or choice.get('dh_simp') is None:
+            print(self.Name, ': no simplification chosen -- nothing to install.')
+            return b3.FAILURE
+
+        true_name = getattr(R_true, 'name', None)
+        if not true_name:
+            print(self.Name, ': the blackboard Robot has no name;  cannot derive'
+                  ' a pickle name from it.')
+            return b3.FAILURE
+
+        dname = '%s_%s' % (true_name, self.suffix(choice))
+
+        try:
+            #  Fresh unknown objects -- see the class docstring.  robot_params()
+            #  numbers them via number_unknowns() on the way out.
+            dh, vv, params, pvals, unks = robot_params(true_name)
+            dh = choice['dh_simp']
+
+            M2, R2, unks = kinematics_pickle(dname, dh, params, pvals, vv,
+                                             unks, False)
+            R2.name = dname
+            R2.params = params
+
+            L1, L2, L3p = R2.scan_for_equations(unks)
+        except Exception as e:
+            print(self.Name, ': could not build the derived robot --',
+                  '%s: %s' % (type(e).__name__, e))
+            return b3.FAILURE
+
+        bb.set('Robot', R2)
+        bb.set('unknowns', unks)
+        bb.set('eqns_1u', L1)
+        bb.set('eqns_2u', L2)
+        bb.set('eqns_3pu', L3p)
+
+        #  What the report and the baseline record need in order to be honest
+        #  about which arm the equations describe.
+        bb.set('hybrid_source', {
+            'true_robot': true_name,
+            'derived_robot': dname,
+            'axes': choice['axes'],
+            'kind': choice['kind'],
+            'route': choice['route'],
+            'edits': [{'symbol': str(e['symbol']),
+                       'from': str(e['from']),
+                       'to': str(e['to']),
+                       'delta': e['delta']} for e in choice['edits']],
+            'cost': choice.get('cost'),
+        })
+
+        print('\n', self.Name, ': solving', dname, 'instead --',
+              da.describe_edits(choice))
+
+        if self.BHdebug:
+            print('   eqns 1u/2u/3pu = %d/%d/%d   unknowns = %d'
+                  % (len(L1), len(L2), len(L3p), len(unks)))
 
         return b3.SUCCESS
 

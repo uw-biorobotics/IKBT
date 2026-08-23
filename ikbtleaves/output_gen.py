@@ -70,18 +70,29 @@ class report_gen(b3.Action):
             print(self.Name, ': no Robot or no unknowns on the blackboard.')
             return b3.FAILURE
 
-        #  The joint-axis geometry statement.  Generated HERE, not by pieper_id,
-        #  and that is the point:  it has to appear whichever branch produced the
-        #  solution, and pieper_id ticks only on the hybrid path (it is the gate
-        #  there).  Making it a report concern removes the dependency entirely.
-        #  It must never block the report, so a failure here is a warning.
-        try:
-            R.pieper_latex = da.pieper_latex(
-                R.Mech.DH, R.Mech.pvals,
-                da.ndof_from_unknowns(unks), R.name)
-        except Exception as e:
-            print(self.Name, ': no joint-axis geometry statement --',
-                  '%s: %s' % (type(e).__name__, e))
+        #  The joint-axis geometry statement.
+        #
+        #  PREFER the snapshot pieper_id put on the blackboard.  On the hybrid
+        #  path the Robot here is a DERIVED arm -- install_simplified swapped it
+        #  -- so generating the statement from R would describe the simplified
+        #  robot and silently mis-report the real one.  pieper_id's snapshot was
+        #  taken before the swap.
+        #
+        #  Falling back to R is correct on the symbolic path, where pieper_id
+        #  never ticked (it gates the hybrid branch) and R *is* the true robot.
+        #  Either way a failure here is a warning: no statement must never cost
+        #  us the report.
+        stashed = bb.get('pieper_latex')
+        if stashed:
+            R.pieper_latex = stashed
+        else:
+            try:
+                R.pieper_latex = da.pieper_latex(
+                    R.Mech.DH, R.Mech.pvals,
+                    da.ndof_from_unknowns(unks), R.name)
+            except Exception as e:
+                print(self.Name, ': no joint-axis geometry statement --',
+                      '%s: %s' % (type(e).__name__, e))
 
         try:
             R.create_solution_set()

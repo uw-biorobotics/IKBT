@@ -72,7 +72,9 @@ from ikbtleaves.updateL          import updateL
 from ikbtleaves.comp_detect      import comp_det
 from ikbtleaves.symbolic_loop    import symbolic_loop
 from ikbtleaves.output_gen       import report_gen
-from ikbtleaves.hybrid_ik        import hybrid_stub, pieper_id, simplified_arm
+from ikbtleaves.hybrid_ik        import (hybrid_stub, pieper_id, simplified_arm,
+                                         install_simplified)
+from ikbtleaves.clear_state      import clear_state
 
 
 ###############################################################################
@@ -109,7 +111,8 @@ REQUIRED_SUPPORT = [assigner, rank, sum_id, sub_transform, updateL, comp_det]
 #  test_btaR / test_btaS below.
 OPTIONAL_LEAVES = [invariant_gen, sum_solve,
                    symbolic_loop, report_gen, hybrid_stub,
-                   pieper_id, simplified_arm]
+                   pieper_id, simplified_arm, install_simplified,
+                   clear_state]
 
 #  An ID leaf stashes state on the blackboard that its solver leaf then consumes,
 #  so the ID must be sequenced AHEAD of the solver.  sum_id is deliberately
@@ -790,78 +793,72 @@ class TestSolver013(unittest.TestCase):
         self.assertEqual(t.tick('hybrid stub', b3.Blackboard()), b3.FAILURE,
                          fs + ' (the stub must always FAIL)')
 
-        #  The gate is the symbolic loop's status, so the loop must be the thing
-        #  the Priority chooses on -- exactly one, with a finite budget.
+        #  TWO solve loops now -- one per branch, over separate leaf sets.  The
+        #  hybrid branch re-solves a simplified arm with its own solver rather
+        #  than hiding a second solve inside a leaf, so the tree shows it.
         loops = [n for n in bt_nodes(bt) if isinstance(n, symbolic_loop)]
-        self.assertEqual(len(loops), 1, fs + ' (expected exactly one solve loop)')
-        self.assertTrue(loops[0].max_loop > 0,
-                        fs + ' (solve loop has no usable budget)')
-        self.assertFalse(loops[0].require_complete,
-                         fs + ' (require_complete ON would discard partial '
-                         'solves, which IKBT has always reported)')
+        self.assertEqual(len(loops), 2,
+                         fs + ' (expected one solve loop per branch, got %d)'
+                         % len(loops))
+        for L in loops:
+            self.assertTrue(L.max_loop > 0,
+                            fs + ' ("%s" has no usable budget)' % L.Name)
+            self.assertFalse(L.require_complete,
+                             fs + ' (require_complete ON would discard partial '
+                             'solves, which IKBT has always reported)')
+        #  distinct instances, or their blackboard state would collide
+        self.assertIsNot(loops[0], loops[1],
+                         fs + ' (the two branches share one loop INSTANCE)')
+
+        #  every solver must start by clearing the previous solve's state
+        clears = [n for n in bt_nodes(bt) if isinstance(n, clear_state)]
+        self.assertEqual(len(clears), len(loops),
+                         fs + ' (expected one clear_state per solver, got %d '
+                         'for %d solvers)' % (len(clears), len(loops)))
 
 
     def test_btaT_pieper_id_gates_only_the_hybrid(self):
-        '''pieper_id must gate the HYBRID branch and nothing else.
+        '''The FIRST branch the Analysis selector tries must be reachable
+           without pieper_id succeeding.
 
            Pieper's condition is sufficient for a closed form to exist and is
            not known to be necessary:  9 of the 32 robots have no triple and
            solve completely (Axtman13, Brad, DZhang, ICP5p5_A21, Mackler13,
-           MiniDD, Olson13, Sims11, Wachtveitl).  Sequenced ahead of the
-           symbolic branch it would stop that branch ticking at all for those
-           nine -- measured, Brad and Sims11 go from solving completely to
-           solving nothing.  So the symbolic branch must be reachable without
-           pieper_id succeeding.'''
+           MiniDD, Olson13, Sims11, Wachtveitl).  Gate the primary symbolic path
+           on it and -- measured -- Brad and Sims11 go from solving completely to
+           solving nothing.
+
+           pieper_id gating the HYBRID branch is correct and expected;  it is
+           ahead of the hybrid branch's own solver on purpose.'''
         fs = ' bt_assembly pieper_id gating FAIL'
 
         bt, nodes = build_default_bt()
         memo = {}
 
-        #  the symbolic solver must NOT sit downstream of pieper_id
-        for node, path in walk_bt(bt.root):
-            if isinstance(node, symbolic_loop):
-                for anc in path:
-                    self.assertNotIsInstance(
-                        anc, pieper_id,
-                        fs + ' (symbolic_loop is gated by pieper_id)')
-                #  and no ancestor Sequence may put pieper_id before it
-                for anc in path:
-                    if isinstance(anc, SEQUENCE_TYPES):
-                        kids = [k for k in child_slots(anc)
-                                if isinstance(k, b3.BaseNode)]
-                        for k in kids:
-                            if pieper_id in _subtree_classes(k, memo):
-                                if symbolic_loop in _subtree_classes(k, memo):
-                                    continue        # same subtree, fine
-                                self.assertFalse(
-                                    kids.index(k) < kids.index(
-                                        next(x for x in kids
-                                             if symbolic_loop in _subtree_classes(x, memo))),
-                                    fs + ' (pieper_id is sequenced ahead of the '
-                                    'symbolic solver in "%s")' % anc.Name)
+        sel = [n for n in bt_nodes(bt)
+               if isinstance(n, b3.Priority) and n.Name == 'Analysis']
+        self.assertEqual(len(sel), 1, fs + ' (no Analysis selector)')
+        kids = [k for k in child_slots(sel[0]) if isinstance(k, b3.BaseNode)]
+        self.assertGreaterEqual(len(kids), 2, fs + ' (Analysis needs 2 branches)')
 
-        #  ... and it MUST gate the hybrid branch
-        stubs = [n for n in bt_nodes(bt) if isinstance(n, hybrid_stub)]
-        self.assertEqual(len(stubs), 1, fs + ' (expected one hybrid stub)')
-        gated = False
-        for node, path in walk_bt(bt.root):
-            if node is stubs[0]:
-                for anc in path:
-                    if isinstance(anc, SEQUENCE_TYPES):
-                        kids = [k for k in child_slots(anc)
-                                if isinstance(k, b3.BaseNode)]
-                        if any(pieper_id in _subtree_classes(k, memo) for k in kids):
-                            gated = True
-        self.assertTrue(gated, fs + ' (hybrid branch is not gated by pieper_id)')
+        first = _subtree_classes(kids[0], memo)
+        self.assertIn(symbolic_loop, first,
+                      fs + ' (the first branch tried is not a symbolic solver)')
+        self.assertNotIn(pieper_id, first,
+                         fs + ' (pieper_id gates the PRIMARY symbolic path -- '
+                         'that assumes Pieper is necessary, and it is not)')
 
-        #  exactly one pieper_id instance, and it is under an Inverter
+        #  exactly one pieper_id instance, inverted, and inside a later branch
         found = [n for n in bt_nodes(bt) if isinstance(n, pieper_id)]
         self.assertEqual(len(found), 1, fs + ' (expected exactly one pieper_id)')
-        inverted = any(isinstance(n, b3.Inverter)
-                       and n.child is found[0] for n in bt_nodes(bt))
+        inverted = any(isinstance(n, b3.Inverter) and n.child is found[0]
+                       for n in bt_nodes(bt))
         self.assertTrue(inverted,
                         fs + ' (pieper_id must be inverted -- the hybrid fires '
                         'when there is NO triple)')
+        self.assertTrue(any(pieper_id in _subtree_classes(k, memo)
+                            for k in kids[1:]),
+                        fs + ' (pieper_id is not in a fallback branch)')
 
     def test_btaU_report_gen_is_last_and_shared(self):
         '''One report generator, ticked after whichever branch solved.
@@ -907,11 +904,14 @@ class TestSolver013(unittest.TestCase):
         arms = [n for n in bt_nodes(bt) if isinstance(n, simplified_arm)]
         self.assertEqual(len(arms), 1, fs + ' (expected exactly one)')
 
-        #  not under the symbolic loop's subtree, and not ahead of it
-        sym = [n for n in bt_nodes(bt) if isinstance(n, symbolic_loop)]
-        self.assertEqual(len(sym), 1, fs + ' (expected one symbolic_loop)')
-        self.assertNotIn(simplified_arm, _subtree_classes(sym[0], memo),
-                         fs + ' (simplified_arm is inside the symbolic branch)')
+        #  it must not be on the PRIMARY symbolic path -- ranking simplifications
+        #  there is pure waste, and a simplification chosen for an arm that
+        #  solved exactly would be a standing invitation to use it
+        sel = [n for n in bt_nodes(bt)
+               if isinstance(n, b3.Priority) and n.Name == 'Analysis'][0]
+        kids = [k for k in child_slots(sel) if isinstance(k, b3.BaseNode)]
+        self.assertNotIn(simplified_arm, _subtree_classes(kids[0], memo),
+                         fs + ' (simplified_arm is on the primary symbolic path)')
 
         #  it must share a Sequence with the Pieper gate, and come after it
         placed = False
