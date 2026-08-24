@@ -843,6 +843,40 @@ pay it.
 
 ### Phase F — `numeric_ik` and `output_gen_hybrid`
 
+**`ikbtbasics/numeric_ik.py` is BUILT and validated standalone (2026-08-23), `TestSolver022`.**
+Damped least squares on BH's metric, verified on robots that already solve exactly so it does not
+depend on the hybrid branch at all. Measured on Puma: 10/10 convergence from 0.05 to 2.0 rad
+perturbations (3-19 iterations), a quadratic error sequence, and 10/10 at the `th_5 = 0` wrist
+singularity where `J` is rank-deficient. `output_gen_hybrid` and the tree wiring are NOT done.
+
+Three claims in the section below were measured and are **wrong**; they are left in place with this
+correction rather than quietly edited, since the reasoning around them is still useful:
+
+1. Sum-of-angle symbols **cannot** appear in `T_06`/`J66`, and the reason is structural rather than
+   statistical (BH): *every link can have only one joint variable*, so a DH-derived link transform has
+   nothing for a `th_23` to be. SOA terms arise within the FK equations as the scan rewrites them, and
+   that lands in the matrix equations, not in the product `T_06` or in `J66`. No resolution step is
+   needed, and none will be needed for a future robot either.
+2. The non-numeric-`pvals` robots are **`Craig417` and `Raven-II`**, not `Raven-II` and
+   `ICP5p5_A21`. `ICP5p5_A21` is clean.
+3. `w_rot` cannot be a constant. BH's `1 m/rad` needs the model's units, and the repo has none
+   recorded and is not consistent: Puma is in metres (`a_2 = 0.432`), KinovaLite in millimetres
+   (`l_2 = 280`). It is an explicit parameter.
+
+Also found, not anticipated by the plan: the DH table is always 6 rows and that is **not** the DOF
+(`Craig417`, `ICP5p5_A21` are 4-DOF padded to 6), and `J66` is stored 6x6 for every robot with
+**non-zero** surplus columns — so the Jacobian must be sliced to the real DOF or the solver will move
+joints the arm does not have.
+
+**Blockers for the tree-integrated part, none of which affect the module above:** only `KinovaLite`
+currently produces a complete derived-arm solve (`KawasakiRS05L` 0/7, `Issue4` 1/7, and with
+`require_complete = True` both now FAIL the hybrid loop), so Phase F has exactly one robot to serve;
+no generated code exists for any derived arm because `hybrid_stub` blocks `report_gen`, so the seed
+artifact does not exist yet; `true_robot` is still not stashed.
+
+#### The original plan text follows.
+
+
 New module **`ikbtbasics/numeric_ik.py`**.
 
 - `pvals_numeric(M)` first — `M.pvals` is **not uniformly numeric**: `forward_kinematics()` writes

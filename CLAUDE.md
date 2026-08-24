@@ -204,9 +204,48 @@ Test-class numbers are global and referenced by `tests/leavestest.py` (001 sinco
 004 tan, 006 sub_transform, 007 updateL, 008 kin_cl, 009 helperfunctions, 010 x2y2 — note `output_cpp.py` also
 defines a `TestSolver010` — 011 rank, 012 invariant_gen, 013 bt_assembly, 014 comp_detect,
 015 output_latex, 016 symbolic_loop, 017 output_gen, 018 hybrid_ik, 019 dh_analysis,
-020 clear_state, 021 progress). A test double that lives in a
+020 clear_state, 021 progress, 022 numeric_ik). A test double that lives in a
 leaf file must be named `test_*`, or the `bt_assembly_test.py` leaf-inventory scan picks it up as a
 real leaf.
+
+### Numerical IK (`ikbtbasics/numeric_ik.py`)
+
+Phase F's correction step: damped least squares (Levenberg-Marquardt) refining a closed-form seed
+against the true arm's FK. **Standalone** — it takes an FK callable, a Jacobian callable, a seed and a
+target pose, and knows nothing about the tree, so it is validated on robots that already solve
+exactly (perturb a known-good pose, confirm it comes back) with no dependence on the hybrid branch.
+
+`dq = J'(JJ' + lam^2 I)^-1 e`, with the residual `[dp ; w_rot*theta*axis]` and BH's scalar metric
+`||dp|| + w_rot*theta` sharing one rotation parameterisation and one weight, so the step and the
+stopping test agree about "closer". The Jacobian's rotation rows are scaled by `w_rot` to match.
+Measured on Puma: 10/10 convergence from perturbations of 0.05 to 2.0 rad (3 to 19 iterations),
+quadratic error sequence `1.9e-01 1.6e-02 3.4e-04 1.0e-07 2.3e-15`, and 10/10 even at the wrist
+singularity `th_5 = 0` where `J` is rank-deficient and an undamped Newton step does not exist.
+
+Four traps, all measured:
+
+- **`w_rot` has no correct default.** BH's metric is `||dp|| + (1 m)*theta`, but nothing records a
+  model's units and they are not consistent — Puma is in **metres** (`a_2 = 0.432`), KinovaLite in
+  **millimetres** (`l_2 = 280`). So `w_rot` is an explicit parameter (1.0 for a metre model, 1000.0
+  for a millimetre one); `w_rot_for()` offers a unit-free alternative of one arm-length per radian.
+- **`pvals` is not uniformly numeric** — `Craig417` and `Raven-II` (**not** `ICP5p5_A21`, which the
+  plan names) carry the strings `'np.cos(al_1)'` / `'np.sin(pi/4)'`, and those symbols really are in
+  `T_06`. `dh_analysis.numeric_pvals()` *drops* them, which is right for its zero-tests and wrong
+  here — a dropped `ca1` survives as a free symbol and becomes a spurious `lambdify` argument.
+  `pvals_numeric()` resolves them instead, and `_lambdify_checked()` refuses to build a callable with
+  any symbol left over.
+- **Sum-of-angle symbols CANNOT be in `T_06`/`J66`** — and this is structural, not just measured
+  (BH): **every link can have only one joint variable**, so a DH-derived link transform has nothing
+  for a `th_23` to be. SOA terms arise *within* the FK equations as the sum-of-angles scan rewrites
+  them, and that lands in the matrix equations (`matrix_equation.Ts`), never in the product `T_06` or
+  in `J66`. The plan says they appear there and must be resolved from `kequation_aux_list`; they do
+  not, and this is a property to rely on rather than a measurement to re-check per robot.
+- **The DH table is always 6 rows, which is not the DOF.** `Craig417` and `ICP5p5_A21` are 4-DOF
+  tables padded with `[0,0,0,0]`, so `dof_of()` counts the leading rows with a symbolic joint cell —
+  and *not* the unknown list, which is inflated by SOA variables (`Craig417`: 5 unknowns, 4 joints).
+  `J66` is stored 6x6 for every robot and its surplus columns are **not** zero, so
+  `jacobian_callable()` slices to `[:, :ndof]`; handing those columns to the solver would let it move
+  joints the arm does not have.
 
 ### Progress reporting (`ikbtfunctions/progress.py`)
 
