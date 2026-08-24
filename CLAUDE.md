@@ -359,6 +359,20 @@ matrix (sympy bug); use a symbolic constant declared in `params` with its value 
 symbols with `sp.var()`. A name in `ROBOT_LIST` with no `if` block is reported by name rather than
 raising `UnboundLocalError`.
 
+**`EXCLUDED_FROM_SWEEP`** holds robots that are defined and runnable by name but deliberately out of
+the all-robots sweep, so they do not gate. `robot_params()` validates against
+`ROBOT_LIST + EXCLUDED_FROM_SWEEP`, which is why the two lists must stay separate: dropping a name
+from `ROBOT_LIST` alone also makes it **unrunnable**, leaving no way to investigate the very robot
+that was excluded for being odd.
+
+Currently `['Issue4']`, excluded for **wall time, not solving**. Its result is stable when it finishes
+(`partial (hybrid)` 1/7 via `Issue4_d_5_0`); its duration is not — 97 s, 101 s, 187 s, 246 s, and
+twice over 1790 s on identical code at `PYTHONHASHSEED=0`, a factor of 18. Since a timeout *is* a
+`status` and `status` is compared, `--diff` twice reported it as a regression when nothing had changed.
+Suspected cause (unconfirmed): `PYTHONHASHSEED` pins `str`/`bytes` hashing only, not the identity-based
+default `object.__hash__`, so a `set` of solver objects iterates differently per run and ties between
+equally-ranked solutions break differently. See `hybrid_impl_plan.md` for the investigation plan.
+
 ## git etiquette
 
 Please keep commit messages to 5 lines or less. 

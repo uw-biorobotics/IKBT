@@ -42,7 +42,7 @@ from ikbtbasics.ik_classes import *     # special classes for Inverse kinematics
 #   unselectable (that is what happened to 'Issue4' + 'DZhang' before b013d9c).
 #
 ROBOT_LIST = [ 'KinovaLite',
-               'ICP5p5_A21', 'KR16', 'Issue4',
+               'ICP5p5_A21', 'KR16',
                'UR5',
                'Puma', 'Pumaoffset', 'Panda',
                'Chair_Helper',
@@ -65,6 +65,32 @@ ROBOT_LIST = [ 'KinovaLite',
                'DZhang',
                'JennyGuoSp24' ]
 
+#  DEFINED AND RUNNABLE BY NAME, BUT DELIBERATELY OUT OF THE ALL-ROBOTS SWEEP.
+#
+#  `python3 ikSolver.py Issue4` still works -- robot_params() accepts these --
+#  but scripts/robot_baseline.py sweeps ROBOT_LIST, so they do not gate.
+#  Keeping the two lists separate is the point:  dropping a name from
+#  ROBOT_LIST alone would ALSO make it unrunnable, because robot_params()
+#  validates against the list and rejects anything not on it, so there would be
+#  no way to investigate the very robot that was excluded for being odd.
+#
+#  Issue4 (BH, 2026-08-24) -- excluded for WALL TIME, not for solving.  Its
+#  result is stable when it finishes:  partial (hybrid) 1/7 via Issue4_d_5_0
+#  (d_5: 0.029 -> 0).  Its duration is not:  measured on identical code at
+#  PYTHONHASHSEED=0, 97 s, 101 s, 187 s, 246 s, and twice over 1790 s -- a
+#  factor of 18.  A timeout IS a status, and status is compared, so --diff
+#  reported Issue4 as a regression on runs where nothing had changed.  Raising
+#  DEFAULT_TIMEOUT from 900 to 1800 s did not settle it, and a gate that cries
+#  wolf is worse than no gate.
+#
+#  Suspected, NOT confirmed:  PYTHONHASHSEED pins hashing of str/bytes only.
+#  `unknown` and `Robot` use the default identity hash, which moves with memory
+#  layout, so a set of them iterates in a different order run to run -- and the
+#  solver would then break ties between equally-ranked options differently,
+#  some choices far more expensive than others.  scripts/robot_baseline.py's own
+#  header already worries about this.  See hybrid_impl_plan.md for the follow-up.
+EXCLUDED_FROM_SWEEP = ['Issue4']
+
 
 def number_unknowns(variables):
     '''Give each unknown its 1-based position in the serial chain.
@@ -82,7 +108,9 @@ def number_unknowns(variables):
 
 def robot_params(name):
     pvals = {}   # null for most robots
-    List = ROBOT_LIST
+    #  Sweep list PLUS the deliberately-excluded ones:  an excluded robot must
+    #  stay runnable by name, or it cannot be investigated.
+    List = ROBOT_LIST + EXCLUDED_FROM_SWEEP
 
     if not (name in List):
         print('robot_params(): Unknown robot, ' + name )

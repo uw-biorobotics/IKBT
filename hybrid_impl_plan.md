@@ -1016,6 +1016,51 @@ This is the concrete use for a partial result, and therefore the thing that woul
 `symbolic_loop.require_complete = False` again — deliberately, on a branch built to consume a partial,
 rather than as today's default. Filed for later; not Phase F.
 
+## Deferred — Issue4's non-reproducible wall time
+
+BH, 2026-08-24. `Issue4` is out of the all-robots sweep (`EXCLUDED_FROM_SWEEP` in
+`ikbtfunctions/ik_robots.py`); it stays runnable by name so it can be investigated.
+
+**It is a timing problem, not a solving problem.** The result is stable whenever the run finishes:
+`partial (hybrid)` 1/7 via `Issue4_d_5_0` (`d_5: 0.029 → 0`, cheapest of 28 candidates). The duration
+is not, measured on identical code at `PYTHONHASHSEED=0`:
+
+```
+97 s   101 s   187 s   246 s   >1790 s   >1790 s        (factor of 18)
+```
+
+All of it is in the hybrid solve of the derived arm: pass 1 solves `th_1` in ~1 s, and pass 2 alone
+has been observed at both 79 s and >1790 s. Raising `DEFAULT_TIMEOUT` 900 → 1800 s did not settle it.
+Why it had to be excluded rather than tolerated: **a timeout is a `status`, and `status` is compared**,
+so `--diff` reported `Issue4` as `partial (hybrid) → timeout`, i.e. a regression, on runs where
+nothing had changed. Twice it did this while gating an unrelated change, and each time the fix was to
+re-run Issue4 alone and watch it come back in ~100 s. A gate that cries wolf gets ignored.
+
+**The hypothesis to test first — not yet confirmed.** `PYTHONHASHSEED=0` pins the hashing of `str`
+and `bytes`. It does **not** pin the default `object.__hash__`, which derives from `id()` and therefore
+moves with memory layout. `unknown` and `Robot` define no `__hash__`, so any `set` of them iterates in
+a run-dependent order. `scripts/robot_baseline.py`'s own header already flags the consequence —
+*"parts of the solver iterate over sets, so the choice between equally-good solutions … can vary run
+to run"* — and pins the seed believing that fixes it. If the solver breaks a tie between
+equally-ranked candidate solutions by set order, different runs take different paths, and nothing says
+those paths cost the same.
+
+Concrete first steps, cheapest first:
+
+1. **Confirm or kill the hypothesis** — log the tie-break decisions (`solvemethod` per variable, and
+   the order `assigner_leaf` offers unknowns) across several Issue4 runs. If they differ, it is set
+   iteration; if they are identical and only the time moves, it is not, and the cause is elsewhere
+   (sympy cache behaviour, or something environmental).
+2. **Find the sets.** `grep` for `set(` over unknowns/equations in `ikbtleaves/`. A fix is usually one
+   `sorted(..., key=str)`, which is cheap and makes the order explicit rather than incidental.
+3. Only then consider whether `kin_cl.unknown` should define `__hash__`/`__eq__` by symbol name —
+   note it already defines `__eq__` on `self.symbol` and a `__hash__` delegating to the symbol, so
+   check whether the objects in the suspect sets are `unknown` or something else.
+
+Worth doing for its own sake beyond Issue4: an 18x spread in solve time means the *other* robots'
+recorded `wall_s` figures are softer than they look, and it would make `--diff` trustworthy enough to
+compare timings at all, which today it explicitly cannot (`wall_s` is deliberately not in `COMPARED`).
+
 ## Explicitly deferred
 
 - **Step 1.1 item 5** — `scripts/simplify_dh.py` CLI. Lower priority per the doc, but it has
