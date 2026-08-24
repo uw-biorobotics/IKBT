@@ -35,7 +35,7 @@ def robot_params(name):
     List = [ 'KinovaLite',
             'ICP5p5_A21','KR16', 'Issue4',
             'UR5', 
-            'Puma', 'Pumaoffset',
+            'Puma', 'Pumaoffset', 'Panda',
             'Chair_Helper', 
             'Bartell',
             'Brad', 
@@ -124,7 +124,23 @@ def robot_params(name):
         variables =  [unknown(d_1), unknown(th_2), unknown(th_3), unknown(th_4), unknown(th_5)]
         params = [ l_2, l_3, l_4]
         pvals = {l_2:1,l_3:1,l_4:1}
+###########################################################
+    if(name == 'Panda'):  # issue #46 by aabouman, 2022
 
+            dh = sp.Matrix([                  ##  This one requires sum-of-angles.
+            [  0,         0,  l_1,  th_1],
+            [-sp.pi/2,    0,    0,  th_2],
+            [ sp.pi/2,    0,  l_3,  th_3],
+            [ sp.pi/2,  a_1,    0,  th_4],
+            [-sp.pi/2,  a_2,  l_5,  th_5],
+            [ sp.pi/2,    0,    0,  th_6]
+            ])
+            vv = [1,1,1,1,1,1]
+            sp.var('a_1 a_2 l_1 l_3 l_5')
+            variables =  [unknown(th_1), unknown(th_2), unknown(th_3), unknown(th_4), unknown(th_5), unknown(th_6)]
+
+            params = [a_1, a_2, l_1, l_3, l_5]
+            pvals = {a_1:0.0825, a_2:-0.0825, l_1:0.333, l_3:0.316, l_5:0.384}
 ############################################################
 
 
