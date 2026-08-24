@@ -424,16 +424,22 @@ class TestSolver021(unittest.TestCase):
 
     #  ---- shared helper -------------------------------------------------
 
-    def capture(self, fn):
-        '''Run fn() with stdout captured.  _say() flushes to sys.stdout, which
-           respects the reassignment, so the reporter is testable.'''
+    def capture(self, fn, *args, **kwargs):
+        '''Run fn(*args) with stdout captured, and return what it printed.
+
+           _say() flushes to sys.stdout, which respects the reassignment, so
+           the reporter is testable.
+
+           Takes the arguments rather than a zero-argument thunk so callers read
+           as `self.capture(p.pass_done, 1, unks, pools)` -- the call being
+           captured stays visible instead of being wrapped in a lambda.'''
 
         import io
         import sys
         buf, real = io.StringIO(), sys.stdout
         sys.stdout = buf
         try:
-            fn()
+            fn(*args, **kwargs)
         finally:
             sys.stdout = real
         return buf.getvalue()
@@ -487,12 +493,12 @@ class TestSolver021(unittest.TestCase):
         unks = [a, b, test_unk('th_3'), test_unk('th_4')]
 
         #  Two passes where nothing at all changes:  same solved set, same pools.
-        out = self.capture(lambda: p.pass_done(1, unks, (0, 2, 9)))
+        out = self.capture(p.pass_done, 1, unks, (0, 2, 9))
         self.assertEqual(p.flat_passes, 1, fs + 'first flat pass counted')
         self.assertIn('at most 9 more passes', out,
                       fs + 'should state the remaining bound, not a promise')
 
-        out = self.capture(lambda: p.pass_done(2, unks, (0, 2, 9)))
+        out = self.capture(p.pass_done, 2, unks, (0, 2, 9))
         self.assertEqual(p.flat_passes, 2, fs + 'second flat pass counted')
         #  Two flat passes in a row is comp_det's own stop condition, so the
         #  reporter must escalate from "nothing changed" to "stuck".
@@ -501,15 +507,15 @@ class TestSolver021(unittest.TestCase):
 
         #  A pass that changes the equation pools but solves nothing is NOT
         #  stuck -- transforms are progress, and the counter must reset.
-        out = self.capture(lambda: p.pass_done(3, unks, (3, 5, 4)))
+        out = self.capture(p.pass_done, 3, unks, (3, 5, 4))
         self.assertEqual(p.flat_passes, 0, fs + 'pool change resets the counter')
         self.assertIn('still working', out, fs + 'pool change reads as working')
 
         #  A pass that solves a variable likewise resets it.
-        self.capture(lambda: p.pass_done(4, unks, (3, 5, 4)))   # flat again -> 1
+        self.capture(p.pass_done, 4, unks, (3, 5, 4))   # flat again -> 1
         self.assertEqual(p.flat_passes, 1, fs + 'flat after the transform')
         a.solved = True
-        out = self.capture(lambda: p.pass_done(5, unks, (3, 5, 4)))
+        out = self.capture(p.pass_done, 5, unks, (3, 5, 4))
         self.assertEqual(p.flat_passes, 0, fs + 'a solve resets the counter')
         self.assertIn('making progress', out, fs + 'a solve reads as progress')
 
@@ -547,25 +553,16 @@ class TestSolver021(unittest.TestCase):
                       test_unk('th_23'), test_unk('th_6'))
         unks = [a, b, c, d]
 
-        def cap(fn):
-            buf, real = io.StringIO(), sys.stdout
-            sys.stdout = buf
-            try:
-                fn()
-            finally:
-                sys.stdout = real
-            return buf.getvalue()
-
         #  Solve the THIRD one first -- the out-of-order case.
         c.solved = True
-        out = cap(lambda: p.pass_done(1, unks, (1, 1, 1)))
+        out = self.capture(p.pass_done, 1, unks, (1, 1, 1))
         self.assertIn('+1: th_23', out,
                       'progress: should name the variable actually solved')
 
         #  Now solve the LAST one.  The buggy version would say th_2 here,
         #  because th_2 sits at index 1 of the filtered list.
         d.solved = True
-        out = cap(lambda: p.pass_done(2, unks, (1, 1, 1)))
+        out = self.capture(p.pass_done, 2, unks, (1, 1, 1))
         self.assertIn('+1: th_6', out,
                       'progress: must name th_6, not whatever is next in order')
         self.assertNotIn('th_2,', out,
@@ -574,7 +571,7 @@ class TestSolver021(unittest.TestCase):
         #  Two at once.
         a.solved = True
         b.solved = True
-        out = cap(lambda: p.pass_done(3, unks, (1, 1, 1)))
+        out = self.capture(p.pass_done, 3, unks, (1, 1, 1))
         self.assertIn('+2: th_1, th_2', out,
                       'progress: both newly solved variables named')
 

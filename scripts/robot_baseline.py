@@ -428,7 +428,19 @@ def diff_records(old, new):
              'changed-count', 'changed-method', 'changed-simplification',
              'changed-solutions', 'changed-other',
              'added', 'removed', 'unchanged']
-    rows.sort(key=lambda r: (order.index(r[0]) if r[0] in order else 99, r[1]))
+
+    def verdict_then_name(row):
+        '''Most alarming verdict first, robots alphabetical within a verdict.
+
+           An unrecognised verdict sorts to the end rather than raising:  a new
+           classification added to classify() and forgotten here should show up
+           at the bottom of the report, not crash the diff that would have told
+           you about it.'''
+        verdict, name = row[0], row[1]
+        rank = order.index(verdict) if verdict in order else 99
+        return (rank, name)
+
+    rows.sort(key=verdict_then_name)
     return rows
 
 

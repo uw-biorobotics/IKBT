@@ -352,8 +352,14 @@ def nearest_pi_multiples(x):
 
     k = x/np.pi
     lo, hi = int(np.floor(k)), int(np.ceil(k))
-    opts = sorted({lo*np.pi, hi*np.pi}, key=lambda t: (abs(t - x), t))
-    return opts
+
+    def distance_then_value(t):
+        '''Nearest first;  the value itself breaks the tie, so that an angle
+           exactly between two multiples (alpha = pi/2, the commonest value in
+           these tables) orders deterministically instead of by set iteration.'''
+        return (abs(t - x), t)
+
+    return sorted({lo*np.pi, hi*np.pi}, key=distance_then_value)
 
 
 def apply_edits(dh, edits):
@@ -483,6 +489,18 @@ def candidate_simplifications(dh, pvals, vv, ndof):
     return cands
 
 
+def candidate_rank_key(c):
+    '''Sort key for a simplification candidate:  cheapest in task space first.
+
+       The three tie-breakers after `cost` are there to make the ranking
+       REPRODUCIBLE, which the whole phase-gate discipline depends on -- two
+       candidates with equal displacement must not swap places between runs.
+       Fewer edits first, then axes and route as a stable alphabetical
+       backstop.'''
+
+    return (c['cost'], c['n_edits'], str(c['axes']), c['route'])
+
+
 def rank_candidates(dh, pvals, vv, ndof, n=200, seed=0, w_rot=None):
     '''candidate_simplifications(), each scored by task-space displacement and
        sorted cheapest first.
@@ -505,7 +523,7 @@ def rank_candidates(dh, pvals, vv, ndof, n=200, seed=0, w_rot=None):
             c['cost'] = m['mean_combined']
         scored.append(c)
 
-    scored.sort(key=lambda c: (c['cost'], c['n_edits'], str(c['axes']), c['route']))
+    scored.sort(key=candidate_rank_key)
     return scored
 
 
@@ -553,22 +571,27 @@ def triple_witness(report, kind):
     a_j, a_j1 = 'a_%d' % j, 'a_%d' % (j+1)
     d_j1 = 'd_%d' % (j+1)
     al_j, al_j1 = 'al_%d' % j, 'al_%d' % (j+1)
-    z = lambda n: '%s = 0' % latex_symbol(n)
-    sz = lambda n: r'\sin \left( %s \right) = 0' % latex_symbol(n)
+    def is_zero_tex(n):
+        '''LaTeX for "this symbol is zero".'''
+        return '%s = 0' % latex_symbol(n)
+
+    def sin_is_zero_tex(n):
+        '''LaTeX for "the sine of this symbol is zero".'''
+        return r'\sin \left( %s \right) = 0' % latex_symbol(n)
 
     if kind == 'parallel':
-        return ', \\quad '.join([sz(al_j), sz(al_j1)]), None
+        return ', \\quad '.join([sin_is_zero_tex(al_j), sin_is_zero_tex(al_j1)]), None
 
     #  intersecting:  say which of the three routes actually holds
     if _z(report['terms'][d_j1]):
-        return ', \\quad '.join([z(a_j), z(a_j1), z(d_j1)]), None
+        return ', \\quad '.join([is_zero_tex(a_j), is_zero_tex(a_j1), is_zero_tex(d_j1)]), None
     if report['collinear_j1_j2']:
-        return (', \\quad '.join([z(a_j), z(a_j1), sz(al_j1)]),
+        return (', \\quad '.join([is_zero_tex(a_j), is_zero_tex(a_j1), sin_is_zero_tex(al_j1)]),
                 'axes %d and %d are collinear' % (j+1, j+2))
     if report['collinear_j_j1']:
-        return (', \\quad '.join([z(a_j), z(a_j1), sz(al_j)]),
+        return (', \\quad '.join([is_zero_tex(a_j), is_zero_tex(a_j1), sin_is_zero_tex(al_j)]),
                 'axes %d and %d are collinear' % (j, j+1))
-    return ', \\quad '.join([z(a_j), z(a_j1)]), None
+    return ', \\quad '.join([is_zero_tex(a_j), is_zero_tex(a_j1)]), None
 
 
 def pieper_latex(dh, pvals, ndof, robot_name=None):

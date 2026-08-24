@@ -738,7 +738,11 @@ class TestSolver013(unittest.TestCase):
         if unclassified:
             print('\n  bt_assembly ADVISORY: leaf classes not classified in '
                   'tests/bt_assembly_test.py:')
-            for cls, mod in sorted(unclassified.items(), key=lambda kv: kv[0].__name__):
+            def by_class_name(item):
+                '''(class, module) pairs, ordered by the class's name.'''
+                return item[0].__name__
+
+            for cls, mod in sorted(unclassified.items(), key=by_class_name):
                 print('     %-22s (ikbtleaves/%s.py)' % (cls.__name__, mod))
             print('  Add each to REQUIRED_SOLVERS, REQUIRED_SUPPORT, or '
                   'OPTIONAL_LEAVES.')

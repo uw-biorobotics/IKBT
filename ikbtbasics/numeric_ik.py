@@ -196,14 +196,26 @@ def _lambdify_checked(expr_matrix, syms, what):
 
        A leftover free symbol is the failure this guards:  lambdify would
        happily accept it as a positional argument, and the caller would then be
-       passing joint angles into a link-length slot.'''
+       passing joint angles into a link-length slot.
+
+       NOTE THE NESTED [syms].  Passing the symbol list wrapped in another list
+       tells lambdify to generate a function of ONE sequence argument, which
+       unpacks it itself:
+
+           def _lambdifygenerated(_Dummy_34):
+               [th_1, th_2, a_2] = _Dummy_34
+               return ...
+
+       so the returned callable already takes a q vector and no wrapper is
+       needed to spread it.  (The flat form, lambdify(syms, ...), makes one
+       parameter per symbol;  it allows per-argument numpy broadcasting, which
+       nothing here wants -- every call evaluates a single joint vector.)'''
 
     extra = sorted((expr_matrix.free_symbols - set(syms)), key=str)
     if extra:
         raise ValueError('numeric_ik: %s still contains %s -- pvals did not '
                          'resolve every parameter' % (what, [str(s) for s in extra]))
-    f = sp.lambdify(syms, expr_matrix, 'numpy')
-    return lambda q: np.asarray(f(*list(q)), dtype=float)
+    return sp.lambdify([syms], expr_matrix, 'numpy')
 
 
 def fk_callable(M, ndof=None):
