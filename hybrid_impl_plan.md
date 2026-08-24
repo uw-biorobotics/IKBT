@@ -967,6 +967,84 @@ But two things must land in the same step as un-blocking it, or the artifacts li
 
 Neither is hard, but neither can be skipped, so `hybrid_stub` stays where it is until they are done.
 
+## The hybrid path, as programming goals vs per-robot outputs (BH, 2026-08-24)
+
+BH's framing. Steps 1-4 are done; what remains splits into machinery written ONCE and artifacts
+produced PER ROBOT.
+
+**Programming goals — generic, robot-independent**
+
+| | | status |
+|---|---|---|
+| **P1** | Codegen emits a *loadable, runnable* module for a derived arm | see below — 3 fixed, 1 open |
+| **P2** | Generic wrapper: get `T_06d`, evaluate the closed form there, choose a branch | not started |
+| **P3** | Generic damped-least-squares module returning solution **and** error | **done** — `ikbtbasics/numeric_ik.py` |
+| **P4** | Carry the *true* robot alongside the derived one | not started (`true_robot`) |
+
+**Per-robot outputs**
+
+| | | status |
+|---|---|---|
+| **O1** | The derived arm's closed form, as runnable Python | none exists |
+| **O2** | Report naming both arms, attributing the solution to the simplified one | not started |
+
+Only `KinovaLite` reaches O1 today (derived arm solves 7/7).
+
+### P2 detail, per BH
+
+6.1 obtain `T_06d` from the caller. 6.2 evaluate the step-5 closed form at `T_06d`. 6.3 ask which
+joint-space solution to start from. 6.4 damped least squares from that seed, returning the numeric
+solution and the error between `FK(solution)` and `T_06d`.
+
+Three things that need settling when P2 is built:
+
+- **The wrapper needs BOTH robots.** Seeds come from the *derived* arm's closed form; the FK and
+  Jacobian to refine against must be the *true* arm. Put both in the signature so refining against
+  the arm you just simplified is impossible to do by accident. This is why P4 exists.
+- **6.2 can return no seed at all.** The generated `ikin_*(T)` returns `False` when `solvable_pose`
+  goes false on an out-of-domain `asin`/`acos`. A pose reachable on the true arm may be unreachable
+  on the simplified one, so "no seed" is a distinct outcome from "Newton diverged" and 6.3 has
+  nothing to offer. Report which happened.
+- **6.3 needs a non-interactive path.** Prompting is right for a human; the same wrapper is what a
+  test or a workspace sweep calls. An optional `branch=` index, with the prompt as fallback.
+
+6.4 is already satisfied: `solve_numeric()` returns the refined `q`, `metric` (= `||dp|| + w_rot*theta`),
+iteration count and a convergence flag.
+
+### P1 — the Python code generator was never validated, and it shows
+
+Its own banner says *"Caution: Generated code is not yet validated"*. Measured 2026-08-24, four
+independent defects, of which **three are fixed** and the fourth is open:
+
+1. **FIXED — invalid function name.** `funcname` reused `fixed_name`, which escapes `_` as `\_`
+   *for LaTeX*, emitting `def ikin_Chair\_Helper(T):` — a `SyntaxError`. Hit `Chair_Helper`,
+   `ICP5p5_A21`, `Arm_3`, `Raven-II`, and would hit **every** derived arm, whose names always
+   contain underscores. Now `py_identifier()`.
+2. **FIXED — parameters emitted at column 0 inside the function body**, closing the `def` early and
+   making the next indented line an `IndentationError`. This broke **every** robot, not only the
+   badly-named ones. Now emitted at module level, before the `def`.
+3. **FIXED — Python 2 `print` statements** in the generated `__main__` (`print ''`), so the module
+   could not even be imported under python3. It also bound the result to `list` (shadowing the
+   builtin) and iterated it without checking for the `False` return, giving "bool is not iterable"
+   instead of "that pose is unreachable".
+4. **OPEN — versions vs solutions naming.** The generated code assigns **version** names and
+   references **solution** names that are never defined:
+
+   ```
+   th_1v1 = atan2(Px, -Py) + atan2(sqrt(...), -d_3)     # ... v1 through v8
+   th_3v1 = ... th_1s1 ...                              # NameError: 'th_1s1' is not defined
+   ```
+
+   Worse, all eight `th_1v*` carry the *same* expression -- solution 1 repeated -- so the second
+   branch of `th_1` never appears. The RHS of each version must have its dependency symbols mapped
+   from solution names to that version's names;  that mapping is missing. It lives in the
+   solutions/versions machinery (`make_LHS_versions` / `create_solution_set` in `ikbtbasics/ik_classes.py`
+   and the emission loop in `output_python.py`), so it is real work, not a typo.
+
+   **Consequence for the plan: step 5 is a project, not a fix.** Until 4 is fixed, no robot -- true
+   or derived -- has runnable generated Python IK. The upside is that fixing it benefits every
+   robot, not just the hybrid ones.
+
 ## Candidate selection for the fall-through (BH, 2026-08-23)
 
 `simplified_arm` ranks candidates by task-space displacement and `install_simplified` commits to the

@@ -25,6 +25,32 @@ from ikbtfunctions.helperfunctions import *
 from ikbtbasics.ik_classes import *     # special classes for Inverse kinematics in sympy
 #
 
+import re
+
+
+def py_identifier(name):
+    """A robot name turned into a valid Python identifier.
+
+       NOT the same string as the LaTeX label.  output_latex needs '_' escaped
+       as '\\_';  Python needs the opposite -- underscores are legal in an
+       identifier and backslashes are not.  Reusing the LaTeX-escaped name here
+       emitted
+
+           def ikin_Chair\\_Helper(T):
+           SyntaxError: unexpected character after line continuation character
+
+       for every robot whose name contains '_' or '-':  Chair_Helper,
+       ICP5p5_A21, Arm_3, Raven-II.  It is fatal for the hybrid branch, whose
+       derived arms are named by the edit they encode and therefore ALWAYS
+       contain underscores (KinovaLite_d_5_0).
+    """
+
+    ident = re.sub(r'\W', '_', str(name))
+    if ident and ident[0].isdigit():
+        ident = '_' + ident          # an identifier may not start with a digit
+    return ident
+
+
 importString = '''#!/usr/bin/python
 #  Python inverse kinematic equations for **Robot**
 
@@ -125,7 +151,7 @@ pi = np.pi
             else:
                 print(indent + f'{str(v)} = 1.0   # 1.0= dummy value',file=f)
 
-    funcname = 'Fkin_'+orig_name
+    funcname = 'Fkin_' + py_identifier(orig_name)
     print('''
 # Code to compute Forward Kinematics ''', file=f)
     #print('def', funcname +'():', file=f) # no indent
@@ -206,7 +232,23 @@ pi = np.pi
 
     indent = '    ' # 4 spaces
 
-    funcname = 'ikin_'+fixed_name 
+    funcname = 'ikin_' + py_identifier(orig_name)
+
+    #  MODULE LEVEL, and before the def.  These used to be printed UNINDENTED
+    #  in the middle of the function body, which closed the function early and
+    #  made the next indented line a syntax error:
+    #
+    #      l_1 = 2                 <- column 0, so the def ends here
+    #          print ( " Caution ...
+    #      IndentationError: unexpected indent
+    #
+    #  Every generated IK module was therefore unloadable, for every robot --
+    #  not only the ones whose name broke the def line.  At module level they
+    #  are also inspectable and overridable by a caller, which is what the
+    #  "Declare the parameters" comment always implied.
+    print('#  Declare the parameters (link lengths etc.)', file=f)
+    print(par_decl_str, file=f)
+
     print('''
 # Auto Generated Code to solve the unknowns
 #        parameter:  T   4x4 numerical target for T06
@@ -214,7 +256,10 @@ pi = np.pi
 ''', file=f)
     print('def', funcname +'(T):', file=f) # no indent
     print(indent+'if(T.shape != (4,4)):', file=f)
-    print(indent*2 + 'print ( "bad input to "+funcname'+')', file=f)
+    #  funcname is a variable HERE, not in the generated module -- emitting
+    #  it bare produced `print("bad input to "+funcname)`, a NameError the
+    #  moment anyone passed a wrongly-shaped T.  Bake the name in as a literal.
+    print(indent*2 + 'print ( "bad input to %s" )' % funcname, file=f)
     print(indent*2 + 'quit()', file=f)
     print('''#define the input vars 
     r_11 = T[0,0]
@@ -236,8 +281,6 @@ pi = np.pi
 
     ''', file=f)
     
-    print('#  Declare the parameters', file=f)
-    print(par_decl_str, file=f)
 
 
     print(indent + 'print ( " Caution - this code has no solution checking.")', file=f)
@@ -375,16 +418,23 @@ if __name__ == "__main__":
     T1[1,3] = py
     T1[2,3] = pz
 
+    #  NOTE, all three fixed here:  the generated __main__ used PYTHON 2 print
+    #  STATEMENTS (`print ''`), which made the module unimportable under
+    #  python3 -- "SyntaxError: Missing parentheses in call to 'print'".  It
+    #  also bound the result to `list`, shadowing the builtin, and iterated it
+    #  without checking for the False that ikin_*() returns on an unreachable
+    #  pose, giving "TypeError: bool is not iterable" instead of saying so.
     # try the Puma IK
 
-    list = ''' + funcname + '''(T1)
+    sols = ''' + funcname + '''(T1)
 
-    i = 0
-    for sol in list:
-        print ''
-        print 'Solution ', i
-        i+=1
-        print sol
+    if sols is False:
+        print('  no solution:  that pose is not reachable by this arm')
+    else:
+        for i, sol in enumerate(sols):
+            print('')
+            print('Solution ', i)
+            print(sol)
 
 
     ''', file=f)
