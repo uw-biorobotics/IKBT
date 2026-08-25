@@ -1,0 +1,2 @@
+#!/bin/bash
+rm ik_sol* fk_equ*

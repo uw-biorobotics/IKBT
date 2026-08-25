@@ -1,10 +1,10 @@
 *.pyc
 fk_eqns/*
-LaTex/*
+LaTex/ik_sol*
+LaTex/fk_eq*
 CodeGen/*
 *_log.txt
 BT*_log.txt
-IK_*
 t.*
 *report.html
 .directory
