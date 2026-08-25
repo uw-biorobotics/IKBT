@@ -246,27 +246,34 @@ class Robot:
     #
     # class Robot
     def make_LHS_versions(self):
+        #  Rebuild from scratch:  this appends to FinalEqnMatrix and increments
+        #  nversions, so calling it twice used to double both.
+        self.FinalEqnMatrix = []
+        self.nversions = 0
+
         nvers = len(self.solListMatrix)  # n versions
         nunks = len(self.solListMatrix[0])  # n solved unknowns (cols)
         for row in range(nvers): # go through versions
-            # get subs dict for this row
+            #  Map every solved variable's BASE symbol (th_1) to the VERSION
+            #  symbol this row uses (th_1v5).  A solution expression refers to
+            #  the variables it depends on by their base name, so this is what
+            #  ties a row together into one consistent branch.
+            #
+            #  Keys are Symbols, not strings.  With column 0 previously holding
+            #  a SOLUTION name, this substitution rewrote th_1 -> th_1s1 and
+            #  produced equations referencing a symbol nothing ever assigns.
             subdict = {}
-            for col,n in enumerate(self.solution_nodes):
-                unk = n.unknown.name
-                subdict[unk] = self.solListMatrix[row][col]
+            for col, n in enumerate(self.solution_nodes):
+                subdict[sp.Symbol(n.unknown.name)] = \
+                    sp.Symbol(self.solListMatrix[row][col])
 
-            nsols = self.solution_nodes[col].unknown.nsolutions
-            #LHS: variable version #
             eqns_row = []
             for col in range(nunks): # go through unks in solution order
-                #make an equation
-            #tmp = '$' + sp.latex(node.symbol) + '$'
-            #tmp = theta_expand(tmp)
-                #LHS = sp.var(self.solution_nodes[col].unknown.LHSversionNames[row]) # no
-                LHS =  sp.var(self.solution_nodes[col].name + 'v' + str(row+1)) #versions begin w/ 1
-                #LHS = theta_expand(LHS)
-                #print('\n\n   make_LHS_versions:         LHS: ', LHS , '\n\n')
-                thisSol = self.solution_nodes[col].unknown.solutions[row%nsols]
+                u = self.solution_nodes[col].unknown
+                LHS = sp.var(self.solListMatrix[row][col])   # this row's version name
+                #  WHICH solution of u this row uses -- recorded by
+                #  create_solution_set(), not guessed from row % nsolutions.
+                thisSol = u.solutions[self.solIdxMatrix[row][col]]
                 RHS = thisSol.subs(subdict) # substitute versions for this row
                 thiseqn = kc.kequation(LHS,RHS)
                 eqns_row.append(thiseqn)
@@ -286,10 +293,17 @@ class Robot:
     def create_solution_set(self):
         # go through nodes in solution order
         solListMatrix = []  # a matrix, each row is a set of versions forming a solution
-        verListMatrix = []
+
+        #  WHICH SOLUTION each row uses, for each unknown.  Same shape as
+        #  solListMatrix.  Without it make_LHS_versions() cannot know that (say)
+        #  row 5 takes th_1's SECOND solution -- it used to guess with
+        #  `solutions[row % nsols]`, where nsols had leaked from a finished loop
+        #  and was the LAST unknown's count, so every row silently got
+        #  solution 0 and all versions of a variable came out identical.
+        solIdxMatrix = []
+
         for node in self.solution_nodes:
             u = node.unknown
-            u_nvers = u.nversions
             u_nsols = u.nsolutions
             n_rows_solnM = len(solListMatrix)
 
@@ -297,28 +311,33 @@ class Robot:
             if u_nsols > 1: # if current nsol > 1
                 for i in range(u_nsols-1): # duplicate rows if needed to accomodate nsols of this unk
                     solListMatrix += copy.deepcopy(solListMatrix)[::-1]
-                    verListMatrix += copy.deepcopy(verListMatrix)[::-1]
+                    solIdxMatrix  += copy.deepcopy(solIdxMatrix)[::-1]
 
             if n_rows_solnM > 0:
                 # add this node's solutions to form a new column
                 for i in range(len(solListMatrix)):  # go through each row and add next unk.
-                    rs = solListMatrix[i]
-                    # LHS version names (version names start w/ 1)
-                    u.LHSversionNames.append(u.name + 'v' + str(i+1)) # not modded by nsolutions.  For final LHS of eqn
-
-                    rs.append(u.LHSversionNames[i])           # version-based version names
+                    vname = u.name + 'v' + str(i+1)   # versions start at 1
+                    u.LHSversionNames.append(vname)
+                    solListMatrix[i].append(vname)
+                    #  The doubling above appended u_nsols mirrored copies of the
+                    #  n_rows_solnM rows that existed before it, so row i sits in
+                    #  block i // n_rows_solnM, and the block IS the solution index.
+                    solIdxMatrix[i].append((i // n_rows_solnM) % u_nsols)
 
             else: # first time through
-                #print('first solved unk:', u.details())
-                for vn in u.versionNames:  #start new row for all solns of first solved unk.
-                    solListMatrix.append([vn])
-                    #solListMatrix.append([u.name+'v'+'1'])
-                    #print('create_solution_sets: creating ', u, solListMatrix)
-            #print('---')
-            #print(solListMatrix)
+                #  VERSION names here too.  This used to seed the column from
+                #  u.versionNames, which held SOLUTION names -- so column 0 was
+                #  in a different namespace from every other column, and the
+                #  th_1s1 it put there is never assigned by anything.
+                for i in range(u.nversions):
+                    vname = u.name + 'v' + str(i+1)
+                    u.LHSversionNames.append(vname)
+                    solListMatrix.append([vname])
+                    solIdxMatrix.append([i % u_nsols])
         print('====== SOLUTION LIST COMPLETED: ================')
 
         self.solListMatrix = solListMatrix  # soltions in list-of-lists form (nversions rows by nunknowns colums)
+        self.solIdxMatrix = solIdxMatrix    # which solution of each unknown each row uses
         self.solutionSet = set()            # solutions as a set of tuples (v2 output compatibility)
 
         for row in solListMatrix:

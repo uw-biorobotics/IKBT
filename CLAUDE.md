@@ -345,6 +345,37 @@ as each multi-solution unknown is added; `solutionSet` is the same thing as a se
 LaTeX/Python/C++ generators consume. This replaced an older tree/graph-matching approach in June 2024 — code
 mentioning `notation_collections`, `notation_graph_edges`, or `matching_func` is that legacy path
 (`VERSION02 = False` in `ikSolver.py`). See `IKdocs/solExamp.pdf`.
+`solIdxMatrix` records **which solution of each unknown each row uses**; `make_LHS_versions()` needs it and
+must not infer it.
+
+**THE TWO NAMESPACES MUST STAY SEPARATE.** A *solution* name is `th_1s2` (branch 2 of `th_1`'s own equation);
+a *version* name is `th_1v5` (row 5 of the solution matrix). Three defects, all fixed 2026-08-24 and all
+present in `main` until then, came from mixing them:
+
+- `kin_cl.set_solved()` built `versionNames` as `solutionNames[i % nsolutions]` — version names *were* solution
+  names repeated;
+- `create_solution_set()` seeded the first unknown's column from that list, so column 0 was in a different
+  namespace from every other column;
+- `make_LHS_versions()` then substituted `th_1 -> th_1s1`, emitting equations referencing a symbol nothing ever
+  assigns. It also read `nsols` *after* its `enumerate` loop, leaking the **last** unknown's count, so
+  `solutions[row % nsols]` always chose solution 0 and every version of a variable came out identical.
+
+Measured: Puma went from **0 of 8** versions being evaluable to **8 of 8** reproducing the target pose to
+~2e-16, and its generated Python from unloadable to 8-of-8 correct. **All three generators were innocent** —
+they transcribed bad data faithfully. Python merely failed loudest because Python runs; LaTeX and C++ emitted
+`th_1s1` into a document and source that looked authoritative.
+
+`scripts/solution_check.py` is the gate that catches this class of bug: build `T = FK(q)`, solve IK at `T`,
+require `FK(each solution)` to reproduce `T`. `--gate` fails if a robot in `KNOWN_COMPLETE` drops below 100%.
+Nothing else checks solution *correctness* — `robot_baseline.py` records only that every unknown got an
+expression, which is precisely how this survived.
+
+**STILL OPEN — an unknown can be solved TWICE.** `set_solved()` has no re-entry guard, so a second solve appends
+further solution names and a **duplicate node** to `solution_nodes`. Measured: `ICP5p5_A21` solves `th_1` twice
+(`['th_1','th_3','th_4','th_1','d_2']`, `len(solutionNames) = 5` where 3 is right), as does `Parkman13`. The
+version matrix then carries a duplicate column and inflates — `ICP5p5_A21` reports 12 versions where 3 is
+correct — and both robots fail `solution_check`. Separate defect, needs its own sweep: a guard changes which
+solution wins wherever a variable is solved twice.
 
 ## Adding a robot
 

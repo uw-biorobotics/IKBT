@@ -102,7 +102,7 @@ class unknown(object):
         self.solveorder = 0
         self.solutions = []   # list of solutions, store final solutions
         self.solutionNames = []  # symbols for each solution eg x_2s1
-        self.versionNames = []   # version names (repeats of solutionNames)
+        self.versionNames = []   # version names, eg x_2v3 (NOT solution names)
         self.dependencies = set()  # unknowns on which this soln depends (all solved)
         self.nversions = 1  # filled in by Robot.create_solution_sets in solution order
         self.nsolutions = 0   # number of solutions (== len(self.solutions))
@@ -190,8 +190,19 @@ class unknown(object):
             nver *= d.nsolutions
         self.nversions = nver
         for i in range(nver):
-            vername = self.solutionNames[i%self.nsolutions]
-            self.versionNames.append(vername)
+            #  VERSION names, not solution names.  This used to append
+            #  solutionNames[i % nsolutions], so versionNames was just the
+            #  solution names repeated -- th_3 with 4 versions reported
+            #  ['th_3s1','th_3s2','th_3s1','th_3s2'].  create_solution_set()
+            #  seeded the FIRST solved unknown's column from this list, which
+            #  put SOLUTION names in column 0 of solListMatrix while every
+            #  other column held VERSION names.  Everything downstream then
+            #  referenced a th_1s1 that is never assigned anywhere.
+            #
+            #  A solution is one branch of this unknown's own equation.  A
+            #  version is one row of the complete solution matrix.  They are
+            #  different things and must have different names.
+            self.versionNames.append(self.name + 'v' + str(i+1))
 
 
         #########################
