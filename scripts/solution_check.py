@@ -43,7 +43,15 @@ import sys
 import numpy as np
 import sympy as sp
 
-from ikbtfunctions.ik_robots import ROBOT_LIST
+#  ROBOT_LIST is not present on every branch (it was added with the all-robots
+#  baseline harness).  Fall back to a fixed list so this script -- which exists
+#  to verify a fix that must land on several branches -- runs anywhere.
+try:
+    from ikbtfunctions.ik_robots import ROBOT_LIST
+except ImportError:                       # older branch without the list
+    ROBOT_LIST = ['Puma', 'Pumaoffset', 'Stanford', 'Khat6DOF', 'Olson13',
+                  'Brad', 'Chair_Helper', 'Craig417', 'MiniDD', 'DZhang',
+                  'KR16', 'UR5', 'Wrist', 'Sims11', 'Bartell', 'Arm_3']
 
 
 #  Robots measured to reproduce the target pose on EVERY version, 2026-08-24,
