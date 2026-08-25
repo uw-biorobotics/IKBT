@@ -295,11 +295,7 @@ class Robot:
         solListMatrix = []  # a matrix, each row is a set of versions forming a solution
 
         #  WHICH SOLUTION each row uses, for each unknown.  Same shape as
-        #  solListMatrix.  Without it make_LHS_versions() cannot know that (say)
-        #  row 5 takes th_1's SECOND solution -- it used to guess with
-        #  `solutions[row % nsols]`, where nsols had leaked from a finished loop
-        #  and was the LAST unknown's count, so every row silently got
-        #  solution 0 and all versions of a variable came out identical.
+        #  solListMatrix.
         solIdxMatrix = []
 
         for node in self.solution_nodes:
@@ -315,7 +311,7 @@ class Robot:
 
             if n_rows_solnM > 0:
                 # add this node's solutions to form a new column
-                for i in range(len(solListMatrix)):  # go through each row and add next unk.
+                for i in range(n_rows_solnM):  # go through each row and add next unk.
                     vname = u.name + 'v' + str(i+1)   # versions start at 1
                     u.LHSversionNames.append(vname)
                     solListMatrix[i].append(vname)
@@ -325,10 +321,7 @@ class Robot:
                     solIdxMatrix[i].append((i // n_rows_solnM) % u_nsols)
 
             else: # first time through
-                #  VERSION names here too.  This used to seed the column from
-                #  u.versionNames, which held SOLUTION names -- so column 0 was
-                #  in a different namespace from every other column, and the
-                #  th_1s1 it put there is never assigned by anything.
+                #  VERSION names here too.
                 for i in range(u.nversions):
                     vname = u.name + 'v' + str(i+1)
                     u.LHSversionNames.append(vname)
@@ -372,12 +365,7 @@ class Robot:
     #
     #   Those are mathematically identical but NOT interchangeable:  every
     #   solver here is an sp.Wild structural matcher, and a pattern that fits
-    #   one split does not fit the other.  Collapsing them was tried and it
-    #   dropped Pumaoffset from 7 solved variables to 1.  The split is
-    #   load-bearing, not cosmetic.
-    #
-    #   Hence the key keeps the split and normalizes only the sign.  str() of
-    #   an expanded sympy expression is deterministic, so this is stable.
+    #   one split does not fit the other.
     #
     @staticmethod
     def eqn_key(e):
@@ -431,16 +419,10 @@ class Robot:
         self.l2 = erank(self.l2)
         self.l3p = erank(self.l3p)
 
-        #  Dedup AFTER erank, not before.  erank puts the shortest equations
-        #  first, so keeping the first member of each duplicate group keeps the
-        #  SIMPLEST way of writing that statement.  Deduping earlier would keep
-        #  whichever form the 4x4 scan happened to reach first, which is
-        #  arbitrary -- and measurably uglier:  it left Chair_Helper's th_5 as
-        #  atan2(.., -(-r_11*s2 + r_21*c2)/s4) instead of the equivalent
-        #  atan2(.., (r_11*s2 - r_21*c2)/s4).
+        #  Dedup AFTER erank, not before.
         #
         #  One key set across all three lists:  an equation's unknown count puts
-        #  it in exactly one list, so a key seen anywhere is a duplicate.
+        #  it in exactly one list, so a key seen anywhere else is a duplicate.
         seen = set()
 
         def dedup(lst):
@@ -538,11 +520,12 @@ class Robot:
                             #x = raw_input('<enter> to cont...')
         print('Completed sum-of-angles scan.')
 
+##############################   end of Robot class ###############################
 
 ##################
 #
 #   substitute th_23 for th_2+th_3 etc.
-# (april: separate out for easier testing)
+#
 
 def sum_of_angles_sub(R, expr, variables):
     aw = sp.Wild('aw')
@@ -676,14 +659,7 @@ def get_variable_index(vars, symb):
 
 
 
-# class kequation()       now moved to kin_cl.py
-# class unknown(object)   now moved to kin_cl.py
-
-# matrix_equation class moved to kin_cl.py
-
-
-
-def erank(list_L):    # rearrange list of eqns by length
+def erank(list_L):  # rearrange list of eqns by length
                     # by putting shortest eqns last, system will prefer to solve
                     #   shorter equations (i.e. prefer shorter solutions where two exist)
 

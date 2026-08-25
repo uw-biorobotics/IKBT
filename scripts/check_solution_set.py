@@ -70,8 +70,7 @@ Q_PROBE = [0.4, -0.6, 0.7, 0.9, -0.5, 0.3]
 
 
 def solve_robot(name, quiet=True):
-    '''Run the repo's OWN solver as a subprocess, so this checker tests the
-       real entry point rather than a private re-assembly of it.
+    '''Run the solver as a subprocess.
 
        Subprocess, not import:  on some branches ikSolver.py does its work at
        module level, and several helpers call quit() on the unhappy path, which
@@ -89,11 +88,7 @@ def solve_robot(name, quiet=True):
 
 def robot_fk(name):
     '''(fk, joint_names) built from the pickled T_06.
-
-       Uses only robot_params() and kinematics_pickle(), which exist on every
-       branch.  Raises with the offending symbols if a parameter has no value --
-       a robot whose params are purely symbolic (Wrist) cannot be checked
-       numerically at all, and saying so beats a confusing failure later.'''
+    '''
 
     from ikbtfunctions.ik_robots import robot_params
     from ikbtbasics.ik_classes import kinematics_pickle
@@ -103,7 +98,7 @@ def robot_fk(name):
         dh, vv, params, pvals, unks = robot_params(name)
         M, R, unks = kinematics_pickle(name, dh, params, pvals, vv, unks, False)
 
-    #  pvals as floats.  forward_kinematics() writes the STRINGS
+    #  parameter values as floats: forward_kinematics() writes the STRINGS
     #  'np.cos(al_1)' / 'np.sin(pi/4)' for a robot whose alpha is not a
     #  multiple of pi/2 (Craig417, Raven-II), and those symbols really do
     #  appear in T_06, so they must be resolved rather than skipped.
@@ -147,7 +142,7 @@ def robot_fk(name):
 
 
 def generated_columns(path):
-    '''The variable names of one returned solution row, in order.
+    '''Return the variable names of one returned solution row, in order.
 
        Read out of the generated source, because the returned list is UNLABELLED
        and includes the sum-of-angle variables:  Puma returns 7 values ordered
@@ -260,11 +255,6 @@ def main(argv=None):
         good, n, note = check(name, resolve=not a.keep, verbose=a.verbose)
         if n == 0:
             #  COULD NOT CHECK IS A FAILURE for a robot we know should pass.
-            #  Filing it as merely "unchecked" made this gate report PASS on
-            #  the very defect it was written for:  pre-fix, Puma's generated
-            #  row omits th_1 entirely (column 0 held a solution name), so the
-            #  joint lookup raises, n == 0 -- and a bucket that does not fail
-            #  turns a hard error into a green tick.
             known = name in KNOWN_GOOD
             print('  %-16s %10s  %s%s' % (name, '-', note,
                   '  <-- REGRESSION (expected %d branches)' % KNOWN_GOOD[name]
