@@ -22,6 +22,7 @@ import sympy as sp
 #import numpy as np
 from ikbtbasics.kin_cl import *
 from ikbtfunctions.helperfunctions import *
+import ikbtbasics.numeric_ik as nik   # joint_symbols():  joints in chain order
 from ikbtbasics.ik_classes import *     # special classes for Inverse kinematics in sympy
 #
 
@@ -249,6 +250,43 @@ pi = np.pi
     print('#  Declare the parameters (link lengths etc.)', file=f)
     print(par_decl_str, file=f)
 
+    #####################################################################
+    #
+    #   THE RETURN CONTRACT.
+    #
+    #   ikin_*() used to return each branch as an UNLABELLED list, ordered by
+    #   sorting the version names as STRINGS, and including the sum-of-angles
+    #   variables.  Puma came back 7 wide in the order
+    #   ['th_1','th_23','th_2','th_3','th_4','th_5','th_6'] -- 'th_23' sorts
+    #   between 'th_1' and 'th_2' -- and nothing in the module recorded that,
+    #   so a caller could not tell which entry was which joint.  The values
+    #   were right;  the contract was unusable.
+    #
+    #   Now:  joints only, in CHAIN order, with the names emitted alongside.
+    #   The sum-of-angle variables are still computed (later solutions depend
+    #   on them), but they are intermediates rather than joints, so they are
+    #   not returned.  Chain order comes from the DH table via
+    #   numeric_ik.joint_symbols():  NOT from the unknown list, which is
+    #   extended with SOA variables, and NOT from solve order, which is an
+    #   artifact of how the tree happened to solve this particular arm.
+    #
+    #####################################################################
+    jnames = [str(s) for s in nik.joint_symbols(Robot.Mech)]
+    order  = [nd.unknown.name for nd in Robot.solution_nodes]   # column order
+    joint_cols = [j for j in jnames if j in order]
+    unsolved   = [j for j in jnames if j not in order]
+    aux_cols   = [nm for nm in order if nm not in jnames]
+
+    print('#  Joint values returned by %s(), in this order:' % funcname, file=f)
+    print('JOINT_NAMES = %r' % joint_cols, file=f)
+    print('#  Sum-of-angle intermediates:  computed, but NOT returned', file=f)
+    print('AUX_NAMES   = %r' % aux_cols, file=f)
+    if unsolved:
+        print('#  WARNING:  these joints were NOT solved, so they are absent',
+              file=f)
+        print('#            from every returned branch:  %r' % unsolved, file=f)
+    print('', file=f)
+
     print('''
 # Auto Generated Code to solve the unknowns
 #        parameter:  T   4x4 numerical target for T06
@@ -304,12 +342,21 @@ pi = np.pi
     for node in nlist:  # for each solved var
         print('\n', file=f)
         print(indent + '#Variable: ', str(node.symbol), file=f)
-        nsolns = node.unknown.nsolutions #len(node.solution_with_notations.values())
-        nvers  = Robot.nversions
         colindex = node.unknown.solveorder-1  # select the unknown
-        for rowindex in range(nvers): # go through the versions
-            # get the solution equation version
-            solEqnVer = Robot.FinalEqnMatrix[rowindex][colindex]
+        #  ONE assignment per DISTINCT version.  A variable solved early shares
+        #  its versions between matrix rows (Puma's th_1:  2 versions, 8 rows),
+        #  so walking the rows emitted the same line four times.  Dedup on the
+        #  LHS in first-seen order -- set() would reorder, and unstably.
+        eqnlist = []
+        seen = set()
+        for rowindex in range(Robot.nversions):
+            e = Robot.FinalEqnMatrix[rowindex][colindex]
+            if str(e.LHS) in seen:
+                continue
+            seen.add(str(e.LHS))
+            eqnlist.append(e)
+
+        for solEqnVer in eqnlist: # go through the versions
             print('Python Output: Solution Equation Version: ', solEqnVer)
             if re.search('asin', str(solEqnVer.RHS)) or re.search('acos', str(solEqnVer.RHS)):
                 print ('  Found asin/acos solution ...', solEqnVer.LHS , ' "=" ',solEqnVer.RHS)
@@ -346,24 +393,22 @@ pi = np.pi
 
     #groups = mtch.matching_func(Robot.notation_collections, Robot.solution_nodes)
 
-    grp_lists = []
-    for g in groups:
-        gs = []
-        for t in g:
-            #print('g: ', g, 't: ', t)
-            gs.append(str(t))
+    #  Rows come from Robot.solListMatrix:  an ORDERED list of lists whose
+    #  columns are in solve order.  `groups` is the same data as a SET of
+    #  tuples, so iterating it orders the branches by string hashing -- fine
+    #  for a set, wrong for generated source that ought to be diffable.  The
+    #  set is kept as a fallback for a caller that has only that.
+    rows = getattr(Robot, 'solListMatrix', None)
+    if not rows:
+        rows = [list(g) for g in sorted(groups)]
 
-        #print(gs.sort, file=f) # in place
-        grp_lists.append(gs)
-
-    print(indent +  'solution_list = []', file=f)
-    for g in grp_lists:
-        g.sort()
-        print(indent + '#(note trailing commas allowed in python', file=f)
-        print(indent +  'solution_list.append( [ ', file=f)
-        for v in g:
-            print( v + ', ', file=f),
-        print('] )', file=f)
+    print(indent + 'solution_list = []', file=f)
+    print(indent + '#  each row is one solution branch, in JOINT_NAMES order',
+          file=f)
+    for row in rows:
+        vals = [row[order.index(j)] for j in joint_cols]
+        print(indent + 'solution_list.append( [ ' + ', '.join(vals) + ' ] )',
+              file=f)
 
 
     # we are done.   Return
@@ -371,6 +416,20 @@ pi = np.pi
     print(indent*2 + 'return(solution_list)', file=f)
     print(indent + 'else: ', file=f)
     print(indent*2 + 'return(False)', file=f)
+
+    #  A labelled view of the same answer, for callers who would rather
+    #  not index by position.  The numeric list stays the fast path.
+    print('''
+
+#
+#   The same solutions, keyed by joint name.
+#
+def ''' + funcname + '''_labeled(T):
+    sols = ''' + funcname + '''(T)
+    if sols is False:
+        return False
+    return [dict(zip(JOINT_NAMES, s)) for s in sols]
+''', file=f)
 
     # __main__()  code for testing:
     print('''
@@ -431,10 +490,11 @@ if __name__ == "__main__":
     if sols is False:
         print('  no solution:  that pose is not reachable by this arm')
     else:
+        print('  joint order: ', JOINT_NAMES)
         for i, sol in enumerate(sols):
             print('')
             print('Solution ', i)
-            print(sol)
+            print(dict(zip(JOINT_NAMES, sol)))
 
 
     ''', file=f)

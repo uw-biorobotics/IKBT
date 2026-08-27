@@ -187,7 +187,18 @@ def joint_symbols(M, ndof=None):
     syms = []
     for r in range(ndof):
         (jr, jc), kind = da.joint_cell(M.DH, M.vv, r)
-        syms.append(sp.sympify(M.DH[jr, jc]))
+        cell = sp.sympify(M.DH[jr, jc])
+        #  THE CELL IS NOT ALWAYS THE BARE JOINT VARIABLE.  Wrist's DH table
+        #  holds 'B + pi/2' and 'C + pi/2':  the constant is a fixed part of
+        #  the mechanism and the JOINT is the symbol inside.  Returning the
+        #  whole cell made T_06's free symbols {A,B,C} fail to match
+        #  {A, B+pi/2, C+pi/2}, so _lambdify_checked() rejected Wrist outright
+        #  -- and the code generators would have named a joint 'B + pi/2'.
+        fs = sorted(cell.free_symbols, key=str)
+        if len(fs) != 1:
+            raise ValueError('joint_symbols: DH row %d joint cell %s does not '
+                             'contain exactly one joint variable' % (r, cell))
+        syms.append(fs[0])
     return syms
 
 

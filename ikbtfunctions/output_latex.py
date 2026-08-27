@@ -30,6 +30,7 @@ import ikbtbasics.pykinsym as pks
 import ikbtbasics.kin_cl as kc
 from   ikbtbasics.solutionGraphV3 import *
 import ikbtbasics.matching as mtch
+import ikbtbasics.numeric_ik as nik   # dof_of():  the arm's REAL joint count
 
 import b3 as b3          # behavior trees
 
@@ -260,14 +261,25 @@ def output_latex_solution(Robot, variables, groups):
             else:
                 solsection += r'\begin{dmath} '
 
-            nsolns = node.unknown.nsolutions #len(node.solution_with_notations.values())
-            nvers  = Robot.nversions
             colindex = node.unknown.solveorder-1  # select the unknown
-            for rowindex in range(nvers): # go through the versions
-                # get the solution equation version
+            #  ONE equation per DISTINCT version.  A variable solved early has
+            #  fewer versions than the matrix has rows and SHARES them between
+            #  rows -- Puma's th_1 has 2 versions over 8 rows -- so walking the
+            #  rows printed each of its equations four times.  Dedup on the
+            #  version name (the LHS), keeping first-seen order:  list(set(..))
+            #  would work but reorders the output, differently from run to run.
+            eqnlist = []
+            seen = set()
+            for rowindex in range(Robot.nversions):
                 eqn = Robot.FinalEqnMatrix[rowindex][colindex]
+                if str(eqn.LHS) in seen:
+                    continue
+                seen.add(str(eqn.LHS))
+                eqnlist.append(eqn)
+
+            for i, eqn in enumerate(eqnlist): # go through the versions
                 print('Latex Output: Equation: ', eqn)
-                if ALIGN and (rowindex < nvers-1):
+                if ALIGN and (i < len(eqnlist)-1):
                     thisEOL = r'\\'   # line continuation for align environment
                 else:
                     thisEOL = ''  # last solution version
@@ -377,7 +389,12 @@ The following are the sets of joint solutions (poses) for this manipulator:
 
 '''
 
-    j66result = kc.notation_squeeze(Robot.Mech.J66)
+    #  ONE COLUMN PER JOINT.  J66 is stored 6x6 for every robot because the DH
+    #  table is always padded to 6 rows, and the surplus columns are NOT zero,
+    #  so a 5-DOF arm was shown a sixth joint it does not have.  dof_of() is the
+    #  same helper the numeric solver slices with (numeric_ik.py:243).
+    ndof = nik.dof_of(Robot.Mech)
+    j66result = kc.notation_squeeze(Robot.Mech.J66)[:, :ndof]
     cols = j66result.shape[1]
 
     jsection += r'\begin{dmath}'+eol
@@ -541,7 +558,12 @@ def output_FK_equations(Robot):
 
 '''
 
-    j66result = kc.notation_squeeze(Robot.Mech.J66)
+    #  ONE COLUMN PER JOINT.  J66 is stored 6x6 for every robot because the DH
+    #  table is always padded to 6 rows, and the surplus columns are NOT zero,
+    #  so a 5-DOF arm was shown a sixth joint it does not have.  dof_of() is the
+    #  same helper the numeric solver slices with (numeric_ik.py:243).
+    ndof = nik.dof_of(Robot.Mech)
+    j66result = kc.notation_squeeze(Robot.Mech.J66)[:, :ndof]
     cols = j66result.shape[1]
 
     jsection += r'\begin{dmath}'+eol

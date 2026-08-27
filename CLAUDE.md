@@ -245,7 +245,8 @@ Four traps, all measured:
   and *not* the unknown list, which is inflated by SOA variables (`Craig417`: 5 unknowns, 4 joints).
   `J66` is stored 6x6 for every robot and its surplus columns are **not** zero, so
   `jacobian_callable()` slices to `[:, :ndof]`; handing those columns to the solver would let it move
-  joints the arm does not have.
+  joints the arm does not have. `output_latex.py` slices the same way (via `numeric_ik.dof_of()`) as
+  of 2026-08-26 — the report used to print six Jacobian columns for the 5-DOF `Chair_Helper`.
 
 ### Progress reporting (`ikbtfunctions/progress.py`)
 
@@ -378,6 +379,26 @@ they transcribed bad data faithfully. Python merely failed loudest because Pytho
 require `FK(each solution)` to reproduce `T`. `--gate` fails if a robot in `KNOWN_COMPLETE` drops below 100%.
 Nothing else checks solution *correctness* — `robot_baseline.py` records only that every unknown got an
 expression, which is precisely how this survived.
+
+**THE GENERATED CODE'S RETURN CONTRACT** (fixed 2026-08-26). `ikin_<Robot>(T)` returns a list of
+solution branches, each a list of joint values **in DH chain order**, or `False` for an unreachable
+pose. The order is stated in the generated module itself as `JOINT_NAMES`, and
+`ikin_<Robot>_labeled(T)` returns the same answer as dicts. Three things it deliberately is not:
+
+- **not sorted by name.** The rows used to be `g.sort()`ed as strings, so Puma came back
+  `['th_1','th_23','th_2',...]` — `'th_23'` sorts between `'th_1'` and `'th_2'` — silently shifting
+  every joint after it.
+- **not solve order.** Solve order is an artifact of how the tree happened to crack this arm. Chain
+  order comes from the DH table via `numeric_ik.joint_symbols()`, which is also why it must not be
+  read off the unknown list (that list is extended with sum-of-angle variables).
+- **no sum-of-angle variables.** `th_23` is still computed — later solutions depend on it — but it is
+  an intermediate, not a joint. Returning it made a 6-DOF arm come back 7 wide, and in C++ it wrote a
+  seventh column into a row declared `[64][6]`. The C++ now emits `IK_NJOINTS` / `IK_NBRANCHES` and
+  one commented assignment per joint.
+
+Row order comes from `Robot.solListMatrix` (an ordered list), never from `solutionSet` (a set of
+tuples, so its iteration order moves with string hashing and the generated source stops being
+diffable).
 
 **An unknown could be solved TWICE — fixed 2026-08-26.** `set_solved()` now returns immediately when
 `self.solved` is already True (first answer wins, since every later solution already depends on it).

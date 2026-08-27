@@ -23,6 +23,7 @@ from sympy.printing.tree import  pprint_nodes, print_tree
 #import numpy as np
 from ikbtbasics.kin_cl import *
 from ikbtfunctions.helperfunctions import *
+import ikbtbasics.numeric_ik as nik   # joint_symbols(): chain order
 from ikbtbasics.ik_classes import *     # special classes for Inverse kinematics in sympy
 #
 import pickle     # for storing pre-computed FK eqns
@@ -59,6 +60,25 @@ def output_cpp_code(Robot, solution_groups):
     fixed_name = fixed_name.replace('test: ','')
     orig_name  = Robot.name.replace('test: ', '')
 
+    #  THE RETURN CONTRACT -- see the long note in output_python.py.  Joints
+    #  only, in DH chain order;  the sum-of-angle variables are computed but
+    #  not returned.  Two C-specific reasons this matters more here than in
+    #  Python:  solution_list was declared [64][6] while a 6-DOF arm with one
+    #  SOA variable wrote SEVEN columns, which is a buffer overrun, and C has
+    #  no way to hand back a name with a value, so the order IS the contract.
+    jnames = [str(s) for s in nik.joint_symbols(Robot.Mech)]
+    order  = [nd.unknown.name for nd in Robot.solution_nodes]
+    joint_cols = [j for j in jnames if j in order]
+    unsolved   = [j for j in jnames if j not in order]
+    aux_cols   = [nm for nm in order if nm not in jnames]
+
+    rows = getattr(Robot, 'solListMatrix', None)
+    if not rows:
+        rows = [list(g) for g in sorted(solution_groups)]
+
+    n_joints   = max(1, len(joint_cols))
+    n_branches = max(1, len(rows))
+
     c = cpp_output()
 
     DirName = 'CodeGen/Cpp/'
@@ -78,11 +98,24 @@ def output_cpp_code(Robot, solution_groups):
 
 double pi = 3.1415926;
 
-// ikin_Wrists modifies solution_list in-place and
+//  Sizes of the answer.  These were hardcoded [64][6];  an arm whose solution
+//  used a sum-of-angles variable wrote a seventh column into a row of six.
+#define IK_NJOINTS   ''' + str(n_joints) + '''
+#define IK_NBRANCHES ''' + str(n_branches) + '''
+
+//  Column order of every solution row (joints only, DH chain order):
+//      ''' + ', '.join(joint_cols) + '''
+//  Computed but NOT returned (sum-of-angle intermediates):
+//      ''' + (', '.join(aux_cols) if aux_cols else '(none)') + '''
+
+// ikin() modifies solution_list in-place and
 // returns 1 for valid solutions and 0 for no solutions
-int ikin(double T[4][4], double solution_list[64][6]);
+int ikin(double T[4][4], double solution_list[IK_NBRANCHES][IK_NJOINTS]);
 
 ''')
+    if unsolved:
+        c.line('//  WARNING: these joints were NOT solved and are absent from')
+        c.line('//           every row:  ' + ', '.join(unsolved))
 
     ###################
     #   Variable and parameter declarations
@@ -114,7 +147,7 @@ int ikin(double T[4][4], double solution_list[64][6]);
     c.line('int main()')
     c.push()
     c.line('double T[4][4] = { {1,0,0,0},{0,1,0,0},{0,0,1,0},{0,0,0,1}, };' )
-    c.line('double sol_list[64][6] = {0};  // list of solutions')
+    c.line('double sol_list[IK_NBRANCHES][IK_NJOINTS] = {0};  // list of solutions')
     c.line('if('+funcname+'(T, sol_list))')
     c.push()
     c.line('std::cout << sol_list;')
@@ -129,7 +162,8 @@ int ikin(double T[4][4], double solution_list[64][6]);
     # ik function
     c.line('\n// Code to solve the unknowns ')
     c.line('\n\n// Declarations')
-    c.line('int ' + funcname + '(double T[4][4], double solution_list[64][6] )')  # no indent
+    c.line('int ' + funcname
+           + '(double T[4][4], double solution_list[IK_NBRANCHES][IK_NJOINTS] )')  # no indent
     c.push()
     c.line('''\n//define the input vars
 double r_11 = T[0][0];
@@ -171,9 +205,19 @@ int False = 0;
         print('Cpp Output Gen: ', node, ' has ', nsolns, ' solutions and ',nvers, ' versions')
         # go through the final matrix of equation versions
         colindex = node.unknown.solveorder-1  # select the unknown
-        for rowindex in range(nvers): # go through the versions
-            # get the solution equation version
-            solEqnVer = Robot.FinalEqnMatrix[rowindex][colindex]
+        #  ONE assignment per DISTINCT version:  a variable solved early shares
+        #  its versions between rows, so walking the rows emitted the same
+        #  statement several times.  First-seen order, not set() order.
+        eqnlist = []
+        seen = set()
+        for rowindex in range(nvers):
+            e = Robot.FinalEqnMatrix[rowindex][colindex]
+            if str(e.LHS) in seen:
+                continue
+            seen.add(str(e.LHS))
+            eqnlist.append(e)
+
+        for solEqnVer in eqnlist: # go through the versions
             print('Cpp Output Gen: Solution Equation Version: ', solEqnVer)
             c.line('\n// solution '+str(solno))
             solno += 1
@@ -250,27 +294,14 @@ int False = 0;
     ###########################################################
 
 
-    grp_lists = []
-    for g in solution_groups:
-        gs = []
-        for t in g:
-            #print('g: ', g, 't: ', t)
-            gs.append(str(t))
+    c.line('//  one row per solution branch;  columns in IK_JOINT order:')
+    c.line('//      ' + ', '.join(joint_cols))
 
-        #print(gs.sort, file=f) # in place
-        grp_lists.append(gs)
-
-    c.line('//(note trailing commas allowed in C++\n')
-
-    i = 0
-    j = 0
-    for g in grp_lists:
-        g.sort()
-        for v in g:
-            c.line('solution_list['+ str(i) + '][' + str(j) + '] = ' + v + ';')
-            j += 1
-        j=0
-        i+= 1
+    for i, row in enumerate(rows):
+        for j, jname in enumerate(joint_cols):
+            v = row[order.index(jname)]
+            c.line('solution_list['+ str(i) + '][' + str(j) + '] = ' + v
+                   + ';   // ' + jname)
 
     # we are done.   Return
     c.line('\n\n')
