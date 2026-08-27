@@ -151,6 +151,27 @@ class unknown(object):
 
     #class unknown
     def set_solved(self, R, unknowns):
+        #  RE-ENTRY GUARD.  Do nothing if this unknown is already solved.
+        #
+        #  Everything below appends:  solutionNames, versionNames, a Node on
+        #  R.solution_nodes, and R.solveN.  A second call therefore gave the
+        #  variable a duplicate COLUMN in the version matrix and inflated the
+        #  solution count -- ICP5p5_A21 solved th_1 twice and reported 12
+        #  versions where 3 is right;  Parkman13 the same.
+        #
+        #  This does not interfere with the ranked retry.  rank_leaf lets the
+        #  tan and sin/cos solvers both propose, then calls set_solved() ONCE
+        #  after choosing (rank_leaf.py:93,98) -- and the solvers themselves
+        #  deliberately do not call it.  So a call arriving here with
+        #  self.solved already True is a genuine second solve, in a later pass,
+        #  of a variable that is already done.  First answer wins;  it is the
+        #  one every other solution already depends on.
+        if self.solved:
+            print('set_solved: ', self.symbol,
+                  ' is already solved -- ignoring a second solve by: ',
+                  self.solvemethod)
+            return
+
         self.solved = True
         self.readytosolve = False
         print('\n\n')

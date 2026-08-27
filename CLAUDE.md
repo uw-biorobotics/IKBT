@@ -379,12 +379,18 @@ require `FK(each solution)` to reproduce `T`. `--gate` fails if a robot in `KNOW
 Nothing else checks solution *correctness* — `robot_baseline.py` records only that every unknown got an
 expression, which is precisely how this survived.
 
-**STILL OPEN — an unknown can be solved TWICE.** `set_solved()` has no re-entry guard, so a second solve appends
-further solution names and a **duplicate node** to `solution_nodes`. Measured: `ICP5p5_A21` solves `th_1` twice
-(`['th_1','th_3','th_4','th_1','d_2']`, `len(solutionNames) = 5` where 3 is right), as does `Parkman13`. The
-version matrix then carries a duplicate column and inflates — `ICP5p5_A21` reports 12 versions where 3 is
-correct — and both robots fail `solution_check`. Separate defect, needs its own sweep: a guard changes which
-solution wins wherever a variable is solved twice.
+**An unknown could be solved TWICE — fixed 2026-08-26.** `set_solved()` now returns immediately when
+`self.solved` is already True (first answer wins, since every later solution already depends on it).
+Without the guard a second solve appended further solution names and a **duplicate node** to
+`solution_nodes`, giving the variable a duplicate column and inflating the version count:
+`ICP5p5_A21` reported 9 versions and `Parkman13` 18, where 2 and 4 are right. Both now report the
+right count. **The guard does not touch the ranked retry**: the tan and sin/cos solvers deliberately
+do not call `set_solved()` — `rank_leaf` calls it once, after choosing — so a call arriving with
+`solved` already True is a genuine second solve in a later pass, never a ranking.
+
+Still failing for an unrelated reason, and worth its own investigation: `ICP5p5_A21` (0/2, FK error
+~1.1e3, so the values evaluate but are wrong), `Parkman13` (0/4) and `UR5` (0/8). Those were 0 before
+the guard as well; what the guard fixed is the inflation, not the arithmetic.
 
 ## Adding a robot
 
