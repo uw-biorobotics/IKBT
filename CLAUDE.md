@@ -348,6 +348,15 @@ mentioning `notation_collections`, `notation_graph_edges`, or `matching_func` is
 `solIdxMatrix` records **which solution of each unknown each row uses**; `make_LHS_versions()` needs it and
 must not infer it.
 
+The one thing to be careful of in `create_solution_set()` is the row count. `block` is the number of
+rows present *before* the current unknown is added, it is read once, and the loops must not re-read
+`len(solListMatrix)` — the matrix grows as the unknown's solutions are paired in, and row `i` then
+sits in block `i // block`, which **is** its solution index. Using the growing length as the loop
+bound left the later rows one column short and crashed `make_LHS_versions()` with
+`IndexError: list index out of range`; using the pre-growth count as the bound skipped those rows
+entirely and made every `solIdxMatrix` entry 0, i.e. solution 0 for every version. The loops are
+`while` loops for exactly this reason.
+
 **THE TWO NAMESPACES MUST STAY SEPARATE.** A *solution* name is `th_1s2` (branch 2 of `th_1`'s own equation);
 a *version* name is `th_1v5` (row 5 of the solution matrix). Three defects, all fixed 2026-08-24 and all
 present in `main` until then, came from mixing them:

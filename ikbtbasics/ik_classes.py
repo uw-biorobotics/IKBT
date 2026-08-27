@@ -301,32 +301,51 @@ class Robot:
         for node in self.solution_nodes:
             u = node.unknown
             u_nsols = u.nsolutions
-            n_rows_solnM = len(solListMatrix)
 
-            # if this unk has multiple solutions, multiply rows (versions)
-            if u_nsols > 1: # if current nsol > 1
-                for i in range(u_nsols-1): # duplicate rows if needed to accomodate nsols of this unk
-                    solListMatrix += copy.deepcopy(solListMatrix)[::-1]
-                    solIdxMatrix  += copy.deepcopy(solIdxMatrix)[::-1]
+            #  block = the rows already in the matrix, i.e. the combinations of
+            #  the unknowns added BEFORE this one.  Read once, and never re-read
+            #  from len(solListMatrix):  the matrix grows below, and the loops
+            #  need the count from before it grew.  (Using the growing length as
+            #  a loop bound is what made the rows ragged and crashed
+            #  make_LHS_versions() with an IndexError.)
+            block = len(solListMatrix)
 
-            if n_rows_solnM > 0:
-                # add this node's solutions to form a new column
-                for i in range(n_rows_solnM):  # go through each row and add next unk.
+            if block == 0:
+                #  First unknown:  it IS the matrix, one row per version.
+                i = 0
+                while i < u.nversions:
                     vname = u.name + 'v' + str(i+1)   # versions start at 1
-                    u.LHSversionNames.append(vname)
-                    solListMatrix[i].append(vname)
-                    #  The doubling above appended u_nsols mirrored copies of the
-                    #  n_rows_solnM rows that existed before it, so row i sits in
-                    #  block i // n_rows_solnM, and the block IS the solution index.
-                    solIdxMatrix[i].append((i // n_rows_solnM) % u_nsols)
-
-            else: # first time through
-                #  VERSION names here too.
-                for i in range(u.nversions):
-                    vname = u.name + 'v' + str(i+1)
                     u.LHSversionNames.append(vname)
                     solListMatrix.append([vname])
                     solIdxMatrix.append([i % u_nsols])
+                    i += 1
+                continue
+
+            #  Every existing row has to be paired with EVERY solution of this
+            #  unknown, so replicate the block once per additional solution:
+            #  u_nsols blocks of `block` rows each.  (The copy is reversed only
+            #  to preserve the row order this has always produced.  Both
+            #  matrices are extended together, so a row and its solution-index
+            #  row stay in step whatever the permutation.)
+            k = 1
+            while k < u_nsols:
+                solListMatrix += copy.deepcopy(solListMatrix[:block])[::-1]
+                solIdxMatrix  += copy.deepcopy(solIdxMatrix[:block])[::-1]
+                k += 1
+            assert len(solListMatrix) == block * u_nsols, \
+                   'create_solution_set: row replication is wrong'
+
+            #  Add this unknown's column over ALL rows, the replicated ones
+            #  included.  Row i sits in block i // block, and that block number
+            #  IS the index of the solution this row uses -- which is the whole
+            #  reason `block` is held constant.
+            i = 0
+            while i < len(solListMatrix):
+                vname = u.name + 'v' + str(i+1)
+                u.LHSversionNames.append(vname)
+                solListMatrix[i].append(vname)
+                solIdxMatrix[i].append(i // block)
+                i += 1
         print('====== SOLUTION LIST COMPLETED: ================')
 
         self.solListMatrix = solListMatrix  # soltions in list-of-lists form (nversions rows by nunknowns colums)
