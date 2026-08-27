@@ -30,6 +30,10 @@ python3 -m ikbtbasics.kin_cl         # basic kinematic classes self-test
 python3 -m scripts.robot_baseline           # solve every robot, record the outcome
 python3 -m scripts.robot_baseline --diff    # ... and diff it against the checked-in record
 python3 -m scripts.axis_triple_check       # DH joint-axis geometry vs. numeric FK (exit 1 on mismatch)
+
+python3 -m scripts.check_solution_sets --robots Puma          # is the SYMBOLIC solution set correct?
+python3 -m scripts.check_solution_sets --gate                 # ... exit 1 if a known-complete robot drops
+python3 -m scripts.numerical_closed_loop_sol_check Puma       # is the GENERATED python IK correct?
 ```
 
 `scripts/robot_baseline.py` is the regression gate for anything that touches the tree or a solver
@@ -375,10 +379,18 @@ Measured: Puma went from **0 of 8** versions being evaluable to **8 of 8** repro
 they transcribed bad data faithfully. Python merely failed loudest because Python runs; LaTeX and C++ emitted
 `th_1s1` into a document and source that looked authoritative.
 
-`scripts/solution_check.py` is the gate that catches this class of bug: build `T = FK(q)`, solve IK at `T`,
-require `FK(each solution)` to reproduce `T`. `--gate` fails if a robot in `KNOWN_COMPLETE` drops below 100%.
-Nothing else checks solution *correctness* — `robot_baseline.py` records only that every unknown got an
-expression, which is precisely how this survived.
+**Two checkers, one property, two stages** — build `T = FK(q)`, solve IK at `T`, require
+`FK(each solution)` to reproduce `T`. Nothing else checks solution *correctness*: `robot_baseline.py`
+records only that every unknown got an expression, which is precisely how this survived.
+
+- `scripts/check_solution_sets.py` runs **in process** and evaluates `R.FinalEqnMatrix` — it tests the
+  symbolic solution set. `--gate` fails if a robot in `KNOWN_COMPLETE` drops below 100%.
+- `scripts/numerical_closed_loop_sol_check.py` shells out to `ikSolver.py`, imports
+  `CodeGen/Python/IK_equations<name>.py` and calls `ikin_*()` — it tests the **code generator**, a
+  strictly later failure point, so a defect that lives only in codegen is invisible to the first one.
+
+They share about 60% of their scaffolding (pvals resolution, the FK callable, the probe pose, the
+report table); folding that into one module is worth doing, merging the two scripts is not.
 
 **THE GENERATED CODE'S RETURN CONTRACT** (fixed 2026-08-26). `ikin_<Robot>(T)` returns a list of
 solution branches, each a list of joint values **in DH chain order**, or `False` for an unreachable

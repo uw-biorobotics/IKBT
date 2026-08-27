@@ -1,15 +1,15 @@
 #!/usr/bin/python
 #
-#   check_solution_set.py --  is the generated IK actually correct?
+#   numerical_closed_loop_sol_check.py --  is the generated IK actually correct?
 #
 #   Run this to verify that a branch produces a correct solution set.  It is
 #   deliberately built on nothing but `ikSolver.py` and the FK pickle, so it
 #   runs on ANY branch -- including ones without the ik_driver / bt_assembly
 #   refactor, which is where a checker is most needed.
 #
-#       python3 -m scripts.check_solution_set                 # default robots
-#       python3 -m scripts.check_solution_set Puma Stanford    # just these
-#       python3 -m scripts.check_solution_set --keep           # don't re-solve
+#       python3 -m scripts.numerical_closed_loop_sol_check                 # default robots
+#       python3 -m scripts.numerical_closed_loop_sol_check Puma Stanford    # just these
+#       python3 -m scripts.numerical_closed_loop_sol_check --keep           # don't re-solve
 #
 #   WHAT IT PROVES, and why it needs no hand-checked answers:
 #
@@ -21,14 +21,10 @@
 #   branch has to land back on T;  which branch is which does not matter, and
 #   there is nothing to look up or trust.
 #
-#   WHY THIS EXISTS.  Nothing else checks that the equations are RIGHT.  The
-#   solve either finishes or it does not, and every generated artifact is taken
-#   on faith.  That is how this survived until 2026-08-24:  Puma reported
-#   "solved 7/7" while not one of its eight solution versions could even be
-#   evaluated -- each referenced a `th_1s1` that nothing ever assigns, because
-#   version names had been built out of solution names.  LaTeX and C++ printed
-#   that symbol into documents and source that looked authoritative;  Python at
-#   least failed loudly, because Python runs.
+#   WHY THIS EXISTS.  Nothing else checks that the GENERATED CODE is right.
+#   scripts/check_solution_sets.py checks the same property one stage earlier,
+#   on the symbolic version matrix in memory;  this one runs what a user would
+#   actually import, so it also covers the code generator.
 #
 #   NOT EVERY BRANCH IS EXPECTED TO PASS.  The version matrix enumerates
 #   combinations of each unknown's solution branches and IKBT does not filter
@@ -56,10 +52,10 @@ import sympy as sp
 #  Measured 2026-08-24, immediately after the solution/version namespace fix.
 #  A drop below these is a regression in the closed form itself.
 KNOWN_GOOD = {'Puma': 8, 'Pumaoffset': 8, 'Stanford': 8, 'Khat6DOF': 8,
-              'Olson13': 4, 'Brad': 1}
+              'Olson13': 4, 'Brad': 1, 'Wrist': 2}
 
 DEFAULT_ROBOTS = ['Puma', 'Pumaoffset', 'Stanford', 'Khat6DOF', 'Olson13',
-                  'Brad']
+                  'Brad', 'Wrist']
 
 GEN_DIR = os.path.join('CodeGen', 'Python')
 TOL = 1e-7
@@ -87,88 +83,64 @@ def solve_robot(name, quiet=True):
 
 
 def robot_fk(name):
-    '''(fk, joint_names) built from the pickled T_06.
-    '''
+    """Load robot `name` and return (fk, joint_names).
+
+       fk:          q -> 4x4 numpy matrix, from the pickled T_06
+       joint_names: the joints q must hold, in DH chain order
+
+       Both jobs belong to ikbtbasics.numeric_ik and are NOT repeated here:
+       resolving M.pvals (which is not uniformly numeric -- kin_cl writes
+       'np.cos(al_1)' strings for a non-right-angle alpha) and naming the
+       joints (a DH cell can be 'B + pi/2', so the joint is the symbol inside
+       the cell, not the cell)."""
 
     from ikbtfunctions.ik_robots import robot_params
     from ikbtbasics.ik_classes import kinematics_pickle
+    import ikbtbasics.numeric_ik as nik
 
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
         dh, vv, params, pvals, unks = robot_params(name)
         M, R, unks = kinematics_pickle(name, dh, params, pvals, vv, unks, False)
 
-    #  parameter values as floats: forward_kinematics() writes the STRINGS
-    #  'np.cos(al_1)' / 'np.sin(pi/4)' for a robot whose alpha is not a
-    #  multiple of pi/2 (Craig417, Raven-II), and those symbols really do
-    #  appear in T_06, so they must be resolved rather than skipped.
-    pv, left = {}, {}
-    for k, v in (M.pvals or {}).items():
-        if isinstance(v, str):
-            left[k] = v
-        else:
-            pv[sp.sympify(k)] = float(v)
-    for _ in range(2):
-        if not left:
-            break
-        still = {}
-        for k, v in left.items():
-            try:
-                pv[sp.sympify(k)] = float(
-                    sp.sympify(str(v).replace('np.', '')).subs(pv))
-            except Exception:
-                still[k] = v
-        if len(still) == len(left):
-            break
-        left = still
-
-    #  Joint variable of each DH row, in chain order.  vv[r]==1 -> theta
-    #  (col 3), else d (col 2).  The table is always 6 rows;  a shorter arm is
-    #  padded with [0,0,0,0], and a padding row has no symbol.
-    jnames = []
-    for r in range(6):
-        e = sp.sympify(M.DH[r, 3 if M.vv[r] else 2])
-        if not e.free_symbols:
-            break
-        jnames.append(str(e))
-
-    T = sp.Matrix(M.T_06).subs(pv)
-    extra = sorted(T.free_symbols - set(sp.Symbol(j) for j in jnames), key=str)
-    if extra:
-        raise ValueError('T_06 has no value for %s' % [str(x) for x in extra])
-
-    fk = sp.lambdify([[sp.Symbol(j) for j in jnames]], T, 'numpy')
-    return fk, jnames
+    jnames = [str(s) for s in nik.joint_symbols(M)]
+    return nik.fk_callable(M), jnames
 
 
-def generated_columns(path):
-    '''Return the variable names of one returned solution row, in order.
+def returned_joint_order(mod, path):
+    """Which joint each column of a returned solution row holds.
 
-       Read out of the generated source, because the returned list is UNLABELLED
-       and includes the sum-of-angle variables:  Puma returns 7 values ordered
-       ['th_1','th_23','th_2','th_3','th_4','th_5','th_6'], because the
-       generator sorts each row's version names alphabetically.  A caller cannot
-       otherwise tell which entry is which joint.'''
+       mod:   the imported generated module
+       path:  its source file, for the fallback below
+       returns: list of joint names, one per column, in column order
+
+       The generator now states this itself as JOINT_NAMES.  A module generated
+       before that landed has to be read for it, so fall back to the version
+       names in the emitted solution_list."""
+
+    names = getattr(mod, 'JOINT_NAMES', None)
+    if names:
+        return list(names)
 
     src = open(path).read()
     m = re.search(r'solution_list\.append\(\s*\[(.*?)\]\s*\)', src, re.S)
     if not m:
         return None
-    names = re.findall(r'[A-Za-z_]\w*v\d+', m.group(1))
-    return [n.rsplit('v', 1)[0] for n in names]
+    return [n.rsplit('v', 1)[0]
+            for n in re.findall(r'[A-Za-z_]\w*v\d+', m.group(1))]
 
 
-def load_generated(name):
-    '''Import the generated module and return (function, column base names).'''
+def import_generated_ik(name):
+    """Load the generated IK module for robot `name` and its column order.
+
+       name:    robot name, as CodeGen/Python/IK_equations<name>.py
+       returns: (ikin function, list of joint names in column order)
+       raises:  IOError if no module was generated, ValueError if it defines
+                no ikin_* function or its column order cannot be determined."""
 
     path = os.path.join(GEN_DIR, 'IK_equations%s.py' % name)
     if not os.path.exists(path):
         raise IOError('no generated code at %s' % path)
-
-    cols = generated_columns(path)
-    if not cols:
-        raise ValueError('could not read the solution_list columns from %s'
-                         % path)
 
     spec = importlib.util.spec_from_file_location('genik_' + name, path)
     mod = importlib.util.module_from_spec(spec)
@@ -176,14 +148,25 @@ def load_generated(name):
     with contextlib.redirect_stdout(buf):
         spec.loader.exec_module(mod)
 
-    fns = [getattr(mod, a) for a in dir(mod) if a.startswith('ikin_')]
+    fns = [getattr(mod, a) for a in dir(mod)
+           if a.startswith('ikin_') and not a.endswith('_labeled')]
     if not fns:
         raise ValueError('%s defines no ikin_* function' % path)
+
+    cols = returned_joint_order(mod, path)
+    if not cols:
+        raise ValueError('could not determine the column order of %s' % path)
     return fns[0], cols
 
 
 def check(name, resolve=True, verbose=False):
-    '''Returns (n_ok, n_branches, note).  Never raises.'''
+    '''Round-trip one robot through its GENERATED python IK.
+
+       name:    robot name
+       resolve: re-run ikSolver.py first (False re-uses what is on disk)
+       returns: (branches that reproduced the pose, branches returned, note)
+       Never raises:  a robot that could not be checked comes back with 0
+       branches and a note saying why.'''
 
     if resolve:
         ok, why = solve_robot(name)
@@ -196,7 +179,7 @@ def check(name, resolve=True, verbose=False):
         return 0, 0, 'FK unavailable -- %s' % str(e)[:70]
 
     try:
-        fn, cols = load_generated(name)
+        fn, cols = import_generated_ik(name)
     except Exception as e:
         return 0, 0, '%s: %s' % (type(e).__name__, str(e)[:70])
 

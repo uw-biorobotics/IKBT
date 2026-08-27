@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-#   solution_check.py --  does IKBT's closed form actually SOLVE the robot?
+#   check_solution_sets.py --  does IKBT's closed form actually SOLVE the robot?
 #
 #   The baseline harness records whether every unknown got an expression.  It
 #   has never checked whether those expressions are RIGHT.  That gap is how the
@@ -17,9 +17,9 @@
 #   construction and a failure is the solver's, not the target's.  Every valid
 #   IK branch must land back on T;  which branch is which does not matter.
 #
-#       python3 -m scripts.solution_check                # every robot it can
-#       python3 -m scripts.solution_check --robots Puma  # just these
-#       python3 -m scripts.solution_check --gate         # exit 1 if a
+#       python3 -m scripts.check_solution_sets                # every robot it can
+#       python3 -m scripts.check_solution_sets --robots Puma  # just these
+#       python3 -m scripts.check_solution_sets --gate         # exit 1 if a
 #                                                        #   known-good robot
 #                                                        #   is not 100%
 #
@@ -58,74 +58,20 @@ except ImportError:                       # older branch without the list
 #  immediately after the solution/version fix.  These are the gate: a drop here
 #  is a regression in the closed form itself, which no other check would catch.
 KNOWN_COMPLETE = ['Puma', 'Pumaoffset', 'Stanford', 'Khat6DOF', 'Olson13',
-                  'Brad']
+                  'Brad', 'Wrist']
 
-#  Reported, never gated:  these need numeric pvals for every parameter, and a
-#  robot whose params are purely symbolic (Wrist has B and C with no values)
-#  cannot be checked numerically at all.
+#  Wrist was previously listed here as uncheckable, on the grounds that B and C
+#  had no numeric values.  They are its JOINT VARIABLES, not parameters;  what
+#  actually failed was this file's own copy of the joint-naming rule, which
+#  called them 'B + pi/2' and 'C + pi/2' after their DH cells.  Wrist checks
+#  2/2 since that copy was deleted in favour of numeric_ik.joint_symbols().
 TOL = 1e-7
 
 
-def _pvals_numeric(M):
-    """M.pvals as floats, with the 'np.cos(...)' strings RESOLVED.
-
-       forward_kinematics() writes those strings for a robot whose alpha is not
-       a multiple of pi/2 (Craig417, Raven-II), and the symbols they define
-       really do appear in T_06 -- dropping them would leave a free symbol."""
-
-    raw = dict(M.pvals or {})
-    out, left = {}, {}
-    for k, v in raw.items():
-        if isinstance(v, str):
-            left[k] = v
-        else:
-            try:
-                out[sp.sympify(k)] = float(v)
-            except (TypeError, ValueError):
-                left[k] = v
-    for _ in range(2):
-        if not left:
-            break
-        still = {}
-        for k, v in left.items():
-            try:
-                e = sp.sympify(str(v).replace('np.', '')).subs(out)
-                out[sp.sympify(k)] = float(e)
-            except Exception:
-                still[k] = v
-        if len(still) == len(left):
-            break
-        left = still
-    if left:
-        raise ValueError('unresolved pvals: %s' % sorted(str(k) for k in left))
-    return out
-
-
-def _joint_symbols(M, maxrows=6):
-    """The joint variable of each DH row, in chain order, and the real DOF.
-
-       The DH table is always 6 rows;  a shorter arm is padded with [0,0,0,0],
-       so the padding rows have no symbol and mark the end of the chain.
-       vv[r] == 1 means the joint variable is theta (col 3), else d (col 2)."""
-
-    syms = []
-    for r in range(maxrows):
-        col = 3 if M.vv[r] else 2
-        e = sp.sympify(M.DH[r, col])
-        if not e.free_symbols:
-            break                        # padding
-        syms.append(str(e))
-    return syms, len(syms)
-
-
-def _fk_callable(M, pv, jsyms):
-    """q -> 4x4, from the pickled T_06.  Refuses if a parameter is unresolved."""
-
-    T = sp.Matrix(M.T_06).subs(pv)
-    extra = sorted(T.free_symbols - set(sp.Symbol(j) for j in jsyms), key=str)
-    if extra:
-        raise ValueError('T_06 still contains %s' % [str(x) for x in extra])
-    return sp.lambdify([[sp.Symbol(j) for j in jsyms]], T, 'numpy')
+#  pvals resolution, joint naming and the FK callable all live in
+#  ikbtbasics.numeric_ik.  They used to be copied here, and the copy drifted:
+#  it named Wrist's joints 'B + pi/2' and then rejected the robot because
+#  T_06's free symbols did not match.  One implementation, one behaviour.
 
 
 def check_robot(name, q_seed=None, verbose=False):
@@ -137,6 +83,7 @@ def check_robot(name, q_seed=None, verbose=False):
 
     from ikbtfunctions.ik_driver import load_robot, run_solver
     from ikbtfunctions.bt_assembly import build_default_bt
+    import ikbtbasics.numeric_ik as nik
 
     buf = io.StringIO()
     try:
@@ -151,9 +98,10 @@ def check_robot(name, q_seed=None, verbose=False):
             if not getattr(R, 'solListMatrix', None):
                 return 0, 0, 'no solution set (robot does not solve)'
             R.make_LHS_versions()
-            pv = _pvals_numeric(M)
-            jsyms, ndof = _joint_symbols(M)
-            fk = _fk_callable(M, pv, jsyms)
+            pv = nik.pvals_numeric(M)
+            jsyms = [str(s) for s in nik.joint_symbols(M)]
+            ndof = len(jsyms)
+            fk = nik.fk_callable(M)
     except Exception as e:
         return 0, 0, '%s: %s' % (type(e).__name__, str(e)[:70])
 
