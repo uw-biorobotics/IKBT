@@ -33,7 +33,7 @@ from ikbtleaves.two_eqn_m7      import simu_id, simu_solver
 
 #  Transform / bookkeeping leaves
 from ikbtleaves.invariant_gen   import invariant_gen
-from ikbtleaves.x2y2_transform  import x2z2_transform
+from ikbtleaves.parallel_triple import parallel_triple_transform
 from ikbtleaves.sub_transform   import sub_transform
 from ikbtleaves.sum_id          import sum_id      # detect and sub sum-of-angles
 from ikbtleaves.updateL         import updateL
@@ -145,11 +145,34 @@ def make_leaves(leaf_debug=False, solver_debug=False):
     sacSol.BHdebug = solver_debug
     n['sacSol'] = sacSol
 
-    ###  x^2 + y^2 trick from Craig (eqn 4.65) -- needed for Puma and KawasakiRS007L
-    x2z2_Solver = x2z2_transform()
-    x2z2_Solver.Name = 'X2Y2 transform'
-    x2z2_Solver.BHdebug = False
-    n['x2z2_Solver'] = x2z2_Solver
+    ###  x^2 + y^2 (Craig eqn 4.65) is NO LONGER IN THE TREE.  invariant_gen
+    #  subsumes it:  the x2y2 trick is the ||P||^2 invariant for one particular
+    #  pair of position equations, and invariant_gen emits that plus trace(R)
+    #  and the column invariants over every pair.  Two reasons it went, both
+    #  measured on UR5 (2026-08-28):
+    #
+    #    - it never fired.  Ticked 15 times over a 9-pass solve, FAILURE every
+    #      time.  At the decisive tick its pair search tested 91 pairs and
+    #      accepted none:  70 died because l1^2 + l2^2 still held unknowns, and
+    #      of the 21 that survived, every one left TWO unknowns on the other
+    #      side where the acceptance test demands exactly one.
+    #    - it re-derived that same dead end from scratch on every tick, with no
+    #      memo, at ~20 minutes a pass once the leaves ahead of it stopped
+    #      short-circuiting it.
+    #
+    #  x2z2_transform and its TestSolver010 stay in ikbtleaves/x2y2_transform.py
+    #  -- the class is still unit-tested and can be re-wired in one line here.
+
+    ###  Three consecutive PARALLEL axes -- the other half of Pieper's
+    #  condition, and the half no solver leaf was written for.  Gated on
+    #  dh_analysis's `parallel` triples (pure DH arithmetic, milliseconds), so
+    #  an arm without one pays a table scan and the leaf declines.  It restocks
+    #  eqns_1u with the law-of-cosines equation for the middle joint of the
+    #  triple;  the existing arccos/atan2/algebra leaves finish the job.
+    #  See IKdocs/parallel_triple_refs.md.
+    parallelTriple = parallel_triple_transform()
+    parallelTriple.BHdebug = leaf_debug
+    n['parallelTriple'] = parallelTriple
 
     ###  kinematic invariant generator (NewStrategies.md, Candidate 3)
     #  Generalizes the x2y2 trick:  emits ||P||^2 / trace(R) / P.col invariants,
@@ -166,7 +189,11 @@ def make_leaves(leaf_debug=False, solver_debug=False):
     invariantGen = invariant_gen()
     invariantGen.Name = 'Invariant Generator'
     invariantGen.BHdebug = False
-    invariantGen.enabled = False
+    #  ON.  It is the tree's only equation-restocking transform now that
+    #  x2z2 is gone, and the leaves ahead of it in the Priority only fall
+    #  through to it when they have all failed -- which on a robot that solves
+    #  cleanly is never, so it costs those robots nothing.
+    invariantGen.enabled = True
     n['invariantGen'] = invariantGen
 
     ###  two equations, one unknown
@@ -303,7 +330,7 @@ def build_worktools(nodes):
                         nodes['sc_tan'],
                         nodes['Simu_Eqn_Sol'],
                         nodes['sacSol'],
-                        nodes['x2z2_Solver'],
+                        nodes['parallelTriple'],
                         nodes['invariantGen']])
 
 
@@ -399,8 +426,14 @@ def build_symbolic_branch(nodes, tag='', solver_debug=False):
     #  partial solves.  symbolic_loop runs the identical passes and then reports
     #  what happened:  SUCCESS if anything was solved, FAILURE if nothing was.
     #  That FAILURE is the gate on the hybrid branch.  (Measured over all 32
-    #  robots the deepest solve is UR5 at 9 passes, so 10 is a real budget.)
-    symLoop = symbolic_loop(solveRoutine, 10)
+    #  robots the deepest solve was UR5 at 9 passes under the old tree.)
+    #
+    #  Raised 10 -> 20 (BH, 2026-08-28) now that the solvers refuse equations
+    #  that constrain nothing and fall through to invariant_gen instead:  a
+    #  pass that used to end in a bogus solve now ends in a restock, so real
+    #  solves take more passes.  A DH table is solved once, so passes are cheap
+    #  in the only currency that matters.
+    symLoop = symbolic_loop(solveRoutine, 20)
     symLoop.Name = "Symbolic Solver Loop" + tag
     symLoop.BHdebug = solver_debug
     nodes['symLoop'] = symLoop

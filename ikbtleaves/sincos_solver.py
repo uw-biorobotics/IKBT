@@ -39,6 +39,7 @@ from ikbtbasics import ik_classes
 #from ik_classes import *
 
 import b3 as b3          # behavior trees
+import ikbtbasics.eqn_sanity as _eqsan
 from ikbtleaves.assigner_leaf  import *
 
  
@@ -172,6 +173,17 @@ class sincos_solve(b3.Action):    # Solve asincos equation pairs
         print('sincos: checking ', u.symbol)
         #self.BHdebug = True
         if u.solvable_sincos:
+            #  REFUSE AN EQUATION THAT DOES NOT CONSTRAIN THIS VARIABLE.
+            #  Measured on UR5: the equation offered for th_2 was
+            #  0*sin(th_2) + 0*cos(th_2) = 0 -- both coefficients vanish identically
+            #  once the robot's own FK is substituted -- so atan2(-B, A) was atan2 of
+            #  two rounding errors and all 8 solution versions were wrong while the
+            #  robot was recorded as solved 9/9.  FAILURE here lets b3.Priority fall
+            #  through to a transform leaf that may restock eqns_1u with a real one.
+            if not _eqsan.constrains(u.eqntosolve, u.name, R):
+                _eqsan.reject(u, 'sin/cos solver')
+                return b3.FAILURE
+
             if(self.BHdebug):
                 print("Trying to solve: ", u.symbol)
                 print("  Using the ", u.solvemethod, " on:")
@@ -213,8 +225,19 @@ class sincos_solve(b3.Action):    # Solve asincos equation pairs
                 # a solution that still contains its own unknown is not a
                 # solution; this guard is the analogue of the one commented
                 # out in sinANDcos_solver.
-                assert(not targument.has(u.symbol)), \
-                    'sincos_solve (arcsin): solution contains itself: ' + str(targument)
+                #
+                # FAILURE, not assert (2026-08-28).  This killed the PROCESS
+                # mid-solve on UR5 once invariant_gen was enabled:  the
+                # generator legitimately emits 2-unknown equations (its
+                # MAX_UNKNOWNS is 2), sincos_id matched one of them for th_3,
+                # and (LHS-B)/A still held cos(th_3) and sin(th_3+th_4).  That
+                # is this leaf declining a job it cannot do, not a bug worth
+                # throwing away a multi-minute solve for -- so return FAILURE
+                # and let b3.Priority offer the equation to another leaf.
+                if targument.has(u.symbol):
+                    print('sincos_solve (arcsin): solution would contain %s '
+                          'itself -- declining' % u.symbol)
+                    return b3.FAILURE
                 sol1 = sp.asin( targument  )
                 sol2 = sp.pi - sp.asin( targument  )  
                 u.argument = targument
@@ -244,8 +267,11 @@ class sincos_solve(b3.Action):    # Solve asincos equation pairs
                         B = 0
                             
                     targument = (u.eqntosolve.LHS-B)/A
-                    assert(not targument.has(u.symbol)), \
-                        'sincos_solve (arccos): solution contains itself: ' + str(targument)
+                    #  Same reasoning as the arcsin branch above.
+                    if targument.has(u.symbol):
+                        print('sincos_solve (arccos): solution would contain %s '
+                              'itself -- declining' % u.symbol)
+                        return b3.FAILURE
                     sol1 =   sp.acos( targument  )
                     sol2 = - sp.acos( targument  )  
                     u.argument = targument

@@ -66,6 +66,7 @@ from ikbtleaves.sinANDcos_solver import sinandcos_id, sinandcos_solve
 from ikbtleaves.two_eqn_m7       import simu_id, simu_solver
 from ikbtleaves.invariant_gen    import invariant_gen
 from ikbtleaves.x2y2_transform   import x2z2_transform
+from ikbtleaves.parallel_triple  import parallel_triple_transform
 from ikbtleaves.sub_transform    import sub_transform
 from ikbtleaves.sum_id           import sum_id, sum_solve
 from ikbtleaves.updateL          import updateL
@@ -89,8 +90,14 @@ REQUIRED_SOLVERS = [algebra_id, algebra_solve,
                     tan_id, tan_solve,
                     sincos_id, sincos_solve,
                     sinandcos_id, sinandcos_solve,
-                    simu_id, simu_solver,
-                    x2z2_transform]
+                    simu_id, simu_solver]
+
+#  x2z2_transform was here until 2026-08-28.  It is now OPTIONAL, not required:
+#  invariant_gen subsumes it (the x2y2 trick is the ||P||^2 invariant over one
+#  pair of position equations), and measured on UR5 x2z2 ticked 15 times and
+#  fired zero times -- its pair search accepted none of 91 candidate pairs.
+#  Keeping it in this list would assert the tree still needs a leaf that never
+#  succeeds.
 
 #  Not solvers, but nothing solves without them:  assigner advances curr_unk,
 #  rank is what actually calls set_solved() for tan/sincos, sum_id makes the
@@ -109,7 +116,8 @@ REQUIRED_SUPPORT = [assigner, rank, sum_id, sub_transform, updateL, comp_det]
 #  would tell somebody experimenting with a simpler tree that they are wrong.
 #  What the shipped tree actually guarantees is asserted directly instead -- see
 #  test_btaR / test_btaS below.
-OPTIONAL_LEAVES = [invariant_gen, sum_solve,
+OPTIONAL_LEAVES = [x2z2_transform, parallel_triple_transform,
+                   invariant_gen, sum_solve,
                    symbolic_loop, report_gen, hybrid_stub,
                    no_pieper_id, simplified_arm, install_simplified,
                    clear_state]
@@ -624,7 +632,7 @@ class TestSolver013(unittest.TestCase):
         wt = b3.Priority([nodes['tanID'], nodes['tanSolver'],
                           nodes['algSol'], nodes['sc_tan'],
                           nodes['Simu_Eqn_Sol'], nodes['sacSol'],
-                          nodes['x2z2_Solver']])
+                          nodes['invariantGen']])
         wt.Name = 'Work Tools'
         nodes['tanSol'].children = []              # move them out of the Sequence
         self.has(bt_problems(alt_tree(nodes, wt)), 'ordering')

@@ -35,6 +35,7 @@ from ikbtbasics.kin_cl import *
 from ikbtbasics.ik_classes import *     # special classes for Inverse kinematics in sympy
 
 from ikbtleaves.updateL import *
+import ikbtbasics.eqn_sanity as _eqsan
 from ikbtleaves.comp_detect import *
 from ikbtleaves.assigner_leaf  import *
 from sympy.assumptions.assume import global_assumptions
@@ -218,6 +219,17 @@ class tan_id(b3.Action):    # action leaf for ID eqns solved by atan2()
         tick.blackboard.set('curr_unk', u)
         tick.blackboard.set('unknowns',unknowns)   # the current list of unknowns
         if u.solvable_tan:
+            #  REFUSE AN EQUATION THAT DOES NOT CONSTRAIN THIS VARIABLE.
+            #  Measured on UR5: the equation offered for th_2 was
+            #  0*sin(th_2) + 0*cos(th_2) = 0 -- both coefficients vanish identically
+            #  once the robot's own FK is substituted -- so atan2(-B, A) was atan2 of
+            #  two rounding errors and all 8 solution versions were wrong while the
+            #  robot was recorded as solved 9/9.  FAILURE here lets b3.Priority fall
+            #  through to a transform leaf that may restock eqns_1u with a real one.
+            if not _eqsan.constrains(u.eqntosolve, u.name, R):
+                _eqsan.reject(u, 'tangent solver')
+                return b3.FAILURE
+
             return b3.SUCCESS
         else:
             return b3.FAILURE
