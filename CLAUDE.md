@@ -48,9 +48,7 @@ in `tests/baselines/`; per-robot child output goes to `logs/baseline/`.
 much for a timing comparison to mean anything. Measured over back-to-back full sweeps, every robot
 repeated at 1.0-1.1x **except** `DZhang` (20.7 s → 78.9 s, 3.8x) and `Issue4` (101 s, 187 s, 246 s,
 then >900 s on identical code at `PYTHONHASHSEED=0`). `DEFAULT_TIMEOUT` was raised 900 → **1800 s**
-for exactly that reason: `Issue4` sat close enough to the old ceiling that its *status* flipped
-between `partial (hybrid)` and `timeout` run to run, and `status` **is** compared — so `--diff`
-reported a regression that did not exist. A flaky gate trains you to ignore it.
+for exactly that reason.
 
 Compile the report: `cd LaTex && pdflatex ik_solution_<RobotName>.tex` (the generated file is standalone —
 `IK_preamble.tex` and `IK_close.tex` are already spliced in; `ik_report_template.tex` is a legacy wrapper that
@@ -73,7 +71,7 @@ execution time).
    sum-of-angles scan are slow, so they are done once. The cache is self-healing: a pickle that will not
    load, or whose DH table no longer matches, is silently recomputed and overwritten (`dh_tables_match()`).
    A `pvals`-only edit does not force a recompute — `pvals` never enter the symbolic FK — but the cached
-   `M.pvals` is updated in place. `check_the_pickle()` is retained but advisory; it no longer calls
+   `M.pvals` is updated in place. `check_the_pickle()` is advisory; it no longer calls
    `quit()`. Any other change to the FK or SOA *code* still requires `rm fk_eqns/<name>_pickle.p` by hand.
 3. `R.scan_for_equations(unknowns)` splits all scalar equations from the 4x4 matrix equations into
    `L1`/`L2`/`L3p` (1, 2, and 3+ unknowns) — these go on the blackboard.
@@ -115,16 +113,12 @@ needs both the tan and sin/cos candidates to choose between).
 
 `symbolic_loop` (`ikbtleaves/symbolic_loop.py`) replaced `b3.RepeatUntilSuccess(solveRoutine, 10)` at
 the root. It runs the identical passes, but as a Python loop inside `tick()`, so it can **choose** its
-exit status. `require_complete` is **True**: SUCCESS only when *every* unknown is solved, because a
-closed form for some of the joints is not inverse kinematics and must not be reported as an answer.
+exit status.  When `require_complete` is **True**: SUCCESS only when *every* unknown is solved, because 
+in rare cases, a
+closed form for some of the joints might not be valid inverse kinematics and must not be reported as an answer.
 Nothing is discarded — the solved unknowns keep their solutions and still appear in the baseline
 record; only the verdict changes. Setting it False restores "SUCCESS if anything was solved" and is
-the hook for the future partial-analytic + lower-dimensional-numeric work. `RepeatUntilSuccess`
-returns FAILURE when it exhausts its loops, which would abort the enclosing `Sequence` and discard a
-loop-exhausted *partial* solve — and wrapping it in `Priority([..., Succeeder()])` hides the real
-failure too, leaving the tree unable to tell "solved nothing" from "ran out of passes". That FAILURE
-is the gate on the hybrid branch. Measured over all 32 robots the deepest solve is UR5 at 9 passes,
-so the budget of 10 is real and not slack.
+the hook for the future partial-analytic + lower-dimensional-numeric work.  
 
 `report_gen` (`ikbtleaves/output_gen.py`) is a **single** generator at the end of the tree, ticked
 after whichever branch produced the solution — the report is a property of the finished solve, not of
@@ -139,16 +133,18 @@ as the condition it gates on, and `tests/bt_assembly_test.py` now asserts the tr
 `Inverter` at all. The swap also buys correctness: `Inverter` could not tell "no triple" from "could
 not read the table" (both became SUCCESS), so the branch opened on a parse failure; `no_pieper_id`
 FAILs on an unreadable table, at the gate. It gates **only the hybrid branch**. It must never gate the symbolic branch: Pieper's condition is *sufficient* for a closed
-form and is **not** known to be necessary — measured, 9 of the 32 robots have no triple and solve
+form and is **not** known to be necessary.  In fact, 9 of the 32 robots have no triple yet solve
 completely (Axtman13, Brad, DZhang, ICP5p5_A21, Mackler13, MiniDD, Olson13, Sims11, Wachtveitl), and
-`Sequence[pieper_id, symbolic_branch]` stops the symbolic solver ticking at all for those nine. It
+`Sequence[pieper_id, symbolic_branch]` would stop the symbolic solver ticking at all for those nine. It
 publishes `pieper_triples` and `pieper_ok`, the latter distinguishing "no triple" (a real answer) from
 "could not analyse the table". The geometry itself lives in `ikbtbasics/dh_analysis.py`;
 `scripts/axis_triple_check.py` validates it against numeric FK.
 
+ The hybrid approach requires a `simplified arm` which is a set of DH parameters close to the original
+ arm but containing a Pieper triple. 
 `simplified_arm` ranks the DH changes that would give the arm a triple, cheapest first by task-space
 displacement, and publishes `simplification_candidates` / `simplification_choice`. It **refuses to run
-when `pieper_ok` is False** — now defence in depth, since `no_pieper_id` already FAILs on a table it
+when `pieper_ok` is False** — now defense in depth, since `no_pieper_id` already FAILs on a table it
 could not read, but simplifying on a parse failure would produce a derived robot describing nothing.
 `install_simplified` then builds the derived robot — fresh `unknown` objects (`set_solved()` mutates in
 place), its own pickle name (`KinovaLite_d_5_0`) — and leaves `hybrid_source` on the blackboard.
@@ -162,7 +158,7 @@ default and keeps by exception: it preserves the problem and the findings about 
 `comp_det_signature` from the failed first solve. A keep-list rather than a clear-list, so a new
 blackboard key that should survive fails loudly instead of leaking stale state silently.
 
-Because `install_simplified` swaps the `Robot`, `no_pieper_id` **snapshots** its LaTeX statement onto the
+Because `install_simplified` swaps the `Robot`, `no_pieper_id` **snapshots** its LaTeX-formatted output report onto the
 blackboard before the swap and `report_gen` prefers that snapshot — otherwise the report would describe
 the simplified arm rather than the robot that was asked for.
 
@@ -308,13 +304,9 @@ the partial closed form**. Keeping them separate is what lets a stalled *partial
 losing its result.
 
 The reason to stop is **not** speed — these are hard problems and a long solve is legitimate. It is
-that the node was continuing past its own proof: once a pass leaves the solved set and every equation
-pool exactly as it found them, the identical pass cannot produce a different result. `comp_det` had
-already established there was nothing left to do, carried on regardless, and then reported *"the
-10-pass budget ran out; comp_det did not stop it"* — a wrong answer about why the solve ended, which
-buried the real diagnosis. `Issue4` repeated the signature `(1, 0, 13, 60, …)` for nine passes after
-solving `th_1`. Stopping at the repeat reports what actually happened; it is also faster, which is a
-side effect and not the point.
+that the node was continuing past its own proof: 
+**once a pass leaves the solved set and every equation
+pool exactly as it found them, the identical pass cannot produce a different result**.  
 
 Two traps, both caught by the 32-robot gate rather than by inspection:
 
@@ -356,11 +348,7 @@ must not infer it.
 The one thing to be careful of in `create_solution_set()` is the row count. `block` is the number of
 rows present *before* the current unknown is added, it is read once, and the loops must not re-read
 `len(solListMatrix)` — the matrix grows as the unknown's solutions are paired in, and row `i` then
-sits in block `i // block`, which **is** its solution index. Using the growing length as the loop
-bound left the later rows one column short and crashed `make_LHS_versions()` with
-`IndexError: list index out of range`; using the pre-growth count as the bound skipped those rows
-entirely and made every `solIdxMatrix` entry 0, i.e. solution 0 for every version. The loops are
-`while` loops for exactly this reason.
+sits in block `i // block`, which **is** its solution index.  
 
 **THE TWO NAMESPACES MUST STAY SEPARATE.** A *solution* name is `th_1s2` (branch 2 of `th_1`'s own equation);
 a *version* name is `th_1v5` (row 5 of the solution matrix). Three defects, all fixed 2026-08-24 and all
@@ -375,9 +363,7 @@ present in `main` until then, came from mixing them:
   `solutions[row % nsols]` always chose solution 0 and every version of a variable came out identical.
 
 Measured: Puma went from **0 of 8** versions being evaluable to **8 of 8** reproducing the target pose to
-~2e-16, and its generated Python from unloadable to 8-of-8 correct. **All three generators were innocent** —
-they transcribed bad data faithfully. Python merely failed loudest because Python runs; LaTeX and C++ emitted
-`th_1s1` into a document and source that looked authoritative.
+~2e-16, and its generated Python from unloadable to 8-of-8 correct. 
 
 **Two checkers, one property, two stages** — build `T = FK(q)`, solve IK at `T`, require
 `FK(each solution)` to reproduce `T`. Nothing else checks solution *correctness*: `robot_baseline.py`
@@ -456,8 +442,20 @@ equally-ranked solutions break differently. See `hybrid_impl_plan.md` for the in
 
 Please keep commit messages to 5 lines or less. 
 
-# Future Work
-Optionally, if user asks about future work, see @hybrid_impl_plan.md (the tracked working plan;
-Phases A-E are done and record what was actually built, Phase F and the deferred items are the
-remaining work) and @hybrid_plan.md (the original design rationale).
+# Future Work 
+
+First priority.  Determine the answer to the following question: 
+   We have several robots which fail to meet Pieper's criterion but CAN be successfully solved.  Yes, this is expected because Pieper's criterion is sufficient but not necessary evidence for a solution.   In that case, why do we gate the hybrid solver with Pieper's criterion?   Why not just go to hybrid solver iff the symbolic solver fails?
+   
+   Then we can proceed to final integration and test: 
+
+We need to extend the behavior tree to make the full workflow:
+  for success on symbolic solutions: output Latex Report, Python code, C++ code. 
+  for failure on symbolic solutions: return a bigger Latex report detailing both arms (no solution for original arm which failed), Hybrid numerical IK code, Hybrid numerical C++ code.  
+  
+In the "Hybrid NUmerical IK code",  desired End effector config is the input.  The computation has two phases. 
+Phase I takes as input the desired EE pose, and returns all solutions of the approximate arm. 
+Phase II takes as input an integer which selects from among the previously returned approximate poses, and returns the numerically corrected joint values for the selected approximate solution.   
+
+A new test should evaluate performance of the end-to-end hybrid solution generated codes similar to `scripts/numerical_closed_loop_sol_check.py`.
 
