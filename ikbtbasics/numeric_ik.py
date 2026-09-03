@@ -2,7 +2,7 @@
 #
 #   numeric_ik.py --  numerical inverse kinematics by damped least squares
 #
-#   Phase F of hybrid_impl_plan.md.  The hybrid method solves a SIMPLIFIED arm
+#   The numeric half of the hybrid method.  The hybrid solves a SIMPLIFIED arm
 #   in closed form and then corrects the answer numerically against the TRUE
 #   arm's forward kinematics.  This module is the correction step, and it is
 #   deliberately standalone:  it takes an FK callable, a Jacobian callable, a

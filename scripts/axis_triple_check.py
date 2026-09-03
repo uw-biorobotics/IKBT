@@ -2,8 +2,8 @@
 #
 #   axis_triple_check.py --  verify the Pieper-triple rule against real geometry
 #
-#   The intersecting/parallel-axis test in ikbtbasics/dh_analysis.py (Phase C of
-#   hybrid_impl_plan.md) is pure DH-cell arithmetic.  Getting a row or column
+#   The intersecting/parallel-axis test in ikbtbasics/dh_analysis.py is pure
+#   DH-cell arithmetic.  Getting a row or column
 #   index wrong there produces a detector that is confidently wrong on every
 #   robot and looks perfectly plausible, so the rule is checked here against an
 #   INDEPENDENT oracle:  build the numeric FK with Link_N, extract each joint

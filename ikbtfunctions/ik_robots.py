@@ -88,7 +88,7 @@ ROBOT_LIST = [ 'KinovaLite',
 #  layout, so a set of them iterates in a different order run to run -- and the
 #  solver would then break ties between equally-ranked options differently,
 #  some choices far more expensive than others.  scripts/robot_baseline.py's own
-#  header already worries about this.  See hybrid_impl_plan.md for the follow-up.
+#  header already worries about this.  Not yet followed up.
 EXCLUDED_FROM_SWEEP = ['Issue4']
 
 

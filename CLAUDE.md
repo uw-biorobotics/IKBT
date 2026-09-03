@@ -100,7 +100,8 @@ solveRoutine    = Sequence[ sub_transform,
                             updateL,
                             comp_det ]
 
-hybrid_branch   = Sequence[ no_pieper_id, simplified_arm, install_simplified,
+hybrid_branch   = Sequence[ pieper_geom_report,   # reports, ALWAYS SUCCESS
+                            simplified_arm, install_simplified,
                             symbolic_branch (2nd instance set), hybrid_stub ]
 
 worktools = Priority[ algSol, Sequence[OrNode[tanSol, scSol], rank], Simu_Eqn_Sol, sacSol, x2z2_transform ]
@@ -126,26 +127,54 @@ the branch that made it. `b3.Sequence` aborts on FAILURE, so a solve that got no
 and no empty report is written. It also generates the joint-axis geometry statement into
 `Robot.pieper_latex`, which `output_latex_solution()` places after Kinematic Parameters.
 
-`no_pieper_id` (`ikbtleaves/hybrid_ik.py`) is SUCCESS iff the arm has **no** Pieper triple, which is
-exactly what the hybrid branch gates on, so it sits in the branch directly. It was `pieper_id` under
-an `Inverter` — the only `Inverter` in the tree; the polarity was swapped instead so the branch reads
-as the condition it gates on, and `tests/bt_assembly_test.py` now asserts the tree contains no
-`Inverter` at all. The swap also buys correctness: `Inverter` could not tell "no triple" from "could
-not read the table" (both became SUCCESS), so the branch opened on a parse failure; `no_pieper_id`
-FAILs on an unreadable table, at the gate. It gates **only the hybrid branch**. It must never gate the symbolic branch: Pieper's condition is *sufficient* for a closed
-form and is **not** known to be necessary.  In fact, 9 of the 32 robots have no triple yet solve
-completely (Axtman13, Brad, DZhang, ICP5p5_A21, Mackler13, MiniDD, Olson13, Sims11, Wachtveitl), and
-`Sequence[pieper_id, symbolic_branch]` would stop the symbolic solver ticking at all for those nine. It
-publishes `pieper_triples` and `pieper_ok`, the latter distinguishing "no triple" (a real answer) from
-"could not analyse the table". The geometry itself lives in `ikbtbasics/dh_analysis.py`;
+`pieper_geom_report` (`ikbtleaves/hybrid_ik.py`, was `no_pieper_id`) analyses the joint-axis geometry
+and publishes `pieper_triples` / `pieper_ok` / `pieper_latex`. **It ALWAYS returns SUCCESS**, because
+**PIEPER'S CONDITION GATES NOTHING, IN EITHER DIRECTION** (2026-08-31). Neither half of the
+biconditional holds — the condition is *sufficient* for a closed form and is **not** known to be
+necessary — so both gatings are unsound and both are measured:
+
+- its **absence** cannot gate the symbolic branch. 9 of the 32 robots have no triple yet solve
+  completely (Axtman13, Brad, DZhang, ICP5p5_A21, Mackler13, MiniDD, Olson13, Sims11, Wachtveitl);
+  `Sequence[pieper_id, symbolic_branch]` would stop the symbolic solver ticking at all for those nine.
+- its **presence** cannot gate the hybrid branch. This was the live defect. `ArmRobo` (triples (2,3,4) and (4,5,6)), `Panda`
+  ((1,2,3)) and `Raven-II` ((1,2,3),(2,3,4),(3,4,5)) all satisfy the condition and all solve **0** of
+  their unknowns. The old `Sequence[no_pieper_id, ...]` gate therefore turned away three arms whose
+  only other answer was "unsolved", on the reasoning that "has a triple and still failed" is an IKBT
+  defect rather than a geometry problem and must not be simplified. True, and beside the point: the
+  user gets nothing either way, and "had a triple, failed symbolically, and the simplified arm
+  solved" is exactly the report line that identifies the solver gap and points at it.
+
+**"Does not gate" is a property of the leaf, not of the wiring.** The leaf returns SUCCESS
+unconditionally — for an arm with a triple, for one without, and for a DH table it could not read at
+all — so it sits **bare** in the hybrid `b3.Sequence` and needs no `Priority[.., Succeeder]` wrapper to
+stop that Sequence treating a FAILURE as a gate: there is no adverse verdict to swallow. A leaf that
+cannot FAIL also cannot gate anything wherever it is moved.
+`tests/bt_assembly_test.py::test_btaT` ticks it over all three blackboards and asserts SUCCESS for
+each, so restoring the old FAILURE-on-triple silently restores the gate and is caught.
+
+**What gates the hybrid branch is `simplified_arm`**, an outcome rather than a proxy for one:
+`candidate_simplifications()` skips triples that already qualify, so an arm satisfying the condition on
+*every* triple yields nothing usable and the branch closes there by itself
+(`TestSolver018.test_hybJ` is that arm).
+
+Naming history, because two things about this leaf look like accidents and are not. It began as
+`pieper_id` (SUCCESS when a triple *exists*) under a `b3.Inverter` — the only `Inverter` in the tree;
+the polarity was folded into the node as `no_pieper_id`, then the verdict dropped entirely and the node
+renamed to what it does. `tests/bt_assembly_test.py` still asserts the tree contains **no** `Inverter`
+at all. What the `Inverter` could never express survives as **`pieper_ok`**: it turned "could not read
+the table" into SUCCESS, indistinguishable from "no triple". With no gate left, that flag is the
+**whole** of the protection — `simplified_arm` reads it and refuses — so it must stay False for "could
+not run" and never be set optimistically. The geometry itself lives in `ikbtbasics/dh_analysis.py`;
 `scripts/axis_triple_check.py` validates it against numeric FK.
 
  The hybrid approach requires a `simplified arm` which is a set of DH parameters close to the original
  arm but containing a Pieper triple. 
 `simplified_arm` ranks the DH changes that would give the arm a triple, cheapest first by task-space
 displacement, and publishes `simplification_candidates` / `simplification_choice`. It **refuses to run
-when `pieper_ok` is False** — now defense in depth, since `no_pieper_id` already FAILs on a table it
-could not read, but simplifying on a parse failure would produce a derived robot describing nothing.
+when `pieper_ok` is False** — and that is no longer defense in depth but the only defense: now that
+`pieper_geom_report` cannot FAIL, this check is all that stands between a DH table we could not parse
+and a derived robot describing nothing. Its "no usable candidate" FAILURE is the branch's other and
+main gate.
 `install_simplified` then builds the derived robot — fresh `unknown` objects (`set_solved()` mutates in
 place), its own pickle name (`KinovaLite_d_5_0`) — and leaves `hybrid_source` on the blackboard.
 
@@ -158,29 +187,38 @@ default and keeps by exception: it preserves the problem and the findings about 
 `comp_det_signature` from the failed first solve. A keep-list rather than a clear-list, so a new
 blackboard key that should survive fails loudly instead of leaking stale state silently.
 
-Because `install_simplified` swaps the `Robot`, `no_pieper_id` **snapshots** its LaTeX-formatted output report onto the
+Because `install_simplified` swaps the `Robot`, `pieper_geom_report` **snapshots** its LaTeX-formatted output report onto the
 blackboard before the swap and `report_gen` prefers that snapshot — otherwise the report would describe
-the simplified arm rather than the robot that was asked for.
+the simplified arm rather than the robot that was asked for. That snapshot is the reason the leaf still
+ticks first in the branch even though nothing reads its verdict.
 
-`hybrid_branch` implements `hybrid_impl_plan.md` item 1 (simplify the DH parameters until the robot
-solves, then correct numerically). It is no longer inert: `simplified_arm` and `install_simplified`
+`hybrid_branch` implements the hybrid method (simplify the DH parameters until the robot solves,
+then correct numerically). It is no longer inert: `simplified_arm` and `install_simplified`
 build a derived robot and the second solver really solves it, so the branch **does move
 `scripts/robot_baseline.py --diff`**. Only the trailing `hybrid_stub` still always FAILs, which
 withholds the report — the closed form on the blackboard describes the *derived* arm, and emitting it
-as though it were the real robot is the one thing this method must never do. Removing that block is
-Phase F's job, together with naming the artifacts for the true robot.
+as though it were the real robot is the one thing this method must never do. Removing that block is the next
+step, together with naming the artifacts for the true robot.
 
-Measured, the branch is gated to three robots (the ones with no Pieper triple) and is 1-for-3:
-`KinovaLite` solves 7/7 via `d_5: 57 → 0`; `KawasakiRS05L` simplifies (`a_3: 80 → 0`) but the derived
-arm still solves 0/7; `Issue4` simplifies (`d_5 → 0`) and reaches only 1 of 7 -- the set's ONLY
-partial solve. `ArmRobo` and `Raven-II` *have* triples, so the gate correctly declines them — those
-are IKBT solver gaps, not geometry gaps. `simplified_arm` commits to its cheapest candidate with no
-fall-through to the next-ranked one, which is why two of the three fall short. Both shortfalls share
-a signature: `eqns_1u` is empty and stays empty, so no ID node can fire.
+Measured over the whole sweep now that Pieper's condition gates nothing, the branch reaches **five**
+robots and is 2-for-5, up from the three it used to be admitted for:
+
+| robot | derived arm | result |
+|---|---|---|
+| `KinovaLite` | `d_5: 57 → 0` | **solved 7/7** |
+| `Panda` | `a_3, a_4 → 0` | **solved 6/6** — the gate used to turn this one away |
+| `ArmRobo` | `d_4 → 0` | partial 2/7 — likewise turned away |
+| `KawasakiRS05L` | `a_3: 80 → 0` | 0/7 |
+| `Raven-II` | `a_5: 13 → 0` | 0/6 |
+
+`Issue4` (excluded from the sweep) also simplifies via `d_5 → 0` and reaches 1 of 7. `simplified_arm`
+commits to its cheapest candidate with no fall-through to the next-ranked one, which is why three of
+the five fall short. All three shortfalls share a signature: `eqns_1u` is empty and stays empty, so
+no ID node can fire.
 
 Blackboard keys: `Robot`, `unknowns`, `curr_unk`, `counter`, `Tm`, `eqns_1u`, `eqns_2u`, `eqns_3pu`,
 `no_progress` (comp_det gave up), `symbolic_passes` / `symbolic_exhausted` (set by `symbolic_loop`),
-`pieper_triples` / `pieper_ok` / `pieper_latex` (set by `no_pieper_id`),
+`pieper_triples` / `pieper_ok` / `pieper_latex` (set by `pieper_geom_report`),
 `simplification_candidates` / `simplification_choice` (set by `simplified_arm`), `hybrid_source` (set
 by `install_simplified` — names the derived robot, so nothing downstream reports a simplified solve as
 though it solved the real arm).
@@ -204,13 +242,13 @@ Test-class numbers are global and referenced by `tests/leavestest.py` (001 sinco
 004 tan, 006 sub_transform, 007 updateL, 008 kin_cl, 009 helperfunctions, 010 x2y2 — note `output_cpp.py` also
 defines a `TestSolver010` — 011 rank, 012 invariant_gen, 013 bt_assembly, 014 comp_detect,
 015 output_latex, 016 symbolic_loop, 017 output_gen, 018 hybrid_ik, 019 dh_analysis,
-020 clear_state, 021 progress, 022 numeric_ik). A test double that lives in a
+020 clear_state, 021 progress, 022 numeric_ik, 023 parallel_triple). A test double that lives in a
 leaf file must be named `test_*`, or the `bt_assembly_test.py` leaf-inventory scan picks it up as a
 real leaf.
 
 ### Numerical IK (`ikbtbasics/numeric_ik.py`)
 
-Phase F's correction step: damped least squares (Levenberg-Marquardt) refining a closed-form seed
+The hybrid method's correction step: damped least squares (Levenberg-Marquardt) refining a closed-form seed
 against the true arm's FK. **Standalone** — it takes an FK callable, a Jacobian callable, a seed and a
 target pose, and knows nothing about the tree, so it is validated on robots that already solve
 exactly (perturb a known-good pose, confirm it comes back) with no dependence on the hybrid branch.
@@ -436,7 +474,7 @@ twice over 1790 s on identical code at `PYTHONHASHSEED=0`, a factor of 18. Since
 `status` and `status` is compared, `--diff` twice reported it as a regression when nothing had changed.
 Suspected cause (unconfirmed): `PYTHONHASHSEED` pins `str`/`bytes` hashing only, not the identity-based
 default `object.__hash__`, so a `set` of solver objects iterates differently per run and ties between
-equally-ranked solutions break differently. See `hybrid_impl_plan.md` for the investigation plan.
+equally-ranked solutions break differently. Not yet investigated.
 
 ## git etiquette
 
@@ -444,9 +482,17 @@ Please keep commit messages to 5 lines or less.
 
 # Future Work 
 
-First priority.  Determine the answer to the following question: 
-   We have several robots which fail to meet Pieper's criterion but CAN be successfully solved.  Yes, this is expected because Pieper's criterion is sufficient but not necessary evidence for a solution.   In that case, why do we gate the hybrid solver with Pieper's criterion?   Why not just go to hybrid solver iff the symbolic solver fails?
-   
+~~First priority.  Determine the answer to the following question:
+   We have several robots which fail to meet Pieper's criterion but CAN be successfully solved.  Yes, this is expected because Pieper's criterion is sufficient but not necessary evidence for a solution.   In that case, why do we gate the hybrid solver with Pieper's criterion?   Why not just go to hybrid solver iff the symbolic solver fails?~~
+   **ANSWERED AND IMPLEMENTED, 2026-08-31.** There was no good reason. `Priority[symbolic_branch,
+   hybrid_branch]` with `require_complete = True` already meant "hybrid iff symbolic fails"; the
+   Pieper test was a *second, inner* gate on top of that, and it was unsound in the same way the
+   question says — the criterion is sufficient, not necessary, so its **presence** proves no more
+   than its absence does. `no_pieper_id` is now `pieper_geom_report` and **always returns SUCCESS**:
+   it still runs, for `pieper_triples` / `pieper_ok` / the `pieper_latex` snapshot, but it cannot
+   gate anything. The branch's gate is `simplified_arm` finding a usable candidate. See the
+   `pieper_geom_report` section above.
+
    Then we can proceed to final integration and test: 
 
 We need to extend the behavior tree to make the full workflow:

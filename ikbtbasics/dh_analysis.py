@@ -4,10 +4,10 @@
 #                      Pieper's condition, and what it would cost to make one
 #
 #   No forward kinematics, no symbolic solving, no pickles -- so this runs in
-#   milliseconds and unit-tests standing on its own.  It supports
-#   futurework.md item 1 (hybrid_impl_plan.md phases C and D):  when IKBT cannot
-#   solve a robot in closed form, find the single DH parameter whose value is
-#   costing us the closed form, and measure what changing it would cost.
+#   milliseconds and unit-tests standing on its own.  It supports the hybrid
+#   method (CLAUDE.md, "Future Work"):  when IKBT cannot solve a robot in closed
+#   form, find the single DH parameter whose value is costing us the closed
+#   form, and measure what changing it would cost.
 #
 #       pieper_triples(dh, pvals, ndof)              which triples are satisfied
 #       candidate_simplifications(dh, pvals, vv, ndof)  what would satisfy one
@@ -285,8 +285,8 @@ def displacement_metric(dh, dh_simp, pvals, vv, ndof, n=200, seed=0,
 
        `combined` is the ranking key, and it exists because the whole point of
        ranking in task space is to put zeroing a LENGTH and snapping an ANGLE in
-       comparable units.  It is BH's angle/axis scalar from hybrid_impl_plan.md
-       question 3 -- position error plus the rotation angle scaled by a length.
+       comparable units.  It is BH's angle/axis scalar -- position error plus
+       the rotation angle scaled by a length.
 
        w_rot defaults to length_scale(), i.e. one radian of orientation error
        counts as much as one characteristic link length.  BH's stated convention

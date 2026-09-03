@@ -79,8 +79,9 @@ class symbolic_loop(b3.Decorator):
         #  result is still on the blackboard, still in the baseline record, and
         #  still available to any caller that wants it.  What changes is only
         #  whether the TREE calls the solve a success and therefore reports it.
-        #  Making deliberate use of a partial result is future work (see
-        #  hybrid_impl_plan.md, the lower-dimensional numeric solve).
+        #  Making deliberate use of a partial result is future work:  solve
+        #  what is left numerically, in the lower-dimensional space that the
+        #  already-solved variables leave behind.
         self.require_complete = True
 
         #  Per-pass progress reporting (ikbtfunctions/progress.py).  This node

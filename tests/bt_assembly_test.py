@@ -49,6 +49,8 @@ import importlib
 import pkgutil
 import unittest
 
+import sympy as sp
+
 import b3 as b3
 
 import ikbtleaves
@@ -73,8 +75,8 @@ from ikbtleaves.updateL          import updateL
 from ikbtleaves.comp_detect      import comp_det
 from ikbtleaves.symbolic_loop    import symbolic_loop
 from ikbtleaves.output_gen       import report_gen
-from ikbtleaves.hybrid_ik        import (hybrid_stub, no_pieper_id, simplified_arm,
-                                         install_simplified)
+from ikbtleaves.hybrid_ik        import (hybrid_stub, pieper_geom_report,
+                                         simplified_arm, install_simplified)
 from ikbtleaves.clear_state      import clear_state
 
 
@@ -119,7 +121,7 @@ REQUIRED_SUPPORT = [assigner, rank, sum_id, sub_transform, updateL, comp_det]
 OPTIONAL_LEAVES = [x2z2_transform, parallel_triple_transform,
                    invariant_gen, sum_solve,
                    symbolic_loop, report_gen, hybrid_stub,
-                   no_pieper_id, simplified_arm, install_simplified,
+                   pieper_geom_report, simplified_arm, install_simplified,
                    clear_state]
 
 #  An ID leaf stashes state on the blackboard that its solver leaf then consumes,
@@ -147,6 +149,40 @@ def is_placeholder_name(name):
        required, so placeholders are not counted as duplicates.'''
     return (not name) or name == '--unnamed--' or (name.startswith('*')
                                                    and name.endswith('*'))
+
+def _geom_bb(dh):
+    """A minimal blackboard for ticking pieper_geom_report in isolation:  it
+       reads only Robot.Mech.{DH,pvals,vv} and the unknown list."""
+    class mech(object):
+        DH, pvals, vv = dh, {}, [1]*6
+    class robot(object):
+        Mech, name = mech(), 'GateCheck'
+    class unk(object):
+        def __init__(self, n): self.n = n
+    bb = b3.Blackboard()
+    bb.set('Robot', robot())
+    bb.set('unknowns', [unk(i) for i in range(1, 7)])
+    return bb
+
+
+def _wristy_bb():
+    """A 6R table WITH a Pieper triple:  a spherical wrist at axes (4,5,6).
+       The arm the dropped gate used to turn away."""
+    return _geom_bb(sp.Matrix(
+        [[0,        sp.Integer(0), sp.Integer(0), sp.Symbol('th_1')],
+         [sp.pi/2,  sp.Integer(3), sp.Integer(4), sp.Symbol('th_2')],
+         [0,        sp.Integer(3), sp.Integer(4), sp.Symbol('th_3')],
+         [sp.pi/2,  sp.Integer(3), sp.Integer(4), sp.Symbol('th_4')],
+         [-sp.pi/2, sp.Integer(0), sp.Integer(0), sp.Symbol('th_5')],
+         [sp.pi/2,  sp.Integer(0), sp.Integer(0), sp.Symbol('th_6')]]))
+
+
+def _no_triple_bb():
+    """A 6R table where NO triple qualifies:  every a and d non-zero, no
+       sin(alpha) zero."""
+    return _geom_bb(sp.Matrix([[sp.pi/2, sp.Integer(3), sp.Integer(4),
+                                sp.Symbol('th_%d' % (r+1))] for r in range(6)]))
+
 
 #  Sequence-like composites:  children run in order, so "ID before solver" is
 #  only meaningful under one of these.
@@ -446,9 +482,9 @@ class TestSolver013(unittest.TestCase):
         self.test_btaQ_leaf_inventory_advisory()
         self.test_btaR_codegen_is_off_unless_asked()
         self.test_btaS_hybrid_branch_is_inert()
-        self.test_btaT_no_pieper_id_gates_only_the_hybrid()
+        self.test_btaT_pieper_geom_report_gates_nothing()
         self.test_btaU_report_gen_is_last_and_shared()
-        self.test_btaV_simplified_arm_is_behind_the_gate()
+        self.test_btaV_simplified_arm_is_the_gate()
 
     #  ------------------------------------------------  the shipped tree
 
@@ -835,26 +871,37 @@ class TestSolver013(unittest.TestCase):
                          'for %d solvers)' % (len(clears), len(loops)))
 
 
-    def test_btaT_no_pieper_id_gates_only_the_hybrid(self):
-        '''The FIRST branch the Analysis selector tries must be reachable
-           without consulting Pieper's condition at all.
+    def test_btaT_pieper_geom_report_gates_nothing(self):
+        '''Pieper's condition must not gate EITHER branch.
 
-           Pieper's condition is sufficient for a closed form to exist and is
-           not known to be necessary:  9 of the 32 robots have no triple and
-           solve completely (Axtman13, Brad, DZhang, ICP5p5_A21, Mackler13,
-           MiniDD, Olson13, Sims11, Wachtveitl).  Gate the primary symbolic path
-           on it and -- measured -- Brad and Sims11 go from solving completely to
-           solving nothing.
+           It is sufficient for a closed form to exist and is not known to be
+           necessary, so neither half of the biconditional holds:
 
-           Gating the HYBRID branch is correct and expected;  it is ahead of the
-           hybrid branch's own solver on purpose.
+             - its ABSENCE cannot gate the symbolic branch.  9 of the 32 robots
+               have no triple and solve completely (Axtman13, Brad, DZhang,
+               ICP5p5_A21, Mackler13, MiniDD, Olson13, Sims11, Wachtveitl);
+               measured, gating the primary path on it takes Brad and Sims11
+               from solving completely to solving nothing.
+             - its PRESENCE cannot gate the hybrid branch.  ArmRobo, Panda and
+               Raven-II all have qualifying triples and all solve 0 of their
+               unknowns, so the old `Sequence[no_pieper_id, ...]` (this leaf's
+               former name and polarity) turned away three arms
+               whose only other answer was "unsolved" (BH, 2026-08-31).
+
+           So the leaf ALWAYS RETURNS SUCCESS and ticks for its side effects
+           alone -- pieper_triples, pieper_ok, and the pieper_latex snapshot of
+           the TRUE robot.  A leaf that cannot FAIL cannot gate anything, in
+           either branch, however it is wired;  that is why it needs no
+           Priority[.., Succeeder] wrapper.  What gates the hybrid branch is
+           simplified_arm finding a usable candidate;  see
+           TestSolver018.test_hybJ for the arm that closes it.
 
            AND THERE MUST BE NO INVERTER.  This was Inverter(pieper_id) -- the
-           only Inverter in the tree.  The node's polarity was swapped instead,
-           so the branch reads as the condition it gates on rather than as the
-           negation of a differently-named one.  Asserting the Inverter is gone
-           keeps it from creeping back.'''
-        fs = ' bt_assembly no_pieper_id gating FAIL'
+           only Inverter in the tree.  The node's polarity was swapped into the
+           node instead, so it answers a question rather than the negation of a
+           differently-named one.  Asserting the Inverter is gone keeps it from
+           creeping back.'''
+        fs = ' bt_assembly pieper_geom_report gating FAIL'
 
         bt, nodes = build_default_bt()
         memo = {}
@@ -868,17 +915,33 @@ class TestSolver013(unittest.TestCase):
         first = _subtree_classes(kids[0], memo)
         self.assertIn(symbolic_loop, first,
                       fs + ' (the first branch tried is not a symbolic solver)')
-        self.assertNotIn(no_pieper_id, first,
-                         fs + ' (Pieper gates the PRIMARY symbolic path -- '
+        self.assertNotIn(pieper_geom_report, first,
+                         fs + ' (Pieper is on the PRIMARY symbolic path -- '
                          'that assumes Pieper is necessary, and it is not)')
 
         #  exactly one instance, NOT inverted, and inside a later branch
-        found = [n for n in bt_nodes(bt) if isinstance(n, no_pieper_id)]
+        found = [n for n in bt_nodes(bt) if isinstance(n, pieper_geom_report)]
         self.assertEqual(len(found), 1,
-                         fs + ' (expected exactly one no_pieper_id)')
-        self.assertTrue(any(no_pieper_id in _subtree_classes(k, memo)
+                         fs + ' (expected exactly one pieper_geom_report)')
+        self.assertTrue(any(pieper_geom_report in _subtree_classes(k, memo)
                             for k in kids[1:]),
-                        fs + ' (no_pieper_id is not in a fallback branch)')
+                        fs + ' (pieper_geom_report is not in a fallback branch)')
+
+        #  AND IT MUST NOT BE ABLE TO GATE ANYTHING.  It sits bare in a
+        #  b3.Sequence, which aborts on its first FAILURE, so "does not gate" is
+        #  a property of the LEAF, not of the wiring:  it has to return SUCCESS
+        #  for an arm that HAS a triple (the case the old gate rejected), for an
+        #  arm that has none, and for a table it could not read at all.
+        for label, bb in (('a table it cannot read', b3.Blackboard()),
+                          ('an arm WITH a triple', _wristy_bb()),
+                          ('an arm with NO triple', _no_triple_bb())):
+            t = b3.BehaviorTree()
+            t.root = found[0]
+            self.assertEqual(t.tick('gating check', bb), b3.SUCCESS,
+                             fs + ' (FAILURE on %s -- it sits bare in a '
+                             'Sequence, so any FAILURE gates the hybrid branch, '
+                             'and having a triple does not mean IKBT can solve '
+                             'the arm)' % label)
 
         inverters = [n for n in bt_nodes(bt) if isinstance(n, b3.Inverter)]
         self.assertEqual(inverters, [],
@@ -913,9 +976,14 @@ class TestSolver013(unittest.TestCase):
                                  fs + ' (report_gen is inside a branch)')
 
 
-    def test_btaV_simplified_arm_is_behind_the_gate(self):
-        '''simplified_arm must sit inside the hybrid branch, sequenced AFTER the
-           Pieper gate, and must not be reachable from the symbolic branch.
+    def test_btaV_simplified_arm_is_the_gate(self):
+        '''simplified_arm must sit inside the hybrid branch, sequenced AFTER
+           pieper_geom_report, and must not be reachable from the symbolic branch.
+
+           It IS the hybrid branch's gate now (pieper_geom_report cannot FAIL),
+           and it must still run second, because it reads pieper_ok and refuses
+           when the DH analysis did not run -- the only thing left between an
+           unparseable table and a derived robot describing nothing.
 
            Ranking simplifications costs a couple of seconds of joint-space
            sampling per arm.  On the symbolic path that is pure waste, and worse,
@@ -945,19 +1013,21 @@ class TestSolver013(unittest.TestCase):
                 continue
             kids = [k for k in child_slots(node) if isinstance(k, b3.BaseNode)]
             sets = [_subtree_classes(k, memo) for k in kids]
-            gi = next((i for i, st in enumerate(sets) if no_pieper_id in st), None)
+            gi = next((i for i, st in enumerate(sets)
+                       if pieper_geom_report in st), None)
             ai = next((i for i, st in enumerate(sets) if simplified_arm in st), None)
             #  gi == ai means both are inside the SAME child subtree, so this
             #  Sequence is not the node that orders them -- only the Sequence
             #  that holds them in separate slots decides who ticks first.
             if gi is not None and ai is not None and gi != ai:
                 self.assertLess(gi, ai,
-                                fs + ' (simplified_arm runs BEFORE the Pieper '
-                                'gate in "%s")' % node.Name)
+                                fs + ' (simplified_arm runs BEFORE '
+                                'pieper_geom_report in "%s", so pieper_ok is '
+                                'not set yet)' % node.Name)
                 placed = True
         self.assertTrue(placed,
                         fs + ' (simplified_arm does not share a Sequence with '
-                        'the Pieper gate -- nothing gates it)')
+                        'pieper_geom_report -- pieper_ok would never be set)')
 
 
 def run_test():
