@@ -4,6 +4,26 @@ behavior trees for action selection.
 Solutions are fully symbolic and are output as LaTex, Python, and C++.
 
 # Latest News
+
+## Sept 2026: Coming soon, IKBT2 on branch newSolverStrategies
+* Key new feature:  IKBT2 introduces a new hybrid symbolic/numerical solver for arms which cannot be solved (by IKBT) symbolically.   In this method IKBT finds a solvable arm which is as close as possible to the true arm.  Then the solution becomes: 
+    1. Get an exact IK solution set for the approximate arm.
+    2. User selects one of the solutions as desired.
+    3. Get an accurate numerical solution to the true arm by a damped least squares method using the true arm's FK and Jacobian matrix. 
+    
+* Additionally, there is a key new script for symbolic solutions, xxxx, which performs the full `closed-loop` solution validation: 
+    1. Solves the IK symbolically (where possible)
+    2. Chooses one or more random end-effector configurations
+    3. Generates all IK solutions for each EE configuration.
+    4. Evaluates the FK for each solution and verifies that each solution produces (matches) the input EE configuration.
+    
+This automates the rigorous validation demonostrated for the Puma in our JAIR paper to easily apply it to any robot. 
+
+
+## August 2026
+
+* Working with Claude to tighten the test coverage and fix a few bugs.  Now 27/27 tests passing.
+
 ## January 2026
 * The change in solution set generation (see below) left a large amount of old code idle.   With the help of Claude Code
 (my first Claude Code project), we have removed 667 lines of dead code.   All tests are now passing   and
