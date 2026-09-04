@@ -36,6 +36,7 @@ import b3 as b3          # behavior trees
 
 from   ikbtfunctions.helperfunctions import *
 import ikbtfunctions.graph2latex as gl
+from   ikbtfunctions.subexpressions import SubexprPool
 #from kin_cl import *
 
 
@@ -86,6 +87,92 @@ AI_STATEMENT = (
     r'\paragraph{Statement of AI contributions} The hybrid solution method '
     r'used here and IKBT2 in general were produced by Blake Hannaford working '
     r'with support of Claude Code.')
+
+
+def definition_block(defs, eol):
+    r"""The `K_i = ...` definitions that go IMMEDIATELY ABOVE an equation.
+
+       Each is its own dmath, so a definition that is still wide can break --
+       and unlike the equation it was lifted out of, a definition is a plain
+       sum or quotient rather than a function argument, so breqn can get at it.
+
+       Printed above rather than below (BH):  the reader meets each name before
+       the equation that uses it, and never has to scan forward to find out
+       what a symbol means."""
+
+    if not defs:
+        return ''
+
+    out = (r'Writing, for brevity,' + eol)
+    for sym, e in defs:
+        out += (r'\begin{dmath} '
+                + str(kc.kequation(sym, e).LaTexOutput(False))
+                + r' \end{dmath}' + eol)
+    return out
+
+
+def version_tex(vname):
+    r"""One version name, typeset:  'th_23v12' -> '\theta_{23}v12'.
+
+       THE BRACES MATTER.  A LaTeX subscript takes ONE token, so $th_23v12$
+       sets only the 2 as a subscript and drops 3v12 onto the baseline --
+       th_23 comes out looking like th_2 followed by a stray 3.  Every
+       sum-of-angle variable has a multi-digit subscript, so this was wrong for
+       exactly the variables whose identity is hardest to guess from context.
+
+       The rest of the report runs names through the same two steps (see the
+       unknowns and solutions sections);  the solution-set tables were built by
+       string concatenation and never got either."""
+
+    return theta_expand(re.sub(r'_(\d+)', r'_{\1}', vname))
+
+
+def pose_columns(Robot):
+    """Which solutionSet columns are real JOINTS.
+
+       Returns (keep, joint_names, soa_names):  the column indices to show, the
+       unknown names those columns hold, and the sum-of-angle names dropped.
+
+       WHY DROP THEM.  A solution set is a set of POSES, and a pose is a value
+       per joint.  th_23 is not a joint -- it is an intermediate the solver
+       introduced, and it is fully determined by th_2 and th_3, which are both
+       already in the row.  Showing it makes a 6-DOF arm's pose table 7 columns
+       wide and invites the reader to count seven joints.
+
+       This is the same rule the code generator already follows:  ikin_*()
+       returns JOINT_NAMES and lists the sum-of-angle variables separately as
+       AUX_NAMES, precisely because returning them made a 6-DOF arm come back 7
+       wide.  The report and the generated code now answer "what is a pose"
+       identically, which they did not before.
+
+       Column i of a row belongs to solution_nodes[i]:  create_solution_set()
+       adds one column per node, in that order.  The joints come from the DH
+       table via numeric_ik.joint_symbols(), NOT from the unknown list, which
+       is exactly the list that has been extended with the SOA variables."""
+
+    order = [nd.unknown.name for nd in Robot.solution_nodes]
+    jnames = [str(s) for s in nik.joint_symbols(Robot.Mech)]
+    keep = [i for i, n in enumerate(order) if n in jnames]
+    soa = [n for n in order if n not in jnames]
+    return keep, [order[i] for i in keep], soa
+
+
+def solution_rows(Robot, groups):
+    """The solution set as an ORDERED list of rows.
+
+       Robot.solListMatrix is a list and preserves the order create_solution_set()
+       built;  solutionSet (which is what `groups` is) is a SET of tuples, so its
+       iteration order moves with string hashing and the report stops being
+       diffable from one run to the next.  The code generator was fixed to read
+       solListMatrix for this reason;  the report was not, until now.
+
+       Falls back to `groups` for a Robot that has no solListMatrix -- the V2
+       callers, and any test that passes a solution set directly."""
+
+    rows = getattr(Robot, 'solListMatrix', None)
+    if rows:
+        return [list(r) for r in rows]
+    return [list(g) for g in groups]
 
 
 def tex_name(n):
@@ -243,6 +330,12 @@ def output_latex_solution(Robot, variables, groups, hybrid=None, R_true=None):
        actually solved and how the answer gets corrected.  Left at None, this
        function behaves exactly as it always did.'''
     eol = '\n'
+    #  ONE pool for the whole report, so every K_i is defined exactly once and
+    #  means one thing in the document.  Restarting the numbering per variable
+    #  would make K_3 mean something different in each subsection -- the very
+    #  ambiguity that ruled out reusing `a_i`.
+    pool = SubexprPool(Robot)
+
     solved_name = Robot.name.replace('test: ','')
     orig_name = (hybrid.get('true_robot') or solved_name) if hybrid else solved_name
     fixed_name = orig_name.replace(r'_', r'\_')
@@ -386,12 +479,24 @@ def output_latex_solution(Robot, variables, groups, hybrid=None, R_true=None):
             #new subsection for this variable and solution(s)
             solsection += '\n' +r'\subsection{'+varLHS+r' } '+eol + 'Solution Method: ' + u.solvemethod + eol
 
+            #  Lift the big pieces out FIRST, then print what is left.  The
+            #  definitions have to precede the whole align block, not sit
+            #  between its rows, so every solution of this variable is split
+            #  before any of it is printed.
+            rewritten, defs = [], []
+            for sol in u.solutions:
+                new, newdefs = pool.split(sol)
+                rewritten.append(new)
+                defs += newdefs
+
+            solsection += definition_block(defs, eol)
+
             nsolns = u.nsolutions
             ALIGN = nsolns > 1
 
             solsection += r'\begin{align}' if ALIGN else r'\begin{dmath} '
 
-            for i, sol in enumerate(u.solutions):
+            for i, sol in enumerate(rewritten):
                 thisEOL = r'\\' if (ALIGN and i < nsolns-1) else ''
                 eqn = kc.kequation(sp.var(u.solutionNames[i]), sol)
                 solsection += str(eqn.LaTexOutput(ALIGN)) + ' ' + thisEOL
@@ -434,10 +539,23 @@ def output_latex_solution(Robot, variables, groups, hybrid=None, R_true=None):
                 seen.add(str(eqn.LHS))
                 eqnlist.append(eqn)
 
+            #  Same treatment as the generic solutions.  This is the section
+            #  that needs it most:  a version equation has every dependency
+            #  substituted into it, so it is the longest thing in the report --
+            #  and the pool is shared, so a piece already named above is
+            #  referenced here rather than defined a second time.
+            rewritten, defs = [], []
+            for eqn in eqnlist:
+                new, newdefs = pool.split(eqn.RHS)
+                rewritten.append(kc.kequation(eqn.LHS, new))
+                defs += newdefs
+
+            solsection += definition_block(defs, eol)
+
             ALIGN = True
             solsection += r'\begin{align}'
-            for i, eqn in enumerate(eqnlist):
-                thisEOL = r'\\' if i < len(eqnlist)-1 else ''
+            for i, eqn in enumerate(rewritten):
+                thisEOL = r'\\' if i < len(rewritten)-1 else ''
                 solsection += str(eqn.LaTexOutput(ALIGN)) + ' ' + thisEOL
             solsection += r'\end{align} ' + eol
 
@@ -474,33 +592,49 @@ The following is the abstract representation of solution graph for this manipula
 
     ####################  Solution Sets
 
+    #  JOINTS ONLY, and in a stable row order -- see pose_columns() and
+    #  solution_rows().  A pose is a value per joint;  the sum-of-angle
+    #  intermediates are named below the table instead of occupying columns in
+    #  it, which is the same split the generated code makes between JOINT_NAMES
+    #  and AUX_NAMES.
+    keep, jcols, soa = pose_columns(Robot)
+    rows = solution_rows(Robot, groups)
+
     solsection = r'\section{Solution Set}'+eol
-    solsection += r'''
-The following are the sets of joint solutions (poses) for this manipulator:
-\begin{verbatim}
-'''
+    solsection += (r'The following are the sets of joint solutions (poses) for'
+                   r' this manipulator, one row per pose, columns in the order'
+                   + eol + '$' + '$, $'.join(version_tex(c) for c in jcols)
+                   + '$:' + eol)
+    solsection += r'\begin{verbatim}' + eol
 
-    # groups = mtch.matching_func(Robot.notation_collections, Robot.solution_nodes)
+    for r in rows:
+        solsection += str(tuple(r[i] for i in keep))+eol
 
-    i=0
-    for g in groups:     # groups is argument consisting of set of tuples
-        solsection += str(g)+eol
+    solsection += '\end{verbatim}'+eol
 
-    solsection += '\end{verbatim}'+eol+eol
+    if soa:
+        solsection += (r'Sum-of-angle intermediates ($'
+                       + '$, $'.join(version_tex(n) for n in soa)
+                       + r'$) are computed on the way to these solutions and'
+                       r' are fully determined by the joints above, so they are'
+                       r' not columns of a pose.' + eol + eol)
 
     LF.sections.append(solsection.splitlines())
 
 
 
     ####################  Solution sets Table form
-    ncols = len(list(Robot.solutionSet)[0])
-    colstr = '|' + 'l|'*ncols
-    tablestr = r'\section{Solution Set v3} \begin{tabular}{' + colstr + r'}\hline' + eol
-    for s in Robot.solutionSet:
-        tablestr += '$'+s[0]+'$'
-        for v in s[1:]:
-            tablestr += ' & $' + v + '$ '
-        tablestr += r'\\\hline' + eol
+    colstr = '|' + 'l|'*len(keep)
+    tablestr = (r'\section{Solution Set (table)} \begin{tabular}{' + colstr
+                + r'}\hline' + eol)
+    #  A HEADER ROW.  Without one the reader has to infer which joint each
+    #  column holds from the version names, and solve order is not chain order,
+    #  so that inference is wrong as often as not.
+    tablestr += (' & '.join(r'\textbf{$' + version_tex(c) + r'$}'
+                            for c in jcols) + r'\\\hline' + eol)
+    for r in rows:
+        cells = [version_tex(r[i]) for i in keep]
+        tablestr += ' & '.join('$' + c + '$' for c in cells) + r'\\\hline' + eol
     tablestr += r'\end{tabular}'+eol
 
     LF.sections.append(tablestr.splitlines())

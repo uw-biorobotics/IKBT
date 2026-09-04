@@ -81,7 +81,12 @@ class kequation:
         tmp = self.string
         #tmp = theta_expand(tmp)
         tmp = re.sub(r'_(\d+)',  r'_{\1}', tmp)   # get all digits of subscript into {}
-        tmp = re.sub(r'atan_\{2\}','atan2' , tmp)  # correct atan2 formatting
+        #  atan2 formatting.  sympy prints atan2 as '\operatorname{atan}_{2}',
+        #  which sets as "atan" with a subscript 2.  The original pattern here
+        #  was 'atan_{2}', which that string does not contain -- so the fix has
+        #  never fired and every atan2 in every report has been mis-set.
+        tmp = re.sub(r'\\operatorname\{atan\}_\{2\}', r'\\operatorname{atan2}', tmp)
+        tmp = re.sub(r'atan_\{2\}', 'atan2', tmp)   # older/plainer spelling
         return tmp
 
 

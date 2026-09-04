@@ -251,7 +251,7 @@ Test-class numbers are global and referenced by `tests/leavestest.py` (001 sinco
 defines a `TestSolver010` — 011 rank, 012 invariant_gen, 013 bt_assembly, 014 comp_detect,
 015 output_latex, 016 symbolic_loop, 017 output_gen, 018 hybrid_ik, 019 dh_analysis,
 020 clear_state, 021 progress, 022 numeric_ik, 023 parallel_triple,
-024 output_hybrid_python). A test double that lives in a
+024 output_hybrid_python, 025 subexpressions). A test double that lives in a
 leaf file must be named `test_*`, or the `bt_assembly_test.py` leaf-inventory scan picks it up as a
 real leaf.
 
