@@ -135,7 +135,12 @@ int ikin(double T[4][4], double solution_list[IK_NBRANCHES][IK_NJOINTS]);
 
     # parameter Declarations
     tmp = '\n'
-    for p in Robot.params:   # other DH dimensional params (l_3 etc)
+    #  Mech.params, not Robot.params -- same reason as output_python.py:  it
+    #  also carries the ca_i / sa_i that forward_kinematics() invented for a
+    #  twist angle that is not a multiple of 90 degrees, and those appear in the
+    #  equations.  Here the omission is a COMPILE error rather than a runtime
+    #  one, since C++ needs every name declared.
+    for p in (getattr(Robot.Mech, 'params', None) or Robot.params):
         tmp += 'double '+str(p) + ' = XXXXX ; \\ deliberate undeclared error!  USER needs to give numerical value\n'
     par_decl_str = tmp
 

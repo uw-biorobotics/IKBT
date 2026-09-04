@@ -89,6 +89,110 @@ AI_STATEMENT = (
     r'with support of Claude Code.')
 
 
+#  Symbols kin_cl.forward_kinematics() INVENTS -- 'ca2', 'sa2' -- when a DH
+#  twist angle is not a multiple of 90 degrees.
+_GEN_ALPHA = re.compile(r'^(c|s)a(\d+)$')
+
+
+def generated_alpha_defs(Robot):
+    r"""The ca_i / sa_i this robot's FK invented, with what each one means.
+
+       Returns [(name, 'cos'|'sin', alpha_expression), ...] in DH row order, or
+       [] for the 30 of 32 robots that have none.
+
+       WHY THEY EXIST (BH).  When a twist angle is a constant -- which it always
+       is -- so are its sine and cosine.  Replacing sin(alpha)/cos(alpha) with a
+       named constant therefore costs NO accuracy, and it buys two things:  the
+       equations get shorter, and sympy has one atom to carry instead of a
+       trig call to re-derive at every simplification.  That is why
+       forward_kinematics() makes the substitution at all, and it only bothers
+       when alpha is not a multiple of 90 degrees -- otherwise sin and cos
+       already reduce to 0 or +-1 and there is nothing to gain.
+
+       WHY THE REPORT MUST DECLARE THEM.  They are real parameters, in
+       Mech.params and Mech.pvals, but they are created deep inside the FK
+       computation and nothing has ever declared them to the reader.  Worse,
+       sympy's LaTeX printer renders Symbol('sa2') as sa_{2}, which sits in the
+       report looking like a member of the a_2 / d_2 family of LINK LENGTHS.
+       On Craig417 that is actively misleading:  sa_2 is sin(pi/4) = 0.707,
+       while a_2 is not a parameter of that robot at all.  (Spotted by BH in
+       ik_solution_Craig417.pdf, 2026-09-03.)
+
+       Only Craig417 (alpha = pi/4) and Raven-II generate any, which is why it
+       went unnoticed:  every other robot's twists are 0 or +-90 degrees."""
+
+    mech = getattr(Robot, 'Mech', None)
+    if mech is None:
+        return []
+
+    out = []
+    for prm in (getattr(mech, 'params', None) or []):
+        m = _GEN_ALPHA.match(str(prm))
+        if not m:
+            continue
+        try:
+            alpha = mech.DH[int(m.group(2)), 0]      # the alpha_{i-1} column
+        except Exception:
+            continue
+        out.append((str(prm), 'cos' if m.group(1) == 'c' else 'sin', alpha))
+
+    #  Row order, cos before sin within a row -- the order a reader scanning
+    #  the DH table would meet them.
+    out.sort(key=lambda t: (int(_GEN_ALPHA.match(t[0]).group(2)), t[1]))
+    return out
+
+
+def alpha_definition_section(Robot, eol='\n'):
+    r"""Declare the ca_i / sa_i.  '' when the robot generated none."""
+
+    defs = generated_alpha_defs(Robot)
+    if not defs:
+        return ''
+
+    sec = eol + r'\subsection{Twist-angle constants}' + eol
+    sec += (r'This robot has a joint twist $\alpha$ that is not a multiple of'
+            r' $90^{\circ}$, so $\sin\alpha$ and $\cos\alpha$ do not reduce to'
+            r' $0$ or $\pm 1$.  Since a twist angle is a constant, so are its'
+            r' sine and cosine, and the forward kinematics carries each as a'
+            r' named constant instead:  this shortens the equations and helps'
+            r' them simplify, with no loss of accuracy.' + eol + eol)
+    sec += (r'\textbf{These are trigonometric functions of a twist ANGLE, not'
+            r' link lengths.}  In particular $sa_{i}$ means $\sin\alpha_{i}$'
+            r' and is unrelated to the link length $a_{i}$.' + eol)
+
+    sec += r'\begin{center}\begin{tabular}{lll}' + eol
+    sec += r'Symbol & Meaning & Value (4 d.p.) \\ \hline' + eol
+    pvals = getattr(getattr(Robot, 'Mech', None), 'pvals', None) or {}
+    for name, kind, alpha in defs:
+        row = int(_GEN_ALPHA.match(name).group(2))
+        fn = r'\cos' if kind == 'cos' else r'\sin'
+
+        #  The VALUE THAT IS ACTUALLY USED, read back from pvals rather than
+        #  recomputed here -- a table that recomputed could disagree with the
+        #  model it claims to describe.  Rounded to 4 decimals for the page
+        #  only;  full precision is what the kinematics carries.
+        val = None
+        for k, v in pvals.items():
+            if str(k) == name:
+                try:
+                    val = '%.4f' % float(v)
+                except (TypeError, ValueError):
+                    val = r'\mathrm{%s}' % sp.latex(sp.sympify(str(v)))
+                break
+        if val is None:
+            try:
+                val = sp.latex(sp.simplify(getattr(sp, kind)(alpha)))
+            except Exception:
+                val = r'\mathrm{(symbolic)}'
+
+        sec += ('$' + sp.latex(sp.Symbol(name)) + r'$ & $'
+                + fn + r'\alpha_{' + str(row) + r'} = '
+                + fn + r'\left(' + sp.latex(alpha) + r'\right)$ & $'
+                + val + r'$ \\' + eol)
+    sec += r'\end{tabular}\end{center}' + eol
+    return sec
+
+
 def definition_block(defs, eol):
     r"""The `K_i = ...` definitions that go IMMEDIATELY ABOVE an equation.
 
@@ -388,6 +492,10 @@ def output_latex_solution(Robot, variables, groups, hybrid=None, R_true=None):
     The kinematic parameters for ''' + (solved_fixed if hybrid else 'this robot') + r''' are
     \[ \left [ \alpha_{i-1}, \quad a_{i-1}, \quad d_i, \quad \theta_i \right  ] \]
     \begin{dmath}''' + sp.latex(Robot.Mech.DH) +  r'\end{dmath}'
+
+    #  Declare the invented twist constants HERE:  with the other kinematic
+    #  parameters, and before the first equation that uses them.
+    paramsection += alpha_definition_section(Robot, eol)
 
     LF.sections.append(paramsection.splitlines())
 

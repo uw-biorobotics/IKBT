@@ -330,8 +330,42 @@ class mechanism:
 
                 self.params.append(tmpvc)   #
                 self.params.append(tmpvs)   #
-                self.pvals[tmpvc] = f'np.cos({alpha_i})'
-                self.pvals[tmpvs] = f'np.sin({alpha_i})'
+
+                #  STORE A NUMBER, not the string 'np.cos(al_1)' (BH,
+                #  2026-09-03).  alpha is a constant, so its sine and cosine
+                #  are constants too, and their values are already available:
+                #  al_1 is itself in pvals.  Evaluating here means every entry
+                #  in pvals is a number, which is what every consumer wants --
+                #  numeric_ik had to special-case the strings (a dropped one
+                #  survives as a free symbol and becomes a spurious lambdify
+                #  argument), and output_python emitted `ca1 = np.cos(al_1)`
+                #  into generated code, which only worked as long as al_1
+                #  happened to be in scope there.
+                #
+                #  FULL PRECISION IS STORED.  Rounding for the report is the
+                #  report's business;  rounding here would quietly make the
+                #  MODEL less accurate than the numbers the user typed in.
+                #
+                #  The string remains the fallback for an alpha whose symbols
+                #  have no numeric value -- there is nothing to evaluate then,
+                #  and a wrong number would be far worse than a symbol.
+                cv = sv = None
+                try:
+                    #  NUMERIC ENTRIES ONLY.  pvals may already hold a fallback
+                    #  string from an earlier row, and substituting a string
+                    #  makes sympy parse it -- 'np.cos(al_1)' would come back
+                    #  as np*cos(al_1), quietly inventing a symbol named np.
+                    subs = {k: v for k, v in self.pvals.items()
+                            if isinstance(v, (int, float))}
+                    a_num = sp.sympify(alpha_i).subs(subs)
+                    if not a_num.free_symbols:
+                        cv = float(sp.cos(a_num).evalf())
+                        sv = float(sp.sin(a_num).evalf())
+                except Exception:
+                    cv = sv = None
+
+                self.pvals[tmpvc] = cv if cv is not None else f'np.cos({alpha_i})'
+                self.pvals[tmpvs] = sv if sv is not None else f'np.sin({alpha_i})'
 
                 alpha_subs[sp.cos(alpha_i)] = tmpvc  # we will make these subs in the T matrics
                 alpha_subs[sp.sin(alpha_i)] = tmpvs

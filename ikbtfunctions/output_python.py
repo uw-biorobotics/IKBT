@@ -117,12 +117,20 @@ pi = np.pi
 
     print('#\n#      Robot Parameters \n#',file=f)
     tmp = '\n'
+    #  Mech.params, NOT Robot.params.  Robot.params holds what ik_robots.py
+    #  DECLARED;  Mech.params also holds what forward_kinematics() had to
+    #  INVENT -- the ca_i / sa_i for a twist angle that is not a multiple of 90
+    #  degrees.  Those appear in the equations below, so a module that declares
+    #  only the first list emits code referencing an undefined name:  measured
+    #  on Craig417, `NameError: name 'sa2' is not defined` on the first call to
+    #  ikin_Craig417().  (Pre-existing;  found 2026-09-03.)
+    decl_params = list(getattr(Robot.Mech, 'params', None) or Robot.params)
     if(Robot.Mech.pvals != {}):  # if we have numerical values stored
-        for p in Robot.params:
+        for p in decl_params:
             val = str(Robot.Mech.pvals[p])
             tmp += str(p) + ' = ' + val + '\n'
     else:                        # no stored numerical values
-        for p in Robot.params:
+        for p in decl_params:
             tmp += str(p) + ' = XXXXX    # deliberate undeclared error!  USER needs to give numerical value \n'
     par_decl_str = tmp
 
@@ -217,12 +225,20 @@ pi = np.pi
 
     # parameter Declarations (a_3, d_5, etc).
     tmp = '\n'
+    #  Mech.params, NOT Robot.params.  Robot.params holds what ik_robots.py
+    #  DECLARED;  Mech.params also holds what forward_kinematics() had to
+    #  INVENT -- the ca_i / sa_i for a twist angle that is not a multiple of 90
+    #  degrees.  Those appear in the equations below, so a module that declares
+    #  only the first list emits code referencing an undefined name:  measured
+    #  on Craig417, `NameError: name 'sa2' is not defined` on the first call to
+    #  ikin_Craig417().  (Pre-existing;  found 2026-09-03.)
+    decl_params = list(getattr(Robot.Mech, 'params', None) or Robot.params)
     if(Robot.Mech.pvals != {}):  # if we have numerical values stored
-        for p in Robot.params:
+        for p in decl_params:
             val = str(Robot.Mech.pvals[p])
             tmp += str(p) + ' = ' + val + '\n'
     else:                        # no stored numerical values
-        for p in Robot.params:
+        for p in decl_params:
             tmp += str(p) + ' = XXXXX    # deliberate undeclared error!  USER needs to give numerical value \n'
     par_decl_str = tmp
 

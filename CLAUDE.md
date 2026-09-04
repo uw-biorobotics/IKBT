@@ -275,12 +275,20 @@ Four traps, all measured:
   model's units and they are not consistent — Puma is in **metres** (`a_2 = 0.432`), KinovaLite in
   **millimetres** (`l_2 = 280`). So `w_rot` is an explicit parameter (1.0 for a metre model, 1000.0
   for a millimetre one); `w_rot_for()` offers a unit-free alternative of one arm-length per radian.
-- **`pvals` is not uniformly numeric** — `Craig417` and `Raven-II` (**not** `ICP5p5_A21`, which the
-  plan names) carry the strings `'np.cos(al_1)'` / `'np.sin(pi/4)'`, and those symbols really are in
-  `T_06`. `dh_analysis.numeric_pvals()` *drops* them, which is right for its zero-tests and wrong
-  here — a dropped `ca1` survives as a free symbol and becomes a spurious `lambdify` argument.
-  `pvals_numeric()` resolves them instead, and `_lambdify_checked()` refuses to build a callable with
-  any symbol left over.
+- **`pvals` USED TO BE non-numeric, and is not any more** (2026-09-03). `kin_cl` invents `ca_i`/`sa_i`
+  for a twist that is not a multiple of 90°, and it used to store them as the *strings*
+  `'np.cos(al_1)'` / `'np.sin(pi/4)'` — which `dh_analysis.numeric_pvals()` *drops*, right for its
+  zero-tests and wrong here, since a dropped `ca1` survives as a free symbol and becomes a spurious
+  `lambdify` argument. `forward_kinematics()` now evaluates them (α is a constant, so its sine and
+  cosine are too) and every pval in every robot is a number. `pvals_numeric()` and
+  `_lambdify_checked()` stay as the guard: the string is still the fallback for an α whose symbols
+  have no numeric value, and nothing should build a callable with a symbol left over.
+
+  That fix exposed a **pre-existing** defect: `output_python`/`output_cpp` declared `Robot.params`
+  (what `ik_robots.py` *declared*) while the equations use `Mech.params` (which also holds what
+  `forward_kinematics()` *invented*), so Craig417's generated module referenced `sa2` and never
+  defined it — `NameError` on the first call. Only Craig417 and Raven-II generate those symbols and
+  neither was in a checker's known-good list, which is how it survived.
 - **Sum-of-angle symbols CANNOT be in `T_06`/`J66`** — and this is structural, not just measured
   (BH): **every link can have only one joint variable**, so a DH-derived link transform has nothing
   for a `th_23` to be. SOA terms arise *within* the FK equations as the sum-of-angles scan rewrites
