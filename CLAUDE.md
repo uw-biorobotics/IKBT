@@ -34,6 +34,9 @@ python3 -m scripts.axis_triple_check       # DH joint-axis geometry vs. numeric 
 python3 -m scripts.check_solution_sets --robots Puma          # is the SYMBOLIC solution set correct?
 python3 -m scripts.check_solution_sets --gate                 # ... exit 1 if a known-complete robot drops
 python3 -m scripts.numerical_closed_loop_sol_check Puma       # is the GENERATED python IK correct?
+python3 -m scripts.numerical_closed_loop_sol_check KinovaLite # ... same command for a HYBRID robot
+python3 -m scripts.bt_path_gate                               # fast gate: every BT path, 5 robots
+python3 -m scripts.bt_path_gate --list                        # what that gate asserts, and why
 ```
 
 `scripts/robot_baseline.py` is the regression gate for anything that touches the tree or a solver
@@ -440,6 +443,52 @@ a file that imports cleanly and then dies with a `NameError` inside generated co
 expression nor the robot. Measured, `T_06` and `J66` reduce to `sin`/`cos` and arithmetic with every
 parameter resolved (KinovaLite: ~3 KB each).
 
+### The fast gate (`scripts/bt_path_gate.py`)
+
+Five robots, one solve each, **codegen on** — which `robot_baseline.py` deliberately runs with off, so
+nothing else in the suite exercises `report_gen` end to end. ~45 s unloaded against the sweep's 5568 s.
+
+| robot | path | artifacts |
+|---|---|---|
+| `Puma` | symbolic, 6 DOF, SOA + ranking | tex, py, cpp |
+| `Chair_Helper` | symbolic, 5 DOF, prismatic | tex, py, cpp |
+| `KinovaLite` | hybrid, derived arm solves 7/7 | tex, hybrid, fk (+ py, fk as the derived arm) |
+| `ArmRobo` | hybrid, derived arm partial 2/7 | **nothing** |
+| `KawasakiRS05L` | hybrid, derived arm 0/7 | **nothing** |
+
+Per robot it asserts the branch (from `hybrid_source`, **not** inferred from the status —
+`KawasakiRS05L` ends `unsolved` having gone all the way through `install_simplified`), the solved
+count, the exact artifact set in both namespaces, and the derived arm's name. Then it hands off to
+`numerical_closed_loop_sol_check.check()` for correctness, which detects the path itself.
+
+Artifacts are judged by **freshness, not existence** — `LaTex/` and `CodeGen/` carry output from
+earlier sessions for every one of these robots — and freshness is timed against the solve's own start,
+because the derived arm's name is not known until `install_simplified` has run and its files therefore
+cannot be snapshotted in advance.
+
+Solver-method coverage is deliberately **not** this gate's job; `tests/leavestest.py` exercises every
+leaf directly, and re-solving whole robots to reach a leaf pays minutes for what a unit test buys in
+milliseconds. What only an end-to-end run shows is the wiring.
+
+`scripts/numerical_closed_loop_sol_check.py` covers **both paths from one command**. `detect_path()`
+reads which artifacts exist — `IK_hybrid_<name>.py` only the hybrid path writes, `IK_equations<name>.py`
+only the symbolic path writes *under the true robot's name* — so a caller with a robot name needs no
+idea which branch of the tree answered it. (A hybrid solve also writes `IK_equations<derived>.py`, but
+that carries the derived arm's name and cannot be mistaken for this robot's closed form; the naming
+contract is what makes the detection unambiguous.) If both somehow exist, it checks the newer and says
+the other is stale rather than picking silently. Two tolerances, because they measure different things:
+`TOL = 1e-7` for an evaluated expression, `HYBRID_TOL = 1e-6` for the output of an iterative solve that
+stops at `metric <= 1e-9`.
+
+The hybrid half is:
+`q → T = FK_true(q) → Phase I → Phase II → FK_true(refined) == T`. **Every check goes through the TRUE
+arm's FK**; judging Phase I against the simplified arm's FK would pass no matter how bad the
+approximation was, confirming only that a closed form is a closed form. It reports the **seed
+improvement** — pose error before and after Phase II — because a run that converges while improving
+nothing would mean the simplification was never needed. The FK and entry points are taken from the
+*shipped* module rather than rebuilt, so a generator that emitted the wrong arm's kinematics cannot
+pass by being compared against itself.
+
 ### Core data model (`ikbtbasics/`, see also `IKdocs/classes.md`)
 
 - `kin_cl.py`: `kequation` (LHS/RHS sympy exprs), `matrix_equation` (`Td` known LHS, `Ts` symbolic FK RHS),
@@ -585,7 +634,8 @@ A new test should evaluate performance of the end-to-end hybrid solution generat
    `report_gen` reads `hybrid_source` and writes a both-arms LaTeX report plus the two-phase Python
    (`ikin_<Robot>_approx(T)` / `refine_<Robot>(T, index)`), every artifact named for the arm it
    describes — see **Hybrid code generation** above. The end-to-end test is
-   `scripts/hybrid_closed_loop_check.py`.
+   `scripts/numerical_closed_loop_sol_check.py`, which now covers both paths and detects which
+   applies, wired into `scripts/bt_path_gate.py`.
 
 ## Still open
 

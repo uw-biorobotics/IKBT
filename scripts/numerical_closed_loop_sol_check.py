@@ -51,14 +51,34 @@ import sympy as sp
 
 #  Measured 2026-08-24, immediately after the solution/version namespace fix.
 #  A drop below these is a regression in the closed form itself.
+#  Measured 2026-09-02/03.  One table for both paths:  the figure means the
+#  same thing either way -- how many of the poses this robot's generated code
+#  offers actually put the arm where it was asked to go.
+#
+#  KinovaLite is the hybrid entry, and it converges on ALL EIGHT branches from
+#  a raw seed error of 43-57 mm down to 1e-12..1e-9 in 4 or 5 iterations.  That
+#  spread is worth keeping in view:  the simplification really does displace the
+#  end effector by tens of millimetres, and Phase II really does remove all of
+#  it, so the answer is exact even though the seed was not.
 KNOWN_GOOD = {'Puma': 8, 'Pumaoffset': 8, 'Stanford': 8, 'Khat6DOF': 8,
-              'Olson13': 4, 'Brad': 1, 'Wrist': 2}
+              'Olson13': 4, 'Brad': 1, 'Wrist': 2,
+              'KinovaLite': 8}
 
 DEFAULT_ROBOTS = ['Puma', 'Pumaoffset', 'Stanford', 'Khat6DOF', 'Olson13',
-                  'Brad', 'Wrist']
+                  'Brad', 'Wrist', 'KinovaLite']
 
 GEN_DIR = os.path.join('CodeGen', 'Python')
+
+#  Symbolic path:  an EVALUATED EXPRESSION either reproduces the pose or it
+#  does not, so this is float noise and nothing else.
 TOL = 1e-7
+
+#  Hybrid path:  looser on purpose.  This answer is the output of an ITERATIVE
+#  solve, not an evaluated expression -- solve_numeric() stops at
+#  metric <= 1e-9, and the max-abs matrix difference that corresponds to is a
+#  small multiple of that.  Holding it to 1e-7 would fail runs that converged
+#  perfectly well.
+HYBRID_TOL = 1e-6
 
 #  The joint vector used to build the target pose.  Arbitrary, but fixed, so a
 #  failure is reproducible.  Truncated to the arm's real DOF.
@@ -159,19 +179,17 @@ def import_generated_ik(name):
     return fns[0], cols
 
 
-def check(name, resolve=True, verbose=False):
-    '''Round-trip one robot through its GENERATED python IK.
+def check_symbolic(name, verbose=False):
+    '''Round-trip one robot through its GENERATED CLOSED-FORM python IK.
 
        name:    robot name
-       resolve: re-run ikSolver.py first (False re-uses what is on disk)
        returns: (branches that reproduced the pose, branches returned, note)
        Never raises:  a robot that could not be checked comes back with 0
-       branches and a note saying why.'''
+       branches and a note saying why.
 
-    if resolve:
-        ok, why = solve_robot(name)
-        if not ok:
-            return 0, 0, why
+       Solving is the DISPATCHER's job, not this function's:  which checker to
+       run cannot be known until the artifacts exist, so the solve has to
+       happen before the choice is made and must not be repeated after it.'''
 
     try:
         fk, jnames = robot_fk(name)
@@ -213,53 +231,302 @@ def check(name, resolve=True, verbose=False):
     return good, len(sols), ''
 
 
+###############################################################################
+#
+#    The HYBRID path:  Phase I seeds, Phase II corrects, the TRUE arm judges
+#
+#  WHY THE APPROXIMATE ARM CANNOT BE THE JUDGE.  Phase I's branches solve the
+#  simplified arm exactly, so checking them against the simplified arm's FK
+#  would pass no matter how bad the approximation was -- it would confirm only
+#  that a closed form is a closed form.  Every check below goes through the
+#  TRUE arm's forward kinematics, which is the arm the user asked about and
+#  the only one whose pose error means anything.
+#
+#  WHAT A PASS PROVES.  If a refined branch lands on T, then for that pose the
+#  hybrid answer is EXACT, not approximate:  Phase II converged against the
+#  real kinematics.  The approximation is in the SEED, not the answer.
+#
+#  NOT EVERY BRANCH IS EXPECTED TO CONVERGE, and that is not a defect:  the
+#  branches are different postures and the true arm may not reach the pose in
+#  some of them, and damped least squares stays in the basin of its seed --
+#  which is the whole reason the caller chooses the index.
+#
+
+def import_hybrid(name):
+    '''Load CodeGen/Python/IK_hybrid_<name>.py and find its two entry points.
+
+       Returns (module, phase1, phase2).
+       Raises IOError if the module was never generated, ValueError if it does
+       not carry the pair of entry points this method is defined by.
+
+       The functions are found by SHAPE, not by rebuilding their names here.
+       py_identifier() may rewrite a robot name that is not a valid python
+       identifier, and a checker that re-derived the name would drift from the
+       generator the first time that mattered.'''
+
+    path = os.path.join(GEN_DIR, 'IK_hybrid_%s.py' % name)
+    if not os.path.exists(path):
+        raise IOError('no generated hybrid code at %s' % path)
+
+    spec = importlib.util.spec_from_file_location('hybrid_' + name, path)
+    mod = importlib.util.module_from_spec(spec)
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        spec.loader.exec_module(mod)
+
+    p1 = [getattr(mod, a) for a in dir(mod)
+          if a.startswith('ikin_') and a.endswith('_approx')]
+    p2 = [getattr(mod, a) for a in dir(mod)
+          if a.startswith('refine_') and not a.startswith('refine_all_')]
+    if not p1:
+        raise ValueError('%s has no Phase I entry point' % path)
+    if not p2:
+        raise ValueError('%s has no Phase II entry point' % path)
+    return mod, p1[0], p2[0]
+
+
+def true_fk_of(mod):
+    '''The TRUE arm's FK callable, out of the hybrid module's own imports.
+
+       Taken from the module rather than rebuilt from the robot definition on
+       purpose:  this check has to judge what was SHIPPED.  Rebuilding the FK
+       here would let a generator that emitted the wrong arm's kinematics pass,
+       because the checker would be comparing that arm against itself.'''
+
+    tf = getattr(mod, 'true_fk', None)
+    if tf is None:
+        raise ValueError('hybrid module does not import a true-arm FK')
+    fns = [getattr(tf, a) for a in dir(tf) if a.startswith('fk_')]
+    if not fns:
+        raise ValueError('true-arm FK module has no fk_* function')
+    return fns[0]
+
+
+def check_hybrid(name, verbose=False):
+    '''Round-trip one robot through its generated HYBRID IK.
+
+       Returns (branches that reached the pose, branches Phase I offered, note).
+       Never raises:  a robot that could not be checked comes back with 0
+       branches and a note saying why.
+
+       Solving is the dispatcher's job -- see check().'''
+
+    try:
+        mod, phase1, phase2 = import_hybrid(name)
+        fk_true = true_fk_of(mod)
+    except Exception as e:
+        return 0, 0, '%s: %s' % (type(e).__name__, str(e)[:90])
+
+    ndof = int(getattr(mod, 'NDOF', len(Q_PROBE)))
+    q_true = [float(x) for x in Q_PROBE[:ndof]]
+
+    try:
+        T = np.asarray(fk_true(q_true), dtype=float)
+    except Exception as e:
+        return 0, 0, 'true FK failed: %s: %s' % (type(e).__name__, str(e)[:70])
+
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        try:
+            seeds = phase1(T)
+        except Exception as e:
+            return 0, 0, ('Phase I raised %s: %s'
+                          % (type(e).__name__, str(e)[:70]))
+
+    if not seeds:
+        return 0, 0, 'Phase I returned no usable branch for a reachable pose'
+
+    good = 0
+    seed_err, final_err = [], []
+    for i, seed in enumerate(seeds):
+        #  How wrong the RAW approximate answer is on the true arm.  This is
+        #  the quantity Phase II exists to remove, so it is measured rather
+        #  than assumed.
+        try:
+            e0 = float(np.max(np.abs(np.asarray(fk_true(seed), dtype=float) - T)))
+        except Exception:
+            e0 = float('inf')
+        seed_err.append(e0)
+
+        with contextlib.redirect_stdout(buf):
+            try:
+                r = phase2(T, i, seeds=seeds)
+            except Exception as e:
+                if verbose:
+                    print('      branch %-2d Phase II raised %s'
+                          % (i, type(e).__name__))
+                continue
+
+        if r.get('q') is None:
+            continue
+        try:
+            e1 = float(np.max(np.abs(
+                np.asarray(fk_true(r['q']), dtype=float) - T)))
+        except Exception:
+            continue
+        final_err.append(e1)
+
+        if e1 < HYBRID_TOL:
+            good += 1
+            if verbose:
+                print('      branch %-2d  seed err %.2e -> %.2e   %2d iters  OK'
+                      % (i, e0, e1, r.get('iterations', -1)))
+        elif verbose:
+            print('      branch %-2d  seed err %.2e -> %.2e   %2d iters  %s'
+                  % (i, e0, e1, r.get('iterations', -1),
+                     r.get('reason', '?')))
+
+    note = ''
+    if seed_err and final_err:
+        note = ('seed err %.1e -> %.1e'
+                % (min(seed_err), min(final_err)))
+    return good, len(seeds), note
+
+
+###############################################################################
+#
+#    Which path did this robot take, and therefore which check applies
+#
+
+def detect_path(name):
+    """'symbolic', 'hybrid' or None, from the artifacts on disk.
+
+       Returns (path, note).
+
+       READ OFF THE ARTIFACTS, not re-derived.  The alternative -- re-solving
+       and asking the blackboard -- would make the checker's answer depend on a
+       second solve rather than on what was actually shipped, which is the one
+       thing a checker of generated code must not do.  The naming contract is
+       what makes this reliable:
+
+           IK_hybrid_<name>.py     only the hybrid path writes this
+           IK_equations<name>.py   only the symbolic path writes this
+                                   UNDER THE TRUE ROBOT'S NAME
+
+       A hybrid solve also writes IK_equations<derived>.py, but that carries the
+       derived arm's name, so it can never be mistaken for this robot's closed
+       form.  That separation exists exactly so questions like this one have an
+       unambiguous answer."""
+
+    hyb = os.path.join(GEN_DIR, 'IK_hybrid_%s.py' % name)
+    sym = os.path.join(GEN_DIR, 'IK_equations%s.py' % name)
+    has_hyb, has_sym = os.path.exists(hyb), os.path.exists(sym)
+
+    if has_hyb and has_sym:
+        #  NOT legitimate:  a robot solves one way or the other.  Almost always
+        #  one of them is left over from an earlier run, before the robot
+        #  changed character.  Go with the newer and SAY SO, rather than
+        #  picking silently -- a checker that quietly tested the stale artifact
+        #  would report a confident PASS about code nobody is using.
+        newer = 'hybrid' if os.path.getmtime(hyb) > os.path.getmtime(sym) else 'symbolic'
+        return newer, ('both %s and %s exist -- checking the newer (%s);  the '
+                       'other is stale, delete it'
+                       % (os.path.basename(hyb), os.path.basename(sym), newer))
+    if has_hyb:
+        return 'hybrid', ''
+    if has_sym:
+        return 'symbolic', ''
+    return None, 'nothing generated for %s' % name
+
+
+def check(name, resolve=True, verbose=False):
+    '''Closed-loop check of whatever IKBT generated for `name`.
+
+       Determines the path from the artifacts and runs the matching check:
+
+         symbolic  q -> T = FK(q) -> ikin_*(T) -> FK(each branch) == T
+         hybrid    q -> T = FK_true(q) -> Phase I -> Phase II
+                                       -> FK_true(refined) == T
+
+       name:    robot name
+       resolve: re-run ikSolver.py first (False re-uses what is on disk)
+       returns: (poses that reproduced the target, poses checked, note, path)
+
+       Never raises:  a robot that could not be checked comes back with 0
+       poses and a note saying why.
+
+       WHY ONE ENTRY POINT.  The two paths ask the same question -- does the
+       code IKBT just wrote put this arm at the pose it was asked for -- and a
+       caller with a robot name in hand has no reason to know which branch of
+       the tree answered it.  Keeping them apart meant every caller had to
+       decide first, using the same artifact test that now lives here once.'''
+
+    if resolve:
+        ok, why = solve_robot(name)
+        if not ok:
+            return 0, 0, why, None
+
+    path, note = detect_path(name)
+    if path is None:
+        return 0, 0, note, None
+
+    if path == 'hybrid':
+        good, n, hnote = check_hybrid(name, verbose=verbose)
+    else:
+        good, n, hnote = check_symbolic(name, verbose=verbose)
+
+    #  detect_path's note is a WARNING about the artifacts;  the checker's is a
+    #  measurement.  Both matter, so neither is dropped.
+    both = '; '.join(x for x in (note, hnote) if x)
+    return good, n, both, path
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('robots', nargs='*', help='robots to check')
     ap.add_argument('--keep', action='store_true',
                     help='use the existing generated code, do not re-solve')
     ap.add_argument('--verbose', action='store_true',
-                    help='say why each failing branch failed')
+                    help='say why each failing pose failed')
     a = ap.parse_args(argv)
 
     names = a.robots if a.robots else DEFAULT_ROBOTS
 
     print('')
-    print('  Does the GENERATED IK reproduce the pose it solved for?')
-    print('    q -> T = FK(q) -> ikin_*(T) -> FK(each branch) must equal T')
-    print('  T comes from the robot\'s own FK, so it is reachable by')
-    print('  construction and a failure is the solver\'s.')
+    print('  Does the GENERATED code put the arm at the pose it was asked for?')
+    print('  The path is detected per robot, from the artifacts on disk:')
+    print('    symbolic  q -> T = FK(q) -> ikin_*(T) -> FK(each branch) == T')
+    print('    hybrid    q -> T = FK_true(q) -> Phase I -> Phase II')
+    print('                                  -> FK_true(refined) == T')
+    print("  T comes from the robot's own FK, so it is reachable by")
+    print("  construction and a failure is the solver's, never the target's.")
     print('')
-    print('  %-16s %10s  %s' % ('robot', 'branches', 'note'))
-    print('  ' + '-' * 66)
+    print('  %-16s %-9s %8s  %s' % ('robot', 'path', 'poses', 'note'))
+    print('  ' + '-' * 70)
 
     regressions, blanks = [], []
     for name in names:
-        good, n, note = check(name, resolve=not a.keep, verbose=a.verbose)
+        good, n, note, path = check(name, resolve=not a.keep, verbose=a.verbose)
+        known = name in KNOWN_GOOD
+
         if n == 0:
             #  COULD NOT CHECK IS A FAILURE for a robot we know should pass.
-            known = name in KNOWN_GOOD
-            print('  %-16s %10s  %s%s' % (name, '-', note,
-                  '  <-- REGRESSION (expected %d branches)' % KNOWN_GOOD[name]
-                  if known else ''))
+            flag = ('  <-- REGRESSION (expected %d poses)' % KNOWN_GOOD[name]
+                    if known else '')
+            print('  %-16s %-9s %8s  %s%s'
+                  % (name, path or '-', '-', note, flag))
             (regressions if known else blanks).append(name)
             continue
+
         flag = ''
         want = KNOWN_GOOD.get(name)
         if want is not None and good < want:
             flag = '  <-- REGRESSION (expected %d)' % want
             regressions.append(name)
         elif good == 0:
-            flag = '  <-- no branch reproduces the pose'
-        print('  %-16s %10s%s' % (name, '%d/%d' % (good, n), flag))
+            flag = '  <-- no pose reproduces the target'
+        print('  %-16s %-9s %8s  %s%s'
+              % (name, path, '%d/%d' % (good, n), note, flag))
 
     print('')
     if regressions:
-        print('  FAILED: %s' % ', '.join(regressions))
+        print('  FAILED: %s' % ', '.join(sorted(set(regressions))))
+        print('')
         return 1
     if blanks and not a.robots:
         print('  Could not check: %s' % ', '.join(blanks))
-    print('  PASS: every checked robot meets its expected branch count.')
+    print('  PASS: every checked robot meets its expected pose count.')
+    print('')
     return 0
 
 
