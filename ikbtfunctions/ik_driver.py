@@ -31,6 +31,7 @@ import ikbtfunctions.output_latex  as ol
 import ikbtfunctions.output_python as op
 import ikbtfunctions.output_cpp    as oc
 import ikbtfunctions.output_hybrid_python as ohp
+import ikbtfunctions.texwidth as texwidth
 
 from ikbtfunctions.ik_robots import robot_params
 from ikbtbasics.ik_classes  import kinematics_pickle, check_the_pickle
@@ -132,9 +133,57 @@ def emit_outputs(R, unks):
        Everything under LaTex/, CodeGen/Python/ and CodeGen/Cpp/ is a generated
        artifact -- these calls overwrite whatever is there.'''
 
-    ol.output_latex_solution(R, unks, R.solutionSet)   # calling args could be optimized for V3
+    write_latex_fitted(R, unks, R.solutionSet)
     op.output_python_code(R, R.solutionSet)
     oc.output_cpp_code(R, R.solutionSet)
+
+
+def write_latex_fitted(R, unks, groups, hybrid=None, R_true=None, passes=4,
+                       slack_pt=6.0):
+    '''Write the LaTeX report, then MEASURE it and re-write what did not fit.
+
+       Pass 1 writes the report as usual.  pdflatex then says which equations
+       are too wide for the page, in points, against the source line each one
+       sits on -- and because every equation is emitted on its own line with a
+       marker above it, that maps back to the equation.  The next pass re-writes
+       those with their pieces named as K_i, which is what shortens them;  it
+       repeats while each pass turns up equations the previous one had not seen,
+       because shortening one equation can expose another.
+
+       WHY MEASURE RATHER THAN PREDICT.  Both cheap proxies were tried and both
+       failed on measured data:  a 439-character equation overflows while a
+       2030-character one fits, and Brad's th_3 is 25 operations with 12 in each
+       atan2 argument -- under every threshold -- while its line is 144pt too
+       wide.  Width is a property of the typeset line, not of the expression.
+       See ikbtfunctions/texwidth.py.
+
+       slack_pt ignores trivial overflows.  Stanford has a box 3.7pt over, about
+       one character;  restructuring an equation to win that back trades a
+       readable equation for a folded one and gains nothing.
+
+       DEGRADES TO PASS 1.  No pdflatex, a LaTeX error, a timeout:  the report
+       from pass 1 is already written and already correct, just wide.  A
+       formatting refinement must never cost the report itself.'''
+
+    path = ol.output_latex_solution(R, unks, groups, hybrid=hybrid, R_true=R_true)
+
+    force = set()
+    for _ in range(max(0, passes - 1)):
+        try:
+            measured = texwidth.overfull_ids(path, slack_pt=slack_pt)
+        except Exception as e:
+            print('  LaTeX width check skipped -- %s: %s' % (type(e).__name__, e))
+            break
+
+        new_force = {i for i in measured if i not in force}
+        if not new_force:
+            break                    # nothing left that shortening has not seen
+        force |= new_force
+        print('  LaTeX: %d equation(s) too wide, shortening: %s'
+              % (len(new_force), ', '.join(sorted(new_force))))
+        ol.output_latex_solution(R, unks, groups, hybrid=hybrid, R_true=R_true,
+                                 force_ids=force)
+    return path
 
 
 def emit_hybrid_outputs(R, unks, hybrid, R_true=None):
@@ -174,8 +223,7 @@ def emit_hybrid_outputs(R, unks, hybrid, R_true=None):
     #  arm -- output_latex_solution takes the substitution as an argument and
     #  says so in its own section, rather than being handed a robot that lies
     #  about which arm it is.
-    ol.output_latex_solution(R, unks, R.solutionSet,
-                             hybrid=hybrid, R_true=R_true)
+    write_latex_fitted(R, unks, R.solutionSet, hybrid=hybrid, R_true=R_true)
 
     #  Phase I's closed form, under the DERIVED arm's name.
     op.output_python_code(R, R.solutionSet)

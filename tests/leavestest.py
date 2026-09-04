@@ -66,6 +66,7 @@ from ikbtbasics.numeric_ik     import TestSolver022
 from ikbtleaves.parallel_triple import TestSolver023
 from ikbtfunctions.output_hybrid_python import TestSolver024
 from ikbtfunctions.subexpressions import TestSolver025
+from ikbtfunctions.texwidth import TestSolver026
 
 
 import b3 as b3          # behavior trees
@@ -420,6 +421,7 @@ if __name__ == '__main__':
     suite3.addTest(TestSolver023())   # parallel_triple.py # 3 parallel axes transform
     suite3.addTest(TestSolver024())   # output_hybrid_python.py # hybrid codegen vs. the library
     suite3.addTest(TestSolver025())   # subexpressions.py  # naming long subexpressions
+    suite3.addTest(TestSolver026())   # texwidth.py       # which equations overflow the page
     suite1.addTest(TestSolver009())   # helperfunctions.py
 
     if(not HTML):

@@ -37,6 +37,7 @@ import b3 as b3          # behavior trees
 from   ikbtfunctions.helperfunctions import *
 import ikbtfunctions.graph2latex as gl
 from   ikbtfunctions.subexpressions import SubexprPool
+import ikbtfunctions.texwidth as texwidth
 #from kin_cl import *
 
 
@@ -191,6 +192,52 @@ def alpha_definition_section(Robot, eol='\n'):
                 + val + r'$ \\' + eol)
     sec += r'\end{tabular}\end{center}' + eol
     return sec
+
+
+def eq_id(name):
+    """The id a marker carries:  the LHS symbol, which is unique in the report."""
+    return str(name)
+
+
+def emit_equations(eqns, eol, force_align=False):
+    r"""A variable's equations, ONE PER SOURCE LINE, each preceded by a marker.
+
+       eqns       list of kc.kequation
+       fold_ids   ids (LHS names) measured as too wide, to be folded
+       force_align  use align even for a single equation
+
+       ONE EQUATION PER SOURCE LINE is what makes the measurement possible at
+       all.  pdflatex reports an overfull box against a SOURCE LINE, and this
+       generator used to put every version of a variable on one line separated
+       by '\\' -- so eight equations shared one line number and there was no way
+       to tell which of them was too wide.  It is also why raw line length was
+       such a poor predictor:  the length being measured was the whole block's.
+
+       The marker is a TeX comment, so it costs the reader nothing."""
+
+    if not eqns:
+        return ''
+
+    out = ''
+    keep = list(eqns)
+
+    #  ONE ENVIRONMENT PER EQUATION, not one align block for the variable.
+    #  This is what makes the measurement usable:  for an align block pdflatex
+    #  reports the overfull box against the line where the ENVIRONMENT ENDS --
+    #  '\end{align}' -- not the row that is too wide, so every equation in the
+    #  block gets attributed to whichever one happens to sit last.  Measured on
+    #  Craig417:  a 297pt overflow reported at \end{align}, folding the wrong
+    #  equation and never converging.  dmath reports the real line, which is why
+    #  Brad folded cleanly on the first try.
+    #
+    #  The cost is the '&' alignment between a variable's versions.  Each is a
+    #  separate equation with its own left-hand side, so little is lost -- and
+    #  dmath breaks a long line at its operators, which align could not do at
+    #  all.
+    for e in keep:
+        out += texwidth.MARKER + eq_id(e.LHS) + eol
+        out += r'\begin{dmath} ' + str(e.LaTexOutput(False)) + r' \end{dmath}' + eol
+    return out
 
 
 def definition_block(defs, eol):
@@ -423,7 +470,8 @@ def hybrid_numeric_section(hybrid, true_name):
     return sec.splitlines()
 
 
-def output_latex_solution(Robot, variables, groups, hybrid=None, R_true=None):
+def output_latex_solution(Robot, variables, groups, hybrid=None, R_true=None,
+                          force_ids=None):
     GRAPH = True
     '''Print out a latex document of the solution equations.
 
@@ -432,7 +480,25 @@ def output_latex_solution(Robot, variables, groups, hybrid=None, R_true=None):
        robot -- that is the robot the user asked about and the one the
        generated code is for -- and it gains two sections saying which arm was
        actually solved and how the answer gets corrected.  Left at None, this
-       function behaves exactly as it always did.'''
+       function behaves exactly as it always did.
+
+       force_ids names the equations a previous pass MEASURED as too wide, by
+       their left-hand side:  their pieces are named as K_i whatever the
+       dependency rule thinks, which shortens them without changing the shape of
+       the equation.  The caller measures, calls back with the names, and
+       measures again;  see ik_driver.write_latex_fitted().
+
+       There used to be a second remedy here -- breaking an equation across
+       lines as equation+split -- for one still too wide after shortening.  It
+       was REMOVED (BH, 2026-09-04) because no robot ever reached it:  K_i
+       naming plus dmath's own operator breaking fits every equation in every
+       report.  An escalation path that never runs is untested code wearing the
+       costume of a safety net, and it carried a real defect of its own -- like
+       align, equation+split reports its overfull box against \end{equation}
+       rather than the offending row, so the measurement could not have
+       attributed it correctly anyway.'''
+
+    force_ids = set(force_ids or ())
     eol = '\n'
     #  ONE pool for the whole report, so every K_i is defined exactly once and
     #  means one thing in the document.  Restarting the numbering per variable
@@ -592,24 +658,20 @@ def output_latex_solution(Robot, variables, groups, hybrid=None, R_true=None):
             #  between its rows, so every solution of this variable is split
             #  before any of it is printed.
             rewritten, defs = [], []
-            for sol in u.solutions:
-                new, newdefs = pool.split(sol)
+            for i, sol in enumerate(u.solutions):
+                #  MEASURED too wide -> name its pieces whatever the dependency
+                #  rule thinks.  A single atan2 has no top-level sum to fold at,
+                #  so shortening its arguments is the only lever.
+                forced = eq_id(sp.var(u.solutionNames[i])) in force_ids
+                new, newdefs = pool.split(sol, force=forced)
                 rewritten.append(new)
                 defs += newdefs
 
             solsection += definition_block(defs, eol)
 
-            nsolns = u.nsolutions
-            ALIGN = nsolns > 1
-
-            solsection += r'\begin{align}' if ALIGN else r'\begin{dmath} '
-
-            for i, sol in enumerate(rewritten):
-                thisEOL = r'\\' if (ALIGN and i < nsolns-1) else ''
-                eqn = kc.kequation(sp.var(u.solutionNames[i]), sol)
-                solsection += str(eqn.LaTexOutput(ALIGN)) + ' ' + thisEOL
-
-            solsection += (r'\end{align} ' if ALIGN else r'\end{dmath} ') + eol
+            solsection += emit_equations(
+                [kc.kequation(sp.var(u.solutionNames[i]), sol)
+                 for i, sol in enumerate(rewritten)], eol)
 
             solsection += eol+eol
 
@@ -654,18 +716,14 @@ def output_latex_solution(Robot, variables, groups, hybrid=None, R_true=None):
             #  referenced here rather than defined a second time.
             rewritten, defs = [], []
             for eqn in eqnlist:
-                new, newdefs = pool.split(eqn.RHS)
+                forced = eq_id(eqn.LHS) in force_ids
+                new, newdefs = pool.split(eqn.RHS, force=forced)
                 rewritten.append(kc.kequation(eqn.LHS, new))
                 defs += newdefs
 
             solsection += definition_block(defs, eol)
 
-            ALIGN = True
-            solsection += r'\begin{align}'
-            for i, eqn in enumerate(rewritten):
-                thisEOL = r'\\' if i < len(rewritten)-1 else ''
-                solsection += str(eqn.LaTexOutput(ALIGN)) + ' ' + thisEOL
-            solsection += r'\end{align} ' + eol
+            solsection += emit_equations(rewritten, eol, force_align=True)
 
             solsection += eol+eol
 
@@ -809,6 +867,9 @@ The following is the abstract representation of solution graph for this manipula
 
     # Write out the file!!
     LF.output()
+    #  The caller measures this file and may call back with fold_ids -- see
+    #  ik_driver.write_latex_fitted().
+    return LF.filename
 
 #
 #

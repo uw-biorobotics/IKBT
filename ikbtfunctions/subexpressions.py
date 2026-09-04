@@ -128,12 +128,20 @@ class SubexprPool(object):
        definition exactly once, before its first use."""
 
     def __init__(self, Robot, min_deps=MIN_DEPS, min_ops=MIN_OPS,
-                 max_defs=400, max_depth=3):
+                 max_defs=400, max_depth=8):
         self.deps = dependency_names(Robot)
         self.prefix = choose_prefix(Robot, self.deps)
         self.min_deps = min_deps
         self.min_ops = min_ops
         self.max_defs = max_defs
+
+        #  DEEP ENOUGH TO REACH THE RADICAND.  This was 3, and measured on
+        #  KinovaLite that stopped the walk before it reached the sqrt inside
+        #  th_5/th_6:  the sqrt itself got named, but its argument never did, so
+        #  eight definitions came out `K_n = sqrt(<forty terms>)` at 253pt over.
+        #  The recursion is bounded by big_enough() rather than by this number
+        #  -- it stops as soon as a piece is under min_ops -- so the cap only
+        #  needs to be past the deepest thing worth naming.
         self.max_depth = max_depth
         self.named = {}              # subexpression -> symbol
         self.order = []              # (symbol, subexpression), definition order
@@ -145,6 +153,31 @@ class SubexprPool(object):
             return len({s for s in e.free_symbols if str(s) in self.deps})
         except AttributeError:
             return 0
+
+    def all_named(self, e):
+        """Is `e` nothing but a combination of names we already created?
+
+           K_59 = K_55 + K_56 + K_57 + K_58 is a definition that defines
+           nothing:  every symbol in it is already a name, so the reader must
+           visit four more definitions to reconstruct a sum that was perfectly
+           readable written out.  Measured on Craig417, where forcing produced
+           exactly that chain (BH, 2026-09-04).
+
+           Suppressing the OUTER name -- not the inner ones -- is what keeps the
+           width fix.  The terms stay named, because their width is real and a
+           name is the only thing that shortens them;  what disappears is the
+           extra indirection that merely adds them up."""
+
+        syms = getattr(e, 'free_symbols', None)
+        if not syms:
+            return False
+        known = set(self.named.values())
+        return bool(known) and syms.issubset(known)
+
+    def big_enough(self, e):
+        """Big enough that a name is an improvement, ignoring dependencies."""
+        return (e is not None and not e.is_Atom
+                and sp.count_ops(e) >= self.min_ops)
 
     def worth_naming(self, e):
         """BH's rule, plus the triviality guard."""
@@ -171,15 +204,45 @@ class SubexprPool(object):
             return list(e.args)
         if e.is_Add or e.is_Mul:
             return list(e.args)
+        if e.is_Pow:
+            #  sqrt(x) IS A Pow, not a Function -- sympy spells it x**(1/2) --
+            #  so without this the pool walks straight past it and a
+            #  `K_5 = sqrt(<forty terms>)` can never be shortened by anything.
+            #  Measured on KinovaLite:  eight definitions 253pt too wide, all of
+            #  them a sqrt of an expression nothing had looked inside
+            #  (BH, 2026-09-04).  Nothing can break inside a radical either, so
+            #  naming the radicand is the only lever there is.
+            #
+            #  BOTH ARGS, not just the base.  The rebuild below is
+            #  e.func(*new_pieces), and Pow needs a base AND an exponent:
+            #  handing it one argument raises, the except swallows it, and the
+            #  ORIGINAL expression comes back -- so the definitions were emitted
+            #  and then not used, which is exactly the shape the bug took
+            #  (a `K_n = sqrt(...)` sitting beside the unshortened equation).
+            #  The exponent is safe to include:  it is an atom (2, 1/2), and
+            #  neither worth_naming() nor big_enough() will name an atom.
+            return list(e.args)
         return []
 
     #  ------------------------------------------------------------------
-    def split(self, expr):
-        """(rewritten expression, new definitions created by this call)."""
+    def split(self, expr, force=False):
+        """(rewritten expression, new definitions created by this call).
+
+           force=True names this expression's pieces WHATEVER their dependency
+           count, subject only to the triviality guard.  It is for the caller
+           who has MEASURED the equation as too wide for the page:  at that
+           point the dependency rule has already had its say and been wrong,
+           and the question is no longer "is this worth naming" but "this must
+           be made narrower, what is there to name".
+
+           Brad's th_3 is the case it exists for -- a single atan2 whose two
+           arguments are 12 operations each and involve two solved variables,
+           so every threshold declines it, while the typeset line is 144pt too
+           wide."""
 
         before = len(self.order)
         try:
-            out = self._walk(sp.sympify(expr), self.max_depth)
+            out = self._walk(sp.sympify(expr), self.max_depth, force=force)
         except Exception:
             #  A rewrite that cannot be done must never cost us the equation.
             #  The report is still correct with the long form in it;  it is
@@ -187,7 +250,7 @@ class SubexprPool(object):
             return expr, []
         return out, list(self.order[before:])
 
-    def _walk(self, e, depth):
+    def _walk(self, e, depth, force=False):
         if depth <= 0 or len(self.order) >= self.max_defs:
             return e
 
@@ -198,11 +261,39 @@ class SubexprPool(object):
         new_pieces = []
         changed = False
         for p in pieces:
-            if self.worth_naming(p):
+            #  FORCE NAMES WHAT CANNOT BE BROKEN, and nothing else.  A sum is
+            #  breakable -- dmath puts its terms on separate lines by itself --
+            #  so naming the terms of one buys no width and costs a definition
+            #  apiece, plus an aggregator to add them back up.  Measured on
+            #  Craig417:  K_54 and K_59 were each `K_a + K_b + K_c + K_d + ...`,
+            #  four names to reconstruct a sum that reads perfectly well written
+            #  out (BH, 2026-09-04).
+            #
+            #  The RECURSION STILL CARRIES force.  Not naming a term is not the
+            #  same as leaving it alone:  inside that term there may be an
+            #  atan2 whose arguments nothing can break, and those are exactly
+            #  what force exists to name.  An earlier cut dropped force here and
+            #  the equations stayed too wide.
+            #  ...and the same applies to the dependency rule, which is what
+            #  actually produced the aggregators:  K_7 = K_3+K_4+K_5+K_6+...
+            #  came from naming four terms of one sum because each had three
+            #  dependencies.  Sums are breakable either way, so NO rule names
+            #  their terms;  both still recurse inside them.
+            nameable_here = not e.is_Add
+            if nameable_here and (self.worth_naming(p)
+                                  or (force and self.big_enough(p))):
                 #  Split INSIDE the piece before naming it, so a definition is
                 #  itself compact:  K_2 = atan2(K_1, ...) rather than K_2
                 #  swallowing everything below it.
-                inner = self._walk(p, depth - 1)
+                #  force PROPAGATES.  Naming only the top pieces is not enough:
+                #  measured on Craig417 th_3, naming the two atan2 terms of the
+                #  sum just moved the overflow into the definitions
+                #  (K_1 = atan2(-sqrt(...), ...) was itself too wide for the
+                #  page).  The recursion is bounded by big_enough() -- it stops
+                #  as soon as a piece is under min_ops -- so this does not
+                #  shatter the equation, it just keeps going while there is
+                #  still something too big to print.
+                inner = self._walk(p, depth - 1, force=force)
 
                 #  RE-JUDGE AFTER THE INNER SPLIT.  worth_naming() saw the
                 #  piece whole;  what would actually be stored is what is left
@@ -211,7 +302,7 @@ class SubexprPool(object):
                 #  `K_2 = K_1*r_21` -- a name for one multiplication, four
                 #  times over.  A definition has to earn its indirection at the
                 #  size it will be PRINTED, not the size it started.
-                if sp.count_ops(inner) < self.min_ops:
+                if sp.count_ops(inner) < self.min_ops or self.all_named(inner):
                     new_pieces.append(inner)
                     changed = True
                     continue
@@ -224,7 +315,7 @@ class SubexprPool(object):
                 new_pieces.append(sym)
                 changed = True
             else:
-                sub = self._walk(p, depth - 1)
+                sub = self._walk(p, depth - 1, force=force)
                 new_pieces.append(sub)
                 changed = changed or (sub is not p)
 

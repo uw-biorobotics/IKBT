@@ -251,7 +251,7 @@ Test-class numbers are global and referenced by `tests/leavestest.py` (001 sinco
 defines a `TestSolver010` — 011 rank, 012 invariant_gen, 013 bt_assembly, 014 comp_detect,
 015 output_latex, 016 symbolic_loop, 017 output_gen, 018 hybrid_ik, 019 dh_analysis,
 020 clear_state, 021 progress, 022 numeric_ik, 023 parallel_triple,
-024 output_hybrid_python, 025 subexpressions). A test double that lives in a
+024 output_hybrid_python, 025 subexpressions, 026 texwidth). A test double that lives in a
 leaf file must be named `test_*`, or the `bt_assembly_test.py` leaf-inventory scan picks it up as a
 real leaf.
 
@@ -450,6 +450,98 @@ edited a link length there would move the target without moving the closed form 
 a file that imports cleanly and then dies with a `NameError` inside generated code, naming neither the
 expression nor the robot. Measured, `T_06` and `J66` reduce to `sin`/`cos` and arithmetic with every
 parameter resolved (KinovaLite: ~3 KB each).
+
+### Equations that fit the page (`ikbtfunctions/texwidth.py`)
+
+Long equations used to run off the right margin. They no longer do: the report is written, **measured**,
+and the equations that did not fit are re-written. `ik_driver.write_latex_fitted()` drives it.
+
+**PREDICTING WIDTH DOES NOT WORK — MEASURE IT.** Two proxies were tried and both failed on data:
+
+| proxy | why it fails |
+|---|---|
+| LaTeX string length | a 439-character equation overflows while a 2030-character one fits (160 equations, 4 robots) — no threshold separates them |
+| `sympy.count_ops` | Brad's `th_3` is 25 ops with 12 in each `atan2` argument — under any sane trigger — while its line is 144pt too wide. A trigger low enough to catch it doubled the definitions in reports that were already fine |
+
+Both fail for one reason: ops and characters are properties of the **expression**, width is a property of
+the **typeset line** — which depends on the font, the margins, the environment, and what the LHS already used.
+
+So ask TeX. `pdflatex` reports exactly this, in points, against source line numbers:
+`Overfull \hbox (144.6304pt too wide) detected at line 276`. One subprocess for the whole report.
+(`sympy.preview()` was considered: one subprocess **per equation**, measured at its own default geometry
+rather than this document's, and it needs `dvipng`, which is not installed here.)
+
+**Every equation is emitted on its own source line, preceded by a `%%IKBT-EQ <lhs>` comment**, which is
+what makes a reported line number attributable. This is also why raw line length predicted so badly
+before: a whole `align` block used to be one source line.
+
+**ONE ENVIRONMENT PER EQUATION, and this is load-bearing.** For an `align` block pdflatex reports the
+overfull box against `\end{align}` — not the row that is too wide — so every equation in the block gets
+attributed to whichever sits last. Measured on Craig417: a 297pt overflow reported at `\end{align}`,
+folding the wrong equation and never converging. Each equation now gets its own `dmath`, which reports
+the real line (and breaks at operators for free). `equation`+`split` has the same defect and would need
+solving before that path can be relied on.
+
+**THE REMEDY IS `K_i` NAMING, applied where TeX says it is needed.** An equation measured too wide has
+its pieces named whatever the dependency rule thinks, which shortens it without changing its shape. The
+loop repeats while each pass turns up equations the previous one had not seen, since shortening one can
+expose another (Craig417 took three passes).
+
+There were briefly **two** remedies, escalating: name the pieces, and failing that break the equation
+across lines. The line-breaking is **gone** (BH, 2026-09-04) because no robot ever reached it — `K_i`
+naming plus `dmath`'s own operator breaking fits every equation in every report. An escalation that
+never runs is untested code in the costume of a safety net, and it carried a defect of its own: like
+`align`, `equation`+`split` reports its overfull box against `\end{equation}` rather than the offending
+row, so the measurement could not have attributed it correctly.
+
+Its first incarnation used `multline`, which is *defined* to set its first line flush left and its last
+flush right with no alignment point — on a two-line break that throws the halves against opposite
+margins. Worse, it fired on the same pass as the naming, so equations the naming had already made short
+got broken anyway. Both are why the remedies were separated before the second was removed.
+
+`slack_pt` (6.0) ignores trivial overflows — Stanford had a box 3.7pt over, about one character, and
+restructuring an equation to win that back is a bad trade.
+
+**It degrades to the unmeasured report.** No `pdflatex`, a LaTeX error, a timeout: pass 1 is already
+written and already correct, merely wide. A formatting refinement must never cost the report.
+
+**NO RULE NAMES THE TERMS OF A SUM** (`subexpressions.py`, BH 2026-09-04). A sum is breakable — `dmath`
+puts its terms on separate lines by itself — so naming them buys no width and costs a definition apiece
+*plus an aggregator to add them back up*. Craig417 had ten of those: `K_7 = K_3 + K_4 + K_5 + K_6 + …`,
+four names to reconstruct a sum that reads perfectly well written out. A function argument is the
+opposite case, since nothing can break inside `atan2(...)`, and that is where a name is the only lever.
+Both rules still **recurse into** sum terms, so an `atan2` buried in one still gets its arguments named.
+Dropping that recursion was an early wrong cut and left the equations too wide.
+
+    Craig417   59 definitions, 10 aggregators  ->  16 definitions, 0 aggregators, 0 overfull
+    Stanford   54                              ->  36,              0,            0 overfull
+
+Note this changes the **original** `>2 dependencies` rule, not only the width machinery: the aggregators
+came from that rule naming four terms of one sum, so counts move on robots that were never too wide.
+
+**THE POOL MUST REACH INSIDE A RADICAL, AND REBUILD IT CORRECTLY.** Two defects, both found only on
+KinovaLite, whose nesting is deeper than any other robot's:
+
+- `sqrt(x)` is a **`Pow`**, not a `Function` — sympy spells it `x**(1/2)` — so `_pieces()` walked past it
+  and `K_n = sqrt(<forty terms>)` could not be shortened by anything.
+- Returning `[e.base]` for a `Pow` was worse than useless: the rebuild is `e.func(*new_pieces)` and `Pow`
+  needs base **and** exponent, so it raised, the `except` returned the original expression, and the
+  definitions were emitted **and then not used** — a `K_n = sqrt(...)` sitting beside an equation that
+  never references it. `list(e.args)` fixes it; the exponent is an atom and is never named.
+
+`max_depth` was also raised 3 → 8: the walk was naming the `sqrt` but returning before it could look
+inside. The recursion is bounded by `big_enough()`, so the cap only has to reach past the deepest thing
+worth naming. KinovaLite: 13 overfull → 0 equations, and 90 definitions → 63, because the rewrites are
+now used rather than discarded.
+
+Note the `except Exception: return e` guard in `_walk()` is what hid this. It is right — a rewrite that
+cannot be done must never cost the equation — but it turns a structural error into a silent no-op, so
+when definitions appear unused, suspect the rebuild rather than the naming rule.
+
+Overfull boxes that remain are **not equations** and are out of this machinery's scope: the Forward
+Kinematics and Jacobian **matrix** dumps (`\left[\begin{matrix}...` per column, KinovaLite) would need
+column splitting, and a `verbatim` row in the Solution Graph section is 5.1pt over. Neither carries a
+marker, so the loop correctly ignores both.
 
 ### The fast gate (`scripts/bt_path_gate.py`)
 
