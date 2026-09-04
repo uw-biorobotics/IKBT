@@ -28,7 +28,7 @@
 
 import b3 as b3          # behavior trees
 
-from ikbtfunctions.ik_driver import emit_outputs
+from ikbtfunctions.ik_driver import emit_outputs, emit_hybrid_outputs, load_robot
 
 import ikbtbasics.dh_analysis as da
 
@@ -82,6 +82,8 @@ class report_gen(b3.Action):
         #  never ticked (it gates the hybrid branch) and R *is* the true robot.
         #  Either way a failure here is a warning: no statement must never cost
         #  us the report.
+        hybrid = bb.get('hybrid_source')
+
         stashed = bb.get('pieper_latex')
         if stashed:
             R.pieper_latex = stashed
@@ -109,7 +111,34 @@ class report_gen(b3.Action):
             print('\n', self.Name, ': ', len(R.solutionSet), ' solutions for ',
                   R.name)
 
-        emit_outputs(R, unks)
+        if not hybrid:
+            emit_outputs(R, unks)
+            return b3.SUCCESS
+
+        #  HYBRID.  R is the DERIVED arm;  Phase II has to refine against the
+        #  TRUE one, so load it fresh.  It is not on the blackboard --
+        #  install_simplified replaced it -- and re-loading is cheap because
+        #  kinematics_pickle() serves the true robot's FK from fk_eqns/.
+        true_name = hybrid.get('true_robot')
+        R_true = None
+        try:
+            M_true, R_true, _ = load_robot(true_name)
+            #  The report describes the TRUE arm's joint-axis geometry in its
+            #  own section, and that statement was snapshotted before the swap.
+            if stashed:
+                R_true.pieper_latex = stashed
+        except Exception as e:
+            #  DEGRADE, do not fail.  Without the true arm there is no Phase II
+            #  and no numeric correction -- but the closed form for the
+            #  simplified arm is real work and the report still says, in its own
+            #  section, which arm it describes.  Losing the whole solve here
+            #  would be the worse trade.
+            print(self.Name, ': could not load the true robot %r -- %s: %s'
+                  % (true_name, type(e).__name__, e))
+            print(self.Name, ': writing the report WITHOUT the numeric'
+                  ' correction step.')
+
+        emit_hybrid_outputs(R, unks, hybrid, R_true)
         return b3.SUCCESS
 
 

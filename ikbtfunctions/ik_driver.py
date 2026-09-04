@@ -30,6 +30,7 @@ import b3 as b3          # behavior trees
 import ikbtfunctions.output_latex  as ol
 import ikbtfunctions.output_python as op
 import ikbtfunctions.output_cpp    as oc
+import ikbtfunctions.output_hybrid_python as ohp
 
 from ikbtfunctions.ik_robots import robot_params
 from ikbtbasics.ik_classes  import kinematics_pickle, check_the_pickle
@@ -134,6 +135,67 @@ def emit_outputs(R, unks):
     ol.output_latex_solution(R, unks, R.solutionSet)   # calling args could be optimized for V3
     op.output_python_code(R, R.solutionSet)
     oc.output_cpp_code(R, R.solutionSet)
+
+
+def emit_hybrid_outputs(R, unks, hybrid, R_true=None):
+    '''Write the artifacts for a HYBRID solve.
+
+       R        the DERIVED robot -- the simplified arm that was actually
+                solved in closed form, with its solution set already built
+       unks     its unknowns
+       hybrid   the blackboard's hybrid_source dict
+       R_true   the TRUE robot, loaded fresh;  None if it could not be loaded
+
+       FOUR PYTHON FILES AND ONE REPORT, and which name each carries is the
+       whole point:
+
+           LaTex/ik_solution_<True>.tex            named for the TRUE robot
+           CodeGen/Python/IK_hybrid_<True>.py      named for the TRUE robot
+           CodeGen/Python/IK_equations<Derived>.py named for the DERIVED arm
+           CodeGen/Python/FK_equations<Derived>.py named for the DERIVED arm
+           CodeGen/Python/FK_equations<True>.py    named for the TRUE robot
+
+       The two artifacts a user reaches for -- the report and the module they
+       import -- carry the name they asked about, because that is the question
+       they asked.  The pieces those are built from carry the name of the arm
+       they actually describe, because calling a simplified arm's closed form
+       `IK_equations<True>` is exactly the confusion this method has to avoid.
+       A reader who opens any one file can tell which robot it is about.
+
+       NO C++ ON THIS PATH, yet.  Emitting the derived arm's C++ under the true
+       robot's name would ship precisely the misleading artifact the naming
+       above exists to prevent, and there is no C++ numeric correction to pair
+       it with;  a hybrid C++ target is its own piece of work.'''
+
+    true_name = hybrid.get('true_robot') or R.name
+    derived_name = hybrid.get('derived_robot') or R.name
+
+    #  The report, named and titled for the TRUE robot.  R is still the derived
+    #  arm -- output_latex_solution takes the substitution as an argument and
+    #  says so in its own section, rather than being handed a robot that lies
+    #  about which arm it is.
+    ol.output_latex_solution(R, unks, R.solutionSet,
+                             hybrid=hybrid, R_true=R_true)
+
+    #  Phase I's closed form, under the DERIVED arm's name.
+    op.output_python_code(R, R.solutionSet)
+
+    #  FK of the approximate arm (Phase I uses it to drop spurious branches)
+    #  and FK + Jacobian of the true arm (Phase II refines against it).
+    ohp.write_fk_module(R.Mech, derived_name, jacobian=False,
+                        what='Forward kinematics for %s (the APPROXIMATE arm)'
+                             % derived_name)
+    if R_true is not None:
+        ohp.write_fk_module(R_true.Mech, true_name, jacobian=True,
+                            what='Forward kinematics and Jacobian for %s '
+                                 '(the TRUE arm)' % true_name)
+
+        edits = '; '.join('%s: %s -> %s' % (e['symbol'], e['from'], e['to'])
+                          for e in (hybrid.get('edits') or []))
+        cost = hybrid.get('cost')
+        ohp.write_hybrid_top(R_true.Mech, true_name, derived_name, edits,
+                             '' if cost is None else
+                             'task-space cost %.4g' % float(cost))
 
 
 def print_solved_equations(unks):

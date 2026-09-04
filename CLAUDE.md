@@ -102,7 +102,7 @@ solveRoutine    = Sequence[ sub_transform,
 
 hybrid_branch   = Sequence[ pieper_geom_report,   # reports, ALWAYS SUCCESS
                             simplified_arm, install_simplified,
-                            symbolic_branch (2nd instance set), hybrid_stub ]
+                            symbolic_branch (2nd instance set) ]
 
 worktools = Priority[ algSol, Sequence[OrNode[tanSol, scSol], rank], Simu_Eqn_Sol, sacSol, x2z2_transform ]
 ```
@@ -193,12 +193,17 @@ the simplified arm rather than the robot that was asked for. That snapshot is th
 ticks first in the branch even though nothing reads its verdict.
 
 `hybrid_branch` implements the hybrid method (simplify the DH parameters until the robot solves,
-then correct numerically). It is no longer inert: `simplified_arm` and `install_simplified`
-build a derived robot and the second solver really solves it, so the branch **does move
-`scripts/robot_baseline.py --diff`**. Only the trailing `hybrid_stub` still always FAILs, which
-withholds the report — the closed form on the blackboard describes the *derived* arm, and emitting it
-as though it were the real robot is the one thing this method must never do. Removing that block is the next
-step, together with naming the artifacts for the true robot.
+then correct numerically). **`hybrid_stub` is gone** (2026-09-02). The branch used to end in that
+always-FAIL leaf, which withheld the report because the closed form on the blackboard describes the
+*derived* arm and emitting it as though it were the real robot is the one thing this method must
+never do. That is still true; what changed is that there is now an honest way to present the answer,
+so withholding it is no longer the only safe option. `report_gen` reads `hybrid_source` and writes a
+hybrid report plus a two-phase Python module — see **Hybrid code generation** below.
+
+The branch reports **only a COMPLETE derived solve.** The second solver is a `symbolic_loop` like the
+first and carries `require_complete = True`, so a derived arm solved 2-of-7 FAILs the inner branch,
+the hybrid `Sequence` FAILs with it, and `report_gen` never ticks. `ArmRobo` and `KawasakiRS05L` sit
+on the far side of exactly that boundary and produce nothing.
 
 Measured over the whole sweep now that Pieper's condition gates nothing, the branch reaches **five**
 robots and is 2-for-5, up from the three it used to be admitted for:
@@ -242,7 +247,8 @@ Test-class numbers are global and referenced by `tests/leavestest.py` (001 sinco
 004 tan, 006 sub_transform, 007 updateL, 008 kin_cl, 009 helperfunctions, 010 x2y2 — note `output_cpp.py` also
 defines a `TestSolver010` — 011 rank, 012 invariant_gen, 013 bt_assembly, 014 comp_detect,
 015 output_latex, 016 symbolic_loop, 017 output_gen, 018 hybrid_ik, 019 dh_analysis,
-020 clear_state, 021 progress, 022 numeric_ik, 023 parallel_triple). A test double that lives in a
+020 clear_state, 021 progress, 022 numeric_ik, 023 parallel_triple,
+024 output_hybrid_python). A test double that lives in a
 leaf file must be named `test_*`, or the `bt_assembly_test.py` leaf-inventory scan picks it up as a
 real leaf.
 
@@ -362,6 +368,77 @@ Two traps, both caught by the 32-robot gate rather than by inspection:
 wall. It is now **0**, not to reclaim the time but because what it compensated for is gone: one
 compact line per pass means nothing scrolls past unread, and a pause that no longer buys legibility is
 just a pause. `scripts/robot_baseline.py` already forced it to 0, so the record is unaffected.
+
+### Hybrid code generation (`ikbtfunctions/output_hybrid_python.py`)
+
+What a hybrid solve delivers, for `KinovaLite` (true) simplified to `KinovaLite_d_5_0` (derived):
+
+| file | describes | written by |
+|---|---|---|
+| `LaTex/ik_solution_KinovaLite.tex` | **both arms** | `output_latex_solution(..., hybrid=, R_true=)` |
+| `CodeGen/Python/IK_hybrid_KinovaLite.py` | the two phases | `write_hybrid_top()` |
+| `CodeGen/Python/FK_numericKinovaLite.py` | true arm, FK **and Jacobian** | `write_fk_module(jacobian=True)` |
+| `CodeGen/Python/IK_equationsKinovaLite_d_5_0.py` | derived arm, closed form | `output_python.output_python_code()` |
+| `CodeGen/Python/FK_numericKinovaLite_d_5_0.py` | derived arm, FK | `write_fk_module(jacobian=False)` |
+
+`FK_numeric*`, not `FK_equations*`: `output_python.output_FK_python_code()` already owns that name —
+it is what `fkOnly.py` writes, and it is a different artifact (a readable module-level dump of the
+symbolic `T_06` with dummy joint values, not a numeric callable). Sharing the filename would mean
+whichever ran last silently replaced the other.
+
+**WHICH NAME EACH ARTIFACT CARRIES IS THE LOAD-BEARING PROPERTY.** The two things a user reaches for —
+the report and the module they import — carry the **true** robot's name, because that is the robot
+they asked about. The closed form underneath carries the **derived** arm's name, because that is the
+arm it actually describes. An `IK_equations<True>.py` on this path would be a simplified arm's
+equations shipped under the real robot's name; `bt_path_gate` fails on it explicitly, comparing the
+artifact set **exactly** in both namespaces — an unexpected file is a failure, not just a missing one.
+
+**No C++ on the hybrid path.** Emitting the derived arm's C++ under the true name would ship precisely
+that misleading artifact, and there is no C++ numeric correction to pair it with. A hybrid C++ target
+is its own piece of work.
+
+**Two entry points, because a seed is a choice.**
+
+```python
+ikin_KinovaLite_approx(T)        # PHASE I  -> list of joint vectors (approximate arm)
+refine_KinovaLite(T, index)      # PHASE II -> DLS against the TRUE arm, seeded by branch `index`
+refine_all_KinovaLite(T)         #             convenience: Phase II from every branch
+```
+
+The branches are different postures — elbow up or down, wrist flipped — not different spellings of one
+answer, and which is wanted depends on obstacles, joint limits and where the arm is now. None of that
+is known here, and damped least squares stays in the basin of the seed it is given, so the choice of
+index *is* the choice of posture. Folding the two calls into one would pick a posture on the user's
+behalf from information IKBT does not have.
+
+**Phase I filters.** IKBT enumerates combinations of each unknown's solution branches and does not
+discard the spurious ones, so a returned branch is a *candidate*. Phase I evaluates the approximate
+arm's own FK on each and keeps those that reproduce `T` — which is why the derived arm's FK is
+imported and not merely its IK.
+
+**Four files that import each other, not one that inlines everything** (BH). The whole hazard of this
+method is confusing the two arms; separate files named for the arm they describe make that visible
+instead of burying both in one namespace, and the top level stays small enough to read in one sitting.
+
+**The DLS loop is a COPY** (`REFINE_CORE`). The generated module stands on numpy alone, so it cannot
+import `ikbtbasics.numeric_ik`. A drifting copy is worse than no copy — the library stays green while
+what ships to users stops converging — so `TestSolver024` runs the emitted `solve_numeric()` and the
+library one on Puma from the same seeds and requires the same `converged`, the same iteration count,
+and `q` within 1e-12. The same test compares the emitted `fk_*`/`jacobian_*` against
+`numeric_ik.fk_callable`/`jacobian_callable`, which is the only independent construction of those
+kinematics; Phase II refines against the *generated* FK, so if that FK were the wrong arm's, every
+check that used it would agree with it.
+
+`w_rot` is **baked into the generated module per robot** (`w_rot_for()`, one characteristic arm length
+per radian) rather than defaulted in the numerics — see the units trap under Numerical IK. The FK
+parameters are baked in too, deliberately unlike `IK_equations*.py`'s module-level globals: those two
+functions *are* the definition of "the true arm" that Phase II refines against, and a caller who
+edited a link length there would move the target without moving the closed form that seeds it.
+
+`expr_py()` refuses any sympy function the generated module does not import. Emitting it would produce
+a file that imports cleanly and then dies with a `NameError` inside generated code, naming neither the
+expression nor the robot. Measured, `T_06` and `J66` reduce to `sin`/`cos` and arithmetic with every
+parameter resolved (KinovaLite: ~3 KB each).
 
 ### Core data model (`ikbtbasics/`, see also `IKdocs/classes.md`)
 
@@ -495,7 +572,7 @@ Please keep commit messages to 5 lines or less.
 
    Then we can proceed to final integration and test: 
 
-We need to extend the behavior tree to make the full workflow:
+~~We need to extend the behavior tree to make the full workflow:
   for success on symbolic solutions: output Latex Report, Python code, C++ code. 
   for failure on symbolic solutions: return a bigger Latex report detailing both arms (no solution for original arm which failed), Hybrid numerical IK code, Hybrid numerical C++ code.  
   
@@ -503,5 +580,28 @@ In the "Hybrid NUmerical IK code",  desired End effector config is the input.  T
 Phase I takes as input the desired EE pose, and returns all solutions of the approximate arm. 
 Phase II takes as input an integer which selects from among the previously returned approximate poses, and returns the numerically corrected joint values for the selected approximate solution.   
 
-A new test should evaluate performance of the end-to-end hybrid solution generated codes similar to `scripts/numerical_closed_loop_sol_check.py`.
+A new test should evaluate performance of the end-to-end hybrid solution generated codes similar to `scripts/numerical_closed_loop_sol_check.py`.~~
+   **DONE except the C++, 2026-09-02.** `hybrid_stub` is gone, so the hybrid branch reports.
+   `report_gen` reads `hybrid_source` and writes a both-arms LaTeX report plus the two-phase Python
+   (`ikin_<Robot>_approx(T)` / `refine_<Robot>(T, index)`), every artifact named for the arm it
+   describes — see **Hybrid code generation** above. The end-to-end test is
+   `scripts/hybrid_closed_loop_check.py`.
+
+## Still open
+
+1. **Hybrid C++.** The Python path is done; C++ is not. It needs the FK, the Jacobian and the
+   damped-least-squares loop emitted in C++, which is a bigger job than the Python one because there
+   is no `sp.pycode()` equivalent already in use here and no numpy to lean on. Deliberately NOT done
+   by emitting the derived arm's C++ under the true robot's name — that ships exactly the misleading
+   artifact the naming rules exist to prevent.
+
+2. **The hybrid branch reports only a COMPLETE derived solve.** `require_complete = True` on the
+   second solver means `ArmRobo` (2/7) and `KawasakiRS05L` (0/7) still deliver nothing. Both
+   shortfalls share a signature — `eqns_1u` is empty and stays empty, so no ID node can fire — and
+   `simplified_arm` commits to its cheapest candidate with no fall-through to the next-ranked one.
+   Trying the next candidate when the first derived arm does not solve is the obvious next move.
+
+3. **`ICP5p5_A21` (0/2), `Parkman13` (0/4) and `UR5` (0/8)** still fail
+   `scripts/check_solution_sets.py`: the values evaluate but are wrong. Unrelated to the hybrid work
+   and unexplained.
 

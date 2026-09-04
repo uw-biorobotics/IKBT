@@ -77,12 +77,176 @@ def plines(sl,f):
 #      Generate a complete report in latex
 #
 
-def output_latex_solution(Robot, variables, groups):
-    GRAPH = True
-    ''' Print out a latex document of the solution equations. '''
+#  Per BH:  every report the HYBRID method produces carries this, immediately
+#  after the Introduction.  Kept as one constant rather than inlined so that
+#  the wording is edited in one place and cannot drift between report kinds --
+#  and so that turning it on for the symbolic reports too is a one-line change
+#  at the call site, not a copy of the sentence.
+AI_STATEMENT = (
+    r'\paragraph{Statement of AI contributions} The hybrid solution method '
+    r'used here and IKBT2 in general were produced by Blake Hannaford working '
+    r'with support of Claude Code.')
+
+
+def tex_name(n):
+    """A robot name safe to typeset:  underscores are subscripts in math mode
+       and an error in text mode, and every derived arm has several."""
+    return n.replace('test: ', '').replace('_', r'\_')
+
+
+def hybrid_true_arm_section(hybrid, R_true):
+    r"""The part of a hybrid report that describes the arm the user ASKED for.
+
+       hybrid   the blackboard's hybrid_source dict
+       R_true   the true Robot, or None if it could not be loaded
+
+       Returns a list of lines, or [] when there is nothing to say.
+
+       WHY THIS SECTION EXISTS.  Everything else in the report is generated
+       from Robot.Mech, and on the hybrid path that is the DERIVED arm --
+       install_simplified swapped it before the second solver ran.  Without a
+       section like this one the report would be a complete, correct,
+       confident document about a robot nobody asked about, carrying the real
+       robot's name on the title page.  That is the worst thing this method
+       could produce, so the true arm is stated FIRST and the substitution is
+       stated before any closed form appears."""
+
+    if not hybrid:
+        return []
+
     eol = '\n'
-    orig_name =  Robot.name.replace('test: ','')
+    true_name = tex_name(hybrid.get('true_robot') or '?')
+    derived = tex_name(hybrid.get('derived_robot') or '?')
+
+    sec = r'\section{The Arm This Report Solves}' + eol
+    sec += r'\textbf{IKBT could not find a closed-form inverse kinematic' + eol
+    sec += r'solution for ' + true_name + r'.}  What follows is therefore a' + eol
+    sec += r'\emph{hybrid} result, in two parts:' + eol
+    sec += r'\begin{enumerate}' + eol
+    sec += (r'\item a closed form solved exactly for a \emph{simplified} arm, '
+            + derived + r', which differs from the real robot in the' + eol)
+    sec += r'Denavit-Hartenberg parameters listed below;  and' + eol
+    sec += (r'\item a numerical correction that refines those joint values'
+            r' against the real robot' + "'" + r's own forward kinematics.' + eol)
+    sec += r'\end{enumerate}' + eol
+    sec += (r'The closed form alone does \textbf{not} place ' + true_name +
+            r' at the requested pose.  Only the corrected values do.' + eol)
+
+    ####  what was changed, and what it cost
+    sec += r'\subsection{The simplification}' + eol
+    edits = hybrid.get('edits') or []
+    if edits:
+        sec += r'\begin{center}\begin{tabular}{lrr}' + eol
+        sec += r'Parameter & Real value & Simplified value \\ \hline' + eol
+        for e in edits:
+            sec += (r'$' + sp.latex(sp.Symbol(str(e['symbol']))) + r'$ & ' +
+                    str(e['from']) + ' & ' + str(e['to']) + r' \\' + eol)
+        sec += r'\end{tabular}\end{center}' + eol
+
+    axes = hybrid.get('axes')
+    kind = hybrid.get('kind')
+    if axes and kind:
+        sec += (r'These changes make joint axes $' +
+                ', '.join(str(a) for a in axes) + r'$ ' +
+                ('intersect at a common point' if kind == 'intersect'
+                 else 'mutually parallel') +
+                r", which satisfies Pieper's sufficient condition for a closed"
+                r' form to exist.' + eol)
+
+    cost = hybrid.get('cost')
+    if cost is not None:
+        sec += (r'The simplification was chosen as the \emph{cheapest}'
+                r' available, measured in task-space displacement:  the mean'
+                r' of $\|\Delta p\| + w_{rot}\Delta\theta$ over sampled joint'
+                r' vectors, comparing the real arm' + "'" + r's end-effector'
+                r' pose with the simplified arm' + "'" + r's at the same joint'
+                r' values.  Its cost is $' + ('%.4g' % float(cost)) +
+                r'$, in the length units of the DH table.' + eol)
+
+    ####  the true arm's own parameters, so the reader can compare
+    if R_true is not None and getattr(R_true, 'Mech', None) is not None:
+        sec += r'\subsection{Kinematic parameters of ' + true_name + r'}' + eol
+        sec += (r'\[ \left [ \alpha_{i-1}, \quad a_{i-1}, \quad d_i,'
+                r' \quad \theta_i \right  ] \]' + eol)
+        sec += r'\begin{dmath}' + sp.latex(R_true.Mech.DH) + r'\end{dmath}' + eol
+
+        pl = getattr(R_true, 'pieper_latex', None)
+        if pl:
+            sec += pl + eol
+
+    return sec.splitlines()
+
+
+def hybrid_numeric_section(hybrid, true_name):
+    r"""The Phase II half of a hybrid report:  how the closed form is
+       corrected, and what the generated code calls it."""
+
+    if not hybrid:
+        return []
+
+    eol = '\n'
+    ident = tex_name(true_name)
+
+    sec = r'\section{Numerical Correction (Phase II)}' + eol
+    sec += (r'The equations above solve the simplified arm exactly.  To place'
+            r' the real robot at the goal pose $T_d$, the joint vector they'
+            r' produce is used as a \emph{seed} for damped least squares'
+            r' (Levenberg-Marquardt) against the real arm' + "'" + r's forward'
+            r' kinematics:' + eol)
+    sec += r'\begin{dmath}' + eol
+    sec += r'\Delta q = J^{T}\left(J J^{T} + \lambda^{2} I\right)^{-1} e' + eol
+    sec += r'\end{dmath}' + eol
+    sec += r'with the residual and the convergence metric' + eol
+    sec += r'\begin{dmath}' + eol
+    sec += (r'e = \left[ \Delta p ;\; w_{rot}\,\theta\,\hat{a} \right], \qquad'
+            r' m = \|\Delta p\| + w_{rot}\,\theta' + eol)
+    sec += r'\end{dmath}' + eol
+    sec += (r'where $\theta$ and $\hat{a}$ are the angle and axis of the'
+            r' orientation error $R_d R^{T}$.  Both expressions use the same'
+            r' rotation parameterisation and the same weight $w_{rot}$, so the'
+            r' step and the stopping test agree about which of two poses is'
+            r' closer.  The damping $\lambda$ rises on a rejected step and'
+            r' falls on an accepted one, which is what lets the method pass'
+            r' through a singularity, where an undamped Newton step does not'
+            r' exist.' + eol)
+    sec += (r'Because the seed determines which solution branch the correction'
+            r' converges to, the two phases are separate entry points:  the'
+            r' caller enumerates the branches, chooses one, and only then'
+            r' refines it.' + eol)
+
+    sec += r'\subsection{Generated code}' + eol
+    sec += r'\begin{center}\begin{tabular}{ll}' + eol
+    sec += r'{\tt IK\_hybrid\_' + ident + r'.py} & the two phases \\' + eol
+    sec += (r'{\tt ikin\_' + ident + r'\_approx(T)} & Phase I: branches of the'
+            r' simplified arm \\' + eol)
+    sec += (r'{\tt refine\_' + ident + r'(T, index)} & Phase II: correct'
+            r' branch {\tt index} \\' + eol)
+    sec += r'\end{tabular}\end{center}' + eol
+    sec += (r'Phase I discards candidate branches that do not reproduce $T_d$'
+            r' on the simplified arm;  IKBT enumerates combinations of each'
+            r" unknown's solution branches and does not itself filter the"
+            r' spurious ones.  Phase II reports {\tt converged}, which can'
+            r' legitimately be false:  the real arm may not reach the'
+            r' requested pose from the chosen branch, or at all.' + eol)
+
+    return sec.splitlines()
+
+
+def output_latex_solution(Robot, variables, groups, hybrid=None, R_true=None):
+    GRAPH = True
+    '''Print out a latex document of the solution equations.
+
+       hybrid / R_true are set on the HYBRID path, where `Robot` is the
+       DERIVED arm.  The report is then NAMED FOR and TITLED WITH the true
+       robot -- that is the robot the user asked about and the one the
+       generated code is for -- and it gains two sections saying which arm was
+       actually solved and how the answer gets corrected.  Left at None, this
+       function behaves exactly as it always did.'''
+    eol = '\n'
+    solved_name = Robot.name.replace('test: ','')
+    orig_name = (hybrid.get('true_robot') or solved_name) if hybrid else solved_name
     fixed_name = orig_name.replace(r'_', r'\_')
+    solved_fixed = solved_name.replace(r'_', r'\_')
 
     DirName = 'LaTex/'
     fname = DirName + 'ik_solution_'+orig_name+'.tex'
@@ -96,7 +260,8 @@ def output_latex_solution(Robot, variables, groups):
     \today
     \end{center}
     \section{Introduction}
-    This report describes closed form inverse kinematics solutions for '''+fixed_name+r'''.   The solution was generated by
+    This report describes ''' + ('a HYBRID inverse kinematic solution for '
+    if hybrid else 'closed form inverse kinematics solutions for ') + fixed_name + r'''.   The solution was generated by
     the \href{https://github.com/uw-biorobotics/IKBT}{IK-BT package}
     from the University of Washington Biorobotics Lab.
     The IK-BT package is described in
@@ -105,12 +270,29 @@ def output_latex_solution(Robot, variables, groups):
     using {\tt Python 3.8} and the {\tt sympy 1.9} module for symbolic mathematics.
     '''
 
+    #  Per BH, on every hybrid report, immediately after the Introduction.
+    #  HYBRID ONLY, because the sentence says "the hybrid solution method used
+    #  here" -- which is not true of a report for an arm that solved in closed
+    #  form.  Dropping the `if` puts it on every report, if that is wanted.
+    if hybrid:
+        introstring += eol + AI_STATEMENT + eol
+
     LF.sections.append(introstring.splitlines())
+
+    ####################  Which arm is this, really?
+
+    #  HYBRID ONLY, and it goes SECOND on purpose -- immediately after the
+    #  introduction and before any kinematics.  Everything below this point is
+    #  generated from Robot.Mech, which on this path is the DERIVED arm, so a
+    #  reader who met the closed form first would have no way to know it was
+    #  not the robot named on the title page.
+    LF.sections.append(hybrid_true_arm_section(hybrid, R_true))
 
     ####################   Kinematic params
 
-    paramsection = r'''\section{Kinematic Parameters}
-    The kinematic parameters for this robot are
+    paramsection = r'''\section{Kinematic Parameters''' + (
+        (r''' of the Simplified Arm ''' + solved_fixed) if hybrid else '') + r'''}
+    The kinematic parameters for ''' + (solved_fixed if hybrid else 'this robot') + r''' are
     \[ \left [ \alpha_{i-1}, \quad a_{i-1}, \quad d_i, \quad \theta_i \right  ] \]
     \begin{dmath}''' + sp.latex(Robot.Mech.DH) +  r'\end{dmath}'
 
@@ -124,7 +306,11 @@ def output_latex_solution(Robot, variables, groups):
     #  not carry the attribute, and a missing statement must not break the
     #  report.  (output_FK_equations() below deliberately does not get this --
     #  fkOnly.py never ticks the BT, so nothing would have written it.)
-    pieper_section = getattr(Robot, 'pieper_latex', None)
+    #  SKIPPED on the hybrid path.  hybrid_true_arm_section() above already
+    #  printed this statement, for the TRUE arm, which is the arm the reader
+    #  needs it for -- report_gen hands both that section and this one the same
+    #  snapshot, so leaving both in printed the identical section twice.
+    pieper_section = None if hybrid else getattr(Robot, 'pieper_latex', None)
     if pieper_section:
         LF.sections.append(pieper_section.splitlines())
 
@@ -193,46 +379,24 @@ def output_latex_solution(Robot, variables, groups):
     for node in Robot.solution_nodes:
         if node.solvemethod != '':   # skip variables (typically extra SOA's) that are not used.
             u = node.unknown
-            ALIGN = True
             tmp = '$' + sp.latex(node.symbol) + '$'
             tmp = theta_expand(tmp)
             varLHS = re.sub(r'_(\d+)',  r'_{\1}', tmp)   # get all digits of subscript into {} for latex
 
-            nsolns = u.nsolutions      #len(node.solution_with_notations.values())
-
-            if nsolns > 1:
-                ALIGN = True
-            else:
-                ALIGN = False
-
             #new subsection for this variable and solution(s)
             solsection += '\n' +r'\subsection{'+varLHS+r' } '+eol + 'Solution Method: ' + u.solvemethod + eol
 
-            #begin the equation output
-            if (ALIGN):
-                solsection += r'\begin{align}'
-            else:
-                solsection += r'\begin{dmath} '
+            nsolns = u.nsolutions
+            ALIGN = nsolns > 1
 
-            #output the actual solutions
-            for i,sol in enumerate(u.solutions):
-                if ALIGN and (i < nsolns-1):
-                    thisEOL = r'\\'   # line continuation for align environment
-                else:
-                    thisEOL = ''  # last solution version
-                LHS = sp.var(u.solutionNames[i])
-                RHS = sol
-                eqn = kc.kequation(LHS,RHS)
-                tmp = str(eqn.LaTexOutput(ALIGN))
-                # convert division ('/') to \frac{}{} for nicer output
-                if re.search(r'/',tmp):
-                    tmp = tmp.replace(r'(.+)=(.+)/(.+)', r'\1 = \frac{\2}{\3}')
-                solsection += tmp + ' '+ thisEOL
+            solsection += r'\begin{align}' if ALIGN else r'\begin{dmath} '
 
-            if (ALIGN):
-                solsection += r'\end{align} '+eol
-            else:
-                solsection += r'\end{dmath} '+eol
+            for i, sol in enumerate(u.solutions):
+                thisEOL = r'\\' if (ALIGN and i < nsolns-1) else ''
+                eqn = kc.kequation(sp.var(u.solutionNames[i]), sol)
+                solsection += str(eqn.LaTexOutput(ALIGN)) + ' ' + thisEOL
+
+            solsection += (r'\end{align} ' if ALIGN else r'\end{dmath} ') + eol
 
             solsection += eol+eol
 
@@ -246,7 +410,6 @@ def output_latex_solution(Robot, variables, groups):
 
     for node in Robot.solution_nodes:
         if node.solvemethod != '':   # skip variables (typically extra SOA's) that are not used.
-            ALIGN = True
             tmp = '$' + sp.latex(node.symbol) + '$'
             tmp = theta_expand(tmp)
             varLHS = re.sub(r'_(\d+)',  r'_{\1}', tmp)   # get all digits of subscript into {} for latex
@@ -254,12 +417,6 @@ def output_latex_solution(Robot, variables, groups):
 
             #new subsection for this variable and solution
             solsection += '\n' +r'\subsection{'+varLHS+r' } '+eol + 'Solution Method: ' + node.solvemethod + eol
-
-            #begin the equation output
-            if (ALIGN):
-                solsection += r'\begin{align}'
-            else:
-                solsection += r'\begin{dmath} '
 
             colindex = node.unknown.solveorder-1  # select the unknown
             #  ONE equation per DISTINCT version.  A variable solved early has
@@ -277,22 +434,12 @@ def output_latex_solution(Robot, variables, groups):
                 seen.add(str(eqn.LHS))
                 eqnlist.append(eqn)
 
-            for i, eqn in enumerate(eqnlist): # go through the versions
-                print('Latex Output: Equation: ', eqn)
-                if ALIGN and (i < len(eqnlist)-1):
-                    thisEOL = r'\\'   # line continuation for align environment
-                else:
-                    thisEOL = ''  # last solution version
-                tmp = str(eqn.LaTexOutput(ALIGN))
-                # convert division ('/') to \frac{}{} for nicer output
-                if re.search(r'/',tmp):
-                    tmp = tmp.replace(r'(.+)=(.+)/(.+)', r'\1 = \frac{\2}{\3}')
-                solsection += tmp + ' '+ thisEOL
-
-            if (ALIGN):
-                solsection += r'\end{align} '+eol
-            else:
-                solsection += r'\end{dmath} '+eol
+            ALIGN = True
+            solsection += r'\begin{align}'
+            for i, eqn in enumerate(eqnlist):
+                thisEOL = r'\\' if i < len(eqnlist)-1 else ''
+                solsection += str(eqn.LaTexOutput(ALIGN)) + ' ' + thisEOL
+            solsection += r'\end{align} ' + eol
 
             solsection += eol+eol
 
@@ -411,6 +558,12 @@ The following are the sets of joint solutions (poses) for this manipulator:
     jsection += r'\end{dmath}'+eol
 
     LF.sections.append(jsection.splitlines())
+
+    ####################  How the approximate answer gets corrected
+
+    #  HYBRID ONLY, and LAST:  it refers to the equations above, and it is the
+    #  step that turns them into an answer for the robot on the title page.
+    LF.sections.append(hybrid_numeric_section(hybrid, orig_name))
 
     # Write out the file!!
     LF.output()

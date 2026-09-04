@@ -75,7 +75,7 @@ from ikbtleaves.updateL          import updateL
 from ikbtleaves.comp_detect      import comp_det
 from ikbtleaves.symbolic_loop    import symbolic_loop
 from ikbtleaves.output_gen       import report_gen
-from ikbtleaves.hybrid_ik        import (hybrid_stub, pieper_geom_report,
+from ikbtleaves.hybrid_ik        import (pieper_geom_report,
                                          simplified_arm, install_simplified)
 from ikbtleaves.clear_state      import clear_state
 
@@ -120,7 +120,7 @@ REQUIRED_SUPPORT = [assigner, rank, sum_id, sub_transform, updateL, comp_det]
 #  test_btaR / test_btaS below.
 OPTIONAL_LEAVES = [x2z2_transform, parallel_triple_transform,
                    invariant_gen, sum_solve,
-                   symbolic_loop, report_gen, hybrid_stub,
+                   symbolic_loop, report_gen,
                    pieper_geom_report, simplified_arm, install_simplified,
                    clear_state]
 
@@ -481,7 +481,7 @@ class TestSolver013(unittest.TestCase):
         self.test_btaP_nodes_dict_is_the_tree()
         self.test_btaQ_leaf_inventory_advisory()
         self.test_btaR_codegen_is_off_unless_asked()
-        self.test_btaS_hybrid_branch_is_inert()
+        self.test_btaS_hybrid_branch_can_succeed()
         self.test_btaT_pieper_geom_report_gates_nothing()
         self.test_btaU_report_gen_is_last_and_shared()
         self.test_btaV_simplified_arm_is_the_gate()
@@ -822,24 +822,33 @@ class TestSolver013(unittest.TestCase):
         self.assertTrue(pre['reportGen'].enabled,
                         fs + ' (codegen=True lost through nodes=)')
 
-    def test_btaS_hybrid_branch_is_inert(self):
-        '''The hybrid branch must not change any outcome while it is a stub.
+    def test_btaS_hybrid_branch_can_succeed(self):
+        '''The hybrid branch must be able to SUCCEED, and must end on the solver.
 
-           The whole point of building the branch before the behavior is that
-           the restructure can be proven to move nothing (see
-           scripts/robot_baseline.py --diff).  That rests on the stub always
-           FAILing, so the enclosing Priority falls through as though the branch
-           were not there.'''
+           It used to end in hybrid_stub, an always-FAIL leaf that made the
+           branch inert:  the enclosing Priority fell through as though the
+           branch were not there, so a robot the hybrid method had actually
+           solved still got nothing.  That was right only while there was no
+           honest way to present a derived arm's answer.  report_gen now reads
+           hybrid_source and names every artifact for the arm it describes, so
+           the branch is allowed to report.
+
+           A stub reintroduced anywhere in the branch would silently restore
+           the old behaviour -- the branch would still LOOK complete -- so what
+           is asserted is that its last child is the second solver, and that no
+           child of it is a leaf that cannot succeed.'''
         fs = ' bt_assembly hybrid FAIL'
 
         bt, nodes = build_default_bt()
-        stubs = [n for n in bt_nodes(bt) if isinstance(n, hybrid_stub)]
-        self.assertEqual(len(stubs), 1, fs + ' (expected exactly one hybrid stub)')
+        hb = nodes['hybridBranch']
 
-        t = b3.BehaviorTree()
-        t.root = stubs[0]
-        self.assertEqual(t.tick('hybrid stub', b3.Blackboard()), b3.FAILURE,
-                         fs + ' (the stub must always FAIL)')
+        self.assertIs(hb.children[-1], nodes['symbolicBranch_hybrid'],
+                      fs + ' (the branch must END on the second solver -- a'
+                      ' trailing leaf after it can only withhold the result)')
+
+        kids = [type(c).__name__ for c in hb.children]
+        self.assertNotIn('hybrid_stub', kids,
+                         fs + ' (hybrid_stub is back in the branch)')
 
         #  TWO solve loops now -- one per branch, over separate leaf sets.  The
         #  hybrid branch re-solves a simplified arm with its own solver rather

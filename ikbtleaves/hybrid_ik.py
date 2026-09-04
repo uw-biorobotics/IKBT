@@ -10,25 +10,28 @@
 #   DH parameter is responsible -- KinovaLite with d_5 -> 0 goes from 0-of-7
 #   variables solved to all 7.
 #
-#   THE BRANCH IS NO LONGER INERT.  simplified_arm and install_simplified build
-#   a derived robot and the second symbolic solver really solves it, so this
-#   branch does move scripts/robot_baseline.py --diff.  What remains a
-#   placeholder is the TRAILING hybrid_stub, which always FAILs and so withholds
-#   the report:  the closed form on the blackboard describes the DERIVED arm,
+#   THE BRANCH IS COMPLETE, and there is no longer a stub at the end of it.
+#   It used to close with hybrid_stub, an always-FAIL leaf that withheld the
+#   report because the closed form on the blackboard describes the DERIVED arm,
 #   and emitting it as though it were the real robot is the one thing this
-#   method must never do.
+#   method must never do.  That remains true;  what changed is that there is now
+#   an honest way to present the answer, so withholding it is no longer the only
+#   safe option.  report_gen reads `hybrid_source` and writes a hybrid report
+#   plus a two-phase python module, with every artifact named for the arm it
+#   actually describes.
 #
-#   The stub is replaced one leaf at a time, each proven by its own baseline
-#   diff:
+#   The pieces, in the order the branch ticks them:
 #
 #       pieper_geom_report   does this robot have a Pieper triple?  REPORTING
 #                         ONLY -- always SUCCESS, and the branch is not gated on
 #                         the answer.  See its docstring for why the gate went.
 #       simplified_arm    which single DH parameter costs the least task-space
-#                         displacement to zero or snap?
-#       solve_simplified  solve the derived robot with a nested tree
-#       numeric_ik +      damped least squares from the closed-form seed, and
-#       output_gen_hybrid artifacts labelled with the parameter that was changed
+#                         displacement to zero or snap?  THIS is the gate.
+#       install_simplified build the derived robot and swap it in
+#       (the symbolic solver again, over its own leaf set)
+#       then report_gen -- ikbtfunctions/output_hybrid_python.py -- emits the
+#       closed form for the derived arm and the damped-least-squares correction
+#       against the true one
 #
 #   Copyright 2026 University of Washington
 #
@@ -40,31 +43,6 @@ import b3 as b3          # behavior trees
 import ikbtbasics.dh_analysis as da
 from ikbtbasics.ik_classes  import kinematics_pickle
 from ikbtfunctions.ik_robots import robot_params
-
-
-class hybrid_stub(b3.Action):
-    '''Placeholder for the hybrid branch.  Always FAILURE, so the branch is a
-       no-op and the enclosing Priority falls through as if it were not there.
-
-       FAILURE rather than SUCCESS on purpose:  a SUCCESS here would tell the
-       tree a robot had been solved by a strategy that does not exist yet, and
-       the first thing downstream would be codegen over an empty solution set.
-
-       Left deliberately noisy under BHdebug so that a robot reaching this leaf
-       is visible -- reaching it means the symbolic solver came up empty, which
-       is exactly the population the hybrid method is for.'''
-
-    def __init__(self):
-        super(hybrid_stub, self).__init__()
-        self.Name = 'Hybrid Branch (not implemented)'
-        self.BHdebug = False
-
-    def tick(self, tick):
-        if self.BHdebug:
-            R = tick.blackboard.get('Robot')
-            print('\n', self.Name, ':', getattr(R, 'name', '?'),
-                  'was not solved symbolically, and the hybrid branch is a stub.')
-        return b3.FAILURE
 
 
 class pieper_geom_report(b3.Action):
@@ -389,15 +367,13 @@ import unittest
 
 
 class TestSolver018(unittest.TestCase):
-    '''The hybrid placeholder.  One property matters: it is inert.'''
+    '''The hybrid branch:  geometry reporting, and the gate that admits it.'''
 
     def setUp(self):
-        print('\n\n===============  Test hybrid branch stub  =====================')
+        print('\n\n===============  Test hybrid branch  =====================')
         return
 
     def runTest(self):
-        self.test_hybA_always_fails()
-        self.test_hybB_inverted_stub_would_not_gate()
         self.test_hybC_pieper_geom_report_succeeds_when_it_cannot_tell()
         self.test_hybD_pieper_geom_report_names_the_wrist()
         self.test_hybE_pieper_geom_report_ignores_sum_of_angle_unknowns()
@@ -406,28 +382,6 @@ class TestSolver018(unittest.TestCase):
         self.test_hybH_simplified_arm_ranks_cheapest_first()
         self.test_hybI_simplified_arm_fails_with_nothing_to_buy()
         self.test_hybJ_every_triple_qualifies_closes_the_branch()
-
-    def test_hybA_always_fails(self):
-        '''FAILURE on an empty blackboard and on a populated one alike.  The
-           whole Phase-B claim -- that restructuring the tree changed nothing --
-           rests on this leaf never returning anything else.'''
-        fs = ' hybrid_stub FAIL'
-        for bb in (b3.Blackboard(), b3.Blackboard()):
-            t = b3.BehaviorTree()
-            t.root = hybrid_stub()
-            self.assertEqual(t.tick('testing hybrid_stub', bb), b3.FAILURE, fs)
-
-    def test_hybB_inverted_stub_would_not_gate(self):
-        '''Sanity check on b3.Inverter itself: a leaf that FAILs becomes a
-           SUCCESS under it.  Kept as documentation of the shape the branch was
-           originally built with;  the tree now contains no Inverter at all, and
-           bt_assembly_test asserts that.'''
-        fs = ' hybrid_stub inverter FAIL'
-        t = b3.BehaviorTree()
-        t.root = b3.Inverter(hybrid_stub())
-        self.assertEqual(t.tick('testing inverter', b3.Blackboard()),
-                         b3.SUCCESS, fs)
-
 
     #  ------------------------------------------------  pieper_geom_report
 

@@ -40,11 +40,10 @@ from ikbtleaves.updateL         import updateL
 from ikbtleaves.comp_detect     import comp_det
 
 #  Top-of-tree leaves.  symbolic_loop is the outer solve loop (it replaced
-#  b3.RepeatUntilSuccess -- see below), output_gen_full is codegen-as-a-leaf,
-#  and hybrid_stub is the placeholder for the hybrid symbolic-numeric branch.
+#  b3.RepeatUntilSuccess -- see below) and report_gen is codegen-as-a-leaf.
 from ikbtleaves.symbolic_loop   import symbolic_loop
 from ikbtleaves.output_gen      import report_gen
-from ikbtleaves.hybrid_ik       import (hybrid_stub, pieper_geom_report,
+from ikbtleaves.hybrid_ik       import (pieper_geom_report,
                                         simplified_arm, install_simplified)
 from ikbtleaves.clear_state     import clear_state
 
@@ -292,13 +291,6 @@ def make_leaves(leaf_debug=False, solver_debug=False):
     installSimplified.BHdebug = leaf_debug
     n['installSimplified'] = installSimplified
 
-    ###  The hybrid symbolic-numeric branch (CLAUDE.md, "Future Work").
-    #  Always FAILs, so the branch is inert and the tree is observably identical
-    #  to the one that had no branch at all.  See ikbtleaves/hybrid_ik.py.
-    hybridStub = hybrid_stub()
-    hybridStub.BHdebug = False
-    n['hybridStub'] = hybridStub
-
     ###  tan and sin/cos compete, then rank picks the nicer solution.
     #  b3.OrNode (unlike b3.Priority) runs ALL its children -- that is deliberate
     #  and load-bearing:  rank needs both candidate solutions to choose between.
@@ -464,8 +456,7 @@ def build_default_bt(leaf_debug=False, solver_debug=False, nodes=None,
            hybrid_branch   = Sequence[ pieper_geom_report,   # always SUCCESS
                                        simplified_arm,
                                        install_simplified,
-                                       symbolic_branch (2nd instance set),
-                                       hybrid_stub ]
+                                       symbolic_branch (2nd instance set) ]
 
            solveRoutine    = Sequence[ sub_transform,
                                        RepeatUntilSuccess(x6, Sequence[assigner,
@@ -562,19 +553,27 @@ def build_default_bt(leaf_debug=False, solver_debug=False, nodes=None,
     #  taken before install_simplified swaps the Robot.  It always returns
     #  SUCCESS, so it needs no Priority([x, Succeeder()]) wrapper to keep this
     #  Sequence from treating a verdict as a gate:  there is no adverse verdict.
+    #  NO TRAILING STUB.  This branch used to end in hybrid_stub, an always-FAIL
+    #  leaf whose job was to withhold the report:  the closed form on the
+    #  blackboard describes the DERIVED arm, and emitting it as though it were
+    #  the real robot is the one thing this method must never do.  That is still
+    #  true, and it is now handled where it belongs -- report_gen reads
+    #  hybrid_source and writes a HYBRID report and a two-phase python module,
+    #  every artifact naming the arm it actually describes.  Withholding the
+    #  answer was only ever right while there was no honest way to present it.
     hybridBranch = b3.Sequence([nodes['pieperGeomReport'],
                                 nodes['simplifiedArm'],
                                 nodes['installSimplified'],
-                                symbolicBranch2,
-                                nodes['hybridStub']])
+                                symbolicBranch2])
     hybridBranch.Name = "Hybrid Branch"
     nodes['hybridBranch'] = hybridBranch
 
     #  b3.Priority (the standard Selector/Fallback node) stops at its first
     #  non-FAILURE child, so the hybrid branch is ticked ONLY when the symbolic
-    #  solver came up completely empty.  hybrid_stub still always FAILs, which
-    #  keeps the branch from reporting a solution it cannot yet finish -- the
-    #  numeric refinement (ikbtbasics/numeric_ik.py) goes where the stub is.
+    #  solver came up completely empty.  It can now SUCCEED, which is what lets
+    #  report_gen -- the shared node after this Priority -- see a hybrid solve at
+    #  all;  what keeps that honest is hybrid_source on the blackboard, which
+    #  report_gen reads to name every artifact for the arm it describes.
     analysis = b3.Priority([symbolicBranch, hybridBranch])
     analysis.Name = "Analysis"
     nodes['analysis'] = analysis
