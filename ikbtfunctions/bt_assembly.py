@@ -322,11 +322,47 @@ def build_worktools(nodes):
 
        It is NOT promoted yet because it costs ~4.8x wall clock on Puma, all of it
        sp.simplify() over full FK expressions.  See ImplementationThoughts.md for
-       the numbers and the list of ways to bring that down.'''
+       the numbers and the list of ways to bring that down.
+
+       SIMU_EQN_SOL IS PROMOTED AHEAD OF sc_tan, and that deliberately breaks the
+       "put new things last" rule above (BH, 2026-09-03).  The rule exists to keep
+       an addition behaviour-preserving;  this is not an addition, it is a
+       correction of which solver gets first refusal, and it MUST change results.
+
+       WHY.  Priority takes the first non-FAILURE, so ordering decides which
+       strategy owns a variable -- and sc_tan's arcsin branch was winning
+       variables that simu_solver can pin exactly.  arcsin returns TWO solutions,
+       th and pi - th, from an equation containing only sin(u);  both satisfy that
+       equation, but the rest of the FK still constrains cos(u), so one of them is
+       wrong at every pose.  simu_solver reads a PAIR
+
+           e1:  0 = A*sin(u) + B*cos(u) - C
+           e2:  0 = A*cos(u) - B*sin(u) - D
+
+       which fixes sin(u) and cos(u) separately and yields ONE atan2.
+
+       Measured on Chair_Helper, whose th_2 is exactly this case.  Its arcsin came
+       from an equation sub_transform had manufactured -- substituting r_13 into
+       the Px equation collapses the cos(th_2) terms away -- while L1 already held
+       the canonical pair.  Over 10 random reachable poses the supplementary
+       branch was valid 0 times out of 20:  half the advertised solution set was
+       unusable, with nothing to say which half.
+
+           Chair_Helper   2 of 4 versions correct  ->  2 of 2
+           ICP5p5_A21     0 of 2                   ->  1 of 1
+
+       and the seven KNOWN_COMPLETE robots (Puma, Pumaoffset, Stanford, Khat6DOF,
+       Olson13, Brad, Wrist) stay at 100%.  Note the version COUNTS drop:  a
+       spurious branch that no longer exists is a smaller solution set, so
+       robot_baseline's n_solutions moves for these robots.  That is the fix
+       working, not a regression.
+
+       Craig417 (2/4), Parkman13 (0/4) and UR5 (0/8) are NOT fixed by this and
+       are still open.'''
 
     return b3.Priority([nodes['algSol'],
-                        nodes['sc_tan'],
                         nodes['Simu_Eqn_Sol'],
+                        nodes['sc_tan'],
                         nodes['sacSol'],
                         nodes['parallelTriple'],
                         nodes['invariantGen']])

@@ -58,7 +58,15 @@ except ImportError:                       # older branch without the list
 #  immediately after the solution/version fix.  These are the gate: a drop here
 #  is a regression in the closed form itself, which no other check would catch.
 KNOWN_COMPLETE = ['Puma', 'Pumaoffset', 'Stanford', 'Khat6DOF', 'Olson13',
-                  'Brad', 'Wrist']
+                  'Brad', 'Wrist',
+                  #  Both became complete on 2026-09-03, when Simu_Eqn_Sol was
+                  #  promoted ahead of sc_tan in build_worktools() -- see the
+                  #  docstring there.  Chair_Helper went 2-of-4 to 2-of-2 and
+                  #  ICP5p5_A21 0-of-2 to 1-of-1:  the arcsin branch that was
+                  #  wrong at every pose is simply no longer generated.  Listed
+                  #  here so that reverting the order fails the gate rather than
+                  #  quietly restoring the spurious solutions.
+                  'Chair_Helper', 'ICP5p5_A21']
 
 #  Wrist was previously listed here as uncheckable, on the grounds that B and C
 #  had no numeric values.  They are its JOINT VARIABLES, not parameters;  what

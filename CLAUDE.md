@@ -579,9 +579,23 @@ right count. **The guard does not touch the ranked retry**: the tan and sin/cos 
 do not call `set_solved()` — `rank_leaf` calls it once, after choosing — so a call arriving with
 `solved` already True is a genuine second solve in a later pass, never a ranking.
 
-Still failing for an unrelated reason, and worth its own investigation: `ICP5p5_A21` (0/2, FK error
-~1.1e3, so the values evaluate but are wrong), `Parkman13` (0/4) and `UR5` (0/8). Those were 0 before
-the guard as well; what the guard fixed is the inflation, not the arithmetic.
+Still failing for an unrelated reason, and worth its own investigation: `Parkman13` (0/4) and `UR5`
+(0/8) — the values evaluate but are wrong. Those were 0 before the guard as well; what the guard
+fixed is the inflation, not the arithmetic. **`ICP5p5_A21` is no longer among them** (2026-09-03):
+it went 0/2 → 1/1 when `Simu_Eqn_Sol` was promoted ahead of `sc_tan`, and it is now in
+`check_solution_sets.KNOWN_COMPLETE`.
+
+**THE DEFECT THAT PROMOTION FIXED, because it will recur.** A variable solved by `arcsin` gets two
+solutions, `th` and `pi - th`, from an equation containing only `sin(u)`. Both satisfy *that*
+equation — so every consistency check on the solution itself passes — but the rest of the FK still
+constrains `cos(u)`, and the supplement flips its sign. Measured on `Chair_Helper`'s `th_2` over 10
+random reachable poses, the supplementary branch was valid **0 times out of 20**: not a branch that
+is right at some poses and wrong at others, but one that is wrong everywhere, occupying half the
+advertised solution set with nothing to say which half. The equation it came from did not even exist
+in the FK — `sub_transform` manufactured it by substituting `r_13` into the `Px` equation, which
+collapses the `cos(th_2)` terms away — while `L1` already held the canonical pair `simu_solver`
+needs. So the diagnosis to reach for when a robot scores less than 100%: look for an `arcsin` or
+`arccos` in its `solvemethod`s, and check whether a `sin+cos` pair for that variable was available.
 
 ## Adding a robot
 
@@ -659,7 +673,7 @@ A new test should evaluate performance of the end-to-end hybrid solution generat
    `simplified_arm` commits to its cheapest candidate with no fall-through to the next-ranked one.
    Trying the next candidate when the first derived arm does not solve is the obvious next move.
 
-3. **`ICP5p5_A21` (0/2), `Parkman13` (0/4) and `UR5` (0/8)** still fail
+3. **`Parkman13` (0/4) and `UR5` (0/8)** still fail
    `scripts/check_solution_sets.py`: the values evaluate but are wrong. Unrelated to the hybrid work
    and unexplained.
 

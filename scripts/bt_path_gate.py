@@ -144,6 +144,9 @@ EXPECTED = {
         'branch': 'symbolic', 'solved': (5, 5), 'derived': None,
         'artifacts': frozenset({'tex', 'py', 'cpp'}),
         'derived_artifacts': NOTHING,
+        #  2 of 2 since 2026-09-03.  It was 2 of 4:  th_2 was solved by arcsin,
+        #  whose supplementary branch is wrong at every pose, and promoting
+        #  Simu_Eqn_Sol stopped that branch being generated at all.
         'closed_loop': 2,
     },
     'KinovaLite': {
