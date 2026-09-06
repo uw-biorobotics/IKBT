@@ -1,9 +1,13 @@
 {
- "n_robots": 32,
- "record_version": 1,
+ "closed_loop": true,
+ "codegen": true,
+ "complaints": {},
+ "n_robots": 31,
+ "record_version": 2,
  "robots": {
   "ArmRobo": {
-   "comp_det_ticks": 2,
+   "branch": "hybrid",
+   "codegen_run": true,
    "error": null,
    "hybrid": {
     "axes": [
@@ -20,32 +24,41 @@
    },
    "methods": {
     "d_6": "algebra",
-    "th_1": "atan2(y,x), arccos, best ranked, atan2(y,x), best ranked, sin or cos",
+    "th_1": "simultaneous eqn",
     "th_12": "",
     "th_2": "",
     "th_3": "",
     "th_4": "",
     "th_5": ""
    },
-   "n_solutions": 2,
+   "n_solutions": null,
    "n_solved": 2,
    "n_unknowns": 7,
    "name": "ArmRobo",
    "no_progress": false,
    "solution_set_error": null,
    "status": "partial (hybrid)",
-   "wall_s": 316.3
+   "wall_s": 187.91,
+   "written": [],
+   "written_derived": []
   },
   "Arm_3": {
-   "comp_det_ticks": 9,
+   "branch": "symbolic",
+   "closed_loop": {
+    "good": 0,
+    "note": "UnboundLocalError: cannot access local variable 'th_23v1' where it is not associated with a value",
+    "path": null,
+    "total": 0
+   },
+   "codegen_run": true,
    "error": null,
    "hybrid": null,
    "methods": {
     "th_1": "algebra",
     "th_12": "algebra",
-    "th_123": "atan2(y,x), arccos, best ranked, atan2(y,x)",
+    "th_123": "simultaneous eqn",
     "th_2": "arccos",
-    "th_23": "arccossimultaneous eqn",
+    "th_23": "simultaneous eqn",
     "th_3": "algebra"
    },
    "n_solutions": 2,
@@ -55,18 +68,31 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 86.04
+   "wall_s": 52.58,
+   "written": [
+    "cpp",
+    "py",
+    "tex"
+   ],
+   "written_derived": []
   },
   "Axtman13": {
-   "comp_det_ticks": 6,
+   "branch": "symbolic",
+   "closed_loop": {
+    "good": 1,
+    "note": "",
+    "path": "symbolic",
+    "total": 2
+   },
+   "codegen_run": true,
    "error": null,
    "hybrid": null,
    "methods": {
     "d_1": "algebra",
-    "th_2": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
+    "th_2": "simultaneous eqn",
     "th_3": "arcsin",
     "th_34": "algebra",
-    "th_4": "atan2(y,x), arccos, best ranked, atan2(y,x)"
+    "th_4": "simultaneous eqn"
    },
    "n_solutions": 2,
    "n_solved": 5,
@@ -75,18 +101,31 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 24.48
+   "wall_s": 25.3,
+   "written": [
+    "cpp",
+    "py",
+    "tex"
+   ],
+   "written_derived": []
   },
   "Bartell": {
-   "comp_det_ticks": 5,
+   "branch": "symbolic",
+   "closed_loop": {
+    "good": 2,
+    "note": "",
+    "path": "symbolic",
+    "total": 2
+   },
+   "codegen_run": true,
    "error": null,
    "hybrid": null,
    "methods": {
     "d_2": "algebra",
     "d_4": "algebra",
     "th_1": "atan2(y,x)",
-    "th_3": "atan2(y,x), arccos, best ranked, atan2(y,x)",
-    "th_5": "atan2(y,x), arccos, best ranked, atan2(y,x)"
+    "th_3": "simultaneous eqn",
+    "th_5": "simultaneous eqn"
    },
    "n_solutions": 2,
    "n_solved": 5,
@@ -95,17 +134,30 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 2.84
+   "wall_s": 2.67,
+   "written": [
+    "cpp",
+    "py",
+    "tex"
+   ],
+   "written_derived": []
   },
   "Brad": {
-   "comp_det_ticks": 4,
+   "branch": "symbolic",
+   "closed_loop": {
+    "good": 1,
+    "note": "",
+    "path": "symbolic",
+    "total": 1
+   },
+   "codegen_run": true,
    "error": null,
    "hybrid": null,
    "methods": {
-    "th_1": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
-    "th_2": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
+    "th_1": "simultaneous eqn",
+    "th_2": "simultaneous eqn",
     "th_23": "algebra",
-    "th_3": "atan2(y,x), arccos, best ranked, atan2(y,x)"
+    "th_3": "simultaneous eqn"
    },
    "n_solutions": 1,
    "n_solved": 4,
@@ -114,38 +166,64 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 2.36
+   "wall_s": 2.98,
+   "written": [
+    "cpp",
+    "py",
+    "tex"
+   ],
+   "written_derived": []
   },
   "Chair_Helper": {
-   "comp_det_ticks": 5,
+   "branch": "symbolic",
+   "closed_loop": {
+    "good": 2,
+    "note": "",
+    "path": "symbolic",
+    "total": 2
+   },
+   "codegen_run": true,
    "error": null,
    "hybrid": null,
    "methods": {
     "d_1": "algebra",
-    "th_2": "arcsin",
+    "th_2": "simultaneous eqn",
     "th_3": "atan2(y,x)",
-    "th_4": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
-    "th_5": "atan2(y,x), arcsin, best ranked, atan2(y,x)"
+    "th_4": "simultaneous eqn",
+    "th_5": "simultaneous eqn"
    },
-   "n_solutions": 4,
+   "n_solutions": 2,
    "n_solved": 5,
    "n_unknowns": 5,
    "name": "Chair_Helper",
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 4.3
+   "wall_s": 3.96,
+   "written": [
+    "cpp",
+    "py",
+    "tex"
+   ],
+   "written_derived": []
   },
   "Craig417": {
-   "comp_det_ticks": 5,
+   "branch": "symbolic",
+   "closed_loop": {
+    "good": 2,
+    "note": "",
+    "path": "symbolic",
+    "total": 4
+   },
+   "codegen_run": true,
    "error": null,
    "hybrid": null,
    "methods": {
     "th_1": "sinANDcos",
-    "th_2": "atan2(y,x), arccos, best ranked, atan2(y,x)",
-    "th_3": "sinANDcos",
+    "th_2": "simultaneous eqn",
+    "th_3": "arcsinsinANDcos",
     "th_34": "algebra",
-    "th_4": "atan2(y,x), arccos, best ranked, atan2(y,x)"
+    "th_4": "simultaneous eqn"
    },
    "n_solutions": 4,
    "n_solved": 5,
@@ -154,19 +232,32 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 4.58
+   "wall_s": 5.57,
+   "written": [
+    "cpp",
+    "py",
+    "tex"
+   ],
+   "written_derived": []
   },
   "DZhang": {
-   "comp_det_ticks": 7,
+   "branch": "symbolic",
+   "closed_loop": {
+    "good": 0,
+    "note": "ValueError: expected a number in range from -1 up to 1, got 1.2901077724570822",
+    "path": null,
+    "total": 0
+   },
+   "codegen_run": true,
    "error": null,
    "hybrid": null,
    "methods": {
     "th_1": "sinANDcos",
     "th_2": "algebra",
-    "th_23": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
+    "th_23": "simultaneous eqn",
     "th_3": "arcsin",
     "th_4": "atan2(y,x), arccos, best ranked, atan2(y,x)",
-    "th_5": "atan2(y,x), arcsin, best ranked, atan2(y,x)"
+    "th_5": "simultaneous eqn"
    },
    "n_solutions": 4,
    "n_solved": 6,
@@ -175,18 +266,31 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 93.95
+   "wall_s": 94.37,
+   "written": [
+    "cpp",
+    "py",
+    "tex"
+   ],
+   "written_derived": []
   },
   "Frei13": {
-   "comp_det_ticks": 6,
+   "branch": "symbolic",
+   "closed_loop": {
+    "good": 4,
+    "note": "",
+    "path": "symbolic",
+    "total": 4
+   },
+   "codegen_run": true,
    "error": null,
    "hybrid": null,
    "methods": {
     "d_1": "algebra",
     "th_2": "arcsin",
     "th_3": "atan2(y,x)",
-    "th_4": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
-    "th_5": "atan2(y,x), arcsin, best ranked, atan2(y,x)"
+    "th_4": "simultaneous eqn",
+    "th_5": "simultaneous eqn"
    },
    "n_solutions": 4,
    "n_solved": 5,
@@ -195,37 +299,63 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 71.27
+   "wall_s": 71.23,
+   "written": [
+    "cpp",
+    "py",
+    "tex"
+   ],
+   "written_derived": []
   },
   "ICP5p5_A21": {
-   "comp_det_ticks": 6,
+   "branch": "symbolic",
+   "closed_loop": {
+    "good": 1,
+    "note": "",
+    "path": "symbolic",
+    "total": 1
+   },
+   "codegen_run": true,
    "error": null,
    "hybrid": null,
    "methods": {
     "d_2": "algebra",
-    "th_1": "atan2(y,x)",
-    "th_3": "atan2(y,x), arccos, best ranked, atan2(y,x)",
-    "th_4": "atan2(y,x), arccos, best ranked, atan2(y,x)"
+    "th_1": "simultaneous eqn",
+    "th_3": "simultaneous eqn",
+    "th_4": "simultaneous eqn"
    },
-   "n_solutions": 2,
+   "n_solutions": 1,
    "n_solved": 4,
    "n_unknowns": 4,
    "name": "ICP5p5_A21",
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 34.8
+   "wall_s": 44.78,
+   "written": [
+    "cpp",
+    "py",
+    "tex"
+   ],
+   "written_derived": []
   },
   "JennyGuoSp24": {
-   "comp_det_ticks": 11,
+   "branch": "symbolic",
+   "closed_loop": {
+    "good": 0,
+    "note": "UnboundLocalError: cannot access local variable 'th_3v1' where it is not associated with a value",
+    "path": null,
+    "total": 0
+   },
+   "codegen_run": true,
    "error": null,
    "hybrid": null,
    "methods": {
     "d_1": "algebra",
-    "th_2": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
-    "th_3": "arcsinsimultaneous eqn",
+    "th_2": "simultaneous eqn",
+    "th_3": "simultaneous eqn",
     "th_34": "algebra",
-    "th_345": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
+    "th_345": "simultaneous eqn",
     "th_4": "arccos",
     "th_45": "algebra",
     "th_5": "algebra"
@@ -237,10 +367,23 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 84.24
+   "wall_s": 84.43,
+   "written": [
+    "cpp",
+    "py",
+    "tex"
+   ],
+   "written_derived": []
   },
   "KR16": {
-   "comp_det_ticks": 8,
+   "branch": "symbolic",
+   "closed_loop": {
+    "good": 0,
+    "note": "ValueError: expected a nonnegative input, got -202.2155649651621",
+    "path": null,
+    "total": 0
+   },
+   "codegen_run": true,
    "error": null,
    "hybrid": null,
    "methods": {
@@ -249,8 +392,8 @@
     "th_23": "simultaneous eqn",
     "th_3": "sinANDcos",
     "th_4": "atan2(y,x)",
-    "th_5": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
-    "th_6": "atan2(y,x), arcsin, best ranked, atan2(y,x)"
+    "th_5": "simultaneous eqn",
+    "th_6": "simultaneous eqn"
    },
    "n_solutions": 8,
    "n_solved": 7,
@@ -259,10 +402,23 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 131.97
+   "wall_s": 151.77,
+   "written": [
+    "cpp",
+    "py",
+    "tex"
+   ],
+   "written_derived": []
   },
   "KawasakiRS007L": {
-   "comp_det_ticks": 8,
+   "branch": "symbolic",
+   "closed_loop": {
+    "good": 8,
+    "note": "",
+    "path": "symbolic",
+    "total": 8
+   },
+   "codegen_run": true,
    "error": null,
    "hybrid": null,
    "methods": {
@@ -271,8 +427,8 @@
     "th_23": "simultaneous eqn",
     "th_3": "arcsin",
     "th_4": "atan2(y,x)",
-    "th_5": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
-    "th_6": "atan2(y,x), arccos, best ranked, atan2(y,x)"
+    "th_5": "simultaneous eqn",
+    "th_6": "simultaneous eqn"
    },
    "n_solutions": 8,
    "n_solved": 7,
@@ -281,10 +437,17 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 177.4
+   "wall_s": 109.07,
+   "written": [
+    "cpp",
+    "py",
+    "tex"
+   ],
+   "written_derived": []
   },
   "KawasakiRS05L": {
-   "comp_det_ticks": 2,
+   "branch": "hybrid",
+   "codegen_run": true,
    "error": null,
    "hybrid": {
     "axes": [
@@ -315,10 +478,19 @@
    "no_progress": true,
    "solution_set_error": null,
    "status": "unsolved",
-   "wall_s": 438.29
+   "wall_s": 254.11,
+   "written": [],
+   "written_derived": []
   },
   "Khat6DOF": {
-   "comp_det_ticks": 8,
+   "branch": "symbolic",
+   "closed_loop": {
+    "good": 8,
+    "note": "",
+    "path": "symbolic",
+    "total": 8
+   },
+   "codegen_run": true,
    "error": null,
    "hybrid": null,
    "methods": {
@@ -327,8 +499,8 @@
     "th_23": "simultaneous eqn",
     "th_3": "sinANDcos",
     "th_4": "atan2(y,x)",
-    "th_5": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
-    "th_6": "atan2(y,x), arccos, best ranked, atan2(y,x)"
+    "th_5": "simultaneous eqn",
+    "th_6": "simultaneous eqn"
    },
    "n_solutions": 8,
    "n_solved": 7,
@@ -337,10 +509,23 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 237.19
+   "wall_s": 138.47,
+   "written": [
+    "cpp",
+    "py",
+    "tex"
+   ],
+   "written_derived": []
   },
   "KinovaLite": {
-   "comp_det_ticks": 2,
+   "branch": "hybrid",
+   "closed_loop": {
+    "good": 8,
+    "note": "seed err 4.3e+01 -> 1.2e-12",
+    "path": "hybrid",
+    "total": 8
+   },
+   "codegen_run": true,
    "error": null,
    "hybrid": {
     "axes": [
@@ -360,7 +545,7 @@
     "th_2": "simultaneous eqn",
     "th_23": "algebra",
     "th_3": "arcsin",
-    "th_4": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
+    "th_4": "simultaneous eqn",
     "th_5": "arccos",
     "th_6": "sinANDcos"
    },
@@ -371,37 +556,66 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved (hybrid)",
-   "wall_s": 322.03
+   "wall_s": 361.51,
+   "written": [
+    "fk",
+    "hybrid",
+    "tex"
+   ],
+   "written_derived": [
+    "fk",
+    "py"
+   ]
   },
   "Mackler13": {
-   "comp_det_ticks": 6,
+   "branch": "symbolic",
+   "closed_loop": {
+    "good": 1,
+    "note": "",
+    "path": "symbolic",
+    "total": 4
+   },
+   "codegen_run": true,
    "error": null,
    "hybrid": null,
    "methods": {
     "d_1": "algebra",
-    "th_2": "arccos",
+    "th_2": "simultaneous eqn",
     "th_3": "arccos",
     "th_4": "arcsin",
     "th_5": "simultaneous eqn"
    },
-   "n_solutions": 8,
+   "n_solutions": 4,
    "n_solved": 5,
    "n_unknowns": 5,
    "name": "Mackler13",
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 94.16
+   "wall_s": 91.51,
+   "written": [
+    "cpp",
+    "py",
+    "tex"
+   ],
+   "written_derived": []
   },
   "Minder13": {
-   "comp_det_ticks": 4,
+   "branch": "symbolic",
+   "closed_loop": {
+    "good": 2,
+    "note": "",
+    "path": "symbolic",
+    "total": 2
+   },
+   "codegen_run": true,
    "error": null,
    "hybrid": null,
    "methods": {
     "d_1": "algebra",
     "th_2": "atan2(y,x)",
-    "th_3": "atan2(y,x), arccos, best ranked, atan2(y,x)",
-    "th_4": "atan2(y,x), arcsin, best ranked, atan2(y,x)"
+    "th_3": "simultaneous eqn",
+    "th_4": "simultaneous eqn"
    },
    "n_solutions": 2,
    "n_solved": 4,
@@ -410,30 +624,56 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 1.65
+   "wall_s": 2.52,
+   "written": [
+    "cpp",
+    "py",
+    "tex"
+   ],
+   "written_derived": []
   },
   "MiniDD": {
-   "comp_det_ticks": 6,
+   "branch": "symbolic",
+   "closed_loop": {
+    "good": 1,
+    "note": "",
+    "path": "symbolic",
+    "total": 4
+   },
+   "codegen_run": true,
    "error": null,
    "hybrid": null,
    "methods": {
     "d_1": "algebra",
-    "th_2": "arccos",
+    "th_2": "simultaneous eqn",
     "th_3": "arccos",
     "th_4": "arcsin",
     "th_5": "simultaneous eqn"
    },
-   "n_solutions": 8,
+   "n_solutions": 4,
    "n_solved": 5,
    "n_unknowns": 5,
    "name": "MiniDD",
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 117.41
+   "wall_s": 69.91,
+   "written": [
+    "cpp",
+    "py",
+    "tex"
+   ],
+   "written_derived": []
   },
   "Olson13": {
-   "comp_det_ticks": 7,
+   "branch": "symbolic",
+   "closed_loop": {
+    "good": 4,
+    "note": "",
+    "path": "symbolic",
+    "total": 4
+   },
+   "codegen_run": true,
    "error": null,
    "hybrid": null,
    "methods": {
@@ -442,8 +682,8 @@
     "th_3": "atan2(y,x)",
     "th_4": "arcsin",
     "th_45": "algebra",
-    "th_5": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
-    "th_6": "atan2(y,x), arcsin, best ranked, atan2(y,x)"
+    "th_5": "simultaneous eqn",
+    "th_6": "simultaneous eqn"
    },
    "n_solutions": 4,
    "n_solved": 7,
@@ -452,17 +692,30 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 54.11
+   "wall_s": 33.28,
+   "written": [
+    "cpp",
+    "py",
+    "tex"
+   ],
+   "written_derived": []
   },
   "Palm13": {
-   "comp_det_ticks": 4,
+   "branch": "symbolic",
+   "closed_loop": {
+    "good": 1,
+    "note": "",
+    "path": "symbolic",
+    "total": 2
+   },
+   "codegen_run": true,
    "error": null,
    "hybrid": null,
    "methods": {
     "d_2": "algebra",
     "th_1": "atan2(y,x)",
-    "th_3": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
-    "th_4": "atan2(y,x), arccos, best ranked, atan2(y,x)"
+    "th_3": "simultaneous eqn",
+    "th_4": "simultaneous eqn"
    },
    "n_solutions": 2,
    "n_solved": 4,
@@ -471,10 +724,23 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 1.66
+   "wall_s": 2.54,
+   "written": [
+    "cpp",
+    "py",
+    "tex"
+   ],
+   "written_derived": []
   },
   "Panda": {
-   "comp_det_ticks": 5,
+   "branch": "hybrid",
+   "closed_loop": {
+    "good": 8,
+    "note": "seed err 6.0e-02 -> 1.7e-16",
+    "path": "hybrid",
+    "total": 8
+   },
+   "codegen_run": true,
    "error": null,
    "hybrid": {
     "axes": [
@@ -493,7 +759,7 @@
    "methods": {
     "th_1": "sinANDcos",
     "th_2": "simultaneous eqn",
-    "th_3": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
+    "th_3": "simultaneous eqn",
     "th_4": "arccos",
     "th_5": "arcsin",
     "th_6": "sinANDcos"
@@ -505,19 +771,35 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved (hybrid)",
-   "wall_s": 892.9
+   "wall_s": 706.11,
+   "written": [
+    "fk",
+    "hybrid",
+    "tex"
+   ],
+   "written_derived": [
+    "fk",
+    "py"
+   ]
   },
   "Parkman13": {
-   "comp_det_ticks": 8,
+   "branch": "symbolic",
+   "closed_loop": {
+    "good": 1,
+    "note": "",
+    "path": "symbolic",
+    "total": 4
+   },
+   "codegen_run": true,
    "error": null,
    "hybrid": null,
    "methods": {
     "d_4": "algebra",
     "th_1": "atan2(y,x)",
     "th_2": "algebra",
-    "th_23": "atan2(y,x), arccos, best ranked, atan2(y,x)",
+    "th_23": "simultaneous eqn",
     "th_3": "arcsin",
-    "th_5": "atan2(y,x), arcsin, best ranked, atan2(y,x)"
+    "th_5": "simultaneous eqn"
    },
    "n_solutions": 4,
    "n_solved": 6,
@@ -526,10 +808,23 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 64.37
+   "wall_s": 63.73,
+   "written": [
+    "cpp",
+    "py",
+    "tex"
+   ],
+   "written_derived": []
   },
   "Puma": {
-   "comp_det_ticks": 8,
+   "branch": "symbolic",
+   "closed_loop": {
+    "good": 8,
+    "note": "",
+    "path": "symbolic",
+    "total": 8
+   },
+   "codegen_run": true,
    "error": null,
    "hybrid": null,
    "methods": {
@@ -538,8 +833,8 @@
     "th_23": "simultaneous eqn",
     "th_3": "sinANDcos",
     "th_4": "atan2(y,x)",
-    "th_5": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
-    "th_6": "atan2(y,x), arcsin, best ranked, atan2(y,x)"
+    "th_5": "simultaneous eqn",
+    "th_6": "simultaneous eqn"
    },
    "n_solutions": 8,
    "n_solved": 7,
@@ -548,32 +843,17 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 122.02
-  },
-  "Pumaoffset": {
-   "comp_det_ticks": 8,
-   "error": null,
-   "hybrid": null,
-   "methods": {
-    "th_1": "sinANDcos",
-    "th_2": "simultaneous eqn",
-    "th_23": "algebra",
-    "th_3": "sinANDcos",
-    "th_4": "atan2(y,x)",
-    "th_5": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
-    "th_6": "atan2(y,x), arcsin, best ranked, atan2(y,x)"
-   },
-   "n_solutions": 8,
-   "n_solved": 7,
-   "n_unknowns": 7,
-   "name": "Pumaoffset",
-   "no_progress": false,
-   "solution_set_error": null,
-   "status": "solved",
-   "wall_s": 188.96
+   "wall_s": 123.17,
+   "written": [
+    "cpp",
+    "py",
+    "tex"
+   ],
+   "written_derived": []
   },
   "Raven-II": {
-   "comp_det_ticks": 2,
+   "branch": "hybrid",
+   "codegen_run": true,
    "error": null,
    "hybrid": {
     "axes": [
@@ -603,18 +883,27 @@
    "no_progress": true,
    "solution_set_error": null,
    "status": "unsolved",
-   "wall_s": 1624.72
+   "wall_s": 963.68,
+   "written": [],
+   "written_derived": []
   },
   "Sims11": {
-   "comp_det_ticks": 6,
+   "branch": "symbolic",
+   "closed_loop": {
+    "good": 1,
+    "note": "",
+    "path": "symbolic",
+    "total": 2
+   },
+   "codegen_run": true,
    "error": null,
    "hybrid": null,
    "methods": {
     "d_1": "algebra",
     "d_2": "algebra",
     "th_3": "atan2(y,x)",
-    "th_4": "atan2(y,x), arccos, best ranked, atan2(y,x)",
-    "th_5": "atan2(y,x), arcsin, best ranked, atan2(y,x)"
+    "th_4": "simultaneous eqn",
+    "th_5": "simultaneous eqn"
    },
    "n_solutions": 2,
    "n_solved": 5,
@@ -623,10 +912,23 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 51.92
+   "wall_s": 29.51,
+   "written": [
+    "cpp",
+    "py",
+    "tex"
+   ],
+   "written_derived": []
   },
   "Srisuan11": {
-   "comp_det_ticks": 7,
+   "branch": "symbolic",
+   "closed_loop": {
+    "good": 4,
+    "note": "",
+    "path": "symbolic",
+    "total": 4
+   },
+   "codegen_run": true,
    "error": null,
    "hybrid": null,
    "methods": {
@@ -634,8 +936,8 @@
     "d_4": "algebra",
     "th_2": "sinANDcos",
     "th_3": "atan2(y,x)",
-    "th_5": "atan2(y,x), arccos, best ranked, atan2(y,x)",
-    "th_6": "atan2(y,x), arcsin, best ranked, atan2(y,x)"
+    "th_5": "simultaneous eqn",
+    "th_6": "simultaneous eqn"
    },
    "n_solutions": 4,
    "n_solved": 6,
@@ -644,10 +946,23 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 27.95
+   "wall_s": 28.5,
+   "written": [
+    "cpp",
+    "py",
+    "tex"
+   ],
+   "written_derived": []
   },
   "Stanford": {
-   "comp_det_ticks": 6,
+   "branch": "symbolic",
+   "closed_loop": {
+    "good": 8,
+    "note": "",
+    "path": "symbolic",
+    "total": 8
+   },
+   "codegen_run": true,
    "error": null,
    "hybrid": null,
    "methods": {
@@ -655,8 +970,8 @@
     "th_1": "sinANDcos",
     "th_2": "atan2(y,x)",
     "th_4": "atan2(y,x)",
-    "th_5": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
-    "th_6": "atan2(y,x), arccos, best ranked, atan2(y,x)"
+    "th_5": "simultaneous eqn",
+    "th_6": "simultaneous eqn"
    },
    "n_solutions": 8,
    "n_solved": 6,
@@ -665,22 +980,35 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 6.2
+   "wall_s": 5.42,
+   "written": [
+    "cpp",
+    "py",
+    "tex"
+   ],
+   "written_derived": []
   },
   "UR5": {
-   "comp_det_ticks": 12,
+   "branch": "symbolic",
+   "closed_loop": {
+    "good": 0,
+    "note": "ValueError: expected a number in range from -1 up to 1, got 1.647794556727048",
+    "path": null,
+    "total": 0
+   },
+   "codegen_run": true,
    "error": null,
    "hybrid": null,
    "methods": {
     "th_1": "sinANDcos",
-    "th_2": "arcsinsimultaneous eqn",
+    "th_2": "simultaneous eqn",
     "th_23": "algebra",
-    "th_234": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
+    "th_234": "simultaneous eqn",
     "th_3": "arccos",
     "th_34": "algebra",
     "th_4": "arcsinalgebra",
     "th_5": "arccos",
-    "th_6": "atan2(y,x), arcsin, best ranked, atan2(y,x)"
+    "th_6": "simultaneous eqn"
    },
    "n_solutions": 8,
    "n_solved": 9,
@@ -689,10 +1017,23 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 244.58
+   "wall_s": 229.24,
+   "written": [
+    "cpp",
+    "py",
+    "tex"
+   ],
+   "written_derived": []
   },
   "Wachtveitl": {
-   "comp_det_ticks": 7,
+   "branch": "symbolic",
+   "closed_loop": {
+    "good": 1,
+    "note": "",
+    "path": "symbolic",
+    "total": 2
+   },
+   "codegen_run": true,
    "error": null,
    "hybrid": null,
    "methods": {
@@ -700,8 +1041,8 @@
     "th_2": "atan2(y,x)",
     "th_3": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
     "th_34": "algebra",
-    "th_4": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
-    "th_5": "atan2(y,x), arcsin, best ranked, atan2(y,x)"
+    "th_4": "simultaneous eqn",
+    "th_5": "simultaneous eqn"
    },
    "n_solutions": 2,
    "n_solved": 6,
@@ -710,16 +1051,29 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 40.47
+   "wall_s": 42.44,
+   "written": [
+    "cpp",
+    "py",
+    "tex"
+   ],
+   "written_derived": []
   },
   "Wrist": {
-   "comp_det_ticks": 3,
+   "branch": "symbolic",
+   "closed_loop": {
+    "good": 2,
+    "note": "",
+    "path": "symbolic",
+    "total": 2
+   },
+   "codegen_run": true,
    "error": null,
    "hybrid": null,
    "methods": {
     "A": "atan2(y,x)",
-    "B": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
-    "C": "atan2(y,x), arcsin, best ranked, atan2(y,x)"
+    "B": "simultaneous eqn",
+    "C": "simultaneous eqn"
    },
    "n_solutions": 2,
    "n_solved": 3,
@@ -728,8 +1082,13 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 2.55
+   "wall_s": 2.31,
+   "written": [
+    "cpp",
+    "py",
+    "tex"
+   ],
+   "written_derived": []
   }
- },
- "total_wall_s": 5567.68
+ }
 }

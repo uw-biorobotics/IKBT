@@ -43,6 +43,8 @@ import sys
 import numpy as np
 import sympy as sp
 
+from scripts.expected import EXPECT, judge_counts
+
 #  ROBOT_LIST is not present on every branch (it was added with the all-robots
 #  baseline harness).  Fall back to a fixed list so this script -- which exists
 #  to verify a fix that must land on several branches -- runs anywhere.
@@ -54,19 +56,19 @@ except ImportError:                       # older branch without the list
                   'KR16', 'UR5', 'Wrist', 'Sims11', 'Bartell', 'Arm_3']
 
 
-#  Robots measured to reproduce the target pose on EVERY version, 2026-08-24,
-#  immediately after the solution/version fix.  These are the gate: a drop here
-#  is a regression in the closed form itself, which no other check would catch.
-KNOWN_COMPLETE = ['Puma', 'Pumaoffset', 'Stanford', 'Khat6DOF', 'Olson13',
-                  'Brad', 'Wrist',
-                  #  Both became complete on 2026-09-03, when Simu_Eqn_Sol was
-                  #  promoted ahead of sc_tan in build_worktools() -- see the
-                  #  docstring there.  Chair_Helper went 2-of-4 to 2-of-2 and
-                  #  ICP5p5_A21 0-of-2 to 1-of-1:  the arcsin branch that was
-                  #  wrong at every pose is simply no longer generated.  Listed
-                  #  here so that reverting the order fails the gate rather than
-                  #  quietly restoring the spurious solutions.
-                  'Chair_Helper', 'ICP5p5_A21']
+#  THE EXPECTATION TABLE LIVES IN scripts/expected.py, shared with the
+#  generated-code checker.  It used to be KNOWN_COMPLETE here -- a list of
+#  robots that must be 100% -- which was a third hand-maintained copy of the
+#  same robots.  EXPECT's (good, total) says the same thing and more:  the
+#  robots recorded there are all 100% today, and a robot that is legitimately
+#  not can still be recorded exactly.
+#
+#  Chair_Helper and ICP5p5_A21 became complete on 2026-09-03, when Simu_Eqn_Sol
+#  was promoted ahead of sc_tan in build_worktools() -- see the docstring there.
+#  Chair_Helper went 2-of-4 to 2-of-2 and ICP5p5_A21 0-of-2 to 1-of-1:  the
+#  arcsin branch that was wrong at every pose is simply no longer generated.
+#  Recorded so that reverting the order fails the gate rather than quietly
+#  restoring the spurious solutions.
 
 #  Wrist was previously listed here as uncheckable, on the grounds that B and C
 #  had no numeric values.  They are its JOINT VARIABLES, not parameters;  what
@@ -173,7 +175,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--robots', nargs='+', help='only these robots')
     ap.add_argument('--gate', action='store_true',
-                    help='exit 1 if a KNOWN_COMPLETE robot is not 100%%')
+                    help='exit 1 if a robot misses its scripts/expected.py entry')
     ap.add_argument('--verbose', action='store_true',
                     help='say why each failing version failed')
     a = ap.parse_args(argv)
@@ -184,7 +186,8 @@ def main(argv=None):
     print('  Does the closed form actually reproduce the pose it solved for?')
     print('  T is built from each robot\'s own FK, so it is reachable by')
     print('  construction.  Not every version is expected to pass -- see the')
-    print('  module docstring -- but a KNOWN_COMPLETE robot must be 100%.')
+    print('  module docstring -- but a robot in scripts/expected.py must')
+    print('  meet the count recorded there.')
     print('')
     print('  %-18s %8s  %s' % ('robot', 'versions', 'note'))
     print('  ' + '-' * 68)
@@ -197,9 +200,10 @@ def main(argv=None):
             tag = None
         else:
             frac = '%d/%d' % (good, nvers)
+            bad = judge_counts(name, good, nvers)
             flag = ''
-            if name in KNOWN_COMPLETE and good != nvers:
-                flag = '  <-- REGRESSION (was 100%)'
+            if bad:
+                flag = '  <-- REGRESSION: ' + '; '.join(bad)
                 failures.append(name)
             elif good == 0:
                 flag = '  <-- no version reproduces the pose'
@@ -210,8 +214,7 @@ def main(argv=None):
         if failures:
             print('  GATE FAILED: %s' % ', '.join(failures))
             return 1
-        print('  GATE OK: every KNOWN_COMPLETE robot reproduces its pose on '
-              'all versions.')
+        print('  GATE OK: every robot with a recorded expectation met it.')
     return 0
 
 

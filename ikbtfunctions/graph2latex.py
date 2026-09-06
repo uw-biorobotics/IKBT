@@ -141,3 +141,188 @@ if __name__ == "__main__":
     print(tikz_closepicture(), file=f)
     print(r'\end{document}', file=f)
     
+
+
+#####################################################################
+#
+#   The solution dependency graph, as a TikZ figure
+#
+#   The report has always printed this graph as a list of edges --
+#   'Edge:th_4 depends on: th_23' -- which is complete and nearly unreadable:
+#   the shape of the solve, which variable unlocks which, is exactly the thing
+#   a list of pairs does not show.  This draws it.
+#
+
+import re
+
+
+def _tex_label(name):
+    r"""'th_23' -> '\theta_{23}', 'd_1' -> 'd_{1}'.
+
+       The same two steps the rest of the report uses on a variable name.  Done
+       here rather than imported so this module stays standalone -- it is the
+       one place that turns a graph into LaTeX, and it should not need the
+       report generator to do it."""
+
+    s = re.sub(r'_(\d+)', r'_{\1}', str(name))
+    return s.replace('th_', r'\theta_')
+
+
+def _levels(names, deps):
+    """{name: row}, where a variable sits one row below everything it needs.
+
+       A variable with no dependencies is a root at row 0.  Every other one
+       goes one row below the deepest thing it depends on, so every arrow
+       points DOWNWARD and the drawing reads top to bottom in the order the
+       solver could have discovered them.
+
+       The `seen` guard is for a cycle.  There should never be one -- a
+       variable cannot depend on something solved after it -- but a drawing
+       routine is the wrong place to discover that, so a cycle degrades to a
+       finite (if ugly) layout instead of infinite recursion."""
+
+    level = {}
+
+    def depth(n, seen):
+        if n in level:
+            return level[n]
+        if n in seen:
+            return 0                      # cycle: stop, do not recurse
+        seen = seen | {n}
+        d = 0
+        for p in deps.get(n, ()):
+            if p in names:
+                d = max(d, depth(p, seen) + 1)
+        level[n] = d
+        return d
+
+    for n in names:
+        depth(n, set())
+    return level
+
+
+def solution_graph_tikz(order, edges, eol='\n', caption=None, label=None):
+    r"""A TikZ figure of the solution graph, or '' if there is nothing to draw.
+
+       order    variable names, in SOLVE order
+       edges    iterable with .StartNode and .dependsOn (ikbtbasics Edge)
+
+       AN ARROW MEANS "UNLOCKS":  it runs from a variable to one that becomes
+       solvable once it is known -- the reverse of the edge listing's wording
+       ('th_4 depends on: th_23').  Both conventions are in use:  software
+       dependency graphs (UML, package managers, make) point from the dependent
+       to what it needs, while scheduling and dataflow networks (PERT/CPM, task
+       graphs) point along topological order.  This graph is a precedence
+       network -- th_1 must be solved before th_2 -- so the scheduling
+       convention is the right one, and it also makes the arrows agree with the
+       drawing, which already runs top to bottom in solution order.  Pointing at
+       dependencies ran every arrow backwards against the layout.
+
+       Rows come from the dependency depth rather than from solve order.  Those
+       are different: the solver may solve th_5 before th_23 while th_4 needs
+       both, and depth is what shows that th_4 is the one waiting.  Within a row
+       the solve order is preserved, so the drawing still reads left to right in
+       the order the report discusses them.
+
+       NO EDGES IS NOT NOTHING.  An arm whose variables are all independent
+       draws a single row with no arrows, and that is worth seeing -- it says
+       the solve decoupled completely."""
+
+    order = [str(n) for n in order]
+    if not order:
+        return ''
+
+    deps = {}
+    for e in edges or ():
+        a, b = str(e.StartNode), str(e.dependsOn)
+        if a in order and b in order and a != b:
+            deps.setdefault(a, set()).add(b)
+
+    level = _levels(order, deps)
+    rows = {}
+    for n in order:                       # solve order preserved within a row
+        rows.setdefault(level[n], []).append(n)
+
+    #  Geometry in cm.  Wide enough that a label never touches its neighbour,
+    #  short enough that a seven-variable graph does not need its own page.
+    DX, DY = 2.3, 1.7
+
+    out = r'\begin{figure}[htb]' + eol + r'\centering' + eol
+    #  SHRINK ONLY IF NEEDED.  A row is as wide as the number of variables that
+    #  share a dependency depth, and an arm whose variables are largely
+    #  independent puts them all on one row -- which can be wider than the text
+    #  block.  This idiom scales the picture down to \textwidth when it would
+    #  overflow and leaves it alone when it fits, so a small graph is not blown
+    #  up to fill the page.
+    out += (r'\resizebox{\ifdim\width>\textwidth \textwidth\else\width\fi}{!}{%'
+            + eol)
+    #  No `font=` key:  \displaystyle is not a font command, and TeX accepts
+    #  `font=$\displaystyle$` silently while inserting an empty math group
+    #  before every label.  The labels carry their own $...$.
+    pos = {}
+    out += (r'\begin{tikzpicture}[>=stealth, thick,'
+            r' every node/.style={draw, circle, minimum size=9mm,'
+            r' inner sep=1pt}]' + eol)
+
+    for r in sorted(rows):
+        row = rows[r]
+        x0 = -DX * (len(row) - 1) / 2.0   # centre each row on the axis
+        for i, n in enumerate(row):
+            pos[n] = (x0 + i * DX, -r * DY)
+            out += (r'  \node (%s) at (%.2f,%.2f) {$%s$};'
+                    % (_tikz_name(n), pos[n][0], pos[n][1], _tex_label(n)) + eol)
+
+    #  Drawn b -> a:  b unlocks a.  deps[a] holds what a needs, so the arrow
+    #  is emitted the other way round from how the dependency is stored.
+    #
+    #  ROUTING.  An edge between adjacent rows is drawn straight -- there is
+    #  nothing between its ends to avoid.  An edge spanning more rows is the
+    #  problem:  rows are stacked directly under one another, so a straight or
+    #  slightly-bent long edge runs through whatever nodes sit between, which
+    #  is what made Stanford's picture unreadable.  Those are sent right around
+    #  the outside with out/in angles, on whichever side carries fewer nodes in
+    #  the rows they cross -- bending them all the same way just moves the pile
+    #  from one side to the other.
+    xof = {n: pos[n][0] for n in order}
+    for a in sorted(deps):
+        for b in sorted(deps[a]):
+            na, nb = _tikz_name(a), _tikz_name(b)
+            lo, hi = sorted((level[a], level[b]))
+            span = hi - lo
+
+            if span <= 1:
+                out += r'  \draw[->] (%s) -- (%s);' % (nb, na) + eol
+                continue
+
+            #  who is in the way, and on which side
+            left = right = 0
+            for n in order:
+                if lo < level[n] < hi:
+                    if xof[n] < -0.01:
+                        left += 1
+                    elif xof[n] > 0.01:
+                        right += 1
+            #  180 = leave/enter on the left, 0 = on the right
+            ang = 180 if left <= right else 0
+            loose = 1.0 + 0.45 * (span - 1)
+            out += (r'  \draw[->] (%s) to[out=%d, in=%d, looseness=%.2f] (%s);'
+                    % (nb, ang, ang, loose, na) + eol)
+
+    out += r'\end{tikzpicture}}' + eol
+    if caption:
+        out += r'\caption{' + caption + '}' + eol
+    if label:
+        out += r'\label{' + label + '}' + eol
+    out += r'\end{figure}' + eol
+    return out
+
+
+def _tikz_name(n):
+    """A TikZ node name:  letters, digits and underscores only.
+
+       TikZ parses '(' and ',' inside a coordinate, so a name carrying either
+       would silently produce a picture with missing arrows rather than an
+       error.  Variable names here are already tame (th_2, d_1), but the report
+       must not depend on that staying true."""
+
+    return re.sub(r'[^A-Za-z0-9]', '', str(n))

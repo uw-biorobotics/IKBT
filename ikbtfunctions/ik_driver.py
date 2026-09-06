@@ -33,6 +33,11 @@ import ikbtfunctions.output_cpp    as oc
 import ikbtfunctions.output_hybrid_python as ohp
 import ikbtfunctions.texwidth as texwidth
 
+#  Chatter from the report-fitting pass ("2 equations too wide, shortening: ...").
+#  OFF by default:  a library caller wants the report, not a commentary on how it
+#  was laid out.  ikSolver.py raises it with PERFORMANCE_OUTPUT.
+REPORT_PROGRESS = False
+
 from ikbtfunctions.ik_robots import robot_params
 from ikbtbasics.ik_classes  import kinematics_pickle, check_the_pickle
 
@@ -172,15 +177,18 @@ def write_latex_fitted(R, unks, groups, hybrid=None, R_true=None, passes=4,
         try:
             measured = texwidth.overfull_ids(path, slack_pt=slack_pt)
         except Exception as e:
-            print('  LaTeX width check skipped -- %s: %s' % (type(e).__name__, e))
+            if REPORT_PROGRESS:
+                print('  LaTeX width check skipped -- %s: %s'
+                      % (type(e).__name__, e))
             break
 
         new_force = {i for i in measured if i not in force}
         if not new_force:
             break                    # nothing left that shortening has not seen
         force |= new_force
-        print('  LaTeX: %d equation(s) too wide, shortening: %s'
-              % (len(new_force), ', '.join(sorted(new_force))))
+        if REPORT_PROGRESS:
+            print('  LaTeX: %d equation(s) too wide, shortening: %s'
+                  % (len(new_force), ', '.join(sorted(new_force))))
         ol.output_latex_solution(R, unks, groups, hybrid=hybrid, R_true=R_true,
                                  force_ids=force)
     return path

@@ -29,7 +29,7 @@
 #   NOT EVERY BRANCH IS EXPECTED TO PASS.  The version matrix enumerates
 #   combinations of each unknown's solution branches and IKBT does not filter
 #   spurious ones, so a robot legitimately scores less than 100%.  What must not
-#   happen is a robot in KNOWN_GOOD dropping below the count recorded here.
+#   happen is a robot dropping below the count recorded in scripts/expected.py.
 #
 #   Copyright 2026 University of Washington
 #
@@ -48,24 +48,23 @@ import sys
 import numpy as np
 import sympy as sp
 
+from scripts.expected import EXPECT, judge_counts
 
-#  Measured 2026-08-24, immediately after the solution/version namespace fix.
-#  A drop below these is a regression in the closed form itself.
-#  Measured 2026-09-02/03.  One table for both paths:  the figure means the
-#  same thing either way -- how many of the poses this robot's generated code
-#  offers actually put the arm where it was asked to go.
+
+#  THE EXPECTATION TABLE LIVES IN scripts/expected.py.  It used to live here as
+#  KNOWN_GOOD, and in two other files besides, over overlapping sets of the same
+#  robots -- three hand-maintained copies with no mechanism to agree.  EXPECT
+#  carries (good, total) per robot:  how many branches must reproduce the pose
+#  and how many branches there should be.  See that module for why both.
 #
 #  KinovaLite is the hybrid entry, and it converges on ALL EIGHT branches from
 #  a raw seed error of 43-57 mm down to 1e-12..1e-9 in 4 or 5 iterations.  That
 #  spread is worth keeping in view:  the simplification really does displace the
 #  end effector by tens of millimetres, and Phase II really does remove all of
 #  it, so the answer is exact even though the seed was not.
-KNOWN_GOOD = {'Puma': 8, 'Pumaoffset': 8, 'Stanford': 8, 'Khat6DOF': 8,
-              'Olson13': 4, 'Brad': 1, 'Wrist': 2,
-              'KinovaLite': 8}
 
-DEFAULT_ROBOTS = ['Puma', 'Pumaoffset', 'Stanford', 'Khat6DOF', 'Olson13',
-                  'Brad', 'Wrist', 'KinovaLite']
+#  With no robots named, check every robot we have an expectation for.
+DEFAULT_ROBOTS = sorted(EXPECT)
 
 GEN_DIR = os.path.join('CodeGen', 'Python')
 
@@ -497,21 +496,21 @@ def main(argv=None):
     regressions, blanks = [], []
     for name in names:
         good, n, note, path = check(name, resolve=not a.keep, verbose=a.verbose)
-        known = name in KNOWN_GOOD
+        known = name in EXPECT
 
         if n == 0:
             #  COULD NOT CHECK IS A FAILURE for a robot we know should pass.
-            flag = ('  <-- REGRESSION (expected %d poses)' % KNOWN_GOOD[name]
+            flag = ('  <-- REGRESSION (expected %d poses)' % EXPECT[name][0]
                     if known else '')
             print('  %-16s %-9s %8s  %s%s'
                   % (name, path or '-', '-', note, flag))
             (regressions if known else blanks).append(name)
             continue
 
+        bad = judge_counts(name, good, n)
         flag = ''
-        want = KNOWN_GOOD.get(name)
-        if want is not None and good < want:
-            flag = '  <-- REGRESSION (expected %d)' % want
+        if bad:
+            flag = '  <-- REGRESSION: ' + '; '.join(bad)
             regressions.append(name)
         elif good == 0:
             flag = '  <-- no pose reproduces the target'

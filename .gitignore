@@ -12,3 +12,4 @@ t.*
 *.log
 *.aux
 *.out
+logs/

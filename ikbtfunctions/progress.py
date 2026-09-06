@@ -95,57 +95,112 @@ def _say(msg):
 #
 
 _meter = {'calls': 0, 'seconds': 0.0, 'on': False, 'orig': None,
-          'slow': [], 'slow_call_s': 2.0}
+          'slow': [], 'slow_call_s': 2.0, 'depth': 0}
 
 
 def enable_sympy_meter(slow_call_s=2.0):
-    '''Start counting sp.simplify() calls and the time spent in them.
+    '''Start counting expensive sympy calls and the time spent in them.
 
        slow_call_s -- a single call taking longer than this is reported on its
        own line as it happens.  That line is the live heartbeat during a long
        pass:  nothing else can print from inside a blocking sympy call, so
-       without it the solver goes silent for however long the call takes.'''
+       without it the solver goes silent for however long the call takes.
+
+       WHAT IT PATCHES, AND WHY IT IS NOT Basic.simplify (BH, 2026-09-04).
+       This used to wrap the METHOD, Basic.simplify -- and the solver leaves
+       almost never call it that way:
+
+           sp.simplify(...)     26 call sites        <- the function
+           sp.trigsimp(...)     12
+           .simplify(...)        6 call sites        <- the method
+
+       so the meter counted a fraction of the work and, worse, the heartbeat
+       stayed silent through the long calls.  Puma would print its pass-1 line
+       and then say nothing for minutes while pinned at 100% CPU, which is
+       indistinguishable from being hung -- and was reported as exactly that.
+
+       Basic.simplify does `from sympy.simplify.simplify import simplify` and
+       calls it, so patching the FUNCTION catches the method too;  the method
+       itself is deliberately left alone to avoid counting a call twice.
+
+       The name has to be replaced in BOTH places it is reachable from:
+       `sympy.simplify` (what `sp.simplify(...)` resolves) and
+       `sympy.simplify.simplify.simplify` (what the method imports).  They are
+       the same function object, but they are two separate bindings.'''
 
     if _meter['on']:
         return
 
-    from sympy.core.basic import Basic
+    import importlib
     import sympy as sp
 
-    orig = Basic.simplify
-    _meter['orig'] = orig
     _meter['slow_call_s'] = slow_call_s
+    _meter['orig'] = []
 
-    def metered(self, *args, **kwargs):
-        t0 = time.time()
+    #  (module, attribute) pairs to rebind, per metered function.
+    targets = []
+    for name, modpath in (('simplify', 'sympy.simplify.simplify'),
+                          ('trigsimp', 'sympy.simplify.trigsimp')):
         try:
-            return orig(self, *args, **kwargs)
-        finally:
-            dt = time.time() - t0
-            _meter['calls'] += 1
-            _meter['seconds'] += dt
-            if dt >= _meter['slow_call_s']:
-                #  count_ops only here:  it is itself a tree walk, so it is not
-                #  free enough to call on every one of KinovaLite's 746 calls.
-                try:
-                    n = int(sp.count_ops(self))
-                except Exception:
-                    n = -1
-                _meter['slow'].append((dt, n))
-                _say('        ... slow simplify: %.1fs on a %d-operation '
-                     'expression (still working)' % (dt, n))
+            sub = importlib.import_module(modpath)
+        except ImportError:
+            continue
+        targets.append((name, [(sp, name), (sub, name)]))
 
-    Basic.simplify = metered
+    for name, places in targets:
+        orig = getattr(sp, name, None)
+        if orig is None:
+            continue
+
+        def make(orig, name):
+            def metered(expr, *args, **kwargs):
+                #  ONLY THE OUTERMOST CALL IS COUNTED.  simplify() calls
+                #  trigsimp() internally, and both are metered, so a naive
+                #  counter charges the same seconds twice and reports a call
+                #  count that has nothing to do with the call sites.  Measured:
+                #  three calls at the top level came back as seven.
+                if _meter['depth']:
+                    return orig(expr, *args, **kwargs)
+
+                _meter['depth'] += 1
+                t0 = time.time()
+                try:
+                    return orig(expr, *args, **kwargs)
+                finally:
+                    _meter['depth'] -= 1
+                    dt = time.time() - t0
+                    _meter['calls'] += 1
+                    _meter['seconds'] += dt
+                    if dt >= _meter['slow_call_s']:
+                        #  count_ops only here:  it is itself a tree walk, so it
+                        #  is not free enough to call on every one of
+                        #  KinovaLite's hundreds of calls.
+                        try:
+                            n = int(sp.count_ops(expr))
+                        except Exception:
+                            n = -1
+                        _meter['slow'].append((dt, n))
+                        _say('        ... slow %s: %.1fs on a %d-operation '
+                             'expression (still working)' % (name, dt, n))
+            return metered
+
+        m = make(orig, name)
+        for mod, attr in places:
+            _meter['orig'].append((mod, attr, getattr(mod, attr, None)))
+            setattr(mod, attr, m)
+
     _meter['on'] = True
 
 
 def disable_sympy_meter():
-    '''Put Basic.simplify back.  Tests that assert on timing want this.'''
+    '''Put every patched name back.  Tests that assert on timing want this.'''
 
     if not _meter['on']:
         return
-    from sympy.core.basic import Basic
-    Basic.simplify = _meter['orig']
+    for mod, attr, orig in reversed(_meter['orig'] or []):
+        if orig is not None:
+            setattr(mod, attr, orig)
+    _meter['orig'] = []
     _meter['on'] = False
 
 
@@ -269,9 +324,21 @@ class SolveProgress(object):
         #  The interpretation -- this is the part that answers "is it stuck?".
         if newly:
             self.flat_passes = 0
-            eta = self._eta(ns, dt_tot, passno)
-            if eta:
-                _say('            making progress -- %s' % eta)
+            left_vars = self.n - ns
+            #  NO TIME ESTIMATE (BH, 2026-09-04).  There used to be one here --
+            #  "about 5s more, at most 16s" -- extrapolated from the cost per
+            #  solved variable so far.  It was misleading to the point of being
+            #  worse than silence, because the passes are nowhere near uniform:
+            #  measured on Puma, passes 1 and 5-8 take about a second each while
+            #  2-4 together take 2.7 minutes, so an estimate formed after pass 1
+            #  said "about 6s more" for a solve that ran 2.8 minutes.  A count of
+            #  what is left is a fact;  a projection from it is a guess dressed
+            #  as one.
+            if left_vars > 0:
+                _say('            making progress -- %d variable%s left'
+                     % (left_vars, '' if left_vars == 1 else 's'))
+            else:
+                _say('            making progress -- all variables solved')
         elif pools_changed:
             self.flat_passes = 0
             _say('            no new variable this pass, but the equation set '
@@ -312,38 +379,6 @@ class SolveProgress(object):
         self.last_pools = pools
 
     #  ------------------------------------------------------------------ eta
-
-    def _eta(self, ns, dt_tot, passno):
-        '''A completion estimate, in minutes, stated as a range.
-
-           Two numbers, because one would be dishonest.  The optimistic one
-           extrapolates the observed cost PER SOLVED VARIABLE over the variables
-           still outstanding -- right when the solver is chewing steadily
-           through them.  The pessimistic one is the remaining pass budget at
-           the observed cost per pass, which is a genuine UPPER bound:
-           symbolic_loop cannot run more passes than that.
-
-           Neither is a promise.  comp_det can stop the solve early the moment
-           the last variable falls, and a single pass can blow up.  So this is
-           reported as "about X, at most Y" and never as a countdown.'''
-
-        left_vars = self.n - ns
-        if left_vars <= 0:
-            return 'all variables solved'
-
-        est = (dt_tot / ns) * left_vars if ns > 0 else None
-        worst = (dt_tot / passno) * (self.max_passes - passno)
-
-        if est is None:
-            return 'at most about %s more' % fmt_time(worst)
-
-        #  Never quote an optimistic figure above the hard bound.
-        est = min(est, worst)
-        return ('%d variable%s left -- about %s more, at most %s'
-                % (left_vars, '' if left_vars == 1 else 's',
-                   fmt_time(est), fmt_time(worst)))
-
-    #  ---------------------------------------------------------------- finish
 
     def finished(self, unknowns, exhausted):
         '''Closing line:  what was achieved and how long it took.
@@ -413,9 +448,7 @@ class TestSolver021(unittest.TestCase):
            clear_state.TestSolver020.'''
 
         self.test_fmt_time()
-        self.test_eta_never_exceeds_the_pass_bound()
-        self.test_eta_all_solved()
-        self.test_eta_with_no_variable_yet()
+        self.test_progress_line_states_what_is_left()
         self.test_flat_pass_counting()
         self.test_solved_count_is_read_from_the_unknowns()
         self.test_newly_solved_names_are_the_ones_that_changed()
@@ -453,35 +486,43 @@ class TestSolver021(unittest.TestCase):
         self.assertEqual(fmt_time(705), '11.8 min', fs + "Issue4's real time")
         self.assertEqual(fmt_time(None), '?', fs + 'unknown')
 
-    def test_eta_never_exceeds_the_pass_bound(self):
-        '''The optimistic estimate must never be quoted above the hard upper
-           bound -- symbolic_loop cannot run more than max_passes passes, so a
-           larger number would be impossible, not merely wrong.'''
+    def test_progress_line_states_what_is_left(self):
+        '''The progress line reports a COUNT, and never a time estimate.
 
-        p = SolveProgress('R', 10, 7, enabled=False)
-        #  Pathological: one variable solved very slowly, 9 passes still to go.
-        msg = p._eta(ns=1, dt_tot=600.0, passno=1)
-        worst = (600.0 / 1) * (10 - 1)
-        self.assertIn('at most', msg, 'progress._eta: should state a bound')
-        #  the optimistic figure is min(est, worst);  est here is 6*600=3600 s
-        self.assertLessEqual((600.0 / 1) * 6, worst + 1e-9,
-                             'progress._eta: test premise')
-        self.assertIn(fmt_time(min((600.0 / 1) * 6, worst)), msg,
-                      'progress._eta: must clamp the estimate to the bound')
+           There used to be an ETA here -- "about 5s more, at most 16s" -- and
+           three tests pinning its arithmetic.  It was removed because the
+           passes are nowhere near uniform:  on Puma, passes 1 and 5-8 run about
+           a second each while 2-4 take 2.7 minutes together, so an estimate
+           formed after pass 1 announced "about 6s more" for a solve that ran
+           2.8 minutes.  What is tested now is that no such projection comes
+           back -- a wrong estimate is worse than no estimate, because a reader
+           acts on it.'''
 
-    def test_eta_all_solved(self):
-        p = SolveProgress('R', 10, 3, enabled=False)
-        self.assertEqual(p._eta(ns=3, dt_tot=10.0, passno=2),
-                         'all variables solved',
-                         'progress._eta: nothing left to estimate')
+        import io as _io
+        import contextlib as _cl
 
-    def test_eta_with_no_variable_yet(self):
-        '''Zero solved means no per-variable rate exists, so only the bound can
-           be quoted -- it must not divide by zero.'''
+        fs = ' progress line FAIL'
+        p = SolveProgress('TestBot', n_unknowns=4, max_passes=10)
+        p.enabled = True
 
-        p = SolveProgress('R', 10, 5, enabled=False)
-        msg = p._eta(ns=0, dt_tot=30.0, passno=3)
-        self.assertIn('at most', msg, 'progress._eta: bound-only form')
+        class U(object):
+            def __init__(self, name, solved):
+                self.name = name
+                self.symbol = name
+                self.solved = solved
+
+        unks = [U('a', True), U('b', False), U('c', False), U('d', False)]
+
+        buf = _io.StringIO()
+        with _cl.redirect_stdout(buf):
+            p.pass_done(1, unks, pools=(1, 2, 3))
+        out = buf.getvalue()
+
+        self.assertIn('3 variables left', out,
+                      fs + ' (should say how many are outstanding)')
+        for banned in ('at most', 'more,', 'about '):
+            self.assertNotIn(banned, out,
+                             fs + ' (a time estimate came back: %r)' % banned)
 
     def test_flat_pass_counting(self):
         '''Consecutive no-change passes are what "stuck but bounded" means, so
@@ -576,18 +617,45 @@ class TestSolver021(unittest.TestCase):
                       'progress: both newly solved variables named')
 
     def test_meter_is_reversible(self):
-        '''enable/disable must leave Basic.simplify exactly as found -- the
-           meter wraps a third-party class, so a leak would follow the process
-           into every later test.'''
+        """enable/disable must leave every patched name exactly as found.
 
+           THE NAME THAT MATTERS IS THE FUNCTION, not Basic.simplify.  This test
+           used to assert the METHOD was wrapped, which pinned the very defect
+           it was meant to guard:  the leaves call sp.simplify() 26 times and
+           the method 6, so metering the method missed most of the work and the
+           slow-call heartbeat never fired.  Basic.simplify delegates to the
+           function, so patching the function catches both paths -- and the
+           method is deliberately left alone, or every call would be counted
+           twice.
+
+           Both bindings have to be restored:  sympy.simplify, and the same
+           function inside sympy.simplify.simplify, which is what the method
+           imports.  The meter patches a third-party module, so a leak would
+           follow the process into every later test."""
+
+        import importlib
+        import sympy as sp
         from sympy.core.basic import Basic
-        before = Basic.simplify
+
+        sub = importlib.import_module('sympy.simplify.simplify')
+        before_fn, before_sub = sp.simplify, sub.simplify
+        before_method = Basic.simplify
+
         enable_sympy_meter()
-        self.assertIsNot(Basic.simplify, before,
-                         'progress: meter should have wrapped simplify')
+        self.assertIsNot(sp.simplify, before_fn,
+                         'progress: meter should have wrapped sp.simplify')
+        self.assertIsNot(sub.simplify, before_sub,
+                         'progress: meter must also wrap the name the method '
+                         'imports, or Basic.simplify goes uncounted')
+        self.assertIs(Basic.simplify, before_method,
+                      'progress: the METHOD must be left alone -- it delegates '
+                      'to the function, so wrapping both double-counts')
+
         disable_sympy_meter()
-        self.assertIs(Basic.simplify, before,
-                      'progress: meter must restore the original simplify')
+        self.assertIs(sp.simplify, before_fn,
+                      'progress: meter must restore sp.simplify')
+        self.assertIs(sub.simplify, before_sub,
+                      'progress: meter must restore the submodule binding')
 
     def test_meter_counts_and_is_off_by_default(self):
         import sympy as sp

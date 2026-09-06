@@ -27,27 +27,47 @@ python3 -m tests.helpertest        # helperfunctions only
 python3 -m ikbtleaves.sincos_solver  # run one leaf's self-test (every leaf file has a __main__)
 python3 -m ikbtbasics.kin_cl         # basic kinematic classes self-test
 
-python3 -m scripts.robot_baseline           # solve every robot, record the outcome
-python3 -m scripts.robot_baseline --diff    # ... and diff it against the checked-in record
+python3 -m scripts.robot_baseline --gate    # fast gate: every BT path, 5 robots, codegen + IK check
+python3 -m scripts.robot_baseline --gate --list  # what those five robots stand for
+python3 -m scripts.robot_baseline --full    # all 32, codegen + IK check, record the outcome
+python3 -m scripts.robot_baseline --full --diff  # ... and diff it against the checked-in record
 python3 -m scripts.axis_triple_check       # DH joint-axis geometry vs. numeric FK (exit 1 on mismatch)
 
 python3 -m scripts.check_solution_sets --robots Puma          # is the SYMBOLIC solution set correct?
-python3 -m scripts.check_solution_sets --gate                 # ... exit 1 if a known-complete robot drops
+python3 -m scripts.check_solution_sets --gate                 # ... exit 1 if a recorded robot drops
 python3 -m scripts.numerical_closed_loop_sol_check Puma       # is the GENERATED python IK correct?
 python3 -m scripts.numerical_closed_loop_sol_check KinovaLite # ... same command for a HYBRID robot
-python3 -m scripts.bt_path_gate                               # fast gate: every BT path, 5 robots
-python3 -m scripts.bt_path_gate --list                        # what that gate asserts, and why
 ```
 
-`scripts/robot_baseline.py` is the regression gate for anything that touches the tree or a solver
-leaf: it solves all 32 robots (one subprocess each, `PYTHONHASHSEED=0`) and records solved/total,
-per-variable `solvemethod`, `len(solutionSet)`, `comp_det` ticks and wall time.  `--diff` classifies
-each robot as unchanged / newly-solved / newly-unsolved / changed-method and exits non-zero if
-anything moved.  It **asserts nothing** — "does not solve" is a legitimate entry.  The record lives
-in `tests/baselines/`; per-robot child output goes to `logs/baseline/`.
+**`IKdocs/TESTING.md` is the one-page orientation** — what to run, when, what each command asserts,
+and where every log and artifact lands. Read it before adding a test.
 
-**`wall_s` is recorded but deliberately NOT compared** (`COMPARED` holds `status`, `n_solved`,
-`n_unknowns`, `methods`, `n_solutions`, `solution_set_error`, `hybrid`) — the slow robots vary far too
+`scripts/robot_baseline.py` is the regression gate for anything that touches the tree, a solver
+leaf, or the code generators. It forks one child per robot (`PYTHONHASHSEED=0`) and answers all three
+end-to-end questions in **one** sweep: what solves, what crashed, and — with `--closed-loop` — whether
+the generated code is correct. `--gate` is the five-robot version, `--full` the whole of `ROBOT_LIST`.
+The record lives in `tests/baselines/`; per-robot child output goes to `logs/baseline/`.
+
+**It absorbed `scripts/bt_path_gate.py` (2026-09-05).** That script was this one with codegen turned
+on — same fork-per-robot, same `PYTHONHASHSEED`, same fenced JSON, same crash capture, same log
+directory, ~250 lines of it duplicated. Solve once with codegen, then check the files that solve just
+wrote, is now a flag here, which also generalises its artifact assertions from its five hand-listed
+robots to all 32.
+
+Most of the sweep still **asserts nothing** — "does not solve" is a legitimate entry. Exactly two
+things are asserted: the artifacts a finished solve owes (a *rule*, `scripts/expected.artifacts_owed`,
+applied to every robot) and the closed-loop counts for the robots in `scripts/expected.EXPECT`.
+
+**`methods` is recorded but deliberately NOT compared** (2026-09-05). `COMPARED` holds `status`,
+`n_solved`, `n_unknowns`, `n_solutions`, `solution_set_error`, `branch`, `hybrid`, `written`,
+`written_derived`. Which of two equally-good solvers wins moves with almost any change to the tree and
+has repeatedly moved without breaking anything, so `changed-method` was the diff's most frequent
+verdict and its least informative — and a gate whose usual answer is known-benign is a gate you learn
+to ignore. What a leaf change must not do is change the *answer*, which is what `n_solutions`,
+`written` and the closed-loop counts are for. `comp_det_ticks` is gone entirely: it was a measurement
+nothing compared.
+
+**`wall_s` is recorded but deliberately NOT compared either** — the slow robots vary far too
 much for a timing comparison to mean anything. Measured over back-to-back full sweeps, every robot
 repeated at 1.0-1.1x **except** `DZhang` (20.7 s → 78.9 s, 3.8x) and `Issue4` (101 s, 187 s, 246 s,
 then >900 s on identical code at `PYTHONHASHSEED=0`). `DEFAULT_TIMEOUT` was raised 900 → **1800 s**
@@ -311,16 +331,19 @@ compact line per pass**:
 
 ```
   pass 4/10  solved 3/7 (+1: th_23)  eqns 1u/2u/3pu 13/21/32  1s this pass  11s total
-            making progress -- 4 variables left -- about 14s more, at most 16s
+            making progress -- 4 variables left
 ```
 
 The solved count is **monotonic** (`set_solved()` never un-solves), so rising = working. Flat with
 changed equation pools = "still working"; flat twice running = "stuck, not slow" — which is
 `comp_det`'s own stop condition, so the wording escalates exactly when the solve is about to end.
-The ETA is a **range**, deliberately: the optimistic figure extrapolates cost per solved variable, the
-pessimistic one is remaining budget x cost per pass, a genuine upper bound. It is clamped so the
-optimistic number can never exceed the bound, and it is never a countdown — `comp_det` routinely
-stops a solve well before the budget (pass 2 of 10 on `KawasakiRS05L`).
+**THERE IS NO ETA, and there must not be one** (BH, 2026-09-04). The line used to end
+`-- about 14s more, at most 16s`, extrapolated from the cost per solved variable so far. It was
+removed as worse than silence: the passes are nowhere near uniform, so the extrapolation has nothing
+to stand on. Measured on Puma, passes 1 and 5-8 take about a second each while 2-4 take 2.7 minutes
+between them — an estimate formed after pass 1 announced "about 6s more" for a solve that ran
+2.8 minutes. A count of what is left is a fact; a projection from it is a guess a reader will act on.
+`TestSolver021` now asserts that no "about"/"at most" text comes back.
 
 **`count_ops` was measured and rejected as the cost predictor.** Every expression IKBT simplifies is
 under 50 ops on every robot (`Puma` 33, `KR16` 46, `KinovaLite` 44) while the call count varies 34x
@@ -401,7 +424,7 @@ whichever ran last silently replaced the other.
 the report and the module they import — carry the **true** robot's name, because that is the robot
 they asked about. The closed form underneath carries the **derived** arm's name, because that is the
 arm it actually describes. An `IK_equations<True>.py` on this path would be a simplified arm's
-equations shipped under the real robot's name; `bt_path_gate` fails on it explicitly, comparing the
+equations shipped under the real robot's name; `robot_baseline --gate` fails on it explicitly, comparing the
 artifact set **exactly** in both namespaces — an unexpected file is a failure, not just a missing one.
 
 **No C++ on the hybrid path.** Emitting the derived arm's C++ under the true name would ship precisely
@@ -543,10 +566,38 @@ Kinematics and Jacobian **matrix** dumps (`\left[\begin{matrix}...` per column, 
 column splitting, and a `verbatim` row in the Solution Graph section is 5.1pt over. Neither carries a
 marker, so the loop correctly ignores both.
 
-### The fast gate (`scripts/bt_path_gate.py`)
+### The solution graph as a figure (`ikbtfunctions/graph2latex.py`)
 
-Five robots, one solve each, **codegen on** — which `robot_baseline.py` deliberately runs with off, so
-nothing else in the suite exercises `report_gen` end to end. ~45 s unloaded against the sweep's 5568 s.
+The report has always printed the dependency graph as a list of edges
+(`Edge:th_4 depends on: th_23`), which is complete and nearly unreadable — the shape of the solve,
+which variable unlocks which, is exactly what a list of pairs does not show. `solution_graph_tikz()`
+draws it as a TikZ figure placed **before** the listing; the listing stays, because it is the exact data.
+
+`\usepackage{tikz}` was already in `IK_preamble.tex`, so no preamble change was needed.
+
+- **Rows are dependency DEPTH, not solve order.** A variable sits one row below everything it needs, so
+  every arrow runs downward. Those differ: the solver may reach `th_5` before `th_23` while `th_4` waits
+  on both. Within a row the solve order is preserved, so it still reads left to right as the report
+  discusses them.
+- **Arrows point from a variable to what it DEPENDS ON**, matching the listing's own wording so the two
+  cannot be read as contradicting each other.
+- **`\resizebox{\ifdim\width>\textwidth ...}`** shrinks the picture only when it would overflow. Row
+  width is the number of variables sharing a depth, so a largely-decoupled arm puts them all on one row.
+- **No `font=` key.** `\displaystyle` is not a font command; TeX accepts `font=$\displaystyle$` silently
+  while inserting an empty math group before every label. The labels carry their own `$...$`.
+- **No edges is not nothing** — an arm whose variables are all independent draws one row with no arrows,
+  which says the solve decoupled completely.
+- Node names are stripped to letters and digits: TikZ parses `(` and `,` inside a coordinate, so a name
+  carrying either yields a picture with silently missing arrows rather than an error.
+
+A figure that will not build is caught and skipped with a warning — the listing below it carries the same
+information, so a drawing must never cost the report.
+
+### The fast gate (`robot_baseline --gate`)
+
+Five robots, one solve each, **codegen on** — the paths through the tree, one robot per path. ~5 min
+against the full sweep's hours. It was `scripts/bt_path_gate.py` until 2026-09-05; see the merge note
+under Commands.
 
 | robot | path | artifacts |
 |---|---|---|
@@ -556,10 +607,24 @@ nothing else in the suite exercises `report_gen` end to end. ~45 s unloaded agai
 | `ArmRobo` | hybrid, derived arm partial 2/7 | **nothing** |
 | `KawasakiRS05L` | hybrid, derived arm 0/7 | **nothing** |
 
-Per robot it asserts the branch (from `hybrid_source`, **not** inferred from the status —
-`KawasakiRS05L` ends `unsolved` having gone all the way through `install_simplified`), the solved
-count, the exact artifact set in both namespaces, and the derived arm's name. Then it hands off to
-`numerical_closed_loop_sol_check.check()` for correctness, which detects the path itself.
+A sixth path — `simplified_arm` finding no usable candidate — is not reachable by any robot in
+`ROBOT_LIST` and is covered by `TestSolver018.test_hybJ` instead.
+
+**The artifact contract is a RULE, not a per-robot table** (`scripts/expected.artifacts_owed`). It
+follows from the path and from whether the solve finished, so writing it once applies it to all 32
+robots rather than to the five that used to be listed by hand:
+
+| path | under the true name | under the derived name |
+|---|---|---|
+| symbolic, complete | `tex`, `py`, `cpp` | — |
+| hybrid, derived arm complete | `tex`, `hybrid`, `fk` | `py`, `fk` |
+| anything incomplete | nothing | nothing |
+
+Sets are compared **exactly** — an unexpected artifact is a failure, not just a missing one, because
+the characteristic hybrid defect is an *extra* file. `branch` comes from `hybrid_source` and is
+**not** inferred from the status (`KawasakiRS05L` ends `unsolved` having gone all the way through
+`install_simplified`) and **not** from what is on disk, which would make the check compare the files
+against themselves.
 
 Artifacts are judged by **freshness, not existence** — `LaTex/` and `CodeGen/` carry output from
 earlier sessions for every one of these robots — and freshness is timed against the solve's own start,
@@ -569,6 +634,16 @@ cannot be snapshotted in advance.
 Solver-method coverage is deliberately **not** this gate's job; `tests/leavestest.py` exercises every
 leaf directly, and re-solving whole robots to reach a leaf pays minutes for what a unit test buys in
 milliseconds. What only an end-to-end run shows is the wiring.
+
+**ONE EXPECTATION TABLE** (`scripts/expected.py`, 2026-09-05). `EXPECT` maps robot → `(good, total)`:
+how many returned branches must reproduce the probe pose, and how many branches there should be. Both
+numbers, because `good` alone catches a solution going wrong while `total` catches a **spurious branch
+coming back** — a defect that leaves `good` untouched. Measured on `Chair_Helper`: promoting
+`Simu_Eqn_Sol` took it from 2-of-4 to 2-of-2, and a `good >= 2` gate would let a revert through in
+silence. This replaced three hand-maintained tables over overlapping sets of the same robots —
+`check_solution_sets.KNOWN_COMPLETE` (9), `numerical_closed_loop_sol_check.KNOWN_GOOD` (8) and
+`bt_path_gate.EXPECTED[*]['closed_loop']` (5, one entry carrying a comment saying it had been copied
+by hand from another). A robot with no entry is measured, reported, and asserted nothing about.
 
 `scripts/numerical_closed_loop_sol_check.py` covers **both paths from one command**. `detect_path()`
 reads which artifacts exist — `IK_hybrid_<name>.py` only the hybrid path writes, `IK_equations<name>.py`
@@ -634,7 +709,9 @@ Measured: Puma went from **0 of 8** versions being evaluable to **8 of 8** repro
 records only that every unknown got an expression, which is precisely how this survived.
 
 - `scripts/check_solution_sets.py` runs **in process** and evaluates `R.FinalEqnMatrix` — it tests the
-  symbolic solution set. `--gate` fails if a robot in `KNOWN_COMPLETE` drops below 100%.
+  symbolic solution set. `--gate` fails if a robot misses its `scripts/expected.EXPECT` entry.  Keep it
+  for **diagnosis**: when the generated code is wrong, it says whether the fault is in the closed form
+  or in the code generator.
 - `scripts/numerical_closed_loop_sol_check.py` shells out to `ikSolver.py`, imports
   `CodeGen/Python/IK_equations<name>.py` and calls `ikin_*()` — it tests the **code generator**, a
   strictly later failure point, so a defect that lives only in codegen is invisible to the first one.
@@ -662,8 +739,19 @@ Row order comes from `Robot.solListMatrix` (an ordered list), never from `soluti
 tuples, so its iteration order moves with string hashing and the generated source stops being
 diffable).
 
-**An unknown could be solved TWICE — fixed 2026-08-26.** `set_solved()` now returns immediately when
-`self.solved` is already True (first answer wins, since every later solution already depends on it).
+**An unknown could be solved TWICE — fixed 2026-08-26, completed 2026-09-05.** `set_solved()` returns
+immediately when `self.solved` is already True (first answer wins, since every later solution already
+depends on it). **Returning early was not enough.** A solver leaf appends to `u.solutions` and
+overwrites `u.nsolutions` *before* it calls `set_solved()` (`tan_solver.py:323-348` is the one that
+reaches here), so by the time the guard sees the call the damage is done: `solutions` was left LONGER
+than `solutionNames`, which only `set_solved()` appends to. Every consumer that walks `solutions`
+while indexing `solutionNames[i]` then ran off the end — `output_latex_solution()` died with
+`IndexError` on `Parkman13`, the only robot in the sweep that reaches this path. The guard now
+discards the extras and restores `nsolutions`. `u.assumption` is deliberately left alone: it is
+appended and printed, never indexed against a solution.
+
+**Nothing caught this until 2026-09-05** because `robot_baseline` ran with codegen OFF, so
+`report_gen` never ticked and the report generator was never exercised on 32 robots.
 Without the guard a second solve appended further solution names and a **duplicate node** to
 `solution_nodes`, giving the variable a duplicate column and inflating the version count:
 `ICP5p5_A21` reported 9 versions and `Parkman13` 18, where 2 and 4 are right. Both now report the
@@ -675,7 +763,7 @@ Still failing for an unrelated reason, and worth its own investigation: `Parkman
 (0/8) — the values evaluate but are wrong. Those were 0 before the guard as well; what the guard
 fixed is the inflation, not the arithmetic. **`ICP5p5_A21` is no longer among them** (2026-09-03):
 it went 0/2 → 1/1 when `Simu_Eqn_Sol` was promoted ahead of `sc_tan`, and it is now in
-`check_solution_sets.KNOWN_COMPLETE`.
+`scripts/expected.EXPECT`.
 
 **THE DEFECT THAT PROMOTION FIXED, because it will recur.** A variable solved by `arcsin` gets two
 solutions, `th` and `pi - th`, from an equation containing only `sin(u)`. Both satisfy *that*
@@ -749,7 +837,7 @@ A new test should evaluate performance of the end-to-end hybrid solution generat
    (`ikin_<Robot>_approx(T)` / `refine_<Robot>(T, index)`), every artifact named for the arm it
    describes — see **Hybrid code generation** above. The end-to-end test is
    `scripts/numerical_closed_loop_sol_check.py`, which now covers both paths and detects which
-   applies, wired into `scripts/bt_path_gate.py`.
+   applies, wired into `scripts/robot_baseline.py`.
 
 ## Still open
 
@@ -765,7 +853,48 @@ A new test should evaluate performance of the end-to-end hybrid solution generat
    `simplified_arm` commits to its cheapest candidate with no fall-through to the next-ranked one.
    Trying the next candidate when the first derived arm does not solve is the obvious next move.
 
-3. **`Parkman13` (0/4) and `UR5` (0/8)** still fail
-   `scripts/check_solution_sets.py`: the values evaluate but are wrong. Unrelated to the hybrid work
-   and unexplained.
+3. **A SOLUTION MAY CONTAIN THE VARIABLE IT SOLVES FOR** — found 2026-09-05 by the first full
+   32-robot closed-loop sweep, and the largest open defect. The generated code contains lines like
+
+   ```python
+   th_23v1 = atan2(-a_2*(... + a_3*sin(th_23v1 - th_2v1)), a_2*(... - a_3*cos(th_23v1 - th_2v1)))
+   ```
+
+   `th_23v1` is on **both sides**, so Python evaluates the RHS first and dies with
+   `UnboundLocalError: cannot access local variable 'th_23v1'`. That is not a code-generator bug:
+   the symbolic solution really does contain its own unknown, which makes it an *implicit equation*
+   rather than a solution, and nothing rejects it. Three robots, all reported `solved`:
+
+   | robot | self-referential | reported as |
+   |---|---|---|
+   | `Arm_3` | `th_23v1`, `th_23v2` | `UnboundLocalError` |
+   | `JennyGuoSp24` | `th_3v1`, `th_3v2` | `UnboundLocalError` |
+   | `UR5` | `th_2v1` .. `th_2v8` | an `asin` range error that fires **earlier** |
+
+   The shape is always an SOA variable or its partner: `th_3 = th_23 - th_2` substituted back into the
+   equation being solved *for* `th_23`, so `a_3*sin(th_3)` becomes `a_3*sin(th_23 - th_2)` and the
+   unknown reappears. `set_solved()` is the choke point every solver calls and is the obvious place to
+   refuse. **Note this would move all three robots from `solved` to `partial`** — which is the honest
+   answer, since they are not solved — so it is a deliberate baseline change, not a silent fix.
+
+   `UR5` has **two** independent defects: this one, and the `asin` domain error that fires before
+   execution ever reaches the self-referential line. Fixing the self-reference alone will not make it
+   pass.
+
+4. **Five robots solve completely and their generated code cannot be run.** Listed in
+   `scripts.expected.UNCHECKABLE` and deliberately kept out of `EXPECT`, so the gate does not fail
+   forever on an already-recorded defect. Besides the three above: `KR16` (`sqrt` of -202.2) and
+   `DZhang` (`asin`/`acos` out of range). Every one of them writes `tex`, `py` and `cpp` and reports
+   `solved`, which is precisely why only a closed-loop check finds them.
+
+   **`DZhang`'s `h` is a real DH parameter** — declared in its `sp.var()`, listed in `params`, and
+   `pvals[h] = 1` — so it is not the problem; the `asin`/`acos` range error is the whole of it.
+   `Mackler13` was a sixth entry for a stray `h` of its own, which was **a typo in the DH table**
+   (BH, 2026-09-05), not a solver defect. Correcting it was enough and it now checks **1 of 4**.
+   Worth noting for the next stale-FK scare: **the pickle cache self-healed**, with no
+   `rm fk_eqns/Mackler13_pickle.p` — `dh_tables_match()` saw the changed table and recomputed.
+
+5. **`Parkman13` no longer crashes** (fixed 2026-09-05, see the re-entry guard in
+   `kin_cl.set_solved`). It now solves 6/6 and scores 1 of 4 poses. Still mostly wrong, still
+   unexplained — but it is measured rather than fatal.
 

@@ -351,8 +351,9 @@ def build_worktools(nodes):
            Chair_Helper   2 of 4 versions correct  ->  2 of 2
            ICP5p5_A21     0 of 2                   ->  1 of 1
 
-       and the seven KNOWN_COMPLETE robots (Puma, Pumaoffset, Stanford, Khat6DOF,
-       Olson13, Brad, Wrist) stay at 100%.  Note the version COUNTS drop:  a
+       and the seven robots already recorded complete in scripts/expected.py
+       (Puma, Stanford, Khat6DOF, Olson13, Brad, Wrist -- and Pumaoffset, removed
+       2026-09-05 as a duplicate of Puma's DH) stay at 100%.  Note the version COUNTS drop:  a
        spurious branch that no longer exists is a smaller solution set, so
        robot_baseline's n_solutions moves for these robots.  That is the fix
        working, not a regression.

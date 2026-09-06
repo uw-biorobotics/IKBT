@@ -1,42 +1,41 @@
 IKBT robot baseline
-32 robots, 5567.7 s total
+31 robots, codegen on, closed loop on
 
-robot              status            solved   solns cd_ticks   wall_s
-----------------------------------------------------------------------
-ArmRobo            partial (hybrid)   2/7         2        2    316.3
-Arm_3              solved             6/6         2        9     86.0
-Axtman13           solved             5/5         2        6     24.5
-Bartell            solved             5/5         2        5      2.8
-Brad               solved             4/4         1        4      2.4
-Chair_Helper       solved             5/5         4        5      4.3
-Craig417           solved             5/5         4        5      4.6
-DZhang             solved             6/6         4        7     94.0
-Frei13             solved             5/5         4        6     71.3
-ICP5p5_A21         solved             4/4         2        6     34.8
-JennyGuoSp24       solved             8/8         2       11     84.2
-KR16               solved             7/7         8        8    132.0
-KawasakiRS007L     solved             7/7         8        8    177.4
-KawasakiRS05L      unsolved           0/7         -        2    438.3
-Khat6DOF           solved             7/7         8        8    237.2
-KinovaLite         solved (hybrid)    7/7        16        2    322.0
-Mackler13          solved             5/5         8        6     94.2
-Minder13           solved             4/4         2        4      1.6
-MiniDD             solved             5/5         8        6    117.4
-Olson13            solved             7/7         4        7     54.1
-Palm13             solved             4/4         2        4      1.7
-Panda              solved (hybrid)    6/6        16        5    892.9
-Parkman13          solved             6/6         4        8     64.4
-Puma               solved             7/7         8        8    122.0
-Pumaoffset         solved             7/7         8        8    189.0
-Raven-II           unsolved           0/6         -        2   1624.7
-Sims11             solved             5/5         2        6     51.9
-Srisuan11          solved             6/6         4        7     27.9
-Stanford           solved             6/6         8        6      6.2
-UR5                solved             9/9         8       12    244.6
-Wachtveitl         solved             6/6         2        7     40.5
-Wrist              solved             3/3         2        3      2.5
---------------------------------------------------------------
-  partial (hybrid): 1,  solved: 27,  solved (hybrid): 2,  unsolved: 2
+robot              status            solved   solns closed loop    artifacts
+------------------------------------------------------------------------------
+ArmRobo            partial (hybrid)   2/7         -                -
+Arm_3              solved             6/6         2 -              cpp, py, tex
+Axtman13           solved             5/5         2 1/2 symbolic   cpp, py, tex
+Bartell            solved             5/5         2 2/2 symbolic   cpp, py, tex
+Brad               solved             4/4         1 1/1 symbolic   cpp, py, tex
+Chair_Helper       solved             5/5         2 2/2 symbolic   cpp, py, tex
+Craig417           solved             5/5         4 2/4 symbolic   cpp, py, tex
+DZhang             solved             6/6         4 -              cpp, py, tex
+Frei13             solved             5/5         4 4/4 symbolic   cpp, py, tex
+ICP5p5_A21         solved             4/4         1 1/1 symbolic   cpp, py, tex
+JennyGuoSp24       solved             8/8         2 -              cpp, py, tex
+KR16               solved             7/7         8 -              cpp, py, tex
+KawasakiRS007L     solved             7/7         8 8/8 symbolic   cpp, py, tex
+KawasakiRS05L      unsolved           0/7         -                -
+Khat6DOF           solved             7/7         8 8/8 symbolic   cpp, py, tex
+KinovaLite         solved (hybrid)    7/7        16 8/8 hybrid     fk, hybrid, tex  [KinovaLite_d_5_0: fk, py]
+Mackler13          solved             5/5         4 1/4 symbolic   cpp, py, tex
+Minder13           solved             4/4         2 2/2 symbolic   cpp, py, tex
+MiniDD             solved             5/5         4 1/4 symbolic   cpp, py, tex
+Olson13            solved             7/7         4 4/4 symbolic   cpp, py, tex
+Palm13             solved             4/4         2 1/2 symbolic   cpp, py, tex
+Panda              solved (hybrid)    6/6        16 8/8 hybrid     fk, hybrid, tex  [Panda_a_3_0_a_4_0: fk, py]
+Parkman13          solved             6/6         4 1/4 symbolic   cpp, py, tex
+Puma               solved             7/7         8 8/8 symbolic   cpp, py, tex
+Raven-II           unsolved           0/6         -                -
+Sims11             solved             5/5         2 1/2 symbolic   cpp, py, tex
+Srisuan11          solved             6/6         4 4/4 symbolic   cpp, py, tex
+Stanford           solved             6/6         8 8/8 symbolic   cpp, py, tex
+UR5                solved             9/9         8 -              cpp, py, tex
+Wachtveitl         solved             6/6         2 1/2 symbolic   cpp, py, tex
+Wrist              solved             3/3         2 2/2 symbolic   cpp, py, tex
+------------------------------------------------------------------------------
+  partial (hybrid): 1,  solved: 26,  solved (hybrid): 2,  unsolved: 2
 
 Notes
 --------------------------------------------------------------
@@ -47,11 +46,11 @@ KinovaLite         SIMPLIFIED to KinovaLite_d_5_0 -- d_5: 57 -> 0 (axes [4, 5, 6
 Panda              SIMPLIFIED to Panda_a_3_0_a_4_0 -- a_3: 0.0825000000000000 -> 0; a_4: -0.0825000000000000 -> 0 (axes [3, 4, 5], intersect)
 Raven-II           SIMPLIFIED to Raven-II_a_5_0 -- a_5: 13.0000000000000 -> 0 (axes [4, 5, 6], intersect)
 
-Solution methods
+Solution methods  (recorded, not compared)
 --------------------------------------------------------------
 ArmRobo
     d_6      algebra
-    th_1     atan2(y,x), arccos, best ranked, atan2(y,x), best ranked, sin or cos
+    th_1     simultaneous eqn
     th_12    (unsolved)
     th_2     (unsolved)
     th_3     (unsolved)
@@ -60,63 +59,63 @@ ArmRobo
 Arm_3
     th_1     algebra
     th_12    algebra
-    th_123   atan2(y,x), arccos, best ranked, atan2(y,x)
+    th_123   simultaneous eqn
     th_2     arccos
-    th_23    arccossimultaneous eqn
+    th_23    simultaneous eqn
     th_3     algebra
 Axtman13
     d_1      algebra
-    th_2     atan2(y,x), arcsin, best ranked, atan2(y,x)
+    th_2     simultaneous eqn
     th_3     arcsin
     th_34    algebra
-    th_4     atan2(y,x), arccos, best ranked, atan2(y,x)
+    th_4     simultaneous eqn
 Bartell
     d_2      algebra
     d_4      algebra
     th_1     atan2(y,x)
-    th_3     atan2(y,x), arccos, best ranked, atan2(y,x)
-    th_5     atan2(y,x), arccos, best ranked, atan2(y,x)
+    th_3     simultaneous eqn
+    th_5     simultaneous eqn
 Brad
-    th_1     atan2(y,x), arcsin, best ranked, atan2(y,x)
-    th_2     atan2(y,x), arcsin, best ranked, atan2(y,x)
+    th_1     simultaneous eqn
+    th_2     simultaneous eqn
     th_23    algebra
-    th_3     atan2(y,x), arccos, best ranked, atan2(y,x)
+    th_3     simultaneous eqn
 Chair_Helper
     d_1      algebra
-    th_2     arcsin
+    th_2     simultaneous eqn
     th_3     atan2(y,x)
-    th_4     atan2(y,x), arcsin, best ranked, atan2(y,x)
-    th_5     atan2(y,x), arcsin, best ranked, atan2(y,x)
+    th_4     simultaneous eqn
+    th_5     simultaneous eqn
 Craig417
     th_1     sinANDcos
-    th_2     atan2(y,x), arccos, best ranked, atan2(y,x)
-    th_3     sinANDcos
+    th_2     simultaneous eqn
+    th_3     arcsinsinANDcos
     th_34    algebra
-    th_4     atan2(y,x), arccos, best ranked, atan2(y,x)
+    th_4     simultaneous eqn
 DZhang
     th_1     sinANDcos
     th_2     algebra
-    th_23    atan2(y,x), arcsin, best ranked, atan2(y,x)
+    th_23    simultaneous eqn
     th_3     arcsin
     th_4     atan2(y,x), arccos, best ranked, atan2(y,x)
-    th_5     atan2(y,x), arcsin, best ranked, atan2(y,x)
+    th_5     simultaneous eqn
 Frei13
     d_1      algebra
     th_2     arcsin
     th_3     atan2(y,x)
-    th_4     atan2(y,x), arcsin, best ranked, atan2(y,x)
-    th_5     atan2(y,x), arcsin, best ranked, atan2(y,x)
+    th_4     simultaneous eqn
+    th_5     simultaneous eqn
 ICP5p5_A21
     d_2      algebra
-    th_1     atan2(y,x)
-    th_3     atan2(y,x), arccos, best ranked, atan2(y,x)
-    th_4     atan2(y,x), arccos, best ranked, atan2(y,x)
+    th_1     simultaneous eqn
+    th_3     simultaneous eqn
+    th_4     simultaneous eqn
 JennyGuoSp24
     d_1      algebra
-    th_2     atan2(y,x), arcsin, best ranked, atan2(y,x)
-    th_3     arcsinsimultaneous eqn
+    th_2     simultaneous eqn
+    th_3     simultaneous eqn
     th_34    algebra
-    th_345   atan2(y,x), arcsin, best ranked, atan2(y,x)
+    th_345   simultaneous eqn
     th_4     arccos
     th_45    algebra
     th_5     algebra
@@ -126,16 +125,16 @@ KR16
     th_23    simultaneous eqn
     th_3     sinANDcos
     th_4     atan2(y,x)
-    th_5     atan2(y,x), arcsin, best ranked, atan2(y,x)
-    th_6     atan2(y,x), arcsin, best ranked, atan2(y,x)
+    th_5     simultaneous eqn
+    th_6     simultaneous eqn
 KawasakiRS007L
     th_1     sinANDcos
     th_2     algebra
     th_23    simultaneous eqn
     th_3     arcsin
     th_4     atan2(y,x)
-    th_5     atan2(y,x), arcsin, best ranked, atan2(y,x)
-    th_6     atan2(y,x), arccos, best ranked, atan2(y,x)
+    th_5     simultaneous eqn
+    th_6     simultaneous eqn
 KawasakiRS05L
     th_1     (unsolved)
     th_2     (unsolved)
@@ -150,30 +149,30 @@ Khat6DOF
     th_23    simultaneous eqn
     th_3     sinANDcos
     th_4     atan2(y,x)
-    th_5     atan2(y,x), arcsin, best ranked, atan2(y,x)
-    th_6     atan2(y,x), arccos, best ranked, atan2(y,x)
+    th_5     simultaneous eqn
+    th_6     simultaneous eqn
 KinovaLite
     th_1     sinANDcos
     th_2     simultaneous eqn
     th_23    algebra
     th_3     arcsin
-    th_4     atan2(y,x), arcsin, best ranked, atan2(y,x)
+    th_4     simultaneous eqn
     th_5     arccos
     th_6     sinANDcos
 Mackler13
     d_1      algebra
-    th_2     arccos
+    th_2     simultaneous eqn
     th_3     arccos
     th_4     arcsin
     th_5     simultaneous eqn
 Minder13
     d_1      algebra
     th_2     atan2(y,x)
-    th_3     atan2(y,x), arccos, best ranked, atan2(y,x)
-    th_4     atan2(y,x), arcsin, best ranked, atan2(y,x)
+    th_3     simultaneous eqn
+    th_4     simultaneous eqn
 MiniDD
     d_1      algebra
-    th_2     arccos
+    th_2     simultaneous eqn
     th_3     arccos
     th_4     arcsin
     th_5     simultaneous eqn
@@ -183,17 +182,17 @@ Olson13
     th_3     atan2(y,x)
     th_4     arcsin
     th_45    algebra
-    th_5     atan2(y,x), arcsin, best ranked, atan2(y,x)
-    th_6     atan2(y,x), arcsin, best ranked, atan2(y,x)
+    th_5     simultaneous eqn
+    th_6     simultaneous eqn
 Palm13
     d_2      algebra
     th_1     atan2(y,x)
-    th_3     atan2(y,x), arcsin, best ranked, atan2(y,x)
-    th_4     atan2(y,x), arccos, best ranked, atan2(y,x)
+    th_3     simultaneous eqn
+    th_4     simultaneous eqn
 Panda
     th_1     sinANDcos
     th_2     simultaneous eqn
-    th_3     atan2(y,x), arcsin, best ranked, atan2(y,x)
+    th_3     simultaneous eqn
     th_4     arccos
     th_5     arcsin
     th_6     sinANDcos
@@ -201,25 +200,17 @@ Parkman13
     d_4      algebra
     th_1     atan2(y,x)
     th_2     algebra
-    th_23    atan2(y,x), arccos, best ranked, atan2(y,x)
+    th_23    simultaneous eqn
     th_3     arcsin
-    th_5     atan2(y,x), arcsin, best ranked, atan2(y,x)
+    th_5     simultaneous eqn
 Puma
     th_1     sinANDcos
     th_2     algebra
     th_23    simultaneous eqn
     th_3     sinANDcos
     th_4     atan2(y,x)
-    th_5     atan2(y,x), arcsin, best ranked, atan2(y,x)
-    th_6     atan2(y,x), arcsin, best ranked, atan2(y,x)
-Pumaoffset
-    th_1     sinANDcos
-    th_2     simultaneous eqn
-    th_23    algebra
-    th_3     sinANDcos
-    th_4     atan2(y,x)
-    th_5     atan2(y,x), arcsin, best ranked, atan2(y,x)
-    th_6     atan2(y,x), arcsin, best ranked, atan2(y,x)
+    th_5     simultaneous eqn
+    th_6     simultaneous eqn
 Raven-II
     d_3      (unsolved)
     th_1     (unsolved)
@@ -231,40 +222,40 @@ Sims11
     d_1      algebra
     d_2      algebra
     th_3     atan2(y,x)
-    th_4     atan2(y,x), arccos, best ranked, atan2(y,x)
-    th_5     atan2(y,x), arcsin, best ranked, atan2(y,x)
+    th_4     simultaneous eqn
+    th_5     simultaneous eqn
 Srisuan11
     d_1      algebra
     d_4      algebra
     th_2     sinANDcos
     th_3     atan2(y,x)
-    th_5     atan2(y,x), arccos, best ranked, atan2(y,x)
-    th_6     atan2(y,x), arcsin, best ranked, atan2(y,x)
+    th_5     simultaneous eqn
+    th_6     simultaneous eqn
 Stanford
     d_3      algebra
     th_1     sinANDcos
     th_2     atan2(y,x)
     th_4     atan2(y,x)
-    th_5     atan2(y,x), arcsin, best ranked, atan2(y,x)
-    th_6     atan2(y,x), arccos, best ranked, atan2(y,x)
+    th_5     simultaneous eqn
+    th_6     simultaneous eqn
 UR5
     th_1     sinANDcos
-    th_2     arcsinsimultaneous eqn
+    th_2     simultaneous eqn
     th_23    algebra
-    th_234   atan2(y,x), arcsin, best ranked, atan2(y,x)
+    th_234   simultaneous eqn
     th_3     arccos
     th_34    algebra
     th_4     arcsinalgebra
     th_5     arccos
-    th_6     atan2(y,x), arcsin, best ranked, atan2(y,x)
+    th_6     simultaneous eqn
 Wachtveitl
     d_1      algebra
     th_2     atan2(y,x)
     th_3     atan2(y,x), arcsin, best ranked, atan2(y,x)
     th_34    algebra
-    th_4     atan2(y,x), arcsin, best ranked, atan2(y,x)
-    th_5     atan2(y,x), arcsin, best ranked, atan2(y,x)
+    th_4     simultaneous eqn
+    th_5     simultaneous eqn
 Wrist
     A        atan2(y,x)
-    B        atan2(y,x), arcsin, best ranked, atan2(y,x)
-    C        atan2(y,x), arcsin, best ranked, atan2(y,x)
+    B        simultaneous eqn
+    C        simultaneous eqn

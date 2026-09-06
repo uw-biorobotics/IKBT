@@ -90,6 +90,52 @@ class kequation:
         return tmp
 
 
+def self_referential_solutions(unknowns):
+    """Which solutions contain the very variable they solve for.
+
+       Returns [(varname, solution_name, expr), ...], empty when all is well.
+
+       A SOLUTION THAT CONTAINS ITS OWN UNKNOWN IS NOT A SOLUTION.  It is an
+       IMPLICIT EQUATION, and nothing downstream can evaluate it:  the generated
+       python comes out as
+
+           th_23v1 = atan2(... + a_3*sin(th_23v1 - th_2v1), ...)
+
+       which dies with UnboundLocalError because python evaluates the right hand
+       side first.  Found 2026-09-05 on Arm_3 (th_23), JennyGuoSp24 (th_3) and
+       UR5 (th_2), all three of which reported `solved` and wrote a full set of
+       artifacts.
+
+       The shape is always a sum-of-angles variable or its partner:
+       th_3 = th_23 - th_2 is substituted back into the equation being solved
+       FOR th_23, so a_3*sin(th_3) becomes a_3*sin(th_23 - th_2) and the unknown
+       reappears.
+
+       DETECTION ONLY.  Nothing here refuses the solution or changes a status --
+       per BH the outputs are generated as usual and the LaTeX report carries a
+       warning naming the offending equations, because a reader who knows which
+       equations are unusable can still use the rest of the report.
+
+       Tolerant of a partly-built unknown: an unsolved variable is skipped, a
+       solution sympy cannot give free_symbols for is skipped, and a solution
+       with no name yet is reported under a placeholder rather than raising."""
+
+    out = []
+    for u in unknowns:
+        if not getattr(u, 'solved', False):
+            continue
+        for i, sol in enumerate(getattr(u, 'solutions', []) or []):
+            try:
+                syms = sol.free_symbols
+            except AttributeError:
+                continue                 # not a sympy expression: nothing to check
+            if u.symbol in syms:
+                names = getattr(u, 'solutionNames', []) or []
+                name = names[i] if i < len(names) else '%s (unnamed)' % u.name
+                out.append((u.name, name, sol))
+    return out
+
+
 class unknown(object):
     def __init__(self,u=sp.var('x'), mat_eqn=None):
         self.symbol = u
@@ -172,9 +218,33 @@ class unknown(object):
         #  of a variable that is already done.  First answer wins;  it is the
         #  one every other solution already depends on.
         if self.solved:
+            #  UNDO WHAT THE SECOND SOLVE ALREADY DID.  Returning early is not
+            #  enough:  a solver leaf appends to self.solutions and overwrites
+            #  self.nsolutions BEFORE it calls set_solved (tan_solver.py:323-348
+            #  is the one that reaches here), so by the time we see it the
+            #  damage is done.  Ignoring the call therefore left solutions
+            #  LONGER than solutionNames -- which only set_solved appends to --
+            #  and every consumer that walks solutions while indexing
+            #  solutionNames[i] then ran off the end.
+            #
+            #  Measured on Parkman13:  th_1 solved with 2 solutions, a later
+            #  pass proposed a third by atan2, and output_latex_solution died
+            #  with IndexError at solutionNames[i].  Nothing caught it before
+            #  2026-09-05 because robot_baseline ran with codegen OFF, so
+            #  report_gen never ticked.
+            #
+            #  First answer wins -- every later solution already depends on it --
+            #  so the extras are dropped.  They are always at the END, because
+            #  the solvers append.  self.assumption is left alone on purpose: it
+            #  is appended and printed, never indexed against a solution.
+            extra = len(self.solutions) - len(self.solutionNames)
+            if extra > 0:
+                del self.solutions[len(self.solutionNames):]
+            self.nsolutions = len(self.solutionNames)
             print('set_solved: ', self.symbol,
                   ' is already solved -- ignoring a second solve by: ',
-                  self.solvemethod)
+                  self.solvemethod,
+                  ('(discarded %d extra solution(s))' % extra) if extra > 0 else '')
             return
 
         self.solved = True

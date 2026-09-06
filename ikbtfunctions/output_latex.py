@@ -470,6 +470,63 @@ def hybrid_numeric_section(hybrid, true_name):
     return sec.splitlines()
 
 
+def self_reference_warning(variables, eol):
+    """A prominent warning naming every equation that solves for itself, or ''.
+
+       WHY THIS IS A WARNING AND NOT A REFUSAL (BH, 2026-09-05).  A solution
+       containing its own unknown cannot be evaluated -- see
+       kin_cl.self_referential_solutions -- but the rest of the report is still
+       correct and still worth having, and a robot whose closed form comes out
+       this way may simply not have one.  So every output is generated exactly
+       as usual and the reader is TOLD, at the top, which equations not to use.
+       Silently dropping them would leave a report that looks complete and is
+       not;  refusing to write anything would throw away the parts that are
+       fine.
+
+       It goes in the Introduction rather than in its own section so that it
+       cannot be reordered away from the top, and so it precedes the hybrid
+       "which arm is this really" section without displacing it."""
+
+    bad = kc.self_referential_solutions(variables)
+    if not bad:
+        return ''
+
+    def tt(name):
+        return r'{\tt ' + str(name).replace('_', r'\_') + '}'
+
+    #  Group by variable:  a variable with two bad branches is one problem, not
+    #  two, and reads that way.
+    byvar = {}
+    for varname, solname, _ in bad:
+        byvar.setdefault(varname, []).append(solname)
+
+    n = len(bad)
+    w = r'\subsection*{WARNING: this solution is NOT usable}' + eol
+    w += (r'\textbf{%d of the equations below %s for a variable in terms of '
+          r'itself.}  An equation of the form '
+          % (n, 'solves' if n == 1 else 'solve')) + eol
+    w += r'$x = f(x)$ is an implicit equation, not a solution:  it cannot be ' + eol
+    w += r'evaluated, and the generated code for it will fail at run time.  ' + eol
+    w += r'The following equations are affected:' + eol
+    w += r'\begin{itemize}' + eol
+    for varname in sorted(byvar):
+        w += (r'\item variable ' + tt(varname) + ': '
+              + ', '.join(tt(n) for n in byvar[varname])) + eol
+    w += r'\end{itemize}' + eol
+    #  Name the SOLUTIONS, but say the versions go with them.  One bad solution
+    #  becomes one bad equation per version derived from it -- Arm_3's single
+    #  th_23s1 is th_23v1 AND th_23v2 in the generated code -- and a reader who
+    #  checked only the names listed here would think the Versions section was
+    #  clean.
+    w += (r'Every \emph{version} derived from the equations named above is '
+          r'affected in the same way, in both the Versions section and the '
+          r'generated code.  Every other equation in this report is '
+          r'unaffected.  ') + eol
+    w += (r'This usually arises when a sum-of-angles variable is substituted '
+          r'back into the equation being solved for it.') + eol
+    return w
+
+
 def output_latex_solution(Robot, variables, groups, hybrid=None, R_true=None,
                           force_ids=None):
     GRAPH = True
@@ -539,6 +596,10 @@ def output_latex_solution(Robot, variables, groups, hybrid=None, R_true=None,
     #  form.  Dropping the `if` puts it on every report, if that is wanted.
     if hybrid:
         introstring += eol + AI_STATEMENT + eol
+
+    #  A solution that contains its own unknown cannot be evaluated.  Say so at
+    #  the top, name the equations, and generate everything else as usual.
+    introstring += eol + self_reference_warning(variables, eol)
 
     LF.sections.append(introstring.splitlines())
 
@@ -731,12 +792,31 @@ def output_latex_solution(Robot, variables, groups, hybrid=None, R_true=None,
 
     ####################  List the edges of the solution graph
 
-    edgesection = r'\section{Solution Graph (Edges)} '+eol  +  r'''
-The following is the abstract representation of solution graph for this manipulator (nodes with parent -1 are roots).  Future: graphic representation. :
+    graph = Robot.notation_graph_edges
+
+    #  THE PICTURE FIRST, the listing after it.  The edge list is complete and
+    #  nearly unreadable -- the shape of the solve, which variable unlocks
+    #  which, is exactly what a list of pairs does not show.  The listing stays
+    #  because it is the exact data;  the figure is what a reader looks at.
+    edgesection = r'\section{Solution Graph}' + eol
+    try:
+        edgesection += gl.solution_graph_tikz(
+            [nd.unknown.name for nd in Robot.solution_nodes], graph, eol,
+            caption=('Solution order graph for ' + fixed_name
+                     + r'.  An arrow means \emph{unlocks}:  it points from a'
+                     r' variable to one that becomes solvable once it is known.'
+                     r'  Rows are dependency depth, so the graph reads top to'
+                     r' bottom in solution order and every variable sits below'
+                     r' everything it needs.'),
+            label='fig:solgraph')
+    except Exception as e:
+        #  A drawing must never cost the report:  the listing below carries the
+        #  same information, so a figure that will not build is a lost nicety.
+        print('  solution graph figure skipped -- %s: %s' % (type(e).__name__, e))
+
+    edgesection += eol + r'''The same graph as an edge list (nodes with parent -1 are roots):
 \begin{verbatim}
 '''
-
-    graph = Robot.notation_graph_edges
 
     i = 0
     sameline = '     '

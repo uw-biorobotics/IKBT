@@ -762,7 +762,7 @@ class TestSolver019(unittest.TestCase):
     def test_dhC_spherical_wrists(self):
         '''The classic spherical wrist: axes 4,5,6 intersecting.'''
         fs = ' dh_analysis spherical wrist FAIL'
-        for name in ('Puma', 'Pumaoffset', 'KawasakiRS007L', 'KR16', 'Khat6DOF'):
+        for name in ('Puma', 'KawasakiRS007L', 'KR16', 'Khat6DOF'):
             dh, vv, pvals, ndof = _robot(name)
             self.assertIn('int(4,5,6)', _kinds(dh, pvals, ndof),
                           fs + ' (%s has a spherical wrist)' % name)

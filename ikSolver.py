@@ -28,6 +28,7 @@ import sympy as sp
 from sys import exit, argv
 import pickle     # for storing pre-computed FK eqns
 
+import ikbtfunctions.ik_driver as ik_driver
 from ikbtfunctions.ik_driver   import (load_robot, run_solver,
                                        print_solved_equations, ensure_logdir,
                                        solved_anything)
@@ -60,6 +61,13 @@ def banner():
         print("          (for production: line 32: TEST_DATA_GENERATION = False)")
         print("")
         print('-'*50)
+
+
+#  Performance and layout commentary:  the per-call sympy meter (slow simplify /
+#  trigsimp lines) and the report-fitting messages.  OFF by default -- they are
+#  diagnostics for someone chasing a slow solve, and in an ordinary run they bury
+#  the per-pass progress they sit between.  Set True to get them back.
+PERFORMANCE_OUTPUT = False
 
 
 def main(argv):
@@ -109,7 +117,9 @@ def main(argv):
     #  appear DURING a blocking simplify -- symbolic_loop's per-pass line cannot
     #  print until the pass returns.  Batch callers (robot_baseline, tests) do
     #  not enable it;  it wraps a third-party class, so it stays opt-in.
-    enable_sympy_meter()
+    if PERFORMANCE_OUTPUT:
+        enable_sympy_meter()
+        ik_driver.REPORT_PROGRESS = True
 
     ensure_logdir()
 
