@@ -29,6 +29,18 @@ from ikbtbasics.ik_classes import *     # special classes for Inverse kinematics
 import re
 
 
+#  Console chatter from the generator:  the solution equation it is about to
+#  emit, and the joint-variable scan.  Off by default -- it is one line per
+#  version per variable, which on a 6-DOF arm buries the solve's own output.
+#  Set True (or -v on the self-test) to get it back.
+VERBOSE = False
+
+
+def _say(*args):
+    if VERBOSE:
+        print(*args)
+
+
 def py_identifier(name):
     """A robot name turned into a valid Python identifier.
 
@@ -138,20 +150,20 @@ pi = np.pi
 
 
     # joint variables:
-    print('Debug: joint variables: ', Robot.variables)
+    _say('Debug: joint variables: ', Robot.variables)
 
     print('#\n#     Robot Joint Variables \n#',file=f)
 
     for v in Robot.variables:
         ss = str(v).split('_')   # get joint subscript(s)
-        print('Variabl: SofA: ', str(v), ss)
+        _say('Variabl: SofA: ', str(v), ss)
         if len(ss) > 1:
             if len(ss[1]) > 1:  # we have a sum_of_angles
-                print('Sum of ang found in variable: ', str(v))
+                _say('Sum of ang found in variable: ', str(v))
                 subs = [*ss[1]] # make list of
                 soa = str(v) + ' = ' # e.g. 'th_23 = '
                 for s in subs:
-                    print('Debug subscript s:',ss, s)
+                    _say('Debug subscript s:',ss, s)
                     # find var with this subscript:
                     for v1 in Robot.variables:
                         if s in str(v1) and len(str(v1).split('_')[1]) == 1: # avoid soa subscripts
@@ -357,9 +369,9 @@ pi = np.pi
             eqnlist.append(e)
 
         for solEqnVer in eqnlist: # go through the versions
-            print('Python Output: Solution Equation Version: ', solEqnVer)
+            _say('Python Output: Solution Equation Version: ', solEqnVer)
             if re.search('asin', str(solEqnVer.RHS)) or re.search('acos', str(solEqnVer.RHS)):
-                print ('  Found asin/acos solution ...', solEqnVer.LHS , ' "=" ',solEqnVer.RHS)
+                _say('  Found asin/acos solution ...', solEqnVer.LHS , ' "=" ',solEqnVer.RHS)
                 tmp = re.search('\((.*)\)',str(solEqnVer.RHS))
                 print(indent + 'if (solvable_pose and abs', tmp.group(0), ' > 1):', file=f)
                 print(indent*2 + 'solvable_pose = False', file=f)
@@ -367,12 +379,12 @@ pi = np.pi
                 tmp = str(solEqnVer.LHS) + ' = ' + str(solEqnVer.RHS)
                 print(indent*2 + tmp, file=f)
             if re.search('atan', str(solEqnVer.RHS)):
-                print('  Found atan2 solution ...', solEqnVer.LHS , ' "=" ',solEqnVer.RHS)
+                _say('  Found atan2 solution ...', solEqnVer.LHS , ' "=" ',solEqnVer.RHS)
                 tmp = re.search('\((.*)\)',str(solEqnVer.RHS))
                 tmp = str(solEqnVer.LHS) + ' = ' + str(solEqnVer.RHS)
                 print(indent + tmp, file=f)
             if node.solvemethod == 'algebra':
-                print('  Found algebra solution ... ' , solEqnVer.LHS , ' = ', solEqnVer.RHS)
+                _say('  Found algebra solution ... ' , solEqnVer.LHS , ' = ', solEqnVer.RHS)
                 print(indent + str(solEqnVer.LHS) + ' = ' + str(solEqnVer.RHS), file=f)
 
     print('''
