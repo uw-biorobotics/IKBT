@@ -46,7 +46,7 @@ class LatexFile():
         self.filename = fname + '.tex'
         if self.filename.endswith('.tex.tex'):
             self.filename = self.filename[:-4]
-        print('Working with Latex file: ',self.filename)
+        print('Creating Latex file: ',self.filename)
         self.preamble = [] # list of line strings
         self.sections = [] # list of lists of line strings
         self.close =    []  # list of line strings
@@ -204,7 +204,7 @@ def emit_equations(eqns, eol, force_align=False):
 
        eqns       list of kc.kequation
 
-       ONE EQUATION PER SOURCE LINE is what makes the measurement possible at
+       ONE EQUATION PER SOURCE LINE is what makes the line width measurement possible at
        all.  pdflatex reports an overfull box against a SOURCE LINE, and this
        generator used to put every version of a variable on one line separated
        by '\\' -- so eight equations shared one line number and there was no way
@@ -671,11 +671,11 @@ def output_latex_solution(Robot, variables, groups, hybrid=None, R_true=None,
 
     for n in Robot.solution_nodes:
         unk = n.symbol
-        print('\noutput_latex: latex unknown v1:',unk, type(unk))
+        # print('\noutput_latex: latex unknown v1:',unk, type(unk))
         tmp = '$' +  sp.latex(unk) + '$'
         tmp = theta_expand(tmp)
         tmp = re.sub(r'_(\d+)',  r'_{\1}', tmp)   # get all digits of subscript into {}
-        print('output_latex: latex unknown v2:',tmp)
+        # print('output_latex: latex unknown v2:',tmp)
         unksection += eol+r'\item {'+tmp+'}'
 
     unksection += r'\end{enumerate}'+eol
@@ -695,7 +695,8 @@ def output_latex_solution(Robot, variables, groups, hybrid=None, R_true=None,
     Robot.make_LHS_versions() # create final equations including all dependencies, versions, solutions!
 
     ###################
-    #  Print the generic solution equations for each unknown without doing the permuations and combinations
+    #
+    #  Print the GENERIC solution equations for each unknown
     #
     for node in Robot.solution_nodes:
         if node.solvemethod != '':   # skip variables (typically extra SOA's) that are not used.
@@ -732,7 +733,10 @@ def output_latex_solution(Robot, variables, groups, hybrid=None, R_true=None,
     LF.sections.append(solsection.splitlines())
 
     ###################
-    # print the detailed equations for each version of each variable
+    #
+    # print the DETAILED equations for each version of each variable
+    #  (a detailed equation for each solution version)
+    #
     solsection = r'\section{Solutions to Generate all Versions} '+eol
     solsection += ''' The following equations are the full set of solutions for each unknown
     incorporating all combinations of dependencies.''' + eol
@@ -748,6 +752,7 @@ def output_latex_solution(Robot, variables, groups, hybrid=None, R_true=None,
             solsection += '\n' +r'\subsection{'+varLHS+r' } '+eol + 'Solution Method: ' + node.solvemethod + eol
 
             colindex = node.unknown.solveorder-1  # select the unknown
+
             #  ONE equation per DISTINCT version.  A variable solved early has
             #  fewer versions than the matrix has rows and SHARES them between
             #  rows -- Puma's th_1 has 2 versions over 8 rows -- so walking the
@@ -821,7 +826,7 @@ def output_latex_solution(Robot, variables, groups, hybrid=None, R_true=None,
             sepstr = eol
         elif i>1:
             sepstr = sameline
-        print('test: edge + sepstr: [',str(edge)+sepstr,']')
+        # print('test: edge + sepstr: [',str(edge)+sepstr,']')
         edgesection+= str(edge)+ sepstr
 
     edgesection +=  r'\end{verbatim} '+eol
@@ -832,7 +837,7 @@ def output_latex_solution(Robot, variables, groups, hybrid=None, R_true=None,
     ####################  Solution Sets
 
     #  JOINTS ONLY, and in a stable row order -- see pose_columns() and
-    #  solution_rows().  A pose is a value per joint;  the sum-of-angle
+    #  solution_rows().  A pose is a vector of values for each joint;  the sum-of-angle
     #  intermediates are named below the table instead of occupying columns in
     #  it, which is the same split the generated code makes between JOINT_NAMES
     #  and AUX_NAMES.

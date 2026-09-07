@@ -83,6 +83,7 @@ pi = np.pi
 #
 
 def output_FK_python_code(Robot):
+    print('\n\n\n                       Starting FK Python Output work \n\n\n')
 
     DirName = 'CodeGen/Python/'
     orig_name  = Robot.name.replace('test: ', '')
@@ -208,6 +209,7 @@ pi = np.pi
 #
 
 def output_python_code(Robot, groups):
+    print('\n\n\n                       Starting IK Python Output work \n\n\n')
 
     importString = '''#!/usr/bin/python
 #  Python inverse kinematic equations for **Robot**
