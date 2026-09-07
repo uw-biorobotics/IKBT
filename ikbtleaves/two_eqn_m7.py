@@ -156,13 +156,10 @@ class simu_solver(b3.Action):
 
         unknowns = tick.blackboard.get('unknowns')
         R = tick.blackboard.get('Robot')
-        #  REFUSE AN EQUATION THAT DOES NOT CONSTRAIN THIS VARIABLE.
-        #  Measured on UR5: the equation offered for th_2 was
-        #  0*sin(th_2) + 0*cos(th_2) = 0 -- both coefficients vanish identically
-        #  once the robot's own FK is substituted -- so atan2(-B, A) was atan2 of
-        #  two rounding errors and all 8 solution versions were wrong while the
-        #  robot was recorded as solved 9/9.  FAILURE here lets b3.Priority fall
-        #  through to a transform leaf that may restock eqns_1u with a real one.
+        #  REFUSE AN EQUATION THAT DOES NOT CONSTRAIN THIS VARIABLE --
+        #  see ikbtbasics/eqn_sanity.py.  FAILURE here lets b3.Priority
+        #  fall through to a transform that may restock eqns_1u with a
+        #  real equation.
         if not _eqsan.constrains(curr_unk.eqntosolve, curr_unk.name, R):
             _eqsan.reject(curr_unk, 'simultaneous eqn solver')
             return b3.FAILURE

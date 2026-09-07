@@ -593,3 +593,73 @@ promoted).
 This gap is how the solution/version defect survived: `robot_baseline.py` reported Puma as
 "solved 7/7" while not one of its eight solution versions could even be *evaluated* — every one
 referenced a `th_1s1` that nothing ever assigns.
+
+## ikbtleaves/sincos_solver.py, sinANDcos_solver.py, algebra_solver.py, tan_solver.py, two_eqn_m7.py
+
+**The UR5 tautology, from the solvers' side.** The equation offered for `th_2` was
+`0*sin(th_2) + 0*cos(th_2) = 0` — both coefficients vanish identically once the robot's own FK
+is substituted — so `atan2(-B, A)` was `atan2` of two rounding errors, all 8 solution versions
+were wrong, and the robot was recorded as solved 9/9. Every solver now calls
+`eqn_sanity.constrains()` before committing, and returns FAILURE so `b3.Priority` can fall
+through to a transform that may restock `eqns_1u` with a real equation.
+
+**`FAILURE`, not `assert`** (2026-08-28). Several of these leaves used to `assert()` on a shape
+they could not decompose, which killed the *process* mid-solve. Two ways it bit:
+
+- `sincos_solve`'s arcsin branch asserted where the arccos branch declined, so `sin(u)**2`
+  crashed while `cos(u)**2` did not. Hardening the Wilds with `exclude=terms` made this *more*
+  reachable, not less: the Wilds now correctly refuse shapes they previously matched
+  degenerately.
+- With `invariant_gen` enabled on UR5, the generator legitimately emits 2-unknown equations
+  (`MAX_UNKNOWNS` is 2), `sincos_id` matched one for `th_3`, and `(LHS-B)/A` still held
+  `cos(th_3)` and `sin(th_3+th_4)`.
+
+Declining a job the leaf cannot do is not a bug worth throwing away a multi-minute solve for.
+
+## ikbtfunctions/progress.py — no time estimate
+
+There used to be one ("about 5 s more, at most 16 s"), extrapolated from cost per solved
+variable. It was worse than silence, because the passes are nowhere near uniform: on Puma,
+passes 1 and 5–8 take about a second each while 2–4 together take 2.7 minutes, so an estimate
+formed after pass 1 said "about 6 s more" for a solve that ran 2.8 minutes.
+
+## ikbtfunctions/subexpressions.py — `max_depth`
+
+At 3 the walk stopped before the `sqrt` inside KinovaLite's `th_5`/`th_6`: the sqrt itself got
+named but its argument never did, so eight definitions came out `K_n = sqrt(<forty terms>)` at
+253 pt over (BH, 2026-09-04). Similarly, naming on the *original* size rather than the
+already-split size, and naming the terms of a sum, both produced aggregator definitions like
+`K_54 = K_a + K_b + K_c + K_d` — four names to reconstruct a sum that reads perfectly well
+written out.
+
+## scripts/check_solution_sets.py, scripts/expected.py
+
+**Chair_Helper and ICP5p5_A21 became complete on 2026-09-03**, when `Simu_Eqn_Sol` was promoted
+ahead of `sc_tan`: Chair_Helper 2-of-4 → 2-of-2, ICP5p5_A21 0-of-2 → 1-of-1. The arcsin branch
+that was wrong at every pose is simply no longer generated. Recorded so that reverting the
+order fails the check rather than quietly restoring the spurious solutions.
+
+**Wrist was once listed as uncheckable**, on the grounds that `B` and `C` had no numeric values.
+They are its *joint variables*, not parameters; what actually failed was `check_solution_sets`'
+own copy of the joint-naming rule, which called them `'B + pi/2'` and `'C + pi/2'` after their
+DH cells. Wrist checks 2/2 since that copy was deleted in favour of `numeric_ik.joint_symbols()`.
+
+**Mackler13 was uncheckable until 2026-09-05** — its FK carried a stray `h` and `numeric_ik`
+could not build a callable at all. That was a typo in the DH table (BH), not a solver defect;
+correcting it and re-running was enough, and the FK cache self-healed without the pickle being
+deleted by hand — `dh_tables_match()` saw the changed table and recomputed.
+
+**Parkman13 crashed the report generator until 2026-09-05** (see the re-entry guard in
+`kin_cl.set_solved`), so it had never been measured here at all.
+
+**Five robots solve completely and their generated code cannot be run** (measured 2026-09-05,
+all with tex+py+cpp written and status `solved`). They are deliberately not in `EXPECT`:
+
+    Arm_3          UnboundLocalError: th_23v1  -- the solution CONTAINS the
+    JennyGuoSp24   UnboundLocalError: th_3v1      variable it solves for
+    UR5            asin/acos out of range, AND the same self-reference
+    KR16           sqrt(): expected a nonnegative input, got -202.2
+    DZhang         asin/acos: expected a number in range -1..1
+
+DZhang's `h` is a real DH parameter (declared in `sp.var`, in `params`, `pvals[h]=1`) and is not
+the problem; its failure is the asin/acos range error alone.

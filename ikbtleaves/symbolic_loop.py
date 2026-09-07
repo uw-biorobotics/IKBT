@@ -56,7 +56,7 @@ class symbolic_loop(b3.Decorator):
 
         bb = tick.blackboard
 
-        #  Reported per pass, so a user watching a 700 s solve can see whether
+        #  Reported per pass, so a user watching a long solve can see whether
         #  anything is improving.  Built here rather than in __init__ because
         #  the robot and the unknown count are blackboard state, and on the
         #  hybrid branch this node is ticked against a DERIVED arm.

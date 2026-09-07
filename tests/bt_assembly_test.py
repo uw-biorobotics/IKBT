@@ -94,12 +94,8 @@ REQUIRED_SOLVERS = [algebra_id, algebra_solve,
                     sinandcos_id, sinandcos_solve,
                     simu_id, simu_solver]
 
-#  x2z2_transform was here until 2026-08-28.  It is now OPTIONAL, not required:
-#  invariant_gen subsumes it (the x2y2 trick is the ||P||^2 invariant over one
-#  pair of position equations), and measured on UR5 x2z2 ticked 15 times and
-#  fired zero times -- its pair search accepted none of 91 candidate pairs.
-#  Keeping it in this list would assert the tree still needs a leaf that never
-#  succeeds.
+#  x2z2_transform is deliberately NOT required:  invariant_gen subsumes it,
+#  and it never fires.  See IKdocs/DEV_NOTES.md.
 
 #  Not solvers, but nothing solves without them:  assigner advances curr_unk,
 #  rank is what actually calls set_solved() for tan/sincos, sum_id makes the

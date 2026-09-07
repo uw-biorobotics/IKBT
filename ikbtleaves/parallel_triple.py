@@ -224,8 +224,8 @@ class parallel_triple_transform(b3.Action):
         if all(u.solved for u in unknowns):
             return b3.FAILURE
 
-        #  The gate.  Cheap enough to re-evaluate every tick, and it is the
-        #  whole reason this leaf can afford to be slow when it does fire.
+        #  No parallel triple, no work.  Pure DH arithmetic, so cheap enough
+        #  to re-evaluate on every tick.
         triples = parallel_axis_triples(R, unknowns)
         if not triples:
             return b3.FAILURE

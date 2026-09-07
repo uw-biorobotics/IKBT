@@ -210,10 +210,8 @@ class SolveProgress(object):
         self.t_start = time.time()
         self.t_last = self.t_start
         #  The meter is process-global and cumulative, but each SolveProgress
-        #  covers ONE solve.  On the hybrid branch there are two solves in one
-        #  process, so reporting the raw cumulative totals against this solve's
-        #  elapsed time mixes scopes and can print "100% of wall" or worse.
-        #  Snapshot here and report deltas.
+        #  covers ONE solve -- and the hybrid branch runs two in one process.
+        #  Snapshot here and report deltas, or the two scopes mix.
         self._meter0 = meter_stats()
         self.last_solved = 0
         #  NAMES, not just a count.  The newly-solved variable is not
@@ -305,15 +303,10 @@ class SolveProgress(object):
         if newly:
             self.flat_passes = 0
             left_vars = self.n - ns
-            #  NO TIME ESTIMATE (BH, 2026-09-04).  There used to be one here --
-            #  "about 5s more, at most 16s" -- extrapolated from the cost per
-            #  solved variable so far.  It was misleading to the point of being
-            #  worse than silence, because the passes are nowhere near uniform:
-            #  measured on Puma, passes 1 and 5-8 take about a second each while
-            #  2-4 together take 2.7 minutes, so an estimate formed after pass 1
-            #  said "about 6s more" for a solve that ran 2.8 minutes.  A count of
-            #  what is left is a fact;  a projection from it is a guess dressed
-            #  as one.
+            #  NO TIME ESTIMATE (BH, 2026-09-04).  The passes are nowhere
+            #  near uniform, so extrapolating from cost-per-solved-variable is
+            #  worse than silence.  A count of what is left is a fact;  a
+            #  projection from it is a guess dressed as one.
             if left_vars > 0:
                 _say('            making progress -- %d variable%s left'
                      % (left_vars, '' if left_vars == 1 else 's'))
@@ -330,12 +323,10 @@ class SolveProgress(object):
                 _say('            nothing changed and the pass budget is spent '
                      '-- stopping')
             elif self.flat_passes >= 2:
-                #  The strongest statement this reporter can make, and the one a
-                #  waiting user most needs.  comp_det stops on the SECOND
-                #  identical pass, so reaching two consecutive flat passes means
-                #  the solve is genuinely stuck rather than merely slow -- and
-                #  before the comp_det fix, this was the state Issue4 sat in for
-                #  nine passes and 636 s while printing nothing alarming.
+                #  comp_det stops on the SECOND identical pass, so two
+                #  consecutive flat passes mean the solve is genuinely stuck
+                #  rather than merely slow.  That is the strongest statement
+                #  this reporter can make.
                 _say('            %d passes in a row changed NOTHING -- this '
                      'solve is stuck, not slow;  it should stop now'
                      % self.flat_passes)

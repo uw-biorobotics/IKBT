@@ -68,17 +68,14 @@ EXPECT = {
     'Panda':        (8, 8),
 
     #  --------------------------------------------------------------------
-    #  KNOWN INCOMPLETE.  These are NOT targets -- they are floors.  IKBT
-    #  enumerates version combinations and does not filter the spurious ones,
-    #  so some branches legitimately do not reproduce the pose.  Recorded so a
-    #  drop is caught;  `total` is recorded too, so a spurious branch appearing
-    #  or disappearing is caught as well.  When one of these is FIXED the gate
-    #  fires and the entry is updated -- that is the intended workflow, and it
-    #  is exactly what happened to Chair_Helper (2-of-4 -> 2-of-2).
+    #  KNOWN INCOMPLETE.  These are floors, not targets:  IKBT does not filter
+    #  spurious version combinations, so some branches legitimately do not
+    #  reproduce the pose.  When one is FIXED the check fires and the entry is
+    #  updated -- that is the intended workflow.
     #
-    #  The diagnosis to reach for: look for an arcsin or arccos in the robot's
+    #  The diagnosis to reach for:  look for an arcsin or arccos in the robot's
     #  solvemethods, and check whether a sin+cos pair for that variable was
-    #  available -- see the promotion note in bt_assembly.build_worktools().
+    #  available -- see the ordering note in bt_assembly.build_worktools().
     'Sims11':       (1, 2),
     'Wachtveitl':   (1, 2),
     'Palm13':       (1, 2),
@@ -86,16 +83,9 @@ EXPECT = {
     'Craig417':     (2, 4),
     'MiniDD':       (1, 4),
 
-    #  Mackler13 was UNCHECKABLE until 2026-09-05 -- its FK carried a stray `h`
-    #  and numeric_ik could not build a callable at all.  That was a typo in the
-    #  DH table (BH), not a solver defect;  correcting it and re-running was
-    #  enough, and the FK cache self-healed without the pickle being deleted by
-    #  hand -- dh_tables_match() saw the changed table and recomputed.
     'Mackler13':    (1, 4),
 
-    #  Parkman13 crashed the report generator until 2026-09-05 (see the
-    #  re-entry guard in kin_cl.set_solved) so it had never been measured here
-    #  at all.  Still mostly wrong, and unexplained -- see CLAUDE.md.
+    #  Parkman13 is mostly wrong and unexplained.
     'Parkman13':    (1, 4),
 }
 

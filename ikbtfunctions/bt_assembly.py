@@ -144,9 +144,9 @@ def make_leaves(leaf_debug=False, solver_debug=False):
     #  and re-wirable in one line here.  See IKdocs/DEV_NOTES.md.
 
     ###  Three consecutive PARALLEL axes -- the other half of Pieper's
-    #  condition, and the half no solver leaf was written for.  Gated on
-    #  dh_analysis's `parallel` triples (pure DH arithmetic, milliseconds), so
-    #  an arm without one pays a table scan and the leaf declines.  It restocks
+    #  condition, and the half no solver leaf was written for.  It declines
+    #  unless dh_analysis reports a `parallel` triple, which is pure DH
+    #  arithmetic, so an arm without one pays only a table scan.  It restocks
     #  eqns_1u with the law-of-cosines equation for the middle joint of the
     #  triple;  the existing arccos/atan2/algebra leaves finish the job.
     #  See IKdocs/parallel_triple_refs.md.

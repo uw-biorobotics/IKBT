@@ -325,8 +325,8 @@ class install_simplified(b3.Action):
         bb.set('eqns_2u', L2)
         bb.set('eqns_3pu', L3p)
 
-        #  What the report and the baseline record need in order to be honest
-        #  about which arm the equations describe.
+        #  What the report needs in order to say which arm the equations
+        #  describe.
         bb.set('hybrid_source', {
             'true_robot': true_name,
             'derived_robot': dname,
@@ -609,8 +609,8 @@ class TestSolver018(unittest.TestCase):
         bb.set('Robot', R)
         bb.set('unknowns', [TestSolver018.unk(i) for i in range(1, 7)])
 
-        #  the geometry leaf agrees the arm HAS triples -- the case the gate
-        #  used to reject outright, and reports them without refusing anything
+        #  the arm HAS triples, and the leaf reports them without refusing
+        #  anything
         self.assertEqual(self.tick_pieper(bb), b3.SUCCESS, fs)
         self.assertTrue(bb.get('pieper_triples'),
                         fs + ' (fixture reports no triple at all)')

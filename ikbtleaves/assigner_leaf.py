@@ -145,11 +145,8 @@ class assigner(b3.Action):
             counter = counter + 1
             if not curr.solved:
                 if getattr(self, 'BHdebug', False):
-                    #  Was unconditional, and it is one line per tick:  on
-                    #  Puma that is eleven lines of "Assigner:" in a normal
-                    #  solve, which buries the per-pass progress it sits
-                    #  between.  Every other leaf gates its chatter on
-                    #  BHdebug;  this one had simply never been converted.
+                    #  One line per tick, so on BHdebug only -- unconditional
+                    #  it buries the per-pass progress it sits between.
                     print("\n\nAssigner: variable on blackboard: %s"%curr.symbol)
                 tick.blackboard.set("counter", counter)
                 tick.blackboard.set("curr_unk", curr)

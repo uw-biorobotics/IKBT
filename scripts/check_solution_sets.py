@@ -52,31 +52,15 @@ except ImportError:                       # older branch without the list
 
 
 #  THE EXPECTATION TABLE LIVES IN scripts/expected.py, shared with the
-#  generated-code checker.  It used to be KNOWN_COMPLETE here -- a list of
-#  robots that must be 100% -- which was a third hand-maintained copy of the
-#  same robots.  EXPECT's (good, total) says the same thing and more:  a robot
-#  that is legitimately not 100% is recorded exactly as it measures rather than
-#  left out of the gate.
-#
-#  Chair_Helper and ICP5p5_A21 became complete on 2026-09-03, when Simu_Eqn_Sol
-#  was promoted ahead of sc_tan in build_worktools() -- see the docstring there.
-#  Chair_Helper went 2-of-4 to 2-of-2 and ICP5p5_A21 0-of-2 to 1-of-1:  the
-#  arcsin branch that was wrong at every pose is simply no longer generated.
-#  Recorded so that reverting the order fails the gate rather than quietly
-#  restoring the spurious solutions.
-
-#  Wrist was previously listed here as uncheckable, on the grounds that B and C
-#  had no numeric values.  They are its JOINT VARIABLES, not parameters;  what
-#  actually failed was this file's own copy of the joint-naming rule, which
-#  called them 'B + pi/2' and 'C + pi/2' after their DH cells.  Wrist checks
-#  2/2 since that copy was deleted in favour of numeric_ik.joint_symbols().
+#  generated-code checker.  Its (good, total) records a robot that is
+#  legitimately not 100% exactly as it measures, rather than leaving it out.
 TOL = 1e-7
 
 
 #  pvals resolution, joint naming and the FK callable all live in
-#  ikbtbasics.numeric_ik.  They used to be copied here, and the copy drifted:
-#  it named Wrist's joints 'B + pi/2' and then rejected the robot because
-#  T_06's free symbols did not match.  One implementation, one behaviour.
+#  ikbtbasics.numeric_ik.  Do not copy them here:  the copy drifted last time,
+#  naming Wrist's joints 'B + pi/2' and then rejecting the robot because
+#  T_06's free symbols did not match.
 
 
 def check_robot(name, q_seed=None, verbose=False):
