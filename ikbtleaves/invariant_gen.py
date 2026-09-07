@@ -2,32 +2,26 @@
 #
 #   invariant_gen.py --  the kinematic invariant generator
 #
-#   Every existing IKBT solver shares one precondition:  the target unknown must
-#   ALREADY be isolated in a conveniently-shaped equation.  The system recognizes
-#   solvable forms; it does not manufacture them.  x2y2_transform is the sole
-#   exception, and it is a hand-written, pattern-matched special case of a much
-#   more general move.
+#   Every other IKBT solver shares one precondition:  the target unknown must
+#   ALREADY be isolated in a conveniently-shaped equation.  The system
+#   recognizes solvable forms;  it does not manufacture them.  x2y2_transform
+#   was the sole exception, and it is a hand-written special case of a much more
+#   general move.
 #
 #   This leaf generalizes it.  Both sides of a matrix equation  Td = Ts  are the
 #   same 4x4 transform written two ways, so ANY scalar function f gives a valid
-#   new scalar equation  f(Td) = f(Ts).  Choose f to be invariant under the
-#   trailing rotations and the result typically carries FEWER unknowns than any
-#   raw element equation.  This is Pieper's classic opening move, and it is how
-#   the position/orientation decoupling gets found for arms that admit it.
+#   new scalar equation  f(Td) = f(Ts).  Choose f invariant under the trailing
+#   rotations and the result typically carries FEWER unknowns than any raw
+#   element equation.  This is Pieper's classic opening move, and how the
+#   position/orientation decoupling is found for arms that admit it.
 #
 #   The leaf produces no solutions of its own -- it is a pure equation generator
-#   feeding the existing solvers.  So it introduces no new solution
-#   multiplicities and does not disturb the n_s <= 2 machinery in
-#   Robot.create_solution_set().
+#   feeding the existing solvers -- so it introduces no new solution
+#   multiplicities and does not disturb Robot.create_solution_set().
 #
-#   Measured on the shipped FK pickles (unsolved-unknown counts):
-#
-#       Puma      meqn 2   ||P||^2  ->  1 unknown:
-#                    a_2^2 + 2*a_2*a_3*cos(th_3) - 2*a_2*d_4*sin(th_3)
-#                          + a_3^2 + d_3^2 + d_4^2
-#       Puma      meqn 1   ||P||^2  ->  2 unknowns, or 1 after SOA back-substitution
-#       Kawasaki  meqn 2   ||P||^2  ->  1 unknown  (8 ops)
-#       KinovaLite               ->  no gain (3-4 unknowns; the gate discards them)
+#   Yields, on the shipped FK pickles:  Puma's meqn 2 ||P||^2 drops to ONE
+#   unknown, Kawasaki's likewise;  KinovaLite gains nothing.  See
+#   IKdocs/DEV_NOTES.md.
 #
 #   Copyright 2026 University of Washington
 #
@@ -295,26 +289,10 @@ class invariant_gen(b3.Action):
        it produces equations rather than solutions.  x2z2_transform is the
        precedent for a transform living in the worktools Priority.
 
-       DEFAULT OFF -- see `enabled` below.'''
+       The class default is OFF;  bt_assembly.make_leaves() switches the
+       tree's instance on.  Set nodes['invariantGen'].enabled = False to get
+       the inert behaviour back.  Costs and benefits: IKdocs/DEV_NOTES.md.'''
 
-    #  Wired into the tree but inert unless switched on.  It is here rather than
-    #  deleted because the ||P||^2 machinery is reusable and the tests document
-    #  what it does;  it is off because, MEASURED, it does not pay:
-    #
-    #    Puma      28s -> 159s   output byte-identical
-    #    Kawasaki  27s -> 126s   output byte-identical
-    #    KinovaLite  43s -> >10min, still 0 variables solved (same as without it)
-    #
-    #  Promoted ahead of x2z2_Solver it does produce a better derivation for
-    #  Puma th_3 (identical solution expression, one less dependency, and it
-    #  makes the x2y2 special case unnecessary) -- but at ~4.8x, on a robot that
-    #  already solved fine.  No robot has yet been solved that could not be
-    #  solved before.  Turn it on with:
-    #
-    #       nodes['invariantGen'].enabled = True
-    #
-    #  Runtime work on the solver would have to land first for it to be a
-    #  sensible default.
     enabled = False
 
     def tick(self, tick):
@@ -323,12 +301,10 @@ class invariant_gen(b3.Action):
 
         #  One shot.  The invariants of a matrix equation do not change, so a
         #  second run can only re-emit duplicates -- and a leaf that keeps
-        #  returning SUCCESS makes the enclosing Priority succeed forever, which
-        #  spins RepeatUntilSuccess and burns the outer loop budget.
+        #  returning SUCCESS makes the enclosing Priority succeed forever.
         #
         #  The flag lives on the blackboard, not on R:  R comes out of a pickle
-        #  written by an older version of the code and must not be assumed to
-        #  carry attributes that pickle never stored.
+        #  and must not be assumed to carry attributes pickle never stored.
         if tick.blackboard.get('invariants_done'):
             return b3.FAILURE
 
@@ -339,10 +315,9 @@ class invariant_gen(b3.Action):
         #  where the leaf sits:  last in the worktools Priority, it is reached
         #  only on a tick where every solver failed -- and on a robot that
         #  solves cleanly, the first such tick is the one after the last
-        #  variable is solved.  Measured on Puma without this guard:  9 large
-        #  equations generated, all of them useless (count_unknowns skips solved
-        #  variables, so mostly-solved monsters slipped under the <= 2 gate),
-        #  at roughly 3x the solve's wall clock.
+        #  variable is solved.  Without the guard, Puma generated 9 large and
+        #  useless equations (count_unknowns skips solved variables, so
+        #  mostly-solved monsters slip under the <= 2 threshold).
         if all(u.solved for u in unknowns):
             if self.BHdebug:
                 print('invariant_gen: every unknown already solved - nothing to do')
@@ -476,7 +451,7 @@ class TestSolver012(unittest.TestCase):
                   for e in R.kequation_aux_list]
         self.assertIn(1, counts, fs + ' (no 1-unknown equation generated)')
 
-        #  and the gate held: nothing above MAX_UNKNOWNS got through
+        #  nothing above MAX_UNKNOWNS got through
         self.assertLessEqual(max(counts), MAX_UNKNOWNS,
                              fs + ' (an over-threshold equation slipped past the gate)')
 

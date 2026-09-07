@@ -191,15 +191,12 @@ class TestSolver007(unittest.TestCase):
         #  scan_for_equations must not report the same statement twice.
         #
         #  kequation equality compares the LHS/RHS split, so "e = 0" and
-        #  "-e = 0", and "a = b" and "a - b = 0", all looked like distinct
-        #  equations.  Measured on the shipped robots: half of KawasakiRS05L's
-        #  eqns_2u and a quarter of ArmRobo's were sign duplicates.  That
-        #  inflates every list the solvers scan, and -- worse -- makes a pair of
-        #  equations look independent when it carries no new information, which
-        #  is exactly the precondition a future elimination leaf would test.
-        #  NOTE: sign duplicates only.  A re-split of the same statement
-        #  ("a = b" vs "a - b = 0") must NOT be collapsed -- the solvers are
-        #  sp.Wild structural matchers and the split is load-bearing.  See
+        #  "-e = 0" look like distinct equations.  Sign duplicates inflate every
+        #  list the solvers scan and make a pair of equations look independent
+        #  when it carries no new information.
+        #  SIGN DUPLICATES ONLY:  a re-split of the same statement ("a = b" vs
+        #  "a - b = 0") must NOT be collapsed -- the solvers are sp.Wild
+        #  structural matchers and the split is load-bearing.  See
         #  Robot.eqn_key().
         fs2 = 'scan_for_equations duplicate FAIL'
         for lname, lst in (('L1', L1), ('L2', L2)):
@@ -222,10 +219,8 @@ class TestSolver007(unittest.TestCase):
         #  The 2-way SOA substitution must have happened:  th_2 + th_3 has been
         #  replaced by th_23 in the Pz equation.
         #
-        #  Both LHS/RHS splits of the Pz equation are legitimately present --
-        #  the solvers are structural matchers, so the split matters (see
-        #  Robot.eqn_key).  Assert on content, order-independently, rather than
-        #  pinning list indices.
+        #  Both LHS/RHS splits of the Pz equation are legitimately present, so
+        #  assert on content order-independently rather than on list indices.
         want = [ (Pz,       -a_2*sp.sin(th_2) - a_3*sp.sin(th_23) + d_1 - d_4*sp.cos(th_23)),
                  (Pz - d_1, -a_2*sp.sin(th_2) - a_3*sp.sin(th_23)       - d_4*sp.cos(th_23)) ]
         for lhs, rhs in want:

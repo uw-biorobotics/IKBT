@@ -165,21 +165,16 @@ class algebra_id(b3.Action):
 
                         tmp = tmp.collect(u.symbol)
 
-                        #  "contains u" is not the same as "is linear in u", and
-                        #  this leaf can only do linear.  Confirm the shape here
-                        #  rather than letting algebra_solve divide by whatever
-                        #  the Wilds happen to return.  Excluding u.symbol from
-                        #  both Wilds is what gives the match teeth -- otherwise
-                        #  'Aw*u + Bw' matches ANYTHING via Aw = (expr-Bw)/u,
-                        #  the same degeneracy already fixed in tan_solver and
-                        #  sincos_solver.  Rejected shapes and what they used to
-                        #  produce:
+                        #  "contains u" is not "is linear in u", and this leaf
+                        #  can only do linear.  Excluding u.symbol from both
+                        #  Wilds is what gives the match teeth -- otherwise
+                        #  'Aw*u + Bw' matches ANYTHING via Aw = (expr-Bw)/u.
+                        #  Shapes this rejects, and the nonsense they produced:
                         #     d_1**2 - l_1            ->  d_1 = l_1/d_1
                         #     sin(th_1+th_2) - r_11   ->  th_1 = r_11*th_1/sin(th_1+th_2)
                         #     -d_1*l_3 + 5            ->  d_1 = d_1**2*l_3/5
-                        #  i.e. "solutions" that are functions of the very
-                        #  variable being solved -- and set_solved() was called
-                        #  on all of them.
+                        #  i.e. a "solution" that is a function of the variable
+                        #  being solved.
                         d = linear_match(tmp, u.symbol)
                         if d is None:
                             if(self.BHdebug):
@@ -282,18 +277,8 @@ class TestSolver002(unittest.TestCase):
     #  test_algebra() below compares against exact sympy expressions captured
     #  from a run, over three linear cases with positive coefficients.  That
     #  pins the FORM of the answer, not its correctness, and says nothing about
-    #  what the leaf does when handed a shape it cannot solve.
-    #
-    #  It could not: algebra_id's only screen was "does the equation mention u
-    #  and not sin(u)/cos(u)", so anything nonlinear in u was claimed, and
-    #  algebra_solve then divided by whatever an unconstrained Wild returned.
-    #  All three of these were emitted AND passed to set_solved():
-    #
-    #      0 = d_1**2 - l_1           ->  d_1 = l_1/d_1
-    #      r_11 = sin(th_1 + th_2)    ->  th_1 = r_11*th_1/sin(th_1 + th_2)
-    #      0 = -d_1*l_3 + 5           ->  d_1 = d_1**2*l_3/5
-    #
-    #  i.e. "solutions" that are functions of the variable being solved.
+    #  what the leaf does when handed a shape it cannot solve -- which is what
+    #  these tests cover.  See the linear_match() screen in algebra_id.
 
     def run_alg(self, exprs, sym, others=()):
         '''Drive algebra_id + algebra_solve over `exprs` (each meaning

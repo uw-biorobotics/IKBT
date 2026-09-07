@@ -105,12 +105,11 @@ class tan_id(b3.Action):    # action leaf for ID eqns solved by atan2()
 
             # Wilds must exclude sin/cos of THIS unknown, so they are built
             # here rather than reusing the module-level ones.  An unconstrained
-            # 'Cw*cos(u) + Dw' is ambiguous -- it matches anything via
-            # Cw = (expr - Dw)/cos(u) -- and sympy returns exactly that
-            # degenerate reading when the coefficient is negative, e.g.
-            #   -3*d_3*cos(th_1) + 4.95  ->  {Cw: 4.95/cos(th_1), Dw: -3*d_3*cos(th_1)}
-            # The count_unknowns(d2[Dw]) screen below then rejected a pair the
-            # leaf can solve, so a negative coefficient silently defeated it.
+            # 'Cw*cos(u) + Dw' matches anything via Cw = (expr - Dw)/cos(u),
+            # and sympy returns exactly that degenerate reading for a negative
+            # coefficient:
+            #   -3*d_3*cos(th_1) + 4.95  ->  {Cw: 4.95/cos(th_1), ...}
+            # which the count_unknowns() screen below then wrongly rejects.
             Awx = sp.Wild('Awx', exclude=terms)
             Bwx = sp.Wild('Bwx', exclude=terms)
             Cwx = sp.Wild('Cwx', exclude=terms)
@@ -135,33 +134,15 @@ class tan_id(b3.Action):    # action leaf for ID eqns solved by atan2()
                         print("\ncos(): coefficients")
                         print(d2[Cwx]          )
                     
-                    # A failed match is NOT an error -- it means this particular
-                    # (sin eqn, cos eqn) pair is not of the form this leaf
-                    # solves, so skip it and try the next one.
+                    # A failed match is NOT an error -- this (sin, cos) pair is
+                    # simply not of the form this leaf solves, so skip it.
+                    # match() is structural and will not expand to find a
+                    # cos(u) buried in an unexpanded product, e.g.
+                    #   0 = -Px + (l_2*cos(th_2) + l_3*sin(th_23))*cos(th_1)
                     #
-                    # REGRESSION, Aug 2026: this used to be
-                    #     assert(d1 is not None and d2 is not None)
-                    # which was safe only while the Wilds were unconstrained.
-                    # An unconstrained Wild never fails to match, so the assert
-                    # could not fire; unusable pairs were instead rejected a few
-                    # lines below by the count_unknowns() screen.  Adding
-                    # exclude=terms (correctly) made match() return None for
-                    # shapes it cannot decompose -- and turned that graceful
-                    # rejection into a hard crash.
-                    #
-                    # KawasakiRS007L is the victim.  Solving th_2 against
-                    #     0 = -Px + (l_2*cos(th_2) + l_3*sin(th_23))*cos(th_1)
-                    # fails to match because cos(th_2) sits inside an UNEXPANDED
-                    # product, and match() is structural -- it will not expand to
-                    # find it.  Before exclude= the same expression matched as
-                    # {Cw: 0, Dw: <whole expr>}, which count_unknowns(Dw) > 0
-                    # then rejected.  Same outcome, no crash.
-                    #
-                    # Note .expand() before .collect() above would let this pair
-                    # match properly ({Cw: l_2*cos(th_1), ...}).  Deliberately
-                    # NOT done here: it would let tan_id claim pairs it has never
-                    # claimed before, which is a capability change, not a
-                    # regression fix.
+                    # Adding .expand() before .collect() above would let that
+                    # pair match.  Deliberately NOT done:  it would let tan_id
+                    # claim pairs it has never claimed, a capability change.
                     if d1 is None or d2 is None:
                         if self.BHdebug:
                             print('tan_id: cannot decompose this pair for ',

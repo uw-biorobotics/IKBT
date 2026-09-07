@@ -192,3 +192,252 @@ their triples are concurrent for *any* `d_n1`, including a prismatic joint varia
 
 `scripts/axis_triple_check.py` exists because all three traps fail silently. It checks every
 rule in the module header against numeric FK geometry across the whole robot set.
+
+---
+
+## ikbtfunctions/bt_assembly.py
+
+### Why the hybrid branch is not conditioned on Pieper's condition (BH, 2026-08-31)
+
+The old inner gate was `Sequence[no_pieper_id, ...]` — a leaf that FAILed when a triple
+existed, sitting bare in a Sequence that aborts on FAILURE. It admitted the branch only for an
+arm with *no* triple of consecutive joint axes that intersects or is parallel, reasoning that
+an arm which *has* a triple and still failed symbolically is an IKBT defect rather than a
+geometry problem, and must not be simplified. Two things are wrong with that:
+
+- It is the same fallacy the tree avoids in the other direction. Pieper's condition is
+  *sufficient* for a closed form and is not known to be necessary — which is why the *absence*
+  of a triple must never gate the symbolic branch (9 of the 32 robots have no triple and solve
+  completely). The mirror holds: the *presence* of a triple does not imply IKBT can crack the
+  arm. Over the unsolved set, ArmRobo (triples (2,3,4) and (4,5,6)), Panda ((1,2,3)) and
+  Raven-II ((1,2,3),(2,3,4),(3,4,5)) all satisfy the condition and all solve 0 unknowns. So
+  for the three robots the gate turned away, its answer was "this is our bug, so you get
+  nothing".
+- The honest test already sits one node later. `candidate_simplifications()` skips triples that
+  *already* qualify, so an arm whose every triple qualifies yields no candidate and
+  `simplified_arm` FAILs by itself.
+
+The leaf is still needed for its **output**: `pieper_latex` must be snapshotted from the TRUE
+robot before `install_simplified` swaps it, and "had a triple, failed symbolically, and the
+simplified arm solved" is precisely the report line that identifies a solver gap and points at
+it. So it was renamed to what it now does — `pieper_geom_report`, always SUCCESS, ticked for
+side effects.
+
+The branch also used to end in `hybrid_stub`, an always-FAIL leaf whose job was to withhold
+the report, because the closed form on the blackboard describes the DERIVED arm and emitting
+it as the real robot is the one thing this method must never do. That is still true, but
+`report_gen` now handles it: a HYBRID report and a two-phase python module, every artifact
+naming the arm it describes. Withholding the answer was only right while there was no honest
+way to present it.
+
+### Solver ordering in `build_worktools()`
+
+**`Simu_Eqn_Sol` ahead of `sc_tan`** (BH, 2026-09-03). This deliberately breaks the
+"put new things last" rule: that rule keeps an *addition* behaviour-preserving, and this is not
+an addition but a correction of which solver gets first refusal, so it must change results.
+
+Measured on Chair_Helper, whose `th_2` is exactly the arcsin case. Its arcsin came from an
+equation `sub_transform` had manufactured — substituting `r_13` into the `Px` equation
+collapses the `cos(th_2)` terms away — while `L1` already held the canonical pair. Over 10
+random reachable poses the supplementary branch was valid **0 times out of 20**: half the
+advertised solution set was unusable, with nothing to say which half.
+
+| robot | before | after |
+|---|---|---|
+| Chair_Helper | 2 of 4 versions correct | 2 of 2 |
+| ICP5p5_A21 | 0 of 2 | 1 of 1 |
+
+The robots already recorded complete in `scripts/expected.py` (Puma, Stanford, Khat6DOF,
+Olson13, Brad, Wrist — and Pumaoffset, removed 2026-09-05 as a duplicate of Puma's DH) stay at
+100%. Note that the version *counts* drop: a spurious branch that no longer exists is a
+smaller solution set, so the recorded `n_solutions` moves for these robots. That is the fix
+working.
+
+**`invariantGen` last.** At `PYTHONHASHSEED=0`, Wrist / Puma / Chair_Helper / KawasakiRS007L
+all produce byte-identical LaTeX with it in the tree. Promoting it (one line) measurably
+produces *better* solutions — its `||P||^2` invariant subsumes the x2y2 trick, so Puma's `th_3`
+goes from "x2z2 transform and sinANDcos" to plain "sinANDcos", with an identical solution
+expression and one fewer dependency, hence a smaller solution set. It is not promoted because
+it costs ~4.8× the time on Puma, all of it `sp.simplify()` over full FK expressions. It is also
+on by default despite never yet having solved a robot that could not be solved without it,
+because the leaves ahead of it fall through only when they have all failed — never, on a robot
+that solves cleanly — so it costs those robots nothing.
+
+**Why `x2y2_transform` left the tree** (measured on UR5, 2026-08-28). `invariant_gen` subsumes
+it: the x2y2 trick is the `||P||^2` invariant for one particular pair of position equations,
+and `invariant_gen` emits that plus `trace(R)` and the column invariants over every pair. Two
+reasons it went:
+
+- *It never fired.* Ticked 15 times over a 9-pass solve, FAILURE every time. At the decisive
+  tick its pair search tested 91 pairs and accepted none: 70 died because `l1^2 + l2^2` still
+  held unknowns, and of the 21 that survived, every one left *two* unknowns on the other side
+  where the acceptance test demands exactly one.
+- *It re-derived that dead end from scratch on every tick,* with no memo, at ~20 minutes a pass
+  once the leaves ahead of it stopped short-circuiting it.
+
+### Pass budget
+
+`symbolic_loop`'s budget was raised 10 → 20 (BH, 2026-08-28) once the solvers began refusing
+equations that constrain nothing and falling through to `invariant_gen`: a pass that used to
+end in a bogus solve now ends in a restock, so real solves take more passes. Under the old
+tree the deepest solve across all 32 robots was UR5 at 9 passes. A DH table is solved once,
+so passes are cheap in the only currency that matters.
+
+### Why `Priority([x, Succeeder()])` wraps the transforms
+
+`b3.Sequence` aborts on its first FAILURE, so a failing `sub_transform` or solve subtree meant
+`updateL` and `comp_det` never ran — and on a robot that solves nothing, that is every pass.
+Measured: `comp_det` ticked 8 times on Puma and 0 times on KawasakiRS05L, so the tree had no
+termination logic in exactly the case that needs it and ran head-first into the report
+generator with an empty solution set.
+
+---
+
+## ikbtleaves/assigner_leaf.py
+
+**Offer a determined variable first — the worked example.** Measured on KinovaLite's derived
+arm `KinovaLite_d_5_0` (7 unknowns), `th_23` was solved 6th, *after* `th_6`. At `th_6`'s turn,
+35 equations mentioning `th_23` were still held out of `L1`, so `eqns_1u` contained only three
+`th_6` equations, all of the ambiguous `A*sin(th_6) + B*cos(th_6) = C` shape. `simu_id` (which
+scans `eqns_1u`) found no canonical sin/cos pair and declined, so `sinANDcos_solver` fired and
+returned two roots. But `th_6` is the terminal joint: given `th_1..th_5` it is unique and must
+contribute a factor of exactly 1. That spurious factor of 2 doubled the solution matrix to 16
+rows, 8 of them meaningless.
+
+    solve order BEFORE:  th_1, th_3, th_2, th_5, th_6, th_23, th_4
+    solve order AFTER :  th_1, th_3, th_2, th_23, th_4, th_5, th_6
+
+    th_6  sinANDcos     nsol=2 -> simultaneous eqn nsol=1   spurious, gone
+    th_5  arccos        nsol=2 -> simultaneous eqn nsol=1   wrist flip ...
+    th_4  simultaneous  nsol=1 -> atan2(y,x)       nsol=2   ... moved here
+
+`n_solutions` 16 → 8, 7/7 solved in 8 passes (was 9), closed loop 8 of 8.
+
+The wrist's *genuine* two-fold ambiguity did not disappear — it is carried by `th_4` instead of
+`th_5`, the same posture pair written the other way round, and either factorisation gives 8
+rows. What disappeared is `th_6`'s, which was never real.
+
+The whole 31-robot sweep moves exactly this one robot: 1 moved, 30 unchanged. 17 of the 31
+carry an SOA variable, but on the others it is already solved before its constituents are —
+Puma solves `th_23` *first* from a simultaneous equation and then gets `th_2` by algebra, so
+the definition's constituents are never both solved while `th_23` is still open.
+
+**Why the rule is narrow.** A broader trigger was tried and measured.
+`Robot.kequation_aux_list` is not only the SOA definitions: `invariant_gen` and
+`parallel_triple` mine invariants into it, and `x2y2_transform` appends its product. On
+KinovaLite the list grows from 1 entry (the pickle's `th_23 = th_2 + th_3`) to 9 during the
+solve. A rule of "any aux equation with one unsolved unknown left" therefore also fires on
+
+    Px**2 - 2*Px*d_3*sin(th_1) - ... = d_4**2 + 2*d_4*d_6*cos(th_5) + d_6**2
+
+— a large nonlinear equation in `th_5`, where "one unknown remains" says nothing about
+determinacy: `th_5` there is a cosine, worth two branches, and no leaf is guaranteed to crack
+it. Measured, those broad firings changed the offer order on two of three preemptions and
+changed the *outcome* on none. Widening the trigger would move solve order on 31 robots in
+exchange for nothing.
+
+**The starvation guard is mandatory.** The first version had none. Measured on KinovaLite:
+`th_23` re-offered on every tick, **102 consecutive preemptions**, the solve flatlined at 2 of
+7 and burned all 20 passes.
+
+---
+
+## ikbtleaves/comp_detect.py
+
+**Why the stop is two decisions and not one.** The stop used to be conditional on `ns == 0`,
+which quietly meant a *partial* solve that stalled could never stop. The reason to fix that was
+not speed — these are hard problems and a long solve is legitimate — but that the node was
+**continuing past its own proof**. Once a pass has left the solved set and every equation pool
+exactly as it found them, re-running the identical pass cannot produce a different result;
+`comp_det` had already established there was nothing to do, carried on anyway, and then
+reported "the budget ran out" as though the budget were the reason it stopped. That is a wrong
+answer about *why* the solve ended, and it buries the real diagnosis.
+
+Observed on Issue4's derived arm: `th_1` solved in pass 1, then nine further passes each
+leaving the signature at `(1, 0, 13, 60, ...)`.
+
+The `ns == 0` test was not redundant, though — it answers a *different* question, which is why
+removing it alone would be a regression. `no_progress` means "there is nothing to report", not
+"stop ticking".
+
+**Robots that start with an empty `L1`:** ArmRobo, Issue4, KawasakiRS05L, KinovaLite, Raven-II.
+Before this check the resulting `IndexError` in `make_LHS_versions()` was masking five
+different robots' real diagnosis.
+
+**Why the signature compares contents, not counts.** The count-based signature was unsound — a
+pass that replaces an equation with a different one of the same count looks identical — and
+that was harmless only while the stop was also gated on `ns == 0`. Opening the stop to partial
+solves exposed it immediately: across all 32 robots, ICP5p5_A21 and Parkman13 went
+`solved → partial`, because both complete via a pass whose pool counts happen to match the
+previous pass while its contents move on. Comparing the equations costs a `str()` each — about
+75 on Issue4, a few milliseconds against passes that run 80 s.
+
+**Why a repeated signature alone is not proof of being stuck.** Traced on ICP5p5_A21:
+
+    pass 3  solved th_1,th_3,th_4  L1=6  curr_unk=th_4  changed
+    pass 4  solved th_1,th_3,th_4  L1=6  curr_unk=th_1  NO CHANGE
+    pass 5+ ... goes on to solve the 4th variable
+
+Stopping on the repeat alone took ICP5p5_A21 and Parkman13 from `solved` to `partial`.
+
+---
+
+## ikbtleaves/invariant_gen.py
+
+**Yields on the shipped FK pickles** (unsolved-unknown counts):
+
+    Puma      meqn 2   ||P||^2  ->  1 unknown:
+                 a_2^2 + 2*a_2*a_3*cos(th_3) - 2*a_2*d_4*sin(th_3)
+                       + a_3^2 + d_3^2 + d_4^2
+    Puma      meqn 1   ||P||^2  ->  2 unknowns, or 1 after SOA back-substitution
+    Kawasaki  meqn 2   ||P||^2  ->  1 unknown  (8 ops)
+    KinovaLite               ->  no gain (3-4 unknowns; discarded by the threshold)
+
+**What it costs when it runs on everything** (why the class default is off, and why it is last
+in the worktools Priority rather than promoted):
+
+    Puma        28 s -> 159 s    output byte-identical
+    Kawasaki    27 s -> 126 s    output byte-identical
+    KinovaLite  43 s -> >10 min  still 0 variables solved
+
+Promoted ahead of the sin/cos solvers it *does* produce a better derivation for Puma's `th_3`
+— identical solution expression, one fewer dependency, and it makes the x2y2 special case
+unnecessary — but at ~4.8×, on a robot that already solved fine. No robot has yet been solved
+that could not be solved without it.
+
+## ikbtleaves/parallel_triple.py
+
+On UR5 (2026-08-28), before the sanity check landed, IKBT reported "solved 9/9" while 0 of 8
+solution versions reproduced the pose, because `th_2` came from an equation that was
+identically `0 = 0` (see `ikbtbasics/eqn_sanity.py`). With that equation refused, UR5 solves
+`th_1`, `th_5`, `th_6`, `th_234` and stops — exactly steps (8)–(11) of IK-Geo's Section IV-B
+algorithm for this robot family. Step (12), which this leaf supplies, is the law-of-cosines
+equation for the middle joint of the triple.
+
+`x2z2_transform` and `invariant_gen` both fail on this case: the former squares pairs of raw
+position equations, the latter takes `|P|^2` over the whole symbolic side with the wrist terms
+still in it, and in both the cross term does not collapse.
+
+## ikbtleaves/tan_solver.py
+
+**Why `d1 is None` is a skip, not an assert** (Aug 2026). The code was
+`assert(d1 is not None and d2 is not None)`, which was safe only while the Wilds were
+unconstrained — an unconstrained Wild never fails to match, so the assert could not fire, and
+unusable pairs were rejected a few lines later by the `count_unknowns()` screen. Adding
+`exclude=terms` (correctly) made `match()` return None for shapes it cannot decompose, turning
+that graceful rejection into a hard crash.
+
+KawasakiRS007L was the victim. Solving `th_2` against
+
+    0 = -Px + (l_2*cos(th_2) + l_3*sin(th_23))*cos(th_1)
+
+fails to match because `cos(th_2)` sits inside an unexpanded product and `match()` is
+structural. Before `exclude=`, the same expression matched as `{Cw: 0, Dw: <whole expr>}`,
+which `count_unknowns(Dw) > 0` then rejected — same outcome, no crash.
+
+## ikbtleaves/updateL.py, ikbtbasics/ik_classes.py
+
+**Sign-duplicate equations were common.** Measured on the shipped robots: half of
+KawasakiRS05L's `eqns_2u` and a quarter of ArmRobo's were sign duplicates. Beyond inflating
+every list the solvers scan, they make a pair of equations look independent when the pair
+carries no new information — exactly the precondition a future elimination leaf would test.

@@ -60,14 +60,9 @@ class comp_det(b3.Action):
         super(b3.Action, self).__init__()
         self.FailAllDone = False   # we can set up to succeed when all are done or succeed when more to do. 
         self.Name = '*completion_detect*'
-        #  Was 2 seconds:  a deliberate pause so a human could read the status
-        #  wall as it scrolled by.  Now 0 -- not to reclaim the time, but
-        #  because what it compensated for is gone:  symbolic_loop prints ONE
-        #  compact line per pass (ikbtfunctions/progress.py), so nothing
-        #  scrolls past unread and a pause that no longer buys legibility is
-        #  just a pause.  scripts/robot_baseline.py already forced it to 0, so
-        #  the recorded baseline is unaffected.  Raise it to get the old
-        #  scroll-and-pause behaviour back.
+        #  Was 2 s, a pause so a human could read the status wall as it
+        #  scrolled by.  symbolic_loop now prints one compact line per pass,
+        #  so nothing scrolls past unread.  Raise it to get the pause back.
         self.read_pause = 0
         
     def tick(self,tick):
@@ -129,74 +124,39 @@ class comp_det(b3.Action):
         #
         #   Nothing solved and nothing changed:  give up cleanly.
         #
-        #   The whole BT bootstraps from eqns_1u.  Several robots (ArmRobo,
-        #   Issue4, KawasakiRS05L, KinovaLite, Raven-II) start with an EMPTY
-        #   L1 -- every equation has 2+ unknowns -- so no ID node can fire on
-        #   anything and not one variable is ever solved.  Without this check
-        #   the tree grinds all 10 outer passes and then hands an empty
-        #   solListMatrix to the report generator, which dies with
-        #   'IndexError: list index out of range' in make_LHS_versions().
-        #   That one crash was masking five different robots' real diagnosis.
+        #   The whole BT bootstraps from eqns_1u, and several robots start with
+        #   an EMPTY L1 -- every equation has 2+ unknowns -- so no ID node can
+        #   fire and not one variable is ever solved.  Without this check the
+        #   tree grinds through its whole budget and then hands an empty
+        #   solListMatrix to the report generator, which dies in
+        #   make_LHS_versions().
         #
-        #   Why this waits for a SECOND identical pass rather than stopping
-        #   after the first:  a transform (x2y2, sub_transform, the invariant
-        #   generator) can legitimately solve nothing on a pass while still
-        #   ADDING equations that let the next pass solve something.  Bailing
-        #   on "ns == 0" alone would cut those robots off.  So we stop only
-        #   when a whole pass changed nothing at all -- no variable solved and
-        #   no equation added -- which no amount of further ticking can undo.
+        #   This waits for a SECOND identical pass rather than stopping after
+        #   the first because a transform can legitimately solve nothing on a
+        #   pass while still ADDING equations that let the next pass succeed.
+        #   So we stop only when a whole pass changed nothing at all -- no
+        #   variable solved and no equation added.
         #
-        #   TWO DECISIONS, NOT ONE.  This block used to make the stop
-        #   conditional on `ns == 0`, which quietly meant a PARTIAL solve that
-        #   stalled could never stop.  The reason to fix that is NOT speed --
-        #   these are hard problems and a long solve is entirely legitimate --
-        #   it is that the node was CONTINUING PAST ITS OWN PROOF.  Once a pass
-        #   has left the solved set and every equation pool exactly as it found
-        #   them, re-running the identical pass cannot produce a different
-        #   result;  comp_det had already established there was nothing to do,
-        #   carried on anyway, and then reported "the budget ran out" as though
-        #   the budget were the reason it stopped.  That is a wrong answer about
-        #   WHY the solve ended, and it buries the real diagnosis.
-        #
-        #   Observed on Issue4's derived arm:  th_1 solved in pass 1, then nine
-        #   further passes each leaving the signature at (1, 0, 13, 60, ...).
-        #   Ending at the repeat reports what actually happened.  It is also
-        #   faster, which is welcome but is a side effect, not the point.
-        #
-        #   The `ns == 0` was not simply redundant, though -- it was load-bearing
-        #   for a DIFFERENT question, which is why removing it alone would be a
-        #   regression.  `no_progress` does not mean "stop ticking";  it means
-        #   "there is nothing to report".  ik_driver.run_solver() skips
-        #   create_solution_set() when it is set, and solved_anything() gates
-        #   emit_outputs() on it -- so setting it for a partial solve would
-        #   DISCARD the partial closed form, and IKBT has always reported
-        #   partial solves.
-        #
-        #   So the two are now separated:
+        #   TWO DECISIONS, NOT ONE:
         #
         #       stalled      -> stop ticking            (signature repeated)
         #       ns == 0      -> nothing to report       (no_progress)
+        #
+        #   `no_progress` does NOT mean "stop ticking" -- run_solver() skips
+        #   create_solution_set() when it is set and solved_anything() gates
+        #   emit_outputs() on it, so setting it for a PARTIAL solve would
+        #   discard a partial closed form that IKBT has always reported.
+        #   See IKdocs/DEV_NOTES.md.
         #
         L1 = tick.blackboard.get('eqns_1u') or []
         L2 = tick.blackboard.get('eqns_2u') or []
         L3 = tick.blackboard.get('eqns_3pu') or []
 
-        #   CONTENTS, not counts.  The signature used to be
-        #
-        #       (ns, len(L1), len(L2), len(L3), len(aux))
-        #
-        #   which is not a sound "nothing changed" test:  a pass that REPLACES
-        #   an equation with a different one of the same count looks identical.
-        #   That unsoundness was harmless only because the stop was also gated
-        #   on `ns == 0` -- a solve that had never solved anything.  Opening the
-        #   stop to partial solves exposed it immediately:  measured over all 32
-        #   robots, ICP5p5_A21 and Parkman13 went `solved -> partial`, because
-        #   both complete via a pass whose pool counts happen to match the
-        #   previous pass while its contents move on.
-        #
-        #   Comparing the equations themselves costs a str() per equation --
-        #   about 75 of them on Issue4, a few milliseconds against passes that
-        #   run 80 s.  Sorted, because a reordered pool is not progress either.
+        #   CONTENTS, not counts.  A signature of
+        #   (ns, len(L1), len(L2), len(L3), len(aux)) is not a sound "nothing
+        #   changed" test:  a pass that REPLACES an equation with a different
+        #   one of the same count looks identical.  Sorted, because a reordered
+        #   pool is not progress either.
         signature = (tuple(sorted(u.name for u in unks if u.solved)),
                      _pool_signature(L1),
                      _pool_signature(L2),
@@ -207,31 +167,22 @@ class comp_det(b3.Action):
 
         repeated = (previous is not None and signature == previous)
 
-        #   A REPEATED SIGNATURE IS NOT PROOF OF BEING STUCK, and that is the
-        #   subtle part.  assigner_leaf round-robins `curr_unk` over the unsolved
-        #   variables, so a pass can change nothing simply because it was offered
-        #   a variable it cannot currently solve -- and the NEXT pass, offered a
-        #   different one, succeeds.  `curr_unk` is solver state the signature
-        #   cannot see.  Traced on ICP5p5_A21:
-        #
-        #       pass 3  solved th_1,th_3,th_4  L1=6  curr_unk=th_4  changed
-        #       pass 4  solved th_1,th_3,th_4  L1=6  curr_unk=th_1  NO CHANGE
-        #       pass 5+ ... goes on to solve the 4th variable
-        #
-        #   Stopping on the repeat alone took ICP5p5_A21 and Parkman13 from
-        #   `solved` to `partial`.
+        #   A REPEATED SIGNATURE IS NOT PROOF OF BEING STUCK.  assigner_leaf
+        #   round-robins `curr_unk` over the unsolved variables, so a pass can
+        #   change nothing simply because it was offered a variable it cannot
+        #   currently solve, and the NEXT pass, offered a different one,
+        #   succeeds.  `curr_unk` is solver state the signature cannot see.
         #
         #   What IS sound is an EMPTY eqns_1u:  every solver leaf needs an
         #   equation in one unknown to start, so with L1 empty nothing can fire
-        #   for ANY variable and the assigner's cursor stops mattering.  Combined
-        #   with unchanged pool contents -- meaning no transform produced
+        #   for ANY variable and the assigner's cursor stops mattering.
+        #   Combined with unchanged pool contents -- no transform produced
         #   anything either -- that is a real dead end.
         #
-        #   The ns == 0 path keeps its ORIGINAL condition (repeat alone), so
-        #   every previously-stopping robot stops exactly as before.  Requiring
-        #   an empty L1 there too would risk letting a 0-solved robot run to
+        #   The ns == 0 path keeps the ORIGINAL condition (repeat alone).
+        #   Requiring an empty L1 there too could let a 0-solved robot run to
         #   budget without `no_progress`, and create_solution_set() would then
-        #   crash on an empty solution set -- the bug that guard exists for.
+        #   crash on an empty solution set.
         stalled = repeated and (ns == 0 or len(L1) == 0)
 
         if stalled:

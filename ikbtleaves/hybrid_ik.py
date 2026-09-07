@@ -2,36 +2,28 @@
 #
 #   hybrid_ik.py --  the hybrid symbolic-numeric branch
 #
-#   The hybrid method (CLAUDE.md, "Future Work"):  when IKBT cannot solve a
-#   robot in closed form, simplify its DH parameters until it can, solve the
-#   SIMPLIFIED robot symbolically, and correct the result numerically using the
-#   symbolic Jacobian.  Measured, 11 of the 32 robots in ROBOT_LIST have no
-#   Pieper triple of any kind, and where that is what blocks the solve a single
-#   DH parameter is responsible -- KinovaLite with d_5 -> 0 goes from 0-of-7
-#   variables solved to all 7.
-#
-#   THE BRANCH IS COMPLETE, and there is no longer a stub at the end of it.
-#   It used to close with hybrid_stub, an always-FAIL leaf that withheld the
-#   report because the closed form on the blackboard describes the DERIVED arm,
-#   and emitting it as though it were the real robot is the one thing this
-#   method must never do.  That remains true;  what changed is that there is now
-#   an honest way to present the answer, so withholding it is no longer the only
-#   safe option.  report_gen reads `hybrid_source` and writes a hybrid report
-#   plus a two-phase python module, with every artifact named for the arm it
-#   actually describes.
+#   When IKBT cannot solve a robot in closed form:  simplify its DH parameters
+#   until it can, solve the SIMPLIFIED robot symbolically, and correct the
+#   result numerically using the symbolic Jacobian.  11 of the 32 robots in
+#   ROBOT_LIST have no Pieper triple of any kind, and where that is what blocks
+#   the solve a single DH parameter is usually responsible -- KinovaLite with
+#   d_5 -> 0 goes from 0 of 7 variables solved to all 7.
 #
 #   The pieces, in the order the branch ticks them:
 #
-#       pieper_geom_report   does this robot have a Pieper triple?  REPORTING
-#                         ONLY -- always SUCCESS, and the branch is not gated on
-#                         the answer.  See its docstring for why the gate went.
+#       pieper_geom_report  does this robot have a Pieper triple?  REPORTING
+#                         ONLY -- always SUCCESS;  the branch does not depend
+#                         on the answer.  See its docstring.
 #       simplified_arm    which single DH parameter costs the least task-space
-#                         displacement to zero or snap?  THIS is the gate.
+#                         displacement to zero or snap?  THIS leaf decides
+#                         whether the branch proceeds.
 #       install_simplified build the derived robot and swap it in
 #       (the symbolic solver again, over its own leaf set)
 #       then report_gen -- ikbtfunctions/output_hybrid_python.py -- emits the
 #       closed form for the derived arm and the damped-least-squares correction
-#       against the true one
+#       against the true one.  Every artifact is named for the arm it describes;
+#       emitting the derived arm's closed form as though it were the real robot
+#       is the one thing this method must never do.
 #
 #   Copyright 2026 University of Washington
 #

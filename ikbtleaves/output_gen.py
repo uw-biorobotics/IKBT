@@ -12,12 +12,8 @@
 #   inside each branch.  b3.Sequence aborts on FAILURE, so a solve that got
 #   nowhere never reaches this leaf and no empty report is written.
 #
-#   OFF BY DEFAULT, and that is a promise being kept rather than caution.
-#   tests/test_chair_helper.py runs a complete solve and documents that it leaves
-#   LaTex/ and CodeGen/ alone;  every unit test that builds a tree would start
-#   overwriting the repo's generated artifacts the moment this leaf fired on its
-#   own.  So library and test callers get an inert node, and the ikSolver.py
-#   command line opts in --
+#   OFF BY DEFAULT, so that library and test callers get an inert node and do
+#   not overwrite the repo's generated artifacts.  ikSolver.py opts in --
 #
 #       bt, nodes = build_default_bt(codegen=True)
 #

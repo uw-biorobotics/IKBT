@@ -2,25 +2,18 @@
 #
 #   clear_state.py --  drop leftover solver state so a solve starts clean
 #
-#   The IKBT tree now contains the symbolic solver TWICE:  once on the symbolic
-#   branch, and once on the hybrid branch applied to a simplified arm.  Two
-#   separate node instance sets, so b3's own per-node memory (is_open, loop
-#   counters) is keyed by fresh node ids and is clean automatically.  What is NOT
-#   automatic is the unscoped application state on the blackboard -- comp_det's
-#   verdict from the FAILED first solve would still be sitting there when the
-#   second solve starts.
+#   The tree contains the symbolic solver TWICE:  once on the symbolic branch,
+#   once on the hybrid branch over a simplified arm.  They are separate node
+#   instances, so b3's own per-node memory is keyed by fresh node ids and is
+#   clean automatically.  The unscoped application state on the blackboard is
+#   not -- comp_det's verdict from the FAILED first solve would still be there
+#   when the second solve starts.  So each solver begins with this leaf.
 #
-#   So each solver begins with this leaf.  On the first solve there is nothing to
-#   drop;  on the second it is what makes "we already failed, wipe and retry"
-#   actually true.
-#
-#   WIPE BY DEFAULT, KEEP BY EXCEPTION.  The keep-list is the whole design
-#   decision.  An enumerated *clear*-list rots silently:  add a blackboard key
-#   next year, forget to list it, and stale state leaks into the second solve
-#   with no symptom until some robot solves wrongly.  With a keep-list the
-#   failure mode inverts -- a new key that should have survived gets dropped
-#   instead, which shows up immediately as a missing value rather than a subtly
-#   wrong answer.  Cheap to diagnose.
+#   WIPE BY DEFAULT, KEEP BY EXCEPTION.  An enumerated *clear*-list rots
+#   silently:  add a blackboard key next year, forget to list it, and stale
+#   state leaks into the second solve with no symptom until some robot solves
+#   wrongly.  A keep-list inverts the failure mode -- a new key that should
+#   have survived gets dropped, which shows up at once as a missing value.
 #
 #   Copyright 2026 University of Washington
 #

@@ -2,21 +2,6 @@
 #
 #   symbolic_loop.py --  the outer solve loop, as a leaf that owns its own loop
 #
-#   This replaces  RepeatUntilSuccess(solveRoutine, 10)  as the top of the tree.
-#   It ticks the same child the same way -- repeatedly, until the child stops
-#   returning FAILURE or the budget runs out -- but because the loop is ordinary
-#   Python inside tick(), the node gets to CHOOSE its exit status instead of
-#   inheriting the last pass's.
-#
-#   That distinction is the whole point.  RepeatUntilSuccess returns FAILURE
-#   when it exhausts its loops, and a FAILURE at the top of a Sequence aborts
-#   the Sequence.  Once there is anything downstream of the solver -- codegen, or
-#   a fallback branch -- a loop-exhausted PARTIAL solve would be thrown away,
-#   even though IKBT has always reported partial solves.  Wrapping the decorator
-#   in Priority([..., Succeeder()]) hides the failure but also hides the real
-#   one, so the tree can no longer tell "solved nothing" from "ran out of
-#   passes".  Owning the loop lets us answer the only question the rest of the
-#   tree actually needs answered:  did the symbolic solver get anywhere?
 #
 #   Copyright 2026 University of Washington
 #
@@ -62,34 +47,7 @@ class symbolic_loop(b3.Decorator):
         #  any node carrying that attribute for a finite, non-zero budget.
         self.max_loop = max_loop
 
-        #  A SOLVE THAT DID NOT SOLVE EVERY UNKNOWN IS A FAILURE (BH,
-        #  2026-08-23).  A closed form for 1 of 7 joints is not inverse
-        #  kinematics;  it cannot be handed to a caller as an answer, so the
-        #  node must not report SUCCESS for it and let a report be written.
-        #
-        #  This was False, which reported SUCCESS whenever ANY variable was
-        #  solved.  That reproduced the old `solved_anything()` contract, and
-        #  while no robot in the set was ever partial the two settings were
-        #  indistinguishable -- so it looked like a free choice.  It stopped
-        #  being free when Issue4's derived arm came in at 1 of 7, the set's
-        #  first partial solve.
-        #
-        #  NOTHING IS DISCARDED by this.  The solved unknowns keep their
-        #  solutions -- set_solved() already mutated them -- so the partial
-        #  result is still on the blackboard, still in the baseline record, and
-        #  still available to any caller that wants it.  What changes is only
-        #  whether the TREE calls the solve a success and therefore reports it.
-        #  Making deliberate use of a partial result is future work:  solve
-        #  what is left numerically, in the lower-dimensional space that the
-        #  already-solved variables leave behind.
         self.require_complete = True
-
-        #  Per-pass progress reporting (ikbtfunctions/progress.py).  This node
-        #  is the only place that knows both the pass number and the budget, so
-        #  it is the only place that can say "pass 4 of 10" -- which is the
-        #  whole answer to "is this stuck or just slow".  On by default:  a
-        #  silent 700 s solve is the defect being fixed.  Set False in tests
-        #  that assert on captured output.
         self.progress = True
 
     def tick(self, tick):

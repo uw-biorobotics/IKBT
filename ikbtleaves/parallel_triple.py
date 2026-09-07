@@ -23,29 +23,18 @@
 #
 #   -- the law of cosines, one unknown, solvable by the existing arccos leaf.
 #   The cross term collapses ONLY if the trailing offsets have already been
-#   moved to the known side;  leave a d_5*cos(th_234) in the sum and squaring it
-#   against a_2*sin(th_2) reintroduces th_2, and the equation has two unknowns
-#   instead of one.  That is precisely why the two existing transforms fail:
+#   moved to the known side:  leave a d_5*cos(th_234) in the sum and squaring it
+#   against a_2*sin(th_2) reintroduces th_2, giving two unknowns instead of one.
+#   That is why the two existing transforms fail here -- x2z2_transform squares
+#   pairs of RAW position equations, and invariant_gen takes |P|^2 over the
+#   WHOLE symbolic side, wrist terms included.
 #
-#     - x2z2_transform squares pairs of RAW position equations.  Measured on
-#       UR5 at the decisive tick: 91 candidate pairs, 0 accepted -- 70 died
-#       because l1^2+l2^2 still held unknowns, and every one of the surviving 21
-#       left TWO unknowns where its test demands exactly one.  (Removed from the
-#       tree 2026-08-28.)
-#     - invariant_gen computes |P|^2 over the WHOLE symbolic side, wrist terms
-#       included, and hits the same wall.
+#   Otherwise this leaf is invariant_gen's smaller sibling, and reuses its
+#   machinery -- soa_subs_dict(), best_form(), element_forms(), is_redundant().
 #
-#   This leaf is otherwise invariant_gen's smaller sibling and deliberately
-#   reuses its machinery -- soa_subs_dict(), best_form(), element_forms() and
-#   is_redundant() -- rather than restating any of it.
-#
-#   MEASURED, UR5 (2026-08-28).  Before: reported "solved 9/9" while 0 of 8
-#   solution versions reproduced the pose, because th_2 came from an equation
-#   that was identically 0 = 0 (see ikbtbasics/eqn_sanity.py).  With that
-#   refused, UR5 solves th_1, th_5, th_6, th_234 and stops -- which is exactly
-#   steps (8)-(11) of IK-Geo's Section IV-B algorithm for this robot family.
-#   Step (12), the one this leaf supplies, is the law-of-cosines equation for
-#   the middle joint of the triple.
+#   On UR5 it supplies step (12) of IK-Geo's Section IV-B algorithm:  the
+#   solver reaches th_1, th_5, th_6, th_234 on its own -- steps (8)-(11) -- and
+#   stops for want of the law-of-cosines equation for the middle joint.
 #
 #   Copyright 2026 University of Washington
 #

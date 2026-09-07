@@ -35,49 +35,17 @@ import b3 as b3          # behavior trees
 #
 #   The plain round-robin below walks `unknowns` in list order with a
 #   persistent counter.  A sum-of-angles (SOA) variable such as th_23 is
-#   APPENDED to that list by the SOA scan (ik_classes.sum_of_angles_sub, or
-#   sum_id mid-solve), so it is always offered LAST -- after every real joint.
+#   APPENDED to that list by the SOA scan, so it is always offered LAST, after
+#   every real joint.
 #
-#   That ordering is wrong, and not merely suboptimal.  `th_23 = th_2 + th_3`
-#   is ARITHMETIC:  the instant th_2 and th_3 are solved, th_23 is determined,
-#   with one value and no branch.  There is nothing to search for and nothing
-#   to choose.  Leaving it unsolved is not a neutral delay, because
-#   count_unknowns() (helperfunctions.py) counts an unsolved SOA variable like
-#   any other:  EVERY equation mentioning th_23 is therefore classified into
-#   L2/L3p instead of L1, and the ID nodes -- which scan `eqns_1u` only -- cannot
-#   see it.  Delaying a variable that costs nothing to solve hides equations
-#   from the solvers that need them.
-#
-#   Measured on KinovaLite's derived arm KinovaLite_d_5_0 (7 unknowns):
-#   th_23 was solved 6th, AFTER th_6.  At th_6's turn, 35 equations mentioning
-#   th_23 were still held out of L1, so eqns_1u contained only three th_6
-#   equations, all of the ambiguous A*sin(th_6) + B*cos(th_6) = C shape.
-#   simu_id (which scans eqns_1u) found no canonical sin/cos pair, declined,
-#   and sinANDcos_solver fired instead and returned TWO roots.  th_6 is the
-#   TERMINAL joint:  given th_1..th_5 it is unique and must contribute a factor
-#   of exactly 1.  That spurious factor of 2 doubled the solution matrix to 16
-#   rows, 8 of them meaningless.
-#
-#       solve order BEFORE:  th_1, th_3, th_2, th_5, th_6, th_23, th_4
-#       solve order AFTER :  th_1, th_3, th_2, th_23, th_4, th_5, th_6
-#
-#       th_6  sinANDcos     nsol=2 -> simultaneous eqn nsol=1   spurious, gone
-#       th_5  arccos        nsol=2 -> simultaneous eqn nsol=1   wrist flip ...
-#       th_4  simultaneous  nsol=1 -> atan2(y,x)       nsol=2   ... moved here
-#
-#       n_solutions:  16 -> 8   (solListMatrix rows 16 -> 8),  7/7 in 8
-#                     passes, was 9
-#
-#   The wrist's GENUINE two-fold ambiguity did not disappear -- it is now
-#   carried by th_4 instead of th_5, the same posture pair written round the
-#   other way, and either factorisation gives 8 rows.  What disappeared is
-#   th_6's, which was never real.  Closed loop after the change:  8 of 8.
-#   The whole 31-robot sweep moves exactly this one robot -- 1 moved, 30
-#   unchanged.  17 of the 31 carry an SOA variable, but on the others it is
-#   already solved before its constituents are:  Puma solves th_23 FIRST from
-#   a simultaneous equation and then gets th_2 by algebra, so the definition's
-#   constituents are never both solved while th_23 is still open and there is
-#   nothing to promote.
+#   That is wrong, not merely suboptimal.  `th_23 = th_2 + th_3` is ARITHMETIC:
+#   the instant th_2 and th_3 are solved, th_23 has one value and no branch.
+#   Leaving it unsolved is not a neutral delay, because count_unknowns() counts
+#   an unsolved SOA variable like any other -- so EVERY equation mentioning
+#   th_23 is classified into L2/L3p instead of L1, and the ID nodes, which scan
+#   eqns_1u only, cannot see it.  Delaying a free variable hides equations from
+#   the solvers that need them, and the spurious branches that follow inflate
+#   the solution matrix.  (Worked example: IKdocs/DEV_NOTES.md.)
 #
 #   THE RULE, precisely.  An unsolved unknown is DETERMINED when
 #   Robot.kequation_aux_list holds a *definition* of it:  an equation whose LHS
@@ -86,39 +54,22 @@ import b3 as b3          # behavior trees
 #   an RHS evaluates to a number as it stands, so the unknown has one value and
 #   no branch.  A determined unknown is offered ahead of the round-robin cursor.
 #
-#   WHY THE RULE IS THIS NARROW, since a broader one was tried first and
-#   measured.  kequation_aux_list is not only the SOA definitions:
-#   invariant_gen and parallel_triple mine invariants into it, and
-#   x2y2_transform appends its product there too.  Instrumenting KinovaLite,
-#   the list grows from 1 entry (the pickle's `th_23 = th_2 + th_3`) to 9 during
-#   the solve.  A rule of "any aux equation with one unsolved unknown left"
-#   therefore also fires on things like
-#
-#       Px**2 - 2*Px*d_3*sin(th_1) - ... = d_4**2 + 2*d_4*d_6*cos(th_5) + d_6**2
-#
-#   -- a large nonlinear equation in th_5, where "one unknown remains" says
-#   nothing about determinacy:  th_5 there is a cos, worth two branches, and no
-#   leaf is guaranteed to crack it.  Measured, those broad firings changed the
-#   offer order on two of three preemptions and changed the OUTCOME on none;
-#   only the SOA definition firing mattered.  Widening the trigger would move
-#   solve order on 31 robots in exchange for nothing, so the trigger is the
-#   arithmetic-determinacy test above, which is the property the argument
-#   actually rests on.
+#   THE RULE IS DELIBERATELY NARROW.  kequation_aux_list is not only the SOA
+#   definitions -- invariant_gen and parallel_triple mine invariants into it,
+#   and x2y2_transform appends its product -- so a broader rule of "any aux
+#   equation with one unsolved unknown left" also fires on large nonlinear
+#   equations where "one unknown remains" says nothing about determinacy.
 #
 #   A STARVATION GUARD IS MANDATORY -- this is a trap, not a refinement.
-#   The first version of this preemption had none.  Being determined is a
-#   property of the solved SET, so it does not change merely because the
-#   variable was offered:  if whatever leaf should have finished it does not,
-#   the rule fires again on the very next tick, with the same answer, forever.
-#   The assigner then stops offering anything else at all.  Measured, on
-#   KinovaLite:  th_23 re-offered on every tick, 102 consecutive preemptions,
-#   the solve flatlined at 2 of 7 and burned all 20 passes.  So each
-#   (variable, solved-state) pair is offered at most ONCE:  if the preemption
-#   does not take, the solved set is unchanged, the memo refuses the repeat,
-#   and the round-robin resumes untouched -- its counter is never advanced by a
-#   preemption, so no ordinary variable is skipped either.  The memo lives on
-#   the blackboard so that clear_state drops it, giving the hybrid branch's
-#   second solver a fresh one.
+#   Being determined is a property of the solved SET, so it does not change
+#   merely because the variable was offered:  if the leaf that should finish it
+#   does not, the rule fires again next tick with the same answer, forever, and
+#   the assigner stops offering anything else.  So each (variable, solved-state)
+#   pair is offered at most ONCE.  If the preemption does not take, the memo
+#   refuses the repeat and the round-robin resumes untouched -- its counter is
+#   never advanced by a preemption, so no ordinary variable is skipped.  The
+#   memo lives on the blackboard so clear_state drops it, giving the hybrid
+#   branch's second solver a fresh one.
 #
 PROMOTED_KEY = 'assigner_promoted'
 
