@@ -3,11 +3,10 @@
 #   dh_analysis.py --  pure DH-table geometry:  which joint-axis triples satisfy
 #                      Pieper's condition, and what it would cost to make one
 #
-#   No forward kinematics, no symbolic solving, no pickles -- so this runs in
-#   milliseconds and unit-tests standing on its own.  It supports the hybrid
-#   method (CLAUDE.md, "Future Work"):  when IKBT cannot solve a robot in closed
-#   form, find the single DH parameter whose value is costing us the closed
-#   form, and measure what changing it would cost.
+#   No forward kinematics, no symbolic solving, no pickles.  It supports the
+#   hybrid method:  when IKBT cannot solve a robot in closed form, find the
+#   single DH parameter that is costing the closed form, and measure what
+#   changing it would cost.
 #
 #       pieper_triples(dh, pvals, ndof)              which triples are satisfied
 #       candidate_simplifications(dh, pvals, vv, ndof)  what would satisfy one
@@ -31,22 +30,21 @@
 #   iff a_n1 == 0 (at the origin of {n+1}), and all three share a point iff
 #   those two meeting points coincide -- d_n1 == 0.
 #
-#   The three traps, all of which fail SILENTLY (see
-#   scripts/axis_triple_check.py, which checks every rule here against numeric
-#   FK geometry over all 32 robots):
+#   Three traps, all of which fail SILENTLY:
 #
 #     1. `== 0` IS WRONG.  sp.Float(0.0) == 0 is False in sympy, and the DH
 #        tables mix Integer 0 with Float 0.0.  Use .is_zero -- which also
 #        answers None for an undecidable symbol, the third value we want.
-#     2. THE COLLINEAR CASE.  If two of the three axes are the SAME line -- which
-#        happens iff a == 0 and sin(alpha) == 0 between them -- there are only two
-#        distinct lines, and they are concurrent for ANY d_n1, including when
-#        d_n1 is a prismatic joint VARIABLE.  That is the Stanford arm (prismatic
-#        sliding along the axis the next joint rotates about), and also Bartell,
+#     2. THE COLLINEAR CASE.  If two of the three axes are the SAME line --
+#        iff a == 0 and sin(alpha) == 0 between them -- there are only two
+#        distinct lines, and they are concurrent for ANY d_n1, including a
+#        prismatic joint VARIABLE.  That is the Stanford arm, and also Bartell,
 #        Palm13, Srisuan11 and Raven-II.
 #     3. j IS A 1-BASED JOINT NUMBER used as a 0-based ROW index, running
 #        1 .. ndof-2.  Looping from j = 0 names a nonexistent joint 0 and reads
-#        a_0 / d_1, which are zero on most arms -- manufacturing a spurious hit.
+#        a_0 / d_1, which are zero on most arms -- a spurious hit.
+#
+#   scripts/axis_triple_check.py checks every rule here against numeric FK.
 #   ---------------------------------------------------------------------------
 #
 #   Copyright 2026 University of Washington

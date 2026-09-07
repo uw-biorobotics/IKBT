@@ -250,13 +250,9 @@ class Robot:
         nunks = len(self.solListMatrix[0])  # n solved unknowns (cols)
         for row in range(nvers): # go through versions
             #  Map every solved variable's BASE symbol (th_1) to the VERSION
-            #  symbol this row uses (th_1v5).  A solution expression refers to
-            #  the variables it depends on by their base name, so this is what
-            #  ties a row together into one consistent branch.
-            #
-            #  Keys are Symbols, not strings.  With column 0 previously holding
-            #  a SOLUTION name, this substitution rewrote th_1 -> th_1s1 and
-            #  produced equations referencing a symbol nothing ever assigns.
+            #  symbol this row uses (th_1v5).  A solution expression names its
+            #  dependencies by base name, so this is what ties a row together
+            #  into one consistent branch.  Keys are Symbols, not strings.
             subdict = {}
             for col, n in enumerate(self.solution_nodes):
                 subdict[sp.Symbol(n.unknown.name)] = \
@@ -366,20 +362,17 @@ class Robot:
     #        -Px*sin(th_1) + Py*cos(th_1) = 0
     #         Px*sin(th_1) - Py*cos(th_1) = 0        <- SAME statement, negated
     #
-    #   as two different equations.  Those really do occur:  measured on the
-    #   shipped robots, half of KawasakiRS05L's eqns_2u and a quarter of
-    #   ArmRobo's were sign duplicates.  They inflate the lists every solver
-    #   scans and -- worse -- make a pair of equations look independent when
-    #   the pair carries no extra information at all.
+    #   as two different equations.  These are common, and they make a pair of
+    #   equations look independent when the pair carries no extra information.
     #
     #   DO NOT extend this to collapse a re-split of the same statement, i.e.
     #
     #        -Px*sin(th_1) + Py*cos(th_1)     = d_3
     #        -Px*sin(th_1) + Py*cos(th_1)-d_3 = 0
     #
-    #   Those are mathematically identical but NOT interchangeable:  every
-    #   solver here is an sp.Wild structural matcher, and a pattern that fits
-    #   one split does not fit the other.
+    #   Those are mathematically identical but NOT interchangeable:  the
+    #   solvers are sp.Wild structural matchers, and a pattern that fits one
+    #   split does not fit the other.
     #
     @staticmethod
     def eqn_key(e):

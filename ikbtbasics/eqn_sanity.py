@@ -2,49 +2,32 @@
 #
 #   eqn_sanity.py --  does this equation actually CONSTRAIN the variable?
 #
-#   An ID node matches on syntax.  It sees sin(th_2) and cos(th_2) in an
-#   equation and offers it as an equation in th_2.  Nothing checks whether the
-#   equation says anything about th_2 at all -- and sometimes it does not.
-#
-#   MEASURED ON UR5 (2026-08-28).  The equation IKBT used to solve th_2 is
+#   An ID node matches on syntax:  it sees sin(th_2) and cos(th_2) and offers
+#   the equation as an equation in th_2.  Nothing checks whether the equation
+#   constrains th_2 at all -- and sometimes it does not.  UR5 solved th_2 from
 #
 #       0 = A*sin(th_2) + B*cos(th_2)
 #
-#       A = -r_31*s5*c6 + r_32*s5*s6 - r_33*c5
-#       B = -(r_11*c1 + r_21*s1)*s5*c6 + (r_12*c1 + r_22*s1)*s5*s6
-#           - (r_13*c1 + r_23*s1)*c5
+#   whose A and B are both identically zero once UR5's own T_06 is substituted,
+#   so every value of th_2 satisfies it.  sinANDcos evaluated atan2(0, 0) and
+#   reported an answer.  See IKdocs/DEV_NOTES.md.
 #
-#   and substituting UR5's own symbolic T_06 gives A == 0 and B == 0
-#   IDENTICALLY -- proved with a_2, a_3, d_1, d_4, d_5, d_6 left as free
-#   symbols, so it holds for every parameter value and every pose.  th_2 does
-#   not appear in the coefficients at all;  the equation is
+#   A SYMBOLIC TEST CANNOT CATCH IT.  A and B are not zero as expressions --
+#   they are zero only on the manifold where the r_ij come from this robot's
+#   forward kinematics -- so no amount of simplify() on the equation alone will
+#   see it, and sinANDcos_solver's assert(A*A + B*B != 0) can never fire.
 #
-#       0*sin(th_2) + 0*cos(th_2) = 0
-#
-#   which is satisfied by every value of th_2.  sinANDcos then evaluated
-#   atan2(-B, A) = atan2(0, 0) and reported an answer.  Over the 8 solution
-#   versions th_2 came back as 0.000, 3.142, 2.614, 5.773 ... against a true
-#   -0.600, and NOT ONE of the 8 versions reproduced the pose.  The robot was
-#   recorded as "solved 9/9" throughout, because nothing checked.
-#
-#   WHY A SYMBOLIC TEST CANNOT CATCH IT.  A and B are not zero as expressions
-#   -- they are zero only on the manifold where the r_ij come from this robot's
-#   forward kinematics.  No amount of simplify() on the equation alone will
-#   see it.  sinANDcos_solver's existing guard, assert(A*A + B*B != 0), is a
-#   sympy expression compared to 0 and can never fire for this reason.
-#
-#   SO THE TEST IS NUMERIC, and self-contained:  sample a joint vector q,
-#   build T = FK(q) from the robot's own kinematics, substitute that pose and
-#   the true values of every OTHER variable, then sweep the target.  A real
-#   equation is near zero only at the true value;  a tautology is near zero
-#   everywhere.  Generating the probe pose ourselves is what makes the "true
-#   values of the other variables" available -- this is not knowledge of the
-#   caller's target pose, and nothing here reads one.
+#   SO THE TEST IS NUMERIC, and self-contained:  sample a joint vector q, build
+#   T = FK(q) from the robot's own kinematics, substitute that pose and the true
+#   values of every OTHER variable, then sweep the target.  A real equation is
+#   near zero only at the true value;  a tautology is near zero everywhere.
+#   Generating the probe pose here is what makes the other variables' true
+#   values available;  nothing reads the caller's target pose.
 #
 #   FAIL-SAFE, ALWAYS.  Every failure path returns True ("it constrains"), so
-#   a robot whose pvals will not resolve, or an expression lambdify cannot
-#   build, behaves exactly as it did before this module existed.  A sanity
-#   check must never be the reason a solve is lost.
+#   unresolvable pvals or an expression lambdify cannot build behave exactly as
+#   they did before this module existed.  A sanity check must never be the
+#   reason a solve is lost.
 #
 #   Copyright 2026 University of Washington
 #

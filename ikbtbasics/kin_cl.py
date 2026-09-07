@@ -200,41 +200,26 @@ class unknown(object):
 
     #class unknown
     def set_solved(self, R, unknowns):
-        #  RE-ENTRY GUARD.  Do nothing if this unknown is already solved.
+        #  RE-ENTRY GUARD.  Everything below APPENDS -- solutionNames,
+        #  versionNames, a Node on R.solution_nodes, R.solveN -- so a second
+        #  call would give the variable a duplicate column in the version
+        #  matrix and inflate the solution count.
         #
-        #  Everything below appends:  solutionNames, versionNames, a Node on
-        #  R.solution_nodes, and R.solveN.  A second call therefore gave the
-        #  variable a duplicate COLUMN in the version matrix and inflated the
-        #  solution count -- ICP5p5_A21 solved th_1 twice and reported 12
-        #  versions where 3 is right;  Parkman13 the same.
-        #
-        #  This does not interfere with the ranked retry.  rank_leaf lets the
-        #  tan and sin/cos solvers both propose, then calls set_solved() ONCE
-        #  after choosing (rank_leaf.py:93,98) -- and the solvers themselves
-        #  deliberately do not call it.  So a call arriving here with
-        #  self.solved already True is a genuine second solve, in a later pass,
-        #  of a variable that is already done.  First answer wins;  it is the
-        #  one every other solution already depends on.
+        #  A call arriving here with self.solved already True is a genuine
+        #  second solve in a later pass, not the ranked retry:  rank_leaf calls
+        #  set_solved() once after choosing, and the solvers never call it.
+        #  First answer wins -- every other solution already depends on it.
         if self.solved:
             #  UNDO WHAT THE SECOND SOLVE ALREADY DID.  Returning early is not
             #  enough:  a solver leaf appends to self.solutions and overwrites
-            #  self.nsolutions BEFORE it calls set_solved (tan_solver.py:323-348
-            #  is the one that reaches here), so by the time we see it the
-            #  damage is done.  Ignoring the call therefore left solutions
-            #  LONGER than solutionNames -- which only set_solved appends to --
-            #  and every consumer that walks solutions while indexing
-            #  solutionNames[i] then ran off the end.
+            #  self.nsolutions BEFORE calling set_solved, so ignoring the call
+            #  leaves solutions LONGER than solutionNames -- which only
+            #  set_solved appends to -- and any consumer walking solutions while
+            #  indexing solutionNames[i] runs off the end.
             #
-            #  Measured on Parkman13:  th_1 solved with 2 solutions, a later
-            #  pass proposed a third by atan2, and output_latex_solution died
-            #  with IndexError at solutionNames[i].  Nothing caught it before
-            #  2026-09-05 because robot_baseline ran with codegen OFF, so
-            #  report_gen never ticked.
-            #
-            #  First answer wins -- every later solution already depends on it --
-            #  so the extras are dropped.  They are always at the END, because
-            #  the solvers append.  self.assumption is left alone on purpose: it
-            #  is appended and printed, never indexed against a solution.
+            #  The extras are always at the END, because the solvers append.
+            #  self.assumption is left alone:  it is appended and printed,
+            #  never indexed against a solution.
             extra = len(self.solutions) - len(self.solutionNames)
             if extra > 0:
                 del self.solutions[len(self.solutionNames):]
@@ -284,18 +269,10 @@ class unknown(object):
             nver *= d.nsolutions
         self.nversions = nver
         for i in range(nver):
-            #  VERSION names, not solution names.  This used to append
-            #  solutionNames[i % nsolutions], so versionNames was just the
-            #  solution names repeated -- th_3 with 4 versions reported
-            #  ['th_3s1','th_3s2','th_3s1','th_3s2'].  create_solution_set()
-            #  seeded the FIRST solved unknown's column from this list, which
-            #  put SOLUTION names in column 0 of solListMatrix while every
-            #  other column held VERSION names.  Everything downstream then
-            #  referenced a th_1s1 that is never assigned anywhere.
-            #
-            #  A solution is one branch of this unknown's own equation.  A
-            #  version is one row of the complete solution matrix.  They are
-            #  different things and must have different names.
+            #  VERSION names, not solution names.  A solution is one branch of
+            #  this unknown's own equation;  a version is one row of the
+            #  complete solution matrix.  Different things, different names --
+            #  see "THE TWO NAMESPACES MUST STAY SEPARATE" in CLAUDE.md.
             self.versionNames.append(self.name + 'v' + str(i+1))
 
 
@@ -397,30 +374,19 @@ class mechanism:
                 self.params.append(tmpvc)   #
                 self.params.append(tmpvs)   #
 
-                #  STORE A NUMBER, not the string 'np.cos(al_1)' (BH,
-                #  2026-09-03).  alpha is a constant, so its sine and cosine
-                #  are constants too, and their values are already available:
-                #  al_1 is itself in pvals.  Evaluating here means every entry
-                #  in pvals is a number, which is what every consumer wants --
-                #  numeric_ik had to special-case the strings (a dropped one
-                #  survives as a free symbol and becomes a spurious lambdify
-                #  argument), and output_python emitted `ca1 = np.cos(al_1)`
-                #  into generated code, which only worked as long as al_1
-                #  happened to be in scope there.
-                #
-                #  FULL PRECISION IS STORED.  Rounding for the report is the
-                #  report's business;  rounding here would quietly make the
-                #  MODEL less accurate than the numbers the user typed in.
+                #  STORE A NUMBER, not the string 'np.cos(al_1)'.  alpha is a
+                #  constant and al_1 is itself in pvals, so sin and cos of it
+                #  are constants too -- evaluating here keeps every pvals entry
+                #  numeric, which is what every consumer wants.  Full precision:
+                #  rounding for the report is the report's business.
                 #
                 #  The string remains the fallback for an alpha whose symbols
-                #  have no numeric value -- there is nothing to evaluate then,
-                #  and a wrong number would be far worse than a symbol.
+                #  have no numeric value;  a wrong number would be worse.
                 cv = sv = None
                 try:
-                    #  NUMERIC ENTRIES ONLY.  pvals may already hold a fallback
-                    #  string from an earlier row, and substituting a string
-                    #  makes sympy parse it -- 'np.cos(al_1)' would come back
-                    #  as np*cos(al_1), quietly inventing a symbol named np.
+                    #  NUMERIC ENTRIES ONLY.  pvals may hold a fallback string
+                    #  from an earlier row, and sympy would parse
+                    #  'np.cos(al_1)' as np*cos(al_1), inventing a symbol np.
                     subs = {k: v for k, v in self.pvals.items()
                             if isinstance(v, (int, float))}
                     a_num = sp.sympify(alpha_i).subs(subs)
@@ -495,10 +461,8 @@ class mechanism:
         #
         #   Select axes for application of sum-of-angles
         #
-        # propagation steps below will only be trig simplified if consecutive axes
-        # are parallel to save time
-        #   if \theta_j =0, then we should look for sin(theta_j-1 + theta_j) etc.
-        #
+        #  Only trigsimp where consecutive axes are parallel;  elsewhere it
+        #  costs time and finds nothing.
 
         simp = np.zeros(6)
         for j in range(1,5):  # we will only trigsimp if \alpha_N-1 == {0,pi} signifying
