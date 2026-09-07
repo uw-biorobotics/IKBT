@@ -169,7 +169,6 @@ arm's equations shipped under the real robot's name.
 ```bash
 python3 -m scripts.axis_triple_check      # DH joint-axis geometry vs numeric FK
 python3 -m tests.test_chair_helper        # full-solve regression, one robot
-python3 solChecker.py                     # numeric check, robot/pose hard-coded
 ```
 
 ## Where the output goes
