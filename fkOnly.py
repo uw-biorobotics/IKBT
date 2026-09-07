@@ -33,20 +33,7 @@ import ikbtfunctions.helperfunctions as hf
 import ikbtfunctions.output_latex as ol
 import ikbtfunctions.output_python as op
 import ikbtfunctions.output_cpp as oc
-from   ikbtfunctions.ik_robots import *   # a bunch of robot models: probs to solve
-
-#from ikbtbasics import *
-#from ikbtleaves.assigner_leaf import assigner
-#from ikbtleaves.rank_leaf import rank
-#from ikbtleaves.algebra_solver import *
-#from ikbtleaves.tan_solver import *
-#from ikbtleaves.sincos_solver import *
-#from ikbtleaves.sinANDcos_solver import *
-#from ikbtleaves.x2y2_solver import *
-#from ikbtleaves.sub_transform import *
-##from ikbtleaves.sum_transform import *  # replaced by sum_id() + Algebra node.
-#from ikbtleaves.sum_id import *      # detect and sub sum-of-angles
-#from ikbtleaves.two_eqn_m7 import *
+from   ikbtfunctions.ik_robots import *   # the robot models
 
 TEST_DATA_GENERATION = False
 
@@ -74,16 +61,9 @@ else:
 sp.var('Px Py Pz')
 
 
-########################################################
 #
 #     Robot Parameters
-
-
-########################################################    NEW Style robot param setups
-
-#  Very basic Test
-
-
+#
 if len(argv) == 1:  # no argument - use default
     #robot = 'Puma'
     #robot = 'Chair_Helper'
@@ -102,12 +82,8 @@ print('')
 #   Get the robot model
 [dh, vv, params, pvals, unknowns] = robot_params(robot)  # see ik_robots.py
 
-#
-#     Set up robot equations for further solution by BT
-#
-#   Check for a pickle file of pre-computed Mech object. If the pickle
-#       file is not there, compute the kinematic equations
-
+#   Cached FK:  computes the kinematic equations only if fk_eqns/ has no
+#   usable pickle for this robot.
 testing = False
 [M, R, unknowns] = kinematics_pickle(robot, dh, params, pvals, vv, unknowns, testing)
 print('GOT HERE (after FK): robot name: ', R.name)
@@ -121,15 +97,8 @@ dhp = M.DH
 check_the_pickle(dhp, dh)   # check that two mechanisms have identical DH params
 
 print('Generating Python code ...')
-op.output_FK_python_code(R)  # should do it all(!)
+op.output_FK_python_code(R)   # FK and Jacobian are both complete by here
 
-
-##################################   The FK and Jacobian are already done here!
-
-
-
-#
-#
 if TEST_DATA_GENERATION:
     # Now we're going to save some results for use in tests.
     print(' Storing results for test use')

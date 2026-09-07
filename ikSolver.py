@@ -1,11 +1,10 @@
 #!/usr/bin/python
 #
-#     Test for full IK solutions of know robot(s)
+#     Full IK solution of a named robot.
 #
-#   This is now a thin command-line front end.  The pipeline lives in
-#   ikbtfunctions/ik_driver.py and the behavior tree in ikbtfunctions/bt_assembly.py,
-#   so that tests and alternative front ends can import them without triggering
-#   a full solve.
+#   Command-line front end only.  The pipeline is in ikbtfunctions/ik_driver.py
+#   and the behavior tree in ikbtfunctions/bt_assembly.py, so importing either
+#   does not trigger a solve.
 #
 #        python3 ikSolver.py <RobotName>       ( no argument -> Wrist )
 
@@ -63,10 +62,8 @@ def banner():
         print('-'*50)
 
 
-#  Performance and layout commentary:  the per-call sympy meter (slow simplify /
-#  trigsimp lines) and the report-fitting messages.  OFF by default -- they are
-#  diagnostics for someone chasing a slow solve, and in an ordinary run they bury
-#  the per-pass progress they sit between.  Set True to get them back.
+#  Diagnostics for a slow solve:  per-call sympy timings and report-fitting
+#  messages.  Off by default because they bury the per-pass progress lines.
 PERFORMANCE_OUTPUT = False
 
 
@@ -103,19 +100,14 @@ def main(argv):
     ##
     #                                   Set up the BT
     #
-    #  codegen=True: the TREE writes LaTex/ and CodeGen/, through the
-    #  output_gen_full leaf on the end of the symbolic branch.  This front end is
-    #  the one caller that wants file side effects -- library and test callers
-    #  get the default, codegen=False, and leave the generated artifacts alone.
+    #  codegen=True: the tree writes LaTex/ and CodeGen/ via the output_gen_full
+    #  leaf.  This front end is the only caller that wants those side effects.
     ikbt, nodes = build_default_bt(leaf_debug=False, solver_debug=False,
                                    codegen=not TEST_DATA_GENERATION)
 
-    #  A human is waiting on this front end, so meter the sympy calls:  37-85 %
-    #  of a solve's wall clock is inside sp.simplify(), and a call slower than
-    #  the threshold prints as it happens.  That is the only output that can
-    #  appear DURING a blocking simplify -- symbolic_loop's per-pass line cannot
-    #  print until the pass returns.  Batch callers (robot_baseline, tests) do
-    #  not enable it;  it wraps a third-party class, so it stays opt-in.
+    #  Most of a solve is spent inside sp.simplify().  The meter is the only
+    #  thing that can print DURING a blocking simplify, so it is useful when a
+    #  robot appears to hang.  It wraps a sympy class, hence opt-in.
     if PERFORMANCE_OUTPUT:
         enable_sympy_meter()
         ik_driver.REPORT_PROGRESS = True
@@ -135,19 +127,15 @@ def main(argv):
     #       nodes['x2z2_Solver'].BHdebug  = True
     #       nodes['sumOfAnglesID'].BHdebug = True
     #       nodes['compDetect'].FailAllDone = True   # SUCCEED when work REMAINS (default False = succeed when all done)
-    #
-    #   (this replaces the ~200 lines of commented-out per-robot blocks that
-    #    used to live here)
 
     ################################################################################
     #
     #           Perform the Computation via ticking the BT
     #
-    #  create_solutions=False always:  with codegen in the tree, the
-    #  output_gen_full leaf owns create_solution_set().  It must be called
-    #  exactly once -- it appends to unknown.LHSversionNames -- so run_solver()
-    #  must not also do it.  On the TEST_DATA_GENERATION path nobody calls it,
-    #  which is what that path wants (it pickles the raw post-solve state).
+    #  create_solutions=False always:  the output_gen_full leaf owns
+    #  create_solution_set(), and it must be called exactly once because it
+    #  appends to unknown.LHSversionNames.  (TEST_DATA_GENERATION wants the raw
+    #  post-solve state, so nobody calls it on that path.)
     R, unks, bb = run_solver(R, unknowns, ikbt, create_solutions=False)
 
     if TEST_DATA_GENERATION:
@@ -160,20 +148,15 @@ def main(argv):
         return
 
     if not solved_anything(bb):
-        #  The tree gave up having solved nothing -- see comp_det.  The symbolic
-        #  branch FAILed, so the codegen leaf never ticked and nothing was
-        #  written;  this is just the report to the user.
+        #  The tree gave up having solved nothing (see comp_det), so the codegen
+        #  leaf never ticked and nothing was written.
         print('\n\n           No solution generated for ' + robot + '.')
         print('           Nothing written to LaTex/ or CodeGen/.\n')
         print('\n                  End of solution job \n                  (no solution) \n\n')
         return
 
-    #
     #  The solution set and all three output formats were produced inside the
     #  tick, by the output_gen_full leaf at the end of the symbolic branch.
-    #  (Version 3 of solution-set finding.  Version 2 was tree-based and used
-    #   R.notation_collections / matching.matching_func(); that path is gone.)
-    #
 
     #################################################
     # print out all equations that used to solve variables

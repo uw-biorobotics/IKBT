@@ -2,11 +2,8 @@
 #
 #   ik_driver.py --  the IK solution pipeline, as importable functions
 #
-#   Extracted from ikSolver.py.  Previously the whole pipeline -- robot loading,
-#   pickle handling, the DH check, blackboard setup, ticking, solution-set
-#   generation and three codegen calls -- ran at module level, so nothing could
-#   import any part of it without triggering a full solve.  Every additional
-#   front end would have had to copy all of it.
+#   Robot loading, blackboard setup, ticking, solution-set generation and the
+#   codegen calls.  Importing this module does not run a solve.
 #
 #   Typical use:
 #
@@ -33,9 +30,8 @@ import ikbtfunctions.output_cpp    as oc
 import ikbtfunctions.output_hybrid_python as ohp
 import ikbtfunctions.texwidth as texwidth
 
-#  Chatter from the report-fitting pass ("2 equations too wide, shortening: ...").
-#  OFF by default:  a library caller wants the report, not a commentary on how it
-#  was laid out.  ikSolver.py raises it with PERFORMANCE_OUTPUT.
+#  Messages from the report-fitting pass ("2 equations too wide, shortening:").
+#  ikSolver.py turns this on with PERFORMANCE_OUTPUT.
 REPORT_PROGRESS = False
 
 from ikbtfunctions.ik_robots import robot_params
@@ -50,10 +46,8 @@ def load_robot(name, testing=False):
        always use the returned list, never the one from robot_params().
 
        FK and the sum-of-angles scan are slow, so kinematics_pickle() caches to
-       fk_eqns/<name>_pickle.p.  A DH change heals itself -- kinematics_pickle()
-       compares the cached table and recomputes -- and check_the_pickle() is only
-       advisory about it.  ANY other change to the FK or SOA CODE still requires
-       deleting the pickle by hand.'''
+       fk_eqns/<name>_pickle.p.  A DH change heals itself, but a change to the
+       FK or SOA CODE requires deleting the pickle by hand.'''
 
     [dh, vv, params, pvals, unknowns] = robot_params(name)   # see ik_robots.py
     print('Solver:  unknowns:', unknowns)
@@ -96,8 +90,6 @@ def run_solver(R, unknowns, bt, bb=None, create_solutions=True):
        replaced them, so use the returned objects rather than the arguments.
 
        create_solutions=False stops after the tick, before create_solution_set().
-       That is what the TEST_DATA_GENERATION path in ikSolver.py wants:  it
-       pickles the raw post-solve state.
 
        If the tree gave up without solving anything, comp_det sets 'no_progress'
        on the blackboard;  the solution set is then not built, and callers must
@@ -128,8 +120,8 @@ def run_solver(R, unknowns, bt, bb=None, create_solutions=True):
 
 
 def solved_anything(bb):
-    '''False when the tree gave up having solved nothing.  Gate emit_outputs()
-       on this -- there is no solution set to report.'''
+    '''False when the tree gave up having solved nothing;  there is then no
+       solution set, so do not call emit_outputs().'''
     return not bb.get('no_progress')
 
 
@@ -148,28 +140,21 @@ def write_latex_fitted(R, unks, groups, hybrid=None, R_true=None, passes=4,
                        slack_pt=6.0):
     '''Write the LaTeX report, then MEASURE it and re-write what did not fit.
 
-       Pass 1 writes the report as usual.  pdflatex then says which equations
-       are too wide for the page, in points, against the source line each one
-       sits on -- and because every equation is emitted on its own line with a
-       marker above it, that maps back to the equation.  The next pass re-writes
-       those with their pieces named as K_i, which is what shortens them;  it
-       repeats while each pass turns up equations the previous one had not seen,
-       because shortening one equation can expose another.
+       Pass 1 writes the report.  pdflatex then reports which equations are too
+       wide, in points, against the source line each one sits on;  every equation
+       is emitted on its own line with a marker above it, so that maps back to
+       the equation.  The next pass re-writes those with their pieces named as
+       K_i, which shortens them.  Repeat while each pass turns up equations the
+       previous one had not seen, since shortening one can expose another.
 
-       WHY MEASURE RATHER THAN PREDICT.  Both cheap proxies were tried and both
-       failed on measured data:  a 439-character equation overflows while a
-       2030-character one fits, and Brad's th_3 is 25 operations with 12 in each
-       atan2 argument -- under every threshold -- while its line is 144pt too
-       wide.  Width is a property of the typeset line, not of the expression.
-       See ikbtfunctions/texwidth.py.
+       Width is a property of the typeset line, not of the expression, so it is
+       MEASURED and not predicted.  See ikbtfunctions/texwidth.py.
 
-       slack_pt ignores trivial overflows.  Stanford has a box 3.7pt over, about
-       one character;  restructuring an equation to win that back trades a
-       readable equation for a folded one and gains nothing.
+       slack_pt ignores overflows of a character or two, which are not worth
+       folding a readable equation to fix.
 
-       DEGRADES TO PASS 1.  No pdflatex, a LaTeX error, a timeout:  the report
-       from pass 1 is already written and already correct, just wide.  A
-       formatting refinement must never cost the report itself.'''
+       Degrades to pass 1:  with no pdflatex, a LaTeX error, or a timeout, the
+       pass 1 report is already written and correct, just wide.'''
 
     path = ol.output_latex_solution(R, unks, groups, hybrid=hybrid, R_true=R_true)
 
@@ -204,34 +189,26 @@ def emit_hybrid_outputs(R, unks, hybrid, R_true=None):
        hybrid   the blackboard's hybrid_source dict
        R_true   the TRUE robot, loaded fresh;  None if it could not be loaded
 
-       FOUR PYTHON FILES AND ONE REPORT, and which name each carries is the
-       whole point:
+       Four Python files and one report, each named for the arm it describes:
 
-           LaTex/ik_solution_<True>.tex            named for the TRUE robot
-           CodeGen/Python/IK_hybrid_<True>.py      named for the TRUE robot
-           CodeGen/Python/IK_equations<Derived>.py named for the DERIVED arm
-           CodeGen/Python/FK_numeric<Derived>.py   named for the DERIVED arm
-           CodeGen/Python/FK_numeric<True>.py      named for the TRUE robot
+           LaTex/ik_solution_<True>.tex            TRUE robot
+           CodeGen/Python/IK_hybrid_<True>.py      TRUE robot
+           CodeGen/Python/IK_equations<Derived>.py DERIVED arm
+           CodeGen/Python/FK_numeric<Derived>.py   DERIVED arm
+           CodeGen/Python/FK_numeric<True>.py      TRUE robot
 
-       The two artifacts a user reaches for -- the report and the module they
-       import -- carry the name they asked about, because that is the question
-       they asked.  The pieces those are built from carry the name of the arm
-       they actually describe, because calling a simplified arm's closed form
-       `IK_equations<True>` is exactly the confusion this method has to avoid.
-       A reader who opens any one file can tell which robot it is about.
+       The report and the module a user imports carry the name they asked
+       about;  the pieces they are built from carry the name of the arm they
+       actually describe, so opening any one file tells you which robot it is.
 
-       NO C++ ON THIS PATH, yet.  Emitting the derived arm's C++ under the true
-       robot's name would ship precisely the misleading artifact the naming
-       above exists to prevent, and there is no C++ numeric correction to pair
-       it with;  a hybrid C++ target is its own piece of work.'''
+       No C++ on this path yet -- see "Still open" in CLAUDE.md.'''
 
     true_name = hybrid.get('true_robot') or R.name
     derived_name = hybrid.get('derived_robot') or R.name
 
     #  The report, named and titled for the TRUE robot.  R is still the derived
-    #  arm -- output_latex_solution takes the substitution as an argument and
-    #  says so in its own section, rather than being handed a robot that lies
-    #  about which arm it is.
+    #  arm;  output_latex_solution takes the substitution as an argument and
+    #  documents it in its own section.
     write_latex_fitted(R, unks, R.solutionSet, hybrid=hybrid, R_true=R_true)
 
     #  Phase I's closed form, under the DERIVED arm's name.
