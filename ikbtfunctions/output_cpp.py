@@ -28,6 +28,19 @@ from ikbtbasics.ik_classes import *     # special classes for Inverse kinematics
 #
 import pickle     # for storing pre-computed FK eqns
 
+
+#  Console chatter from the generator:  the node and solution equation it is
+#  about to emit.  Off by default -- it is several lines per version per
+#  variable, which buries the solve's own output.  Set True to get it back.
+#  (ikbtfunctions/output_python.py carries the same flag.)
+VERBOSE = False
+
+
+def _say(*args):
+    if VERBOSE:
+        print(*args)
+
+
 class cpp_output:
     def init(self):
         self.f = None     #file ptr
@@ -40,7 +53,7 @@ class cpp_output:
             # correct exponential operators for squaring:   x**2 --> x*x
             #     (** is not valid C++)
             if re.search(r'\*\*', l):
-                print('fixing exponential ** notation')
+                _say('fixing exponential ** notation')
                 r = re.compile(r'(\w+)\*\*2')
                 s2 = r.sub(r'\1*\1',l)
                 r = re.compile(r'([a-z]{3}\([^\)]+?\))\*\*2')  #  sin(x)**2 or cos(x)**2
@@ -206,7 +219,7 @@ int False = 0;
         solno = 0
         nsolns = node.unknown.nsolutions
         nvers  = Robot.nversions
-        print('Cpp Output Gen: ', node, ' has ', nsolns, ' solutions and ',nvers, ' versions')
+        _say('Cpp Output Gen: ', node, ' has ', nsolns, ' solutions and ',nvers, ' versions')
         # go through the final matrix of equation versions
         colindex = node.unknown.solveorder-1  # select the unknown
         #  ONE assignment per DISTINCT version:  a variable solved early shares
@@ -222,7 +235,7 @@ int False = 0;
             eqnlist.append(e)
 
         for solEqnVer in eqnlist: # go through the versions
-            print('Cpp Output Gen: Solution Equation Version: ', solEqnVer)
+            _say('Cpp Output Gen: Solution Equation Version: ', solEqnVer)
             c.line('\n// solution '+str(solno))
             solno += 1
             solrhs = str(solEqnVer.RHS)
@@ -237,12 +250,12 @@ int False = 0;
             #
             #
             trig = False
-            print('\n\nCpp Output Gen: Studying node: ', node.symbol, ' solution ', solno)
-            print('solvemethod: ', node.solvemethod)
-            print(' LHS: ', str(solEqnVer.LHS))
-            print(' RHS: ', solrhs)
-            print('argument: ', node.argument)
-            print('\n\n')
+            _say('\n\nCpp Output Gen: Studying node: ', node.symbol, ' solution ', solno)
+            _say('solvemethod: ', node.solvemethod)
+            _say(' LHS: ', str(solEqnVer.LHS))
+            _say(' RHS: ', solrhs)
+            _say('argument: ', node.argument)
+            _say('\n\n')
 
             c.line('// solvemethod: ' + node.solvemethod )
             c.line('//    argument: ' + str(node.argument )  )
@@ -251,7 +264,7 @@ int False = 0;
                trig = True
 
             if(trig):
-               print('  Found asin/acos solution ...', solEqnVer.LHS , ' "=" ',solEqnVer.RHS)
+               _say('  Found asin/acos solution ...', solEqnVer.LHS , ' "=" ',solEqnVer.RHS)
                c.line('// Arcsin() or Arccos() based solution:')
                c.line('argument = ' + str(node.argument))
                c.line('if (solvable_pose && fabs(argument) > 1)')
@@ -270,13 +283,13 @@ int False = 0;
                 c.line(str(solEqnVer.LHS) + ' = ' + solrhs + ';')
 
             if 'x2z2' in node.solvemethod:
-                print('x2z2 output: ', node.argument)
+                _say('x2z2 output: ', node.argument)
                 c.line(str(solEqnVer.LHS) + ' = ' + solrhs + ';')
 
 
 
             if 'simultaneous eqn' in node.solvemethod:
-                print('x2z2 output: ', node.argument)
+                _say('x2z2 output: ', node.argument)
                 c.line(str(solEqnVer.LHS) + ' = ' + solrhs + ';')
 
 
