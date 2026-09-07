@@ -12,48 +12,30 @@
 #   Exit status is 1 when an expectation was missed or (with --diff) when
 #   something moved, so it works as a gate in a shell script.
 #
-#   ------------------------------------------------------------------------
-#   THE THREE QUESTIONS, and where each is answered:
+#   WHAT THE SWEEP RECORDS, per robot:  status, how many unknowns were solved,
+#   by which method, how many solution versions, and whether the hybrid branch
+#   took over.  This is a RECORD, not a set of assertions -- "does not solve"
+#   is a legitimate entry.  A child that dies, calls quit(), or hangs comes
+#   back as a 'crash' or 'timeout' row with its traceback, and the sweep
+#   carries on.
 #
-#     1  WHAT SOLVES.       Per robot: status, how many unknowns were solved,
-#                           by which method, how many solution versions, and
-#                           whether the hybrid branch had to take over.  This
-#                           is a RECORD, not an assertion -- "does not solve"
-#                           is a legitimate and expected entry.
-#
-#     2  WHAT CRASHED.      A child that dies, calls quit(), or hangs comes
-#                           back as a 'crash' or 'timeout' row with its
-#                           traceback, and the sweep carries on.
-#
-#     3  IS IT CORRECT.     With --closed-loop, every robot that produced
-#                           artifacts is round-tripped through the code IKBT
-#                           just wrote:  q -> T = FK(q) -> generated IK -> FK
-#                           of each answer must reproduce T.  Both the symbolic
-#                           and the hybrid path, detected per robot.
-#
-#   THIS FILE ABSORBED scripts/bt_path_gate.py (2026-09-05).  That script was
-#   this one with codegen turned on:  same fork-per-robot, same PYTHONHASHSEED,
-#   same fenced JSON, same crash capture, same log directory, ~250 lines of it
-#   duplicated.  What it added -- solve once with codegen, then check the files
-#   that solve just wrote -- is now simply a flag here, which also generalises
-#   its artifact assertions from its five hand-listed robots to all 32.
-#   --gate is the same five-robot, one-minute run it used to provide.
-#   ------------------------------------------------------------------------
+#   With --closed-loop, every robot that produced artifacts is round-tripped
+#   through the code IKBT just wrote:  q -> T = FK(q) -> generated IK -> FK of
+#   each answer must reproduce T.  Both the symbolic and the hybrid path,
+#   detected per robot.
 #
 #   Two things about IKBT shape this design:
 #
 #   ONE SUBPROCESS PER ROBOT.  Several functions on the unhappy path terminate
 #   the *process* rather than returning an error -- Num_check() (pykinsym.py),
 #   get_variable_index() (ik_classes.py), robot_params() on an unknown name
-#   (ik_robots.py).  In-process iteration over all robots would therefore stop
-#   at the first robot that trips one.  A solve also leaves a great deal behind
-#   (sympy caches, the b3 blackboard) that the next robot would inherit.
+#   (ik_robots.py) -- so in-process iteration would stop at the first robot
+#   that trips one.  A solve also leaves a great deal behind (sympy caches, the
+#   b3 blackboard) that the next robot would inherit.
 #
 #   PYTHONHASHSEED=0 IN THE CHILD.  Parts of the solver iterate over sets, so
 #   the choice between equally-good solutions -- and hence unknown.solvemethod
-#   -- can vary run to run under hash randomization.  Pinning the seed is what
-#   makes an empty diff mean "nothing changed" instead of "nothing changed,
-#   probably".
+#   -- can vary run to run under hash randomization.
 #
 #   Copyright 2026 University of Washington
 #
@@ -81,25 +63,11 @@ DEFAULT_LOGDIR = os.path.join('logs', 'baseline')
 
 #  Bump when a field that diff_records() compares changes meaning, so an old
 #  record is rejected loudly instead of producing a nonsense diff.
-#
-#  2 (2026-09-05):  bt_path_gate merged in.  'comp_det_ticks' is gone, 'branch'
-#  / 'written' / 'written_derived' / 'closed_loop' arrived, and 'methods' left
-#  COMPARED.
 RECORD_VERSION = 2
 
-#  A full solve is minutes for the slow robots (FK on a cold pickle plus the
-#  BT itself).  This is a backstop against a HANG, not a performance target --
-#  it is question 2, not a timing fixture.
-#
-#  RAISED FROM 900 s, because at 900 s it made the record NON-REPRODUCIBLE.
-#  Wall time on the slow robots varies far more than the rest:  measured over
-#  two back-to-back sweeps of all 32, every robot came in at 1.0-1.1x except
-#  DZhang (20.7 s -> 78.9 s, 3.8x) and Issue4, which landed at 187 s, 246 s and
-#  then >900 s on identical code at PYTHONHASHSEED=0.  Issue4 sat close enough
-#  to the ceiling that its recorded STATUS flipped between 'partial (hybrid)'
-#  and 'timeout' run to run -- and `status` is compared, so --diff reported a
-#  regression that did not exist.  A flaky gate is worse than a slow one:  it
-#  trains you to ignore it.
+#  A backstop against a HANG, not a performance target.  Generous, because run
+#  time on the slow robots varies enough that a tight ceiling made the recorded
+#  STATUS flip run to run.  See IKdocs/DEV_NOTES.md.
 DEFAULT_TIMEOUT = 1800
 
 #  The child hands its result back on stdout, fenced, because everything else
@@ -112,15 +80,14 @@ FENCE_CLOSE = '#### BASELINE-JSON-END ####'
 #
 #    The five robots of --gate:  one per distinct PATH through the tree
 #
-#  Not an assertion table.  What each robot must deliver is worked out from the
-#  path it took and whether it finished (scripts/expected.artifacts_owed), and
-#  what it must solve is compared against the recorded baseline like every other
-#  robot.  This is documentation of WHY these five, for --list.
+#  Not an assertion table:  what each robot must deliver is worked out from the
+#  path it took (scripts/expected.artifacts_owed).  This documents WHY these
+#  five, for --list.
 #
-#  A sixth path -- simplified_arm finding no usable candidate, which closes the
+#  A sixth path -- simplified_arm finding no usable candidate, closing the
 #  hybrid branch on an arm satisfying Pieper's condition on every triple -- is
-#  not reachable by any robot in ROBOT_LIST and is covered by
-#  TestSolver018.test_hybJ instead.
+#  not reachable by any robot in ROBOT_LIST;  TestSolver018.test_hybJ covers
+#  it.
 GATE_PATHS = [
     ('Puma',          'symbolic branch wins, 6 DOF, sum-of-angles, ranking'),
     ('Chair_Helper',  'symbolic branch wins, 5 DOF, prismatic joint'),
@@ -234,15 +201,12 @@ def solve_one(name, codegen=False):
                 rec['solution_set_error'] = '%s: %s' % (type(e).__name__, e)
 
         #  Did the hybrid branch take over?  If so the equations describe a
-        #  DERIVED arm, not the one we asked for, and recording that as plain
-        #  'solved' would be the single most misleading thing this file could
-        #  do -- the whole point of the record is to say what IKBT can actually
-        #  deliver for a named robot.
+        #  DERIVED arm, and recording that as plain 'solved' would misreport
+        #  what IKBT can deliver for the named robot.
         #
         #  Read from the blackboard, NOT inferred from the status:
         #  KawasakiRS05L ends 'unsolved' having gone all the way through
-        #  install_simplified, so solved-count and branch are two independent
-        #  facts.
+        #  install_simplified, so solved-count and branch are independent.
         hs = bb.get('hybrid_source')
         rec['branch'] = 'hybrid' if hs else 'symbolic'
         if hs:
@@ -493,19 +457,11 @@ def sweep(names, timeout=DEFAULT_TIMEOUT, logdir=DEFAULT_LOGDIR,
 #    Diff
 #
 
-#  Fields compared.
-#
-#  'methods' IS DELIBERATELY ABSENT (2026-09-05).  It is still RECORDED, and it
-#  is in the readable summary, because it is the first thing you want when
-#  chasing one robot.  It is not compared because the choice between two
-#  equally-good solvers moves with any change to the tree and has repeatedly
-#  moved without breaking anything -- so 'changed-method' was the diff's most
-#  frequent verdict and its least informative one.  A gate whose usual answer
-#  is known-benign is a gate you learn to ignore.  What a leaf change must not
-#  do is change the ANSWER, and that is what n_solutions, written and the
-#  closed-loop counts are for.
-#
-#  'wall_s' is absent because wall time is noise:  see DEFAULT_TIMEOUT.
+#  Fields compared.  'methods' is recorded and shown in the summary but NOT
+#  compared:  the choice between two equally-good solvers moves with any change
+#  to the tree and has repeatedly moved without breaking anything.  What a leaf
+#  change must not alter is the ANSWER -- n_solutions, written, and the
+#  closed-loop counts.  'wall_s' is not compared because run time is noise.
 COMPARED = ['status', 'n_solved', 'n_unknowns', 'n_solutions',
             'solution_set_error', 'branch', 'hybrid',
             'written', 'written_derived']

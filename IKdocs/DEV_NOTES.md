@@ -535,3 +535,47 @@ The robot list also used to carry five duplicates and `Chair6DOF`, which had no 
 block at all and so fell through every `if(name == ...)` and died with an `UnboundLocalError`
 on `variables`. A missing comma once concatenated `'Issue4'` and `'DZhang'` into one bogus
 entry, making the second robot unselectable.
+
+---
+
+## scripts/robot_baseline.py
+
+**Why `DEFAULT_TIMEOUT` is 1800 s and not 900.** At 900 s the record was not reproducible.
+Measured over two back-to-back sweeps of all 32 robots, every robot came in at 1.0–1.1× except
+DZhang (20.7 s → 78.9 s, 3.8×) and Issue4, which landed at 187 s, 246 s and then >900 s on
+identical code at `PYTHONHASHSEED=0`. Issue4 sat close enough to the ceiling that its recorded
+*status* flipped between `partial (hybrid)` and `timeout` run to run — and status is compared,
+so `--diff` reported a change that had not happened. A flaky check is worse than a slow one:
+it trains you to ignore it. Issue4 is now out of the sweep entirely (see `ik_robots.py` above).
+
+**Why `methods` is recorded but not compared.** The choice between two equally-good solvers
+moves with any change to the tree and has repeatedly moved without breaking anything, so
+`changed-method` was the diff's most frequent and least informative verdict. What a leaf change
+must not alter is the *answer*, which is what `n_solutions`, `written` and the closed-loop
+counts cover. `wall_s` is not compared because run time is noise.
+
+**`RECORD_VERSION = 2`** (2026-09-05), when `scripts/bt_path_gate.py` was absorbed:
+`comp_det_ticks` went, `branch` / `written` / `written_derived` / `closed_loop` arrived, and
+`methods` left the compared set. `bt_path_gate.py` had been this script with codegen turned on
+— same fork-per-robot, same `PYTHONHASHSEED`, same fenced JSON, same crash capture, same log
+directory, about 250 duplicated lines — so it became a flag, which also generalised its
+artifact assertions from five hand-listed robots to all 32.
+
+## scripts/expected.py
+
+It replaced three hand-maintained tables over overlapping sets of the same robots:
+
+    check_solution_sets.KNOWN_COMPLETE          9 robots, "must be 100%"
+    numerical_closed_loop_sol_check.KNOWN_GOOD  8 robots, "at least N"
+    bt_path_gate.EXPECTED[*]['closed_loop']     5 robots, a copy of the above
+
+Puma appeared in all three, and one carried a comment saying its 8 had been copied by hand from
+another. The counts were measured 2026-08-24 (the solution/version namespace fix), 2026-09-02
+(KinovaLite, hybrid) and 2026-09-03 (Chair_Helper and ICP5p5_A21, when `Simu_Eqn_Sol` was
+promoted).
+
+## scripts/check_solution_sets.py
+
+This gap is how the solution/version defect survived: `robot_baseline.py` reported Puma as
+"solved 7/7" while not one of its eight solution versions could even be *evaluated* — every one
+referenced a `th_1s1` that nothing ever assigns.

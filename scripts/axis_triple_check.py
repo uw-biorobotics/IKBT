@@ -3,31 +3,19 @@
 #   axis_triple_check.py --  verify the Pieper-triple rule against real geometry
 #
 #   The intersecting/parallel-axis test in ikbtbasics/dh_analysis.py is pure
-#   DH-cell arithmetic.  Getting a row or column
-#   index wrong there produces a detector that is confidently wrong on every
-#   robot and looks perfectly plausible, so the rule is checked here against an
-#   INDEPENDENT oracle:  build the numeric FK with Link_N, extract each joint
-#   axis as a line in the base frame, and test concurrency/parallelism
-#   geometrically.  Two paths to the same answer.
+#   DH-cell arithmetic, and a wrong row or column index there gives a detector
+#   that is confidently wrong on every robot and looks perfectly plausible.  So
+#   the rule is checked against an INDEPENDENT oracle:  build the numeric FK
+#   with Link_N, extract each joint axis as a line in the base frame, and test
+#   concurrency and parallelism geometrically.  Two paths to one answer.
 #
 #       python3 -m scripts.axis_triple_check              # all robots
 #       python3 -m scripts.axis_triple_check Puma Stanford
 #
 #   Exit status is 0 when the rule and the geometry agree everywhere.
 #
-#   Three things this caught, all of them silent failures:
-#
-#     * sp.Float(0.0) == 0 is FALSE in sympy, and the DH tables mix Integer 0
-#       with Float 0.0 -- so `== 0` reported NO triples for Stanford, Bartell,
-#       Palm13 and friends.  Use .is_zero  (which also returns None for an
-#       undecidable symbol, the third value we want).
-#     * the intersect rule needs a COLLINEAR-axes clause:  when two of the three
-#       axes are the same line (a == 0 and sin(alpha) == 0 between them) there
-#       are only two distinct lines and they are concurrent for ANY d_{j+1},
-#       including a prismatic joint variable.  That is the Stanford arm.
-#     * j is a 1-based JOINT number used as a 0-based ROW index, and runs
-#       1 .. ndof-2.  Looping from j = 0 invents a triple containing a
-#       nonexistent joint 0 and manufactures a spurious hit on most arms.
+#   It caught all three of the silent failure modes listed in dh_analysis.py's
+#   own header, which is why it is worth keeping.
 #
 #   Copyright 2026 University of Washington
 #

@@ -3,17 +3,8 @@
 #   expected.py --  ONE table of what each robot is known to deliver, and one
 #                   rule for which files a finished solve owes the user.
 #
-#   WHY THIS FILE EXISTS.  There used to be three hand-maintained tables over
-#   overlapping sets of the same robots:
-#
-#       check_solution_sets.KNOWN_COMPLETE          9 robots, "must be 100%"
-#       numerical_closed_loop_sol_check.KNOWN_GOOD  8 robots, "at least N"
-#       bt_path_gate.EXPECTED[*]['closed_loop']     5 robots, a copy of the above
-#
-#   Puma appeared in all three, and one of them carried a comment saying its 8
-#   had been copied by hand from another.  Three tables that must agree and
-#   have no mechanism to agree is a defect waiting for someone to update two of
-#   them.  There is now one.
+#   It replaces three hand-maintained tables over overlapping sets of the same
+#   robots, which had to agree and had no mechanism to.
 #
 #   Copyright 2026 University of Washington
 #
@@ -33,20 +24,14 @@ import os
 #    total  how many branches the robot is known to return
 #
 #  BOTH NUMBERS, not just `good`.  `good` alone catches a solution going wrong;
-#  `total` catches a SPURIOUS BRANCH COMING BACK -- which is a real defect that
-#  leaves `good` untouched.  Measured on Chair_Helper: promoting Simu_Eqn_Sol
-#  ahead of sc_tan took it from 2-of-4 to 2-of-2, because the arcsin branch that
-#  was wrong at every pose stopped being generated at all.  A `good >= 2` gate
-#  passes either way and would let a revert through in silence.
+#  `total` catches a SPURIOUS BRANCH COMING BACK, which is a real defect that
+#  leaves `good` untouched -- Chair_Helper went from 2-of-4 to 2-of-2 when the
+#  branch that was wrong at every pose stopped being generated, and a
+#  `good >= 2` test passes either way.
 #
-#  100% IS NOT A RULE.  IKBT enumerates version combinations and does not
-#  filter spurious ones, so a robot legitimately scoring less than 100% is
-#  recorded exactly as it measures -- (2, 4) for Craig417, say.  See the
-#  KNOWN INCOMPLETE block below.
-#
-#  Measured 2026-08-24 (the solution/version namespace fix), 2026-09-02
-#  (KinovaLite, hybrid) and 2026-09-03 (Chair_Helper and ICP5p5_A21, when
-#  Simu_Eqn_Sol was promoted).
+#  100% IS NOT A RULE.  IKBT enumerates version combinations without filtering
+#  spurious ones, so a robot legitimately scoring less than 100% is recorded
+#  exactly as it measures -- (2, 4) for Craig417.  See KNOWN INCOMPLETE below.
 EXPECT = {
     'Puma':         (8, 8),
     'Stanford':     (8, 8),

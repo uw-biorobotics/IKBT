@@ -2,10 +2,8 @@
 #
 #   numerical_closed_loop_sol_check.py --  is the generated IK actually correct?
 #
-#   Run this to verify that a branch produces a correct solution set.  It is
-#   deliberately built on nothing but `ikSolver.py` and the FK pickle, so it
-#   runs on ANY branch -- including ones without the ik_driver / bt_assembly
-#   refactor, which is where a checker is most needed.
+#   Verifies that a branch produces a correct solution set.  Built on nothing
+#   but `ikSolver.py` and the FK pickle, so it runs on ANY branch.
 #
 #       python3 -m scripts.numerical_closed_loop_sol_check                 # default robots
 #       python3 -m scripts.numerical_closed_loop_sol_check Puma Stanford    # just these
@@ -21,15 +19,14 @@
 #   branch has to land back on T;  which branch is which does not matter, and
 #   there is nothing to look up or trust.
 #
-#   WHY THIS EXISTS.  Nothing else checks that the GENERATED CODE is right.
-#   scripts/check_solution_sets.py checks the same property one stage earlier,
-#   on the symbolic version matrix in memory;  this one runs what a user would
-#   actually import, so it also covers the code generator.
+#   This is the only check on the GENERATED CODE.  check_solution_sets.py
+#   checks the same property one stage earlier, on the symbolic version matrix
+#   in memory;  this runs what a user would actually import.
 #
 #   NOT EVERY BRANCH IS EXPECTED TO PASS.  The version matrix enumerates
-#   combinations of each unknown's solution branches and IKBT does not filter
-#   spurious ones, so a robot legitimately scores less than 100%.  What must not
-#   happen is a robot dropping below the count recorded in scripts/expected.py.
+#   combinations of each unknown's solution branches without filtering spurious
+#   ones, so a robot legitimately scores less than 100%.  What must not happen
+#   is a robot dropping below the count in scripts/expected.py.
 #
 #   Copyright 2026 University of Washington
 #

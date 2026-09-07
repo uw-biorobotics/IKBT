@@ -2,13 +2,9 @@
 #
 #   check_solution_sets.py --  does IKBT's closed form actually SOLVE the robot?
 #
-#   The baseline harness records whether every unknown got an expression.  It
-#   has never checked whether those expressions are RIGHT.  That gap is how the
-#   solution/version defect survived: `scripts/robot_baseline.py` reported Puma
-#   as "solved 7/7" while not one of its eight solution versions could even be
-#   evaluated -- every one referenced a `th_1s1` that nothing ever assigns.
-#
-#   The test here needs no ground truth and no hand-checking:
+#   The baseline record says whether every unknown got an expression, not
+#   whether those expressions are RIGHT.  This checks the latter, and needs no
+#   ground truth and no hand-checking:
 #
 #       pick a joint vector q  ->  T = FK(q)  ->  solve IK at T  ->  FK(each
 #       solution) must reproduce T
@@ -23,12 +19,11 @@
 #                                                        #   misses the count
 #                                                        #   recorded for it
 #
-#   NOT EVERY VERSION IS EXPECTED TO PASS.  The version matrix enumerates
-#   combinations of each unknown's solution branches, and some combinations are
-#   spurious -- an asin/acos branch that satisfies the equation it came from but
-#   not the original pose.  IKBT does not filter those, so a robot legitimately
-#   scoring 4-of-8 is possible.  What must not happen is a robot dropping from
-#   the count it is known to achieve, which is what --gate checks.
+#   NOT EVERY VERSION IS EXPECTED TO PASS.  Some combinations of the unknowns'
+#   solution branches are spurious -- an asin/acos branch that satisfies the
+#   equation it came from but not the original pose -- and IKBT does not filter
+#   them, so a robot legitimately scoring 4-of-8 is possible.  What must not
+#   happen is a robot dropping below the count in scripts/expected.py.
 #
 #   Copyright 2026 University of Washington
 #
