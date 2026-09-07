@@ -69,9 +69,7 @@ def get_deps(unknowns, expr):
 
 def get_variables(variables, expr):
     vs = []
-    #print 'get_variables: ', expr
     for v in variables:
-        #print 'get_variables: ', v.symbol
         if(expr.has(v.symbol)):
             vs.append(v)
     return vs

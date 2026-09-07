@@ -113,12 +113,9 @@ def Link_N(al, a, d, th):
 #
 # abbreviated symbols for the trig functions
 
-#(s_1, s_2, s_3, s_4, s_5, s_6) = sp.symbols(('s_1', 's_2', 's_3', 's_4', 's_5', 's_6'))
 sp.var('s_:7')
 sp.var('c_:7')
 del s_0 , c_0    # there is no joint 0!
-
-#(c_1, c_2, c_3, c_4, c_5, c_6) = sp.symbols(('c_1', 'c_2', 'c_3', 'c_4', 'c_5', 'c_6'))
 
 #DH params for six Links
 sp.var('al_:7')  # \alpha_N-1
@@ -268,8 +265,6 @@ def Trans4_N(v):
   return T
 ##  The cannonical rotation matrices
 
-##  The cannonical rotation matrices
-
 def RotX_N(t):
   return(np.matrix([
     [1,         0,           0],
@@ -334,7 +329,9 @@ def RPY4_N(r,p,y):
    T[3,3] = 1.0
    return T
 
-#   Get the inverse of a symbolic 4x4 Homogeneous transform
+#   Get the inverse of a 4x4 Homogeneous transform, numeric caller
+#   (NOTE: the body still builds the bottom row with sp.Matrix, so the
+#    result is a sympy Matrix, not numpy -- unlike every other *_N here.)
 def H_inv_N(T):
   R = T[0:3,0:3].T
   P = -R*T[0:3,3]

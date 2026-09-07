@@ -39,10 +39,10 @@ import os
 #  was wrong at every pose stopped being generated at all.  A `good >= 2` gate
 #  passes either way and would let a revert through in silence.
 #
-#  EVERY ROBOT RECORDED HERE IS CURRENTLY 100% (good == total).  That is a fact
-#  about today's measurements, not a rule -- IKBT enumerates version
-#  combinations and does not filter spurious ones, so a robot legitimately
-#  scoring less than 100% can be recorded here as, say, (4, 8).
+#  100% IS NOT A RULE.  IKBT enumerates version combinations and does not
+#  filter spurious ones, so a robot legitimately scoring less than 100% is
+#  recorded exactly as it measures -- (2, 4) for Craig417, say.  See the
+#  KNOWN INCOMPLETE block below.
 #
 #  Measured 2026-08-24 (the solution/version namespace fix), 2026-09-02
 #  (KinovaLite, hybrid) and 2026-09-03 (Chair_Helper and ICP5p5_A21, when
@@ -114,7 +114,7 @@ EXPECT = {
     'Parkman13':    (1, 4),
 }
 
-#  SIX ROBOTS SOLVE COMPLETELY AND THEIR GENERATED CODE CANNOT BE RUN.  They are
+#  FIVE ROBOTS SOLVE COMPLETELY AND THEIR GENERATED CODE CANNOT BE RUN.  They are
 #  deliberately NOT in EXPECT:  an entry would make the gate fail forever on a
 #  defect that is already recorded.  Measured 2026-09-05, all with tex+py+cpp
 #  written and status 'solved':

@@ -80,7 +80,6 @@ def main(argv):
     ######################################################
 
     if len(argv) == 1:  # no argument - use default
-        #robot = 'Gomez'
         #robot = 'Puma'
         #robot = 'Chair_Helper'
         #robot = 'Khat6DOF'
@@ -135,7 +134,7 @@ def main(argv):
     #       nodes['tanID'].BHdebug        = True
     #       nodes['x2z2_Solver'].BHdebug  = True
     #       nodes['sumOfAnglesID'].BHdebug = True
-    #       nodes['compDetect'].FailAllDone = False  # SUCCEED when work remains (not default)
+    #       nodes['compDetect'].FailAllDone = True   # SUCCEED when work REMAINS (default False = succeed when all done)
     #
     #   (this replaces the ~200 lines of commented-out per-robot blocks that
     #    used to live here)

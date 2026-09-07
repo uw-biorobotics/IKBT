@@ -1,6 +1,5 @@
 #!/usr/bin/python
 #
-#   TEMPLATE
 #     BT Nodes for Testing, ID, Solving
 #
 
@@ -162,7 +161,7 @@ class tan_id(b3.Action):    # action leaf for ID eqns solved by atan2()
                     # match properly ({Cw: l_2*cos(th_1), ...}).  Deliberately
                     # NOT done here: it would let tan_id claim pairs it has never
                     # claimed before, which is a capability change, not a
-                    # regression fix.  Recorded in ImplementationThoughts.md.
+                    # regression fix.
                     if d1 is None or d2 is None:
                         if self.BHdebug:
                             print('tan_id: cannot decompose this pair for ',
@@ -173,10 +172,6 @@ class tan_id(b3.Action):    # action leaf for ID eqns solved by atan2()
                     co = d1[Awx]/d2[Cwx]   # take ratio
                     # it's not solvable if (simplified) coefficient contains unknowns, or other parts have unknowns
                 
-                    #print 
-                    #print 'tan_id: (',u.symbol,')   0 =  Aw*sin(th_XX)+Bw , 0 = Cw*cos(th_XX) + Dw '
-                    #print 'Aw: ', d1[Awx], '   Bw: ', d1[Bwx]
-                    #print 'Cw: ', d2[Cwx], '   Dw: ', d2[Dwx]
                     
                     
                     too_many_unknowns = False
@@ -190,7 +185,6 @@ class tan_id(b3.Action):    # action leaf for ID eqns solved by atan2()
                         u.eqntosolve = kc.kequation(0, estst)
                         u.secondeqn = kc.kequation(0, ectst)
                         u.readytosolve = True 
-                        # u.eqntosolve and secondeqn are already set up above 
                         print('tan_id:  able to solve', u.symbol)
                         if count_unknowns(unknowns, co) > 0: #cancellable unsolved term, add the nonzero assumption
                             global_assumptions.add(sp.Q.nonzero(d2[Cwx]))                            
@@ -347,7 +341,7 @@ class tan_solve(b3.Action):    # Solve sin cos equation pairs
                 u.assumption.append(sp.Q.negative(d2[Aw]))
                 u.nsolutions = 2
 
-                # note that set_solved is doen in ranker (ranking sincos, and tan sols)
+                # note that set_solved is done in ranker (ranking sincos, and tan sols)
 
         if(fsolved):  
             tick.blackboard.set('curr_unk', u)          
@@ -436,7 +430,7 @@ class test_tan_id(b3.Action):    # tester for your ID
         tick.blackboard.set('unknowns',variables)
         tick.blackboard.set('Robot',R)    
         return b3.SUCCESS
-class TestSolver004(unittest.TestCase):    # change TEMPLATE to unique name (2 places)
+class TestSolver004(unittest.TestCase):
     DB = False
     def setUp(self):
         self.DB = False  # debug flag
@@ -850,18 +844,16 @@ class TestSolver004(unittest.TestCase):    # change TEMPLATE to unique name (2 p
 #
 #    Can run your test from command line by invoking this file
 #
-#      - or - call your TestSolverTEMPLATE()  from elsewhere
-#
 
 
 def run_test():
     print('\n\n===============  Test tan_solver.py =====================')
-    testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver004)  # replace TEMPLATE 
+    testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver004)
     unittest.TextTestRunner(verbosity=2).run(testsuite)
 
 if __name__ == "__main__":
     print('\n\n===============  Test tan_solver.py =====================')
-    testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver004)  # replace TEMPLATE 
+    testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver004)
     unittest.TextTestRunner(verbosity=2).run(testsuite)
     #unittest.main()
 

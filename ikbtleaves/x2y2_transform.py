@@ -152,7 +152,8 @@ class x2z2_transform(b3.Action):
     # for *other* leaves to solve. 
     def __init__(self):
         super().__init__()             
-        self.SolvedOneFlag = False      # turn off this expensive leaf after it has worked once
+        self.SolvedOneFlag = False      # set once this leaf has worked;  the early-out
+                                        #   that read it is commented out in tick()
 
     def tick(self, tick):
         #if self.SolvedOneFlag:           #  we will only get lucky with this method once (HACK!)
@@ -172,7 +173,6 @@ class x2z2_transform(b3.Action):
             print('len(2): ', len(two_unk))
             print('len(1): ', len(one_unk))
             print("currently looking at: ", u.symbol)
-            #sp.pprint(Tm.Ts) 
         
         solved = False    
         
@@ -399,18 +399,16 @@ class TestSolver010(unittest.TestCase):
 #
 #    Can run your test from command line by invoking this file
 #
-#      - or - call your TestSolverTEMPLATE()  from elsewhere
-#
 
 def run_test():
     print('\n\n===============  Test X2Y2 transform=====================r')
-    testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver010)  # replace TEMPLATE 
+    testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver010)
     unittest.TextTestRunner(verbosity=2).run(testsuite)
 
 if __name__ == "__main__":
     
     print('\n\n===============  Test X2Y2 transform=====================m')
-    testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver010)  # replace TEMPLATE 
+    testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver010)
     unittest.TextTestRunner(verbosity=2).run(testsuite)
    
 

@@ -114,7 +114,7 @@ class comp_det(b3.Action):
         #   also the set solve here causes problem
         
                 
-        if(self.FailAllDone):               # we can set up to succeed when all are done or succeed when more to do.
+        if(self.FailAllDone):
             DONEComplete   = b3.FAILURE
             DONEIncomplete = b3.SUCCESS
         else:

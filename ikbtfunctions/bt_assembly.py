@@ -177,13 +177,14 @@ def make_leaves(leaf_debug=False, solver_debug=False):
     #  Generalizes the x2y2 trick:  emits ||P||^2 / trace(R) / P.col invariants,
     #  which typically carry fewer unknowns than any raw element equation.
     #
-    #  OFF BY DEFAULT.  It works, it is tested, and it does subsume x2y2 -- but
-    #  measured, it has not yet solved a robot that could not be solved without
-    #  it, and it costs ~5x wall clock on Puma and Kawasaki for byte-identical
-    #  output.  Wired in as a documented extension point.  To experiment:
+    #  ON BY DEFAULT -- the reason is with the `enabled` line below.  It works,
+    #  it is tested, and it does subsume x2y2 -- but measured, it has not yet
+    #  solved a robot that could not be solved without it, and it costs ~5x wall
+    #  clock on Puma and Kawasaki for byte-identical output.  To take it back
+    #  out:
     #
     #       bt, nodes = build_default_bt()
-    #       nodes['invariantGen'].enabled = True
+    #       nodes['invariantGen'].enabled = False
     #
     invariantGen = invariant_gen()
     invariantGen.Name = 'Invariant Generator'
@@ -308,21 +309,23 @@ def build_worktools(nodes):
        b3.Priority returns on its first non-FAILURE child, so a strategy placed
        last can only fire on a tick where everything before it has already
        failed -- which makes it behavior-preserving for robots that already
-       solve.  x2z2_Solver is the precedent for a transform living in this list.
+       solve.  parallelTriple is the precedent for a transform living in this
+       list;  the list is
+       Priority[algSol, Simu_Eqn_Sol, sc_tan, sacSol, parallelTriple, invariantGen].
 
        invariantGen is last for exactly that reason:  measured at PYTHONHASHSEED=0,
        Wrist / Puma / Chair_Helper / KawasakiRS007L all produce byte-identical
        LaTeX with it in the tree.
 
-       Promoting it (swap it ahead of x2z2_Solver -- a one-line change here)
-       measurably produces BETTER solutions:  its ||P||^2 invariant subsumes the
-       x2y2 trick, so Puma th_3 goes from "x2z2 transform and sinANDcos" to plain
+       Promoting it (moving it ahead of the sin/cos solvers, sc_tan and sacSol --
+       a one-line change here) measurably produces BETTER solutions:  its
+       ||P||^2 invariant subsumes the x2y2 trick, so Puma th_3 goes from "x2z2
+       transform and sinANDcos" to plain
        "sinANDcos" with an identical solution expression and one fewer dependency
        (th_3 no longer depends on th_1, so the solution set is smaller).
 
        It is NOT promoted yet because it costs ~4.8x wall clock on Puma, all of it
-       sp.simplify() over full FK expressions.  See ImplementationThoughts.md for
-       the numbers and the list of ways to bring that down.
+       sp.simplify() over full FK expressions.
 
        SIMU_EQN_SOL IS PROMOTED AHEAD OF sc_tan, and that deliberately breaks the
        "put new things last" rule above (BH, 2026-09-03).  The rule exists to keep
@@ -405,7 +408,7 @@ def rename_leaves(nodes, suffix):
 def build_symbolic_branch(nodes, tag='', solver_debug=False):
     '''Assemble one complete symbolic solver from one leaf set.
 
-           Sequence[ clear_state, symbolic_loop(x10, solveRoutine) ]
+           Sequence[ clear_state, symbolic_loop(x20, solveRoutine) ]
 
            solveRoutine = Sequence[ sub_transform,
                                     RepeatUntilSuccess(x6, Sequence[assigner,
@@ -488,7 +491,7 @@ def build_default_bt(leaf_debug=False, solver_debug=False, nodes=None,
            analysis        = Priority[ symbolic_branch, hybrid_branch ]
 
            symbolic_branch = Sequence[ clear_state,
-                                       symbolic_loop(x10, solveRoutine) ]
+                                       symbolic_loop(x20, solveRoutine) ]
 
            hybrid_branch   = Sequence[ pieper_geom_report,   # always SUCCESS
                                        simplified_arm,
@@ -574,8 +577,9 @@ def build_default_bt(leaf_debug=False, solver_debug=False, nodes=None,
 
     #  Merge the second set in under suffixed keys, but ONLY the nodes that
     #  actually ended up in the branch.  make_leaves() builds the whole
-    #  inventory, including the hybrid-branch leaves (no_pieper_id, report_gen, the
-    #  stub), and the second set's copies of those are never wired to anything.
+    #  inventory, including the hybrid-branch leaves (pieper_geom_report,
+    #  simplified_arm, install_simplified, report_gen), and the second set's
+    #  copies of those are never wired to anything.
     #  The nodes dict is contracted to hold nodes reachable from the root -- a
     #  dangling entry means somebody built a leaf and forgot to connect it, which
     #  is a real defect the test suite checks for, so it must not be manufactured

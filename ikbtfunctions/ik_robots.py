@@ -244,7 +244,7 @@ def robot_params(name):
         pvals = {ld_1:0.112891 , a_1:0.12893 , a_2:0.8382, a_3:0.064 , ld_2:0.4615 , ld_3:0.029, ld_4:0.418}
 
 
-    if(name == 'KR16'):         # two link planar test (Issue #12) 
+    if(name == 'KR16'):
         #
         dh = sp.Matrix([
         [       0  ,   0 , l_1 , th_1 ],
@@ -311,11 +311,6 @@ def robot_params(name):
     if(name == 'ArmRobo'):    # submitted by issue #15
 
         # standardize on the order "alpha N-1, a N-1, d N, theta N' for the DH table columns.
-        
-        # Olson 2013
-        # DOF: 6
-        # methods to test: m5, m3, 
-        # Yb = d_1, Xb = d_2, L1 = l3, L2 = l4, L3 = l5
         dh = sp.Matrix([
             [sp.pi/2,    0.,       l_2,              th_1],
             [0,         l_1,        0.,              th_2],
@@ -416,7 +411,7 @@ def robot_params(name):
 
 
     if(name == 'Chair_Helper'):                
-            vv = [0,1,1,1,1,1]   # must be length 5 since 5dof and 5 unks
+            vv = [0,1,1,1,1,1]   # SIX entries, one per DH row (see MiniDD)
 
             dh = sp.Matrix([
             [  0,    0,  d_1 ,   0  ],
@@ -716,7 +711,7 @@ def robot_params(name):
         #
         #   This is Kuka Model KR60
         #    ( as analyzed in Khatamian6DOF_IK2015.pdf)
-        # unsolved, 6DOF
+        # 6 DOF, and it solves:  8 of 8 branches verified (scripts/expected.py)
 
         dh = sp.Matrix([                  ##  This one requires sum-of-angles.
         [  0,       a_1 , l_1 ,     th_1  ],

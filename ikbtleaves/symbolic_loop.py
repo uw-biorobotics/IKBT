@@ -29,8 +29,8 @@ from ikbtfunctions.progress import SolveProgress
 
 
 class symbolic_loop(b3.Decorator):
-    '''Tick the solve routine up to max_loop times;  SUCCEED if the symbolic
-       solver got anywhere at all.
+    '''Tick the solve routine up to max_loop times;  SUCCEED only when every
+       unknown is solved (require_complete, the default).
 
            SUCCESS  every unknown is solved
            FAILURE  one or more unknowns are still unsolved -- there is no

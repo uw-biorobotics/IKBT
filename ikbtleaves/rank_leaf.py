@@ -140,7 +140,7 @@ class TestSolver011(unittest.TestCase):
         self.test_rankD_single_solver_passes_through()
 
     def build(self, eqns_1u, eqns_2u, target, others=()):
-        '''Tick the composite ikSolver.py actually builds:
+        '''Tick the composite bt_assembly.build_worktools() builds:
                Sequence([ OrNode([tanSol, scSol]), rank ])
            Returns (status, unknown).'''
         u = unknown(target)

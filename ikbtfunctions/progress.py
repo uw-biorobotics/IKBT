@@ -1,7 +1,6 @@
 #!/usr/bin/python
 #
-#   progress.py --  tell the user what a long solve is doing, and roughly how
-#                   much longer it will take
+#   progress.py --  tell the user what a long solve is doing
 #
 #   A full IK solve runs from 1 s (Wrist) to 700 s (Issue4 on the hybrid branch).
 #   For most of that time the old output was silent, so the only honest question
@@ -54,8 +53,7 @@ import time
 def fmt_time(s):
     '''Seconds as something a human reads without counting digits.
 
-       Minutes above 90 s because "2.5 min" is graspable and "150 s" is not,
-       and the user asked for the estimate in minutes.'''
+       Minutes above 90 s because "2.5 min" is graspable and "150 s" is not.'''
 
     if s is None:
         return '?'
@@ -87,10 +85,10 @@ def _say(msg):
 #   sp.simplify() is 37-85 % of a solve's wall clock (table above), and the
 #   calls are scattered over a dozen leaves.  Counting them at the call sites
 #   would mean touching every one and would rot the moment a new leaf is added,
-#   so the meter wraps Basic.simplify once, here.
+#   so the meter wraps sp.simplify and sp.trigsimp once, here.
 #
-#   It is OPT-IN and reversible.  Wrapping a third-party class is not something
-#   to do implicitly:  enable_sympy_meter() is called by ikSolver.py, where a
+#   It is OPT-IN and reversible.  Rebinding a name inside a third-party module
+#   is not something to do implicitly:  enable_sympy_meter() is called by ikSolver.py, where a
 #   human is waiting and wants the feedback.  Nothing else turns it on.
 #
 
@@ -378,7 +376,7 @@ class SolveProgress(object):
         self.solved_names = names
         self.last_pools = pools
 
-    #  ------------------------------------------------------------------ eta
+    #  -------------------------------------------------------------- summary
 
     def finished(self, unknowns, exhausted):
         '''Closing line:  what was achieved and how long it took.

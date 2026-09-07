@@ -270,7 +270,7 @@ class install_simplified(b3.Action):
        tan/sincos leaves may have recorded candidate solutions on them.  We call
        robot_params() again for a clean set, through number_unknowns().
 
-       ITS OWN PICKLE NAME, encoding the change (e.g. `KinovaLite_d5_0`).
+       ITS OWN PICKLE NAME, encoding the change (e.g. `KinovaLite_d_5_0`).
        kinematics_pickle() takes the name independently of the DH table, so a
        derived arm gets its own cache entry;  sharing the true robot's name would
        either serve the wrong FK or throw the cache away on every run.  The name
@@ -527,8 +527,7 @@ class TestSolver018(unittest.TestCase):
         """pieper_ok False -> FAILURE, even though candidates could be found.
 
            pieper_geom_report cannot FAIL on "could not read the DH table"
-           any more, so this refusal is the only guard;  but the DH
-           table" into SUCCESS, so this leaf is the only thing standing between a
+           any more, so this refusal is the only thing standing between a
            parse failure and a derived robot that describes nothing."""
         fs = ' simplified_arm pieper_ok FAIL'
         R = TestSolver018.robot(self.no_triple_table(), {}, 'Plain')

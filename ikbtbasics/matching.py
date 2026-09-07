@@ -31,7 +31,6 @@
 # insert "final_groups = matching_func(R.notation_collections,
 # R.solution_nodes)"
 # after the BT is ticked, and solution_graph is generated
-# example, in test_Robots_new.py line 351
 
 import unittest
 import sympy as sp

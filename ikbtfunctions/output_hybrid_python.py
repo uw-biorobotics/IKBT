@@ -150,9 +150,10 @@ def write_fk_module(M, name, jacobian=True, dirname=DIR_NAME, what=None):
        robot means regenerating.
 
        pvals is resolved through numeric_ik.pvals_numeric(), NOT read raw:
-       kin_cl writes strings like 'np.cos(al_1)' for a non-right-angle alpha,
-       and a raw read leaves al_1 as a free symbol that then silently becomes a
-       joint argument.'''
+       for a non-right-angle alpha kin_cl evaluates sin/cos to a number, but
+       falls back to the STRING 'np.cos(al_1)' when the twist's own symbols have
+       no numeric value -- and a raw read then leaves al_1 as a free symbol that
+       silently becomes a joint argument.'''
 
     ident = py_identifier(name)
     ndof = nik.dof_of(M)

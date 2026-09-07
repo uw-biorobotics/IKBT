@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-#   invariant_gen.py --  the kinematic invariant generator  (NewStrategies.md, Candidate 3)
+#   invariant_gen.py --  the kinematic invariant generator
 #
 #   Every existing IKBT solver shares one precondition:  the target unknown must
 #   ALREADY be isolated in a conveniently-shaped equation.  The system recognizes
@@ -313,8 +313,8 @@ class invariant_gen(b3.Action):
     #
     #       nodes['invariantGen'].enabled = True
     #
-    #  and see ImplementationThoughts.md for the runtime work that would have to
-    #  land first for it to be a sensible default.
+    #  Runtime work on the solver would have to land first for it to be a
+    #  sensible default.
     enabled = False
 
     def tick(self, tick):
@@ -381,7 +381,7 @@ class invariant_gen(b3.Action):
 #
 
 class TestSolver012(unittest.TestCase):
-    '''Kinematic invariant generator (NewStrategies.md Candidate 3).'''
+    '''Kinematic invariant generator.'''
 
     def setUp(self):
         self.DB = False   # debug flag

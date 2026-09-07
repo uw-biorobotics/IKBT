@@ -72,7 +72,7 @@ def canonical_second_eqn(u, e1, e2):
 class simu_id(b3.Action):
     # finding 
     #    c = Asin(th1) + Bcos(th1)
-    #    d = Acos(th1) - Bsin(th2)  (nice arctan solution)
+    #    d = Acos(th1) - Bsin(th1)  (nice arctan solution)
     #
   
     def tick(self, tick):
@@ -83,8 +83,6 @@ class simu_id(b3.Action):
         one_unk = tick.blackboard.get('eqns_1u')
 
         found = False
-        #pattern1 = Aw * sp.sin(curr_unk.symbol) + Bw * sp.cos(curr_unk.symbol) - Cw
-        #pattern2 = Aw * sp.cos(curr_unk.symbol) - Bw * sp.sin(curr_unk.symbol) - Dw
 
         eq1 = None
         eq2 = None

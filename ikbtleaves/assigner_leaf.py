@@ -38,7 +38,6 @@ class assigner(b3.Action):
             counter = 0
             
         while counter < len(unknowns):
-            #print "current location is %d"%counter
             curr = unknowns[counter]
             counter = counter + 1
             if not curr.solved:
@@ -49,7 +48,6 @@ class assigner(b3.Action):
                     #  between.  Every other leaf gates its chatter on
                     #  BHdebug;  this one had simply never been converted.
                     print("\n\nAssigner: variable on blackboard: %s"%curr.symbol)
-                #print '\n\n'
                 tick.blackboard.set("counter", counter)
                 tick.blackboard.set("curr_unk", curr)
                 return b3.SUCCESS
@@ -59,4 +57,3 @@ class assigner(b3.Action):
         tick.blackboard.set("counter", counter)
         tick.blackboard.set("curr_unk", unknowns[counter])
         return b3.SUCCESS
-            #print "current location is %d"%counter

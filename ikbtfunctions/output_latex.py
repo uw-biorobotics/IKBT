@@ -203,8 +203,6 @@ def emit_equations(eqns, eol, force_align=False):
     r"""A variable's equations, ONE PER SOURCE LINE, each preceded by a marker.
 
        eqns       list of kc.kequation
-       fold_ids   ids (LHS names) measured as too wide, to be folded
-       force_align  use align even for a single equation
 
        ONE EQUATION PER SOURCE LINE is what makes the measurement possible at
        all.  pdflatex reports an overfull box against a SOURCE LINE, and this
@@ -628,8 +626,10 @@ def output_latex_solution(Robot, variables, groups, hybrid=None, R_true=None,
 
     ####################  Joint axis geometry (Pieper condition)
 
-    #  Written by the pieper_id leaf, which ticks ahead of the branch split so
-    #  that this statement appears whichever branch produced the solution.
+    #  Written by the report_gen leaf (output_gen.py), which ticks after
+    #  whichever branch produced the solution, so the statement appears either
+    #  way -- on the hybrid path from pieper_geom_report's snapshot of the TRUE
+    #  robot, otherwise computed there from the DH table.
     #  getattr: a Robot restored from a pickle written before this existed will
     #  not carry the attribute, and a missing statement must not break the
     #  report.  (output_FK_equations() below deliberately does not get this --
@@ -947,7 +947,7 @@ def output_latex_solution(Robot, variables, groups, hybrid=None, R_true=None,
 
     # Write out the file!!
     LF.output()
-    #  The caller measures this file and may call back with fold_ids -- see
+    #  The caller measures this file and may call back with force_ids -- see
     #  ik_driver.write_latex_fitted().
     return LF.filename
 
@@ -1020,7 +1020,7 @@ Throughout, $c_i = \cos \theta_i$ and $s_i = \sin \theta_i$.
 
 def output_FK_equations(Robot):
     GRAPH = True
-    ''' Print out a latex document of the solution equations. '''
+    ''' Print out a latex document of the forward kinematics and Jacobian. '''
     eol = '\n'
     orig_name =  Robot.name.replace('test: ','')
     fixed_name = orig_name.replace(r'_', r'\_')

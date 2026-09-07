@@ -1,6 +1,8 @@
 #!/usr/bin/python
 #
-#     Test for full IK solutions of know robot(s)
+#     Forward kinematics and Jacobian only, for a named robot
+#
+#        python3 fkOnly.py <RobotName>       ( no argument -> Raven-II )
 
 # Copyright 2017 University of Washington
 
@@ -81,10 +83,8 @@ sp.var('Px Py Pz')
 
 #  Very basic Test
 
-#Rs = ['C-Arm', 'Gomez', 'Puma', 'Chair_Helper', 'Khat6DOF', 'Wrist', 'MiniDD', 'RavenII']
 
 if len(argv) == 1:  # no argument - use default
-    #robot = 'Gomez'
     #robot = 'Puma'
     #robot = 'Chair_Helper'
     #robot = 'Khat6DOF'
@@ -143,7 +143,6 @@ ol.output_FK_equations(R)  # output Latex.
 
  
 
-#            passed ',ntests,' tests \n\n\n')
 
 print('End of Forward Kinematics Computation Job')
 

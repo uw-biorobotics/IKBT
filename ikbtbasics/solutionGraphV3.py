@@ -33,7 +33,7 @@ class Node:
         self.name = str(unk.symbol)
         self.argument = unk.argument
         self.solvemethod = unk.solvemethod
-        # nversions is in the unknown class self.unk.nversions
+        # nversions is in the unknown class: self.unknown.nversions
         #  aren't these redundant since we have them in the unk??
         self.eqnlist = []
         self.nsolutions = 0
@@ -63,7 +63,6 @@ class Node:
 
 class Edge: # from unk --->  dependency
     def __init__(self, N1, N2, multiplicity=1):   # N1 depends on N2
-        '''child and parent are notation with subscript type'''
         self.dependsOn = N2  # depends on  (arrow pts .startNode --> .dependsOn)
         self.StartNode = N1   #  the solution node
         self.mult = multiplicity
@@ -94,9 +93,6 @@ class SolutionGraphV2Tests(unittest.TestCase):
         print("place holder for real test: solution_graph_v2")
 
 if __name__ == '__main__':
-    #notation_graph = set()
-    #unittest.main()
-
     print('\n\n===============  Test solutionGraphV3 =====================')
     #testsuite = unittest.TestLoader().loadTestsFromTestCase(SolutionGraphV2Tests)  # replace TEMPLATE
     #unittest.TextTestRunner(verbosity=2).run(testsuite)

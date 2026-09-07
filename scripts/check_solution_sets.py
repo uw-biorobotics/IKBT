@@ -19,9 +19,9 @@
 #
 #       python3 -m scripts.check_solution_sets                # every robot it can
 #       python3 -m scripts.check_solution_sets --robots Puma  # just these
-#       python3 -m scripts.check_solution_sets --gate         # exit 1 if a
-#                                                        #   known-good robot
-#                                                        #   is not 100%
+#       python3 -m scripts.check_solution_sets --gate         # exit 1 if a robot
+#                                                        #   misses the count
+#                                                        #   recorded for it
 #
 #   NOT EVERY VERSION IS EXPECTED TO PASS.  The version matrix enumerates
 #   combinations of each unknown's solution branches, and some combinations are
@@ -59,9 +59,9 @@ except ImportError:                       # older branch without the list
 #  THE EXPECTATION TABLE LIVES IN scripts/expected.py, shared with the
 #  generated-code checker.  It used to be KNOWN_COMPLETE here -- a list of
 #  robots that must be 100% -- which was a third hand-maintained copy of the
-#  same robots.  EXPECT's (good, total) says the same thing and more:  the
-#  robots recorded there are all 100% today, and a robot that is legitimately
-#  not can still be recorded exactly.
+#  same robots.  EXPECT's (good, total) says the same thing and more:  a robot
+#  that is legitimately not 100% is recorded exactly as it measures rather than
+#  left out of the gate.
 #
 #  Chair_Helper and ICP5p5_A21 became complete on 2026-09-03, when Simu_Eqn_Sol
 #  was promoted ahead of sc_tan in build_worktools() -- see the docstring there.

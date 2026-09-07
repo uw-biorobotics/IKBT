@@ -114,8 +114,9 @@ REQUIRED_SUPPORT = [assigner, rank, sum_id, sub_transform, updateL, comp_det]
 #  why, because they are all in the shipped tree.  This file lints ANY candidate
 #  tree, and none of the three is needed to solve a robot:  the outer loop can be
 #  a plain b3.RepeatUntilSuccess (it was, until Aug 2026), codegen can stay with
-#  the caller (it did), and the hybrid branch does not exist yet.  Requiring them
-#  would tell somebody experimenting with a simpler tree that they are wrong.
+#  the caller (it did), and a candidate tree need not have a hybrid branch at all
+#  (the shipped one did not, until Sep 2026).  Requiring them would tell somebody
+#  experimenting with a simpler tree that they are wrong.
 #  What the shipped tree actually guarantees is asserted directly instead -- see
 #  test_btaR / test_btaS below.
 OPTIONAL_LEAVES = [x2z2_transform, parallel_triple_transform,
@@ -134,7 +135,7 @@ ID_SOLVER_PAIRS = [(algebra_id, algebra_solve),
                    (simu_id, simu_solver)]
 
 #  tan_solve and sincos_solve deliberately do NOT call set_solved() -- see the
-#  comment at tan_solver.py:338.  rank does it for both.  A tree with either
+#  comment at tan_solver.py:350.  rank does it for both.  A tree with either
 #  solver and no rank leaf discards every solution they find.
 NEEDS_RANK = [tan_solve, sincos_solve]
 
@@ -675,7 +676,7 @@ class TestSolver013(unittest.TestCase):
 
     def test_btaK_missing_rank_detected(self):
         '''tan_solve and sincos_solve leave set_solved() to the rank leaf
-           (tan_solver.py:338).  Without rank they solve and discard.'''
+           (tan_solver.py:350).  Without rank they solve and discard.'''
         nodes = make_leaves()
         wt = build_worktools(nodes)
         wt.Name = 'Work Tools'
@@ -1006,9 +1007,7 @@ class TestSolver013(unittest.TestCase):
         arms = [n for n in bt_nodes(bt) if isinstance(n, simplified_arm)]
         self.assertEqual(len(arms), 1, fs + ' (expected exactly one)')
 
-        #  it must not be on the PRIMARY symbolic path -- ranking simplifications
-        #  there is pure waste, and a simplification chosen for an arm that
-        #  solved exactly would be a standing invitation to use it
+        #  it must not be on the PRIMARY symbolic path (see the docstring)
         sel = [n for n in bt_nodes(bt)
                if isinstance(n, b3.Priority) and n.Name == 'Analysis'][0]
         kids = [k for k in child_slots(sel) if isinstance(k, b3.BaseNode)]

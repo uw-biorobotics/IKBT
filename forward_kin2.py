@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 #
-#     Test for full IK solutions of know robot(s)
+#     Forward kinematics only:  load a named robot and build/check its FK pickle
 
 # Copyright 2017 University of Washington
 
@@ -67,7 +67,6 @@ sp.var('Px Py Pz')
 
 
 if len(argv) == 1:  # no argument - use default
-    #robot = 'Gomez'
     #robot = 'Puma'
     #robot = 'Chair_Helper'
     #robot = 'Khat6DOF'

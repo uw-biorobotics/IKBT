@@ -84,7 +84,7 @@ class test_sub_transform(b3.Action):    # tester for your ID
         tick.blackboard.set('Robot',R)    
         return b3.SUCCESS
 
-class sub_transform(b3.Action):    # action leaf for  
+class sub_transform(b3.Action):
     
     def tick(self, tick):
         unknowns = tick.blackboard.get('unknowns')   # the current list of unknowns (read-only here)
@@ -121,7 +121,7 @@ class sub_transform(b3.Action):    # action leaf for
                     for k in rows:
                         for l in cols:
                             e1 = R.mequation_list[m].Ts[k,l]
-                            # substitute with e1 or -e1      ####################################3    *******    adapt ".has" to both LHS and RHS??
+                            # substitute with e1 or -e1     TODO: adapt ".has" to both LHS and RHS??
                             if((e1 != e2) and e2 != z and e2.has(e1)):  # we found a substitution
                                 if(self.BHdebug):
                                     print('')
@@ -154,7 +154,6 @@ class sub_transform(b3.Action):    # action leaf for
                                 
                                         
         if found:
-            #  put the tmp_eqns list back into R !!!!  ******************************
             [L1, L2, L3p] = R.scan_for_equations(unknowns)
             tick.blackboard.set('eqns_1u', L1)
             tick.blackboard.set('eqns_2u', L2)
@@ -166,9 +165,6 @@ class sub_transform(b3.Action):    # action leaf for
             #return b3.FAILURE
             
        
-#class test_sincos_solve(b3.Action):    # tester for sincos solver
-    #def tick(self, tick):
-      ## set up bb data for testing sincos_solve
       
 
 
@@ -176,7 +172,7 @@ class sub_transform(b3.Action):    # action leaf for
 #####################################################################################
 # Test code below.  See sincos_solver.py for example
 #       
-class TestSolver006(unittest.TestCase):    # change TEMPLATE to unique name (2 places)
+class TestSolver006(unittest.TestCase):
     def setUp(self):
         self.DB = False  # debug flag
         print('===============  Test sub_transform.py  =====================')
@@ -215,16 +211,14 @@ class TestSolver006(unittest.TestCase):    # change TEMPLATE to unique name (2 p
 #
 #    Can run your test from command line by invoking this file
 #
-#      - or - call your TestSolverTEMPLATE()  from elsewhere
-#
 def run_test():
     print('\n\n===============  Test sub_transform nodes=====================')
-    testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver006)  # replace TEMPLATE 
+    testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver006)
     unittest.TextTestRunner(verbosity=2).run(testsuite)
     
 if __name__ == "__main__":
     
     print('\n\n===============  Test sub_transform nodes=====================')
-    testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver006)  # replace TEMPLATE 
+    testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver006)
     unittest.TextTestRunner(verbosity=2).run(testsuite)
            

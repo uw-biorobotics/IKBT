@@ -50,9 +50,10 @@ def load_robot(name, testing=False):
        always use the returned list, never the one from robot_params().
 
        FK and the sum-of-angles scan are slow, so kinematics_pickle() caches to
-       fk_eqns/<name>_pickle.p.  check_the_pickle() compares the cached DH table
-       against the current one and tells you to delete the pickle if they differ;
-       ANY other change to the FK or SOA code also requires deleting it by hand.'''
+       fk_eqns/<name>_pickle.p.  A DH change heals itself -- kinematics_pickle()
+       compares the cached table and recomputes -- and check_the_pickle() is only
+       advisory about it.  ANY other change to the FK or SOA CODE still requires
+       deleting the pickle by hand.'''
 
     [dh, vv, params, pvals, unknowns] = robot_params(name)   # see ik_robots.py
     print('Solver:  unknowns:', unknowns)
@@ -209,8 +210,8 @@ def emit_hybrid_outputs(R, unks, hybrid, R_true=None):
            LaTex/ik_solution_<True>.tex            named for the TRUE robot
            CodeGen/Python/IK_hybrid_<True>.py      named for the TRUE robot
            CodeGen/Python/IK_equations<Derived>.py named for the DERIVED arm
-           CodeGen/Python/FK_equations<Derived>.py named for the DERIVED arm
-           CodeGen/Python/FK_equations<True>.py    named for the TRUE robot
+           CodeGen/Python/FK_numeric<Derived>.py   named for the DERIVED arm
+           CodeGen/Python/FK_numeric<True>.py      named for the TRUE robot
 
        The two artifacts a user reaches for -- the report and the module they
        import -- carry the name they asked about, because that is the question

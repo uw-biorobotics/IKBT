@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-#     Test for full IK solutions of know robot(s)
+#     Forward kinematics of one hard-coded robot (MiniDD), printed squeezed
 
 # Copyright 2017 University of Washington
 

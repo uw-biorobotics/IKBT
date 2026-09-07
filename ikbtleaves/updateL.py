@@ -1,7 +1,6 @@
 #!/usr/bin/python
 #
-#   TEMPLATE
-#     BT Nodes for Testing, ID, Solving
+#   updateL.py --  re-scan the equations and refresh the 1/2/3+-unknown lists
 #
  
 
@@ -75,19 +74,13 @@ class updateL(b3.Action):    # Set up (update) the equation lists
         tick.blackboard.set('eqns_3pu', L3p)  # eqns w/ 3 unknowns
         tick.blackboard.set('Robot', R)
 
-        #print('Testing: updateL(): L1: ', L1)
-        #x = input (' <CR> to continue ....')
         return b3.SUCCESS
 
 
 #####################################################################################
 # Test code below.  See sincos_solver.py for example
 #
-class TestSolver007(unittest.TestCase):    # change TEMPLATE to unique name (2 places)
-    # def setUp(self):
-        # self.DB = False  # debug flag
-        # print '===============  Test updateL.py  ====================='
-        # return
+class TestSolver007(unittest.TestCase):
 
     def runTest(self):
         self.test_updateL()
@@ -122,9 +115,6 @@ class TestSolver007(unittest.TestCase):    # change TEMPLATE to unique name (2 p
             #def kinematics_pickle(rname, dh, constants, pvals, vv, unks, test):
             Test = True
             [M, R, unk_Puma] = kinematics_pickle(robot, dh, params, pvals, vv, unknowns, Test)
-            #print 'Starting Sum of Angle scan/transform'
-            #R.sum_of_angles_transform(unknowns)
-            #print 'Completed Sum of Angles scan/transform'
 
             print('GOT HERE: updateL robot name: ', R.name)
 
@@ -145,10 +135,8 @@ class TestSolver007(unittest.TestCase):    # change TEMPLATE to unique name (2 p
             L1 = bb.get('eqns_1u')
             L2 = bb.get('eqns_2u')
             print(L2[0].RHS)
-            # print them all out(!)
             sp.var('Px Py Pz')
             fs = 'updateL: equation list building   FAIL'
-            #  these self.assertTrues are not conditional - no self.assertTrueion counting needed
             self.assertTrue(L1[0].RHS == d_3, fs)
             self.assertTrue(L1[0].LHS == -Px*sp.sin(th_1)+Py*sp.cos(th_1), fs)
             print('-----')
@@ -167,7 +155,6 @@ class TestSolver007(unittest.TestCase):    # change TEMPLATE to unique name (2 p
                 a = s
                 s = s.replace('sin(', 'sp.sin(')  # for correct code generation
                 s = s.replace('cos(', 'sp.cos(')
-                #print '--->',a , '/', s 
                 return s
             
             for eqn in L1:
@@ -235,16 +222,6 @@ class TestSolver007(unittest.TestCase):    # change TEMPLATE to unique name (2 p
         #  The 2-way SOA substitution must have happened:  th_2 + th_3 has been
         #  replaced by th_23 in the Pz equation.
         #
-        #  This used to assert two SEPARATE list entries:
-        #      Pz       =  -a_2*sin(th_2) - a_3*sin(th_23) + d_1 - d_4*cos(th_23)
-        #      Pz - d_1 =  -a_2*sin(th_2) - a_3*sin(th_23)       - d_4*cos(th_23)
-        #  which are the SAME statement split across '=' two ways.  scan_for_equations
-        #  now collapses those (Robot.eqn_key), so only one survives -- erank puts
-        #  the shorter form first, so it is the 'Pz - d_1' one that is kept.
-        #
-        #  Assert on the flattened content rather than on a particular split:  that
-        #  is what the test actually cares about, and it does not re-pin the
-        #  duplicate.
         #  Both LHS/RHS splits of the Pz equation are legitimately present --
         #  the solvers are structural matchers, so the split matters (see
         #  Robot.eqn_key).  Assert on content, order-independently, rather than
@@ -278,24 +255,21 @@ class TestSolver007(unittest.TestCase):    # change TEMPLATE to unique name (2 p
         # solutiontreenodes no longer used
         #self.assertTrue(len(R.solutiontreenodes) == 3, fs)  # we should now have three nodes (root + two solns)
 
-        #print '\n\n\n               updateL    PASSES ALL TESTS  \n\n'
 
 
 #
 #    Can run your test from command line by invoking this file
 #
-#      - or - call your TestSolverTEMPLATE()  from elsewhere
-#
 
 def run_test():
     print('\n\n===============  Test updateL.py =====================')
-    testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver007)  # replace TEMPLATE
+    testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver007)
     unittest.TextTestRunner(verbosity=2).run(testsuite)
 
 if __name__ == "__main__":
 
     print('\n\n===============  Test updateL.py =====================')
-    testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver007)  # replace TEMPLATE
+    testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver007)
     unittest.TextTestRunner(verbosity=2).run(testsuite)
     #unittest.main()
 

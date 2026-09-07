@@ -109,26 +109,13 @@ execution time).
 ### The behavior tree
 
 `b3/` is a   locally modified copy of Behavior3Py (nodes return `b3.SUCCESS`/`FAILURE`/`RUNNING`; state
-is stored on a `Blackboard`). The tree, built in `ikbtfunctions/bt_assembly.py`:
-
-```
-Sequence[ analysis, report_gen ]
-
-analysis        = Priority[ symbolic_branch, hybrid_branch ]      # Priority == Selector
-
-symbolic_branch = Sequence[ clear_state, symbolic_loop(x10, solveRoutine) ]
-
-solveRoutine    = Sequence[ sub_transform,
-                            RepeatUntilSuccess(x6, Sequence[ assigner, sum_id, worktools ]),
-                            updateL,
-                            comp_det ]
-
-hybrid_branch   = Sequence[ pieper_geom_report,   # reports, ALWAYS SUCCESS
-                            simplified_arm, install_simplified,
-                            symbolic_branch (2nd instance set) ]
-
-worktools = Priority[ algSol, Sequence[OrNode[tanSol, scSol], rank], Simu_Eqn_Sol, sacSol, x2z2_transform ]
-```
+is stored on a `Blackboard`). The tree is assembled in `ikbtfunctions/bt_assembly.py`; **read `build_default_bt()` and
+`build_worktools()` for its shape.** There is deliberately no diagram of it here: the one that
+used to sit in this spot drifted out of date without anyone noticing and then actively misled a
+diagnosis -- it showed `Simu_Eqn_Sol` *after* `sc_tan`, the pre-2026-09-03 order, contradicting
+the promotion described below, and listed an `x2z2_transform` the Priority no longer holds.
+Solver precedence is the whole argument in half the notes in this file, so a stale copy of it is
+worse than none.
 
 **Node vocabulary.** `b3.Priority` is the standard **Selector** (a.k.a. Fallback): it ticks children in
 order and stops at the first non-FAILURE. `b3.OrNode` is a local addition and is *not* a Selector — it

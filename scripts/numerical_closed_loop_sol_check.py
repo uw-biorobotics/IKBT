@@ -108,10 +108,11 @@ def robot_fk(name):
        joint_names: the joints q must hold, in DH chain order
 
        Both jobs belong to ikbtbasics.numeric_ik and are NOT repeated here:
-       resolving M.pvals (which is not uniformly numeric -- kin_cl writes
-       'np.cos(al_1)' strings for a non-right-angle alpha) and naming the
-       joints (a DH cell can be 'B + pi/2', so the joint is the symbol inside
-       the cell, not the cell)."""
+       resolving M.pvals (kin_cl stores a number for ca_i/sa_i since
+       2026-09-03, but still falls back to an 'np.cos(al_1)' string for an
+       alpha it cannot evaluate) and naming the joints (a DH cell can be
+       'B + pi/2', so the joint is the symbol inside the cell, not the
+       cell)."""
 
     from ikbtfunctions.ik_robots import robot_params
     from ikbtbasics.ik_classes import kinematics_pickle

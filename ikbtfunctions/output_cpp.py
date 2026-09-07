@@ -204,8 +204,7 @@ int False = 0;
 
         c.line('//Variable: '+str(node.symbol))
         solno = 0
-        #for i,solu in enumerate(node.solution_list):
-        nsolns = node.unknown.nsolutions #len(node.solution_with_notations.values())
+        nsolns = node.unknown.nsolutions
         nvers  = Robot.nversions
         print('Cpp Output Gen: ', node, ' has ', nsolns, ' solutions and ',nvers, ' versions')
         # go through the final matrix of equation versions

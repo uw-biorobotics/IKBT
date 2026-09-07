@@ -20,8 +20,7 @@
 #   with no symptom until some robot solves wrongly.  With a keep-list the
 #   failure mode inverts -- a new key that should have survived gets dropped
 #   instead, which shows up immediately as a missing value rather than a subtly
-#   wrong answer.  Cheap to diagnose, and tests/bt_assembly_test.py asserts the
-#   list covers everything the solve path actually writes.
+#   wrong answer.  Cheap to diagnose.
 #
 #   Copyright 2026 University of Washington
 #

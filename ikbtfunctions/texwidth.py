@@ -125,7 +125,7 @@ def ids_by_line(texpath):
 
 
 def overfull_ids(texpath, slack_pt=0.0, timeout=DEFAULT_TIMEOUT):
-    '''{equation id: points too wide} -- the equations that need folding.
+    '''{equation id: points too wide} -- the equations that need shortening.
 
        slack_pt ignores overflows smaller than that.  TeX reports a box 3.7pt
        over, which is about one character and not worth restructuring an

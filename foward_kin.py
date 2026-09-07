@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-#     Test for full IK solutions of know robot(s)
+#     Forward kinematics of one hard-coded robot (MiniDD), with/without the pickle
 
 # Copyright 2017 University of Washington
 

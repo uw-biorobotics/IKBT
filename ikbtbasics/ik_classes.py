@@ -33,7 +33,6 @@ import b3 as b3          # behavior trees
 import pickle
 from ikbtfunctions.helperfunctions import *
 import ikbtfunctions.graph2latex as gl
-#from kin_cl import *f
 import ikbtbasics.kin_cl as kc
 
 # generic variables for any manipulator
@@ -130,11 +129,10 @@ def kinematics_pickle(rname, dh, constants, pvals, vv, unks, test):
         R = Robot(m, rname)              # set up IK structs etc
         R.scan_for_equations(unks)       # generate equation lists
 
-        # below is commented out for testing and devel of sum_of_angles_transform
         R.sum_of_angles_transform(unks)  # find sum of angles
 
-        # for Version 3: solution nodes created as they are solved (unknown.set_solved)
-        #R.generate_solution_nodes(unks) # generate solution nodes
+        #  Version 3 creates the solution nodes AS they are solved (see
+        #  unknown.set_solved), so there is no node-generation pass here.
 
         print(' Storing kinematics pickle for '+rname + '('+name+')')
         with open(name,'wb') as pf:
@@ -215,9 +213,6 @@ class Robot:
         self.mequation_list = []
         # kequation_aux_list:    sum of angle eqns such as eg th_23 = th_2+th_3
         self.kequation_aux_list = []
-        # a matrix equation in which to embed important kequations equations
-        #    this is done for compatibility with the id/solvers
-    #    self.SOA_eqns = kc.matrix_equation()
         # To add a kequation, use R.kequation_aux_list.append(neweqn)
 
         if(Mech != None):    # in testing situations we only need a "Robot" to keep track of solutions above
@@ -395,7 +390,7 @@ class Robot:
         neg = '%s|%s' % (sp.expand(-L), sp.expand(-R))
         return min(pos, neg)
 
-    # get lists of unsolved equations having 1 and 2 unks
+    # get lists of unsolved equations having 1, 2, and 3-or-more unks
     #
     def scan_for_equations(self,variables):
         self.l1 = [] # equations with one unk nown (if any)
@@ -434,7 +429,7 @@ class Robot:
             if(n==2):
                 keep(kc.kequation(lhs, rhs), self.l2)
 
-        self.l1 = erank(self.l1) # sort the equations (in place) so solvers get preferred eqns first
+        self.l1 = erank(self.l1) # sort the equations so solvers get preferred eqns first
         self.l2 = erank(self.l2)
         self.l3p = erank(self.l3p)
 
@@ -471,20 +466,20 @@ class Robot:
         self.l2 = []
         self.l3p = []
         for eqn in Meqn.get_kequation_list():
-            lh1x1 = eqn.LHS  #4x4 matrix
-            rh1x1 = eqn.RHS  #4x4 matrix
+            lh1x1 = eqn.LHS
+            rh1x1 = eqn.RHS
             n = count_unknowns(variables, lh1x1) + count_unknowns(variables, rh1x1)
             e1 = eqn
             if(n==1):
                 if e1 not in self.l1:
-                    self.l1.append(e1)   # only append if not already there
+                    self.l1.append(e1)
             if(n==2):
                 if e1 not in self.l2:
-                    self.l2.append(e1)    # only append if not already there
+                    self.l2.append(e1)
             if(n > 2):
                 if e1 not in self.l3p:
-                    self.l3p.append(e1)    # only append if not already there
-        self.l1 = erank(self.l1) # sort the equations (in place) so solvers get preferred eqns first
+                    self.l3p.append(e1)
+        self.l1 = erank(self.l1) # sort the equations so solvers get preferred eqns first
         self.l2 = erank(self.l2)
         self.l3p = erank(self.l3p)
         return [self.l1, self.l2, self.l3p]
@@ -508,9 +503,6 @@ class Robot:
                 for j in [0,1,2,3]:  # but check all 4 columns
                     it_number += 1
                     prog_bar(it_number, nits, barlen, 'Sum of Angles')
-                    #print 'kij: ', k,i,j
-
-                    #print 'Sum of Angles: eqn,row,col: ', k,i,j
                     # simplify with lasting effect (note: try sp.trigsimp() for faster????)
                     Meq.Ts[i,j] = sp.simplify(Meq.Ts[i,j])  # simplify should catch c1s2+s1c2 etc. (RHS)
                     Meq.Td[i,j] = sp.simplify(Meq.Td[i,j])  # simplify should catch c1s2+s1c2 etc. (LHS)
@@ -535,8 +527,6 @@ class Robot:
                     Meq.Ts[i,j] = rhs
 
         prog_bar(-1,100,100, '')  # clear the progress bar
-
-                            #x = raw_input('<enter> to cont...')
         print('Completed sum-of-angles scan.')
 
 ##############################   end of Robot class ###############################
@@ -554,9 +544,6 @@ def sum_of_angles_sub(R, expr, variables):
     tmpeqn = None
     found2 = found3 = False
     matches = expr.find(sp.sin(aw+bw+cw)) | expr.find(sp.cos(aw+bw+cw))
-    #print '- -  - - -'
-    #print expr
-    #print matches
 
     # Sort matches so 3-way SOA subs are processed before 2-way ones.
     # Without sorting, set iteration order is non-deterministic which can
@@ -592,7 +579,6 @@ def sum_of_angles_sub(R, expr, variables):
                 nzer += 1
             else:
                 varlist.append(d[k1])
-        #print 'varlist: ', varlist
         if len(varlist) == 2:
             found2 = True
         if len(varlist) == 3:
@@ -611,7 +597,6 @@ def sum_of_angles_sub(R, expr, variables):
             for c in nil:  # make into a string
                 ni += c   # build up subscript e.g. 234
 
-            #print 'New index: '+ni
             vexists = False
             # has this SOA been found before?  Did we already make it?
             for v in variables:
@@ -625,7 +610,6 @@ def sum_of_angles_sub(R, expr, variables):
             if not vexists:
                 print(":  found new 'joint' (sumofangle) variable: ", th_new)
                 #  try moving soa equation to Tm.auxeqns
-                #unkn_sums_sym.add(th_new) #add into the joint variable set
                 newjoint = kc.unknown(th_new)
                 newjoint.n = int(ni)  # generate e.g. 234 = 10*2 + 34
                 newjoint.solved = False  # just to be clear for count_unknowns
@@ -646,14 +630,7 @@ def sum_of_angles_sub(R, expr, variables):
             #     (a+b+c) -> (abc) instead of (a+bc)(!)
             #
 
-            #self.mequation_list[k].Td[i,j] = Meq.Td[i,j].subs(d[aw] + d[bw] + d[cw], th_subval)
-            #self.mequation_list[k].Ts[i,j] = Meq.Ts[i,j].subs(d[aw] + d[bw] + d[cw], th_subval)
             expr = expr.subs(d[aw] + d[bw] + d[cw], th_subval)
-            #print 'sum of angles (ik_classes): NEW Eqns (k,i,j)',k,i,j
-            #print self.mequation_list[k].Td[i,j]
-            #print ' = '
-            #print self.mequation_list[k].Ts[i,j]
-            #print '========'
     if tmpeqn is not None:
         print('sum_of_angles_sub: Ive found a new SOA equation, ', tmpeqn, 'it is a 3-way SOA: ', found3)
     return (expr, newjoint, tmpeqn)
@@ -664,23 +641,17 @@ def get_variable_index(vars, symb):
             print('get_variable_index()/ik_classes: at least one index is not initialized for joint variables (or is 0!)')
             quit()
         found = False
-        #print 'get_variable_index: v[i], symb, v[i].n ',str(v.symbol),str(symb), v.n
         if v.symbol == symb:
             found = True
             return v.n
     assert found, 'Error: trying to get index of an unknown joint variable' + str(symb)
-    #if found == False:
-        #print 'Error: trying to get index of an unknown joint variable'
-        #print 'symbol: ', symb
-        #print vars
-        #quit()
     return False
 
 
 
-def erank(list_L):  # rearrange list of eqns by length
-                    # by putting shortest eqns last, system will prefer to solve
-                    #   shorter equations (i.e. prefer shorter solutions where two exist)
+def erank(list_L):  # rearrange list of eqns by length (count_ops), SHORTEST FIRST
+                    # so the solvers reach the short equations first
+                    #   (i.e. prefer shorter solutions where two exist)
 
     # since the sorting is from lower to higher
     # it should not be reversed when putting into the list - D.Z.

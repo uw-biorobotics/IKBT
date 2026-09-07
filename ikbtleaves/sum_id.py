@@ -43,7 +43,6 @@ class sum_id(b3.Action):   ##  we should change this name since its a transform
             
             Tmatrix = matr_equ
             
-            #print 'sum_transform.py: working on ', Tmatrix
             #Tmatrix_squeeze = sp.simplify(notation_squeeze(Tmatrix))
             
             #if(self.BHdebug):
@@ -66,11 +65,8 @@ class sum_id(b3.Action):   ##  we should change this name since its a transform
                 for expr in [Teqn.LHS, Teqn.RHS]:
                         # need new ways to identify thx +/- thy
                         # notation_squeeze does not pick up - cases
-                        #eLHS = expr.LHS
-                        #eRHS = expr.RHS
     
                         
-                        #print 'sum_of_angles_ID: ', expr 
                     
                         sub_sin = expr.find(sp.sin(thx + sgn * thy)) #returns a subset of expressions with the query pattern, this finds sin(thx) too
                         sub_cos = expr.find(sp.cos(thx + sgn * thy))

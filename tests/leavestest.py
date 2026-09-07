@@ -79,12 +79,6 @@ os.chdir('../')            # change to project dir.
 
 possible_unkns = set([th_1, th_2, th_3, th_4, th_5, th_6, d_1, d_2, d_3, d_4, d_5, d_6]) #didn't count th_XY
 
-#def testsuiteIK():
-    #suite = unittest.TestSuite()
-    #suite.addTest('test_atansubs')
-    #suite.addTest('test_lhsgen')
-    #return suite
-
 class TestIkClass(unittest.TestCase):
 
     def test_SOA_idsub_1(self):
@@ -119,10 +113,6 @@ class TestIkClass(unittest.TestCase):
         term2a, newj, newe = sum_of_angles_sub(rtest,term2, vars01)
         assert str(newj.symbol) == 'th_123', fs
         print('new eqn', newe)
-        
-        #print 'Initial Test: '
-        #print term1, ' --> ', term1a
-        #print term2, ' --> ', term2a
         
         fs = 'Sum of angles: basic test fail'
         assert term1a == sp.sin(th_12), fs
@@ -274,7 +264,6 @@ class TestIkClass(unittest.TestCase):
         j = 3   # col
         A1 =  R.mequation_list[k].Td[i,j]
         # expected correct answer:
-        #A2 =  Px*sp.sin(th_234)*sp.cos(th_1) + Py*sp.sin(th_1)*sp.sin(th_234) + Pz*sp.cos(th_234) - a_2*sp.sin(th_34) - a_3*sp.sin(th_4) - d_1*sp.cos(th_234)
         A2 =  Px*sp.sin(th_234)*sp.cos(th_1) + Py*sp.sin(th_1)*sp.sin(th_234) + Pz*sp.cos(th_234) - a_2*sp.sin(th_34) - a_3*sp.sin(th_4) - d_1*sp.cos(th_234)
 
 
@@ -313,19 +302,13 @@ class TestIkClass(unittest.TestCase):
        ####Test unknown class
         ua = unknown(a)
         ub = unknown(b)
-        #print "\n\nTesting unknown(symbol) (one-arg form)"
-        #print "Unknown a: ",   ua.symbol
         fs = ' unknown object element "solved" FAIL'
         self.assertEqual(ua.solved,False, fs)
-        #print "a is solved: ", ua.solved , ' (Expect False)'
-        #print "Unknown b: ",   ub.symbol
         ub.solved = True
-        #print "b is solved: ", ub.solved, ' (Expect True)'
         self.assertEqual(ub.solved,True, fs)
 
     def test_matrixequation(self):
              ##Test matrix_equation class
-            #print "\n\nTesting matrix_equation(T1,T2) class"
             T1 = ik_lhs()
             T2 = sp.zeros(5)
             T2[1,1] = a   # note: a = atan2(b,c) above
@@ -334,9 +317,6 @@ class TestIkClass(unittest.TestCase):
             T2[2,3] = l_1*sp.sin(d) + 2*l_2*sp.cos(d)
             T2[3,1] = c+sp.cos(c)*l_1
             tme = matrix_equation(T1,T2)
-            #print ''
-            #print "Mat eqn 1,2: ", tme.Td[1,2], " '=' ", tme.Ts[1,2], "(not a kequation type!)"
-            #print ''
             sp.var('e22 ')
             fs = 'Matrix Equation Class, FAIL'
             self.assertEqual(tme.Ts[1,1],a, fs)
@@ -354,7 +334,6 @@ class TestIkClass(unittest.TestCase):
         l = erank(l)  # should sort in place by increasing length of expression
                       # also erank returns a new instance of the sorted list
 
-        #print l
         self.assertEqual(l,[e2, e1, e3], ' Equation length sorting FAIL')
 
     def test_unkhash(self):
@@ -366,7 +345,6 @@ class TestIkClass(unittest.TestCase):
         c.add(b)
         self.assertEqual(len(c),1, "hashing (unknown/variable) class fail")
 
-#class TestSolvers(unittest.TestCase):
 class TestSolvers(unittest.TestCase):
     def setUp(self):
         self.DB = False  # debug flag
@@ -413,10 +391,10 @@ if __name__ == '__main__':
     suite3.addTest(TestSolver015())   # output_latex.py   # per-link transform section
     suite3.addTest(TestSolver016())   # symbolic_loop.py   # outer solve loop + exit status
     suite3.addTest(TestSolver017())   # output_gen.py      # codegen leaf, default OFF
-    suite3.addTest(TestSolver018())   # hybrid_ik.py       # hybrid branch placeholder
+    suite3.addTest(TestSolver018())   # hybrid_ik.py       # hybrid geometry + branch gate
     suite3.addTest(TestSolver019())   # dh_analysis.py     # Pieper triples + simplification cost
     suite3.addTest(TestSolver020())   # clear_state.py     # state hygiene at each solver head
-    suite3.addTest(TestSolver021())   # progress.py       # per-pass ledger, ETA, sympy meter
+    suite3.addTest(TestSolver021())   # progress.py       # per-pass ledger, no ETA, sympy meter
     suite3.addTest(TestSolver022())   # numeric_ik.py     # damped least squares refinement
     suite3.addTest(TestSolver023())   # parallel_triple.py # 3 parallel axes transform
     suite3.addTest(TestSolver024())   # output_hybrid_python.py # hybrid codegen vs. the library
@@ -433,7 +411,6 @@ if __name__ == '__main__':
         print(' (please be patient - slower tests)')
         unittest.TextTestRunner(verbosity=2).run(suite3)
     else:
-        #HTMLTestRunner.main()
        # output to a file
         projdir = 'IKBT/'
         testfname =  projdir + 'IKBT_testreport.html'

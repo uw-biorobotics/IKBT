@@ -25,18 +25,12 @@ import sympy as sp
 import numpy as np
 from sys import exit
 
-# from ..ikbtfunctions.helperfunctions import *
-# from ..ikbtbasics.kin_cl import *
-# from ..ikbtbasics.ik_classes import *     # special classes for Inverse kinematics in sympy
 
 from ikbtfunctions import helperfunctions
-#from helperfunctions import *
 
 from ikbtbasics import kin_cl
-#from kin_cl import *
 
 from ikbtbasics import ik_classes
-#from ik_classes import *
 
 import b3 as b3          # behavior trees
 import ikbtbasics.eqn_sanity as _eqsan
@@ -444,7 +438,7 @@ class TestSolver001(unittest.TestCase):
         Rob = Robot()
         #  test the sincos ID and solver
         ik_tester = b3.BehaviorTree()
-        ik_tester.log_flag = False  # log this one
+        ik_tester.log_flag = False
         #ik_tester.log_file = open('BT_nodeSUCCESS_log.txt', 'w')
         st1 = test_sincos_id()
         st1.Name = 'sincos test setup'
@@ -468,7 +462,7 @@ class TestSolver001(unittest.TestCase):
         bb.set('Robot',Rob)
         ik_tester.root = test_sincos
 
-        #  Off we go: tick the BT        ik_tester.root = test_sincos
+        #  Off we go: tick the BT
         ik_tester.tick("Test the sincos solver", bb)
             
         # check the results 

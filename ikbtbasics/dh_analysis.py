@@ -16,7 +16,7 @@
 #   ---------------------------------------------------------------------------
 #   THE CONVENTION, and three ways to get it wrong
 #
-#   kin_cl.py:280 fixes the column order:  "alpha N-1, a N-1, d N, theta N", and
+#   kin_cl.forward_kinematics() fixes the column order:  "alpha N-1, a N-1, d N, theta N", and
 #   Link_S/Link_N are Craig's  Rot_x(al_{n-1}) Trans_x(a_{n-1}) Rot_z(th_n)
 #   Trans_z(d_n).  So 0-indexed row r holds [al_r, a_r, d_{r+1}, th_{r+1}].
 #
@@ -60,7 +60,7 @@ import sympy as sp
 from ikbtbasics.pykinsym import Link_N
 
 
-#  Craig column indices (kin_cl.py:280 uses the same four)
+#  Craig column indices (kin_cl.forward_kinematics() uses the same four)
 AL, A, D, TH = 0, 1, 2, 3
 
 #  Stand-ins for a symbol that has no pvals entry, per BH:  "Let's set missing
@@ -80,9 +80,17 @@ DEFAULT_ANGLE = np.pi/2
 def numeric_pvals(pvals):
     '''Only the numeric entries of pvals.
 
-       forward_kinematics() writes the STRINGS 'np.cos(...)'/'np.sin(...)' into
-       pvals for robots whose alpha is not a multiple of pi/2 (kin_cl.py:296;
-       Raven-II, ICP5p5_A21).  Substituting those injects strings into sympy.'''
+       forward_kinematics() invents ca_i/sa_i for a robot whose alpha is not a
+       multiple of pi/2 (Craig417 and Raven-II are the two).  Since 2026-09-03
+       it EVALUATES them, so every entry is normally a number -- but it still
+       falls back to the STRINGS 'np.cos(...)'/'np.sin(...)' for an alpha whose
+       symbols have no numeric value, and substituting one of those would
+       inject a string into sympy ('np.cos(al_1)' parses as np*cos(al_1)).
+
+       Dropping them is right HERE (the zero-tests only need the cells they can
+       decide) and wrong for numeric_ik, which resolves them instead:  a
+       dropped ca1 survives as a free symbol and becomes a spurious lambdify
+       argument.'''
 
     return {k: v for k, v in (pvals or {}).items() if not isinstance(v, str)}
 
@@ -171,9 +179,14 @@ def pieper_triples(dh, pvals, ndof):
 
 
 def has_pieper_triple(dh, pvals, ndof):
-    '''True iff at least one triple qualifies.  This is the gate the hybrid
-       branch is the INVERSE of:  an arm with a triple has a closed form, so if
-       IKBT failed on it that is a solver defect, not a geometry problem.'''
+    '''True iff at least one triple qualifies.
+
+       NOTHING GATES ON THIS (2026-08-31, and there are no callers left).  The
+       condition is sufficient for a closed form and is not known to be
+       necessary, so neither its presence nor its absence decides anything:
+       9 of the 32 robots have no triple and solve completely, while ArmRobo,
+       Panda and Raven-II have one and solve 0 of their unknowns.  See
+       ikbtleaves/hybrid_ik.pieper_geom_report, which always returns SUCCESS.'''
 
     return len(pieper_triples(dh, pvals, ndof)) > 0
 
@@ -505,10 +518,9 @@ def rank_candidates(dh, pvals, vv, ndof, n=200, seed=0, w_rot=None):
     '''candidate_simplifications(), each scored by task-space displacement and
        sorted cheapest first.
 
-       Task-space displacement is the ranking key for the reason
-       hybrid_plan.md establishes:  it is the only thing that puts zeroing a
-       length and snapping an angle in the same units, and it is cheap enough to
-       run inside a BT leaf.  Blocked candidates (nothing to change, or a
+       Task-space displacement is the ranking key because it is the only thing
+       that puts zeroing a length and snapping an angle in the same units, and
+       it is cheap enough to run inside a BT leaf.  Blocked candidates (nothing to change, or a
        prismatic joint variable in the way) are kept but sort last.'''
 
     scored = []

@@ -72,14 +72,15 @@ class report_gen(b3.Action):
 
         #  The joint-axis geometry statement.
         #
-        #  PREFER the snapshot pieper_id put on the blackboard.  On the hybrid
-        #  path the Robot here is a DERIVED arm -- install_simplified swapped it
-        #  -- so generating the statement from R would describe the simplified
-        #  robot and silently mis-report the real one.  pieper_id's snapshot was
-        #  taken before the swap.
+        #  PREFER the snapshot pieper_geom_report put on the blackboard.  On
+        #  the hybrid path the Robot here is a DERIVED arm -- install_simplified
+        #  swapped it -- so generating the statement from R would describe the
+        #  simplified robot and silently mis-report the real one.  The snapshot
+        #  was taken before the swap.
         #
-        #  Falling back to R is correct on the symbolic path, where pieper_id
-        #  never ticked (it gates the hybrid branch) and R *is* the true robot.
+        #  Falling back to R is correct on the symbolic path, where
+        #  pieper_geom_report never ticked (it sits in the hybrid branch, which
+        #  a completed symbolic solve never reaches) and R *is* the true robot.
         #  Either way a failure here is a warning: no statement must never cost
         #  us the report.
         hybrid = bb.get('hybrid_source')

@@ -24,7 +24,7 @@ from ikbtfunctions.helperfunctions import *
 #####################################################################################
 # Test code for the helperfunctions
 #       
-class TestSolver009(unittest.TestCase):    # change TEMPLATE to unique name (2 places)
+class TestSolver009(unittest.TestCase):
     def setUp(self):
         sp.var('d_1 th_2 th_3 th_4 th_5')
         self.ud1  = kc.unknown(d_1)
@@ -36,7 +36,6 @@ class TestSolver009(unittest.TestCase):    # change TEMPLATE to unique name (2 p
         self.expression01 = self.uth2.symbol + sp.sin(self.uth4.symbol)
         
         self.DB = False  # debug flag
-        #print '===============  Test helperfunctions  ====================='
         return
     
     def runTest(self):
@@ -95,13 +94,13 @@ class TestSolver009(unittest.TestCase):    # change TEMPLATE to unique name (2 p
 #
 #    Can run your test from command line by invoking this file
 #
-#      - or - call your TestSolverTEMPLATE()  from elsewhere
+#      - or - call TestSolver009()  from elsewhere
 #
 
 if __name__ == "__main__":
     
     print('\n\n===============  Test helperfunctions =====================')
-    testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver009)  # replace TEMPLATE
+    testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver009)
     unittest.TextTestRunner(verbosity=2).run(testsuite)
    
    

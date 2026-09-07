@@ -121,7 +121,7 @@ def linear_match(expr, sym):
         return None
     return (A, B)
 
-class algebra_id(b3.Action):    # action leaf for  
+class algebra_id(b3.Action):
     
     def tick(self, tick):
         Tm = tick.blackboard.get('Tm')   # the current matrix equation 
@@ -251,7 +251,7 @@ class algebra_solve(b3.Action):    # Solve asincos equation pairs
                    tick.blackboard.set('unknowns', unknowns)
                    return b3.FAILURE
                u.solutions.append( sol )       # one solution
-               u.nsolutions = 1   # or 1
+               u.nsolutions = 1
                u.set_solved(R,unknowns)  # flag that this is solved
        tick.blackboard.set('curr_unk', u)
        tick.blackboard.set('unknowns', unknowns)
@@ -479,18 +479,16 @@ class TestSolver002(unittest.TestCase):
 #
 #    Can run your test from command line by invoking this file
 #
-#      - or - call your TestSolverTEMPLATE()  from elsewhere
-#
 
 def run_test():
     print('\n\n===============  Test algebra solver =====================')
-    testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver002)  # replace TEMPLATE 
+    testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver002)
     unittest.TextTestRunner(verbosity=2).run(testsuite)
 
 if __name__ == "__main__":
     
     print('\n\n===============  Test algebra solver =====================')
-    testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver002)  # replace TEMPLATE 
+    testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver002)
     unittest.TextTestRunner(verbosity=2).run(testsuite)
    
 

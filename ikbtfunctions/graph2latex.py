@@ -18,14 +18,6 @@
 
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import sympy as sp
-###import numpy as np
-##import re
-#from solution_graph_v2 import *
-#from sys import exit
-#import b3 as b3          # behavior trees
-#import pickle 
-#import helperfunctions as hf
-#from kin_cl import *
 
 class newnode:
     def __init__(self):
@@ -93,9 +85,6 @@ def tikz_startpicture():
 #def tikz_place_node(name, label, control_string):
 def tikz_place_node( label ):
     #\node [place] (S3) [node distance=1.5cm,below =of right-S1] {S3};
-    #name = label.replace(r'\$',r'') # no eqn formatting for internal node name
-    #name = label.replace(r'_',r'') # no eqn formatting for internal node name
-    #return r' \node [place] ('+ name + ') ['+control_string+'] {'+label+'};'
     return r' \node {'+label+'} '
 
 def tikz_place_children(n,f):
@@ -318,7 +307,7 @@ def solution_graph_tikz(order, edges, eol='\n', caption=None, label=None):
 
 
 def _tikz_name(n):
-    """A TikZ node name:  letters, digits and underscores only.
+    """A TikZ node name:  letters and digits only.
 
        TikZ parses '(' and ',' inside a coordinate, so a name carrying either
        would silently produce a picture with missing arrows rather than an

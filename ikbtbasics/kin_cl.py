@@ -79,7 +79,6 @@ class kequation:
         self.string = theta_expand(sp.latex(self.LHS)) + tab +  '= ' + theta_expand(sp.latex(self.RHS))
 
         tmp = self.string
-        #tmp = theta_expand(tmp)
         tmp = re.sub(r'_(\d+)',  r'_{\1}', tmp)   # get all digits of subscript into {}
         #  atan2 formatting.  sympy prints atan2 as '\operatorname{atan}_{2}',
         #  which sets as "atan" with a subscript 2.  The original pattern here
@@ -155,7 +154,7 @@ class unknown(object):
         self.solutionNames = []  # symbols for each solution eg x_2s1
         self.versionNames = []   # version names, eg x_2v3 (NOT solution names)
         self.dependencies = set()  # unknowns on which this soln depends (all solved)
-        self.nversions = 1  # filled in by Robot.create_solution_sets in solution order
+        self.nversions = 1  # filled in by Robot.create_solution_set() in solution order
         self.nsolutions = 0   # number of solutions (== len(self.solutions))
         self.assumption = [] #assumputions about the solutions
         self.LHSversionNames = []
@@ -169,7 +168,6 @@ class unknown(object):
         self.tan_eqnlist = []
         self.solvable_tan = False
         # end: nodes ranking
-        #self.nodelist = []   # list of solution tree nodes for this variable
         if mat_eqn != None:     #  list of kequation scontaining this unknown
             self.scan(mat_eqn)
 
@@ -319,7 +317,6 @@ class unknown(object):
                 eqn = MatEqn.Td[i,j]
                 if (eqn != 0):
                     if eqn.has(self.symbol):
-                        #print "Equation [", eqn.string, "] has ", self.symbol
                         self.eqnlist.append(kc.kequation(MatEqn.Ts[i,j],eqn))
 
 
@@ -330,7 +327,6 @@ class matrix_equation:
     def __init__(self, Td=sp.zeros(4), Ts=sp.zeros(4)):
         self.Td = sp.zeros(4)  # LHS (T desired)
         self.Ts = sp.zeros(4)  # RHS (T symbolic)
-        ## init 5x5 matrix of kequation() objects
         self.auxeqns = []   # aux equations such as th12 = th_1 + th_2 (!)
         for i in range(0,3):  # just first 3 rows
             for j in range(0,4):  # all 4 cols
@@ -688,19 +684,14 @@ def forward_kinematics_N(M, pose, params):
 
 
 
-class TestSolver008(unittest.TestCase):    # change TEMPLATE to unique name (2 places)
+class TestSolver008(unittest.TestCase):
     def setUp(self):
         ((th_1, th_2, th_3, th_4, th_5, th_6)) = sp.symbols(('th_1', 'th_2', 'th_3', 'th_4', 'th_5', 'th_6'))
-
-        #((h, l_3, l_4)) = sp.symbols(('h', 'l_1','l_3', 'l_4'))
 
         sp.var('h l_1 l_3 l_4')
         self.DB = False  # debug flag
         print('===============  Test kin_cl library  =====================')
         return
-
-    # def tearDown(self):
-        # print "===============  END: Test kin_cl library  ====================="
 
     def runTest(self):
         self.a_test_kin_cl()
@@ -718,9 +709,6 @@ class TestSolver008(unittest.TestCase):    # change TEMPLATE to unique name (2 p
         fs = 'kequation LaTex output  FAIL'
         self.assertTrue(e1.LaTexOutput() == r'\theta_{2} = l_{1} \sin{\left(\theta_{1} \right)} + \sqrt{l_{4}}', fs)
         self.assertTrue(e1.LaTexOutput(True) == r'\theta_{2} &= l_{1} \sin{\left(\theta_{1} \right)} + \sqrt{l_{4}}', fs + ' (align)')
-
-#\theta_{2} = l_{1} \sin{\left (\theta_{1} \right )} + \sqrt{l_{4}}
-#\theta_{2} &= l_{1} \sin{\left (\theta_{1} \right )} + \sqrt{l_{4}}
 
         print('>>-----------------------------<<')
         print(e2)
@@ -762,7 +750,7 @@ class TestSolver008(unittest.TestCase):    # change TEMPLATE to unique name (2 p
         self.assertTrue(m[1,3]== -h, fs)
 
 
-        #   Test eqn_set()
+        #   Test get_mequation_set()
         L = M.get_mequation_set()
 
         fs = 'intermediate equations FAIL'
@@ -776,35 +764,26 @@ class TestSolver008(unittest.TestCase):    # change TEMPLATE to unique name (2 p
 
 
         if(JACOBIAN and False):    # reactivate this later
+            #  (mechanism has no Jacobian_N method;  it would have to be written)
             print(' --- Numerical Jacobian ---')
             pose = {th_1: 20*deg, th_2:45*deg, th_3:15*deg, th_4:-21.7*deg}
             M.Jacobian_N(pose)
 
-        #print '\n\n\n            kin_cl.py PASSES all tests \n\n'
 
 #
-#    Can run your test from command line by invoking this file
+#    Can run these tests from the command line by invoking this file,
+#      - or - by calling run_test() from elsewhere.
 #
-#      - or - call your TestSolverTEMPLATE()  from elsewhere
-#
-
-##if __name__ == "__main__":
-
-    ##print '\n\n===============  Test kin_cl nodes====================='
-    ##testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver008)  # replace TEMPLATE
-    ##unittest.TextTestRunner(verbosity=2).run(testsuite)
-    ##unittest.main()
-
 
 def run_test():
     print('\n\n===============  Test kin_cl.py =====================')
-    testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver008)  # replace TEMPLATE
+    testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver008)
     unittest.TextTestRunner(verbosity=2).run(testsuite)
 
 if __name__ == "__main__":
 
     print('\n\n===============  Test kin_cl.py =====================')
-    testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver008)  # replace TEMPLATE
+    testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver008)
     unittest.TextTestRunner(verbosity=2).run(testsuite)
     #unittest.main()
 

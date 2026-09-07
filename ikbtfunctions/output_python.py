@@ -163,7 +163,6 @@ pi = np.pi
     funcname = 'Fkin_' + py_identifier(orig_name)
     print('''
 # Code to compute Forward Kinematics ''', file=f)
-    #print('def', funcname +'():', file=f) # no indent
 
     print(indent + '''
 #############################################################
@@ -244,7 +243,6 @@ pi = np.pi
 
 
     nlist = Robot.solution_nodes
-    #nlist.sort( ) # sort by solution order
 
 
     indent = '    ' # 4 spaces

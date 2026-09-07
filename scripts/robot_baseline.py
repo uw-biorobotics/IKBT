@@ -5,7 +5,7 @@
 #                         generated code correct.
 #
 #       python3 -m scripts.robot_baseline --gate       # fast: 5 robots, ~1 min
-#       python3 -m scripts.robot_baseline --full       # all 32, codegen + IK check
+#       python3 -m scripts.robot_baseline --full       # all of ROBOT_LIST, codegen + IK
 #       python3 -m scripts.robot_baseline --full --diff
 #       python3 -m scripts.robot_baseline --robots Puma Wrist --codegen --closed-loop
 #
@@ -202,10 +202,9 @@ def solve_one(name, codegen=False):
 
         rec['no_progress'] = bool(bb.get('no_progress'))
 
-        #  Order matters here: the unknown list is in chain order, and
-        #  kinematics_pickle() may have EXTENDED it with sum-of-angles
-        #  variables (th_23 and friends), which count as unknowns like any
-        #  other.
+        #  The unknown list is in chain order, and kinematics_pickle() may
+        #  have EXTENDED it with sum-of-angles variables (th_23 and friends),
+        #  which count as unknowns like any other.
         methods = {}
         nsolved = 0
         for u in unks:
@@ -413,7 +412,7 @@ def judge(rec):
        Judges only what can be judged from the run itself plus the ONE
        expectation table:  the files a finished solve owes (a rule, applied to
        every robot) and the recorded closed-loop counts (a table, covering the
-       ten robots that have them).  Everything else -- which method solved
+       robots that have an entry).  Everything else -- which method solved
        which variable, how many unknowns a robot gets through -- is RECORDED
        and diffed, never asserted, because "does not solve" is a legitimate
        outcome for most of ROBOT_LIST.'''

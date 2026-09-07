@@ -39,8 +39,8 @@ import ikbtbasics.eqn_sanity as _eqsan
 #   where r = sqrt(A**2 + B**2)
 #                                  (BH text sec 4.3.5)
 #   updated:
-#   th = atan2(a, b) + atan2(sqrt(t), c)
-#   th = atan2(a, b) + atan2(-sqrt(t), c)
+#   th = atan2(a, b) + atan2(t, c)
+#   th = atan2(a, b) + atan2(-t, c)
 #   t = sqrt(a**2 + b**2 - c**2)
 
 
@@ -111,7 +111,6 @@ class sinandcos_id(b3.Action):    # action leaf for sincosid
 
         if (not u.solved):  # only if not already solved!
           for e in one_unk:  # only look at the eqns with one unknowns
-              #print "Looking for unknown: ", u.symbol, " in equation: ", 
               print(e)
               
               tmp = e.RHS-e.LHS
@@ -191,11 +190,8 @@ class sinandcos_solve(b3.Action):    # Solve asincos equation pairs
                   print(B)
                   print(C)
 
-                # lhs = l1- C
 
 
-                # if (B is None):
-                #     B = 1
                 assert(A*A+B*B != 0), 'Somethings Wrong: divide by zero'
                 #assert(not lhs.has(u.symbol)), 'Somethings wrong: solution contains itself! ' + str(d[Cw])
                 r = sp.sqrt(A*A+B*B)
@@ -215,8 +211,6 @@ class sinandcos_solve(b3.Action):    # Solve asincos equation pairs
                   u.solutions.append(sp.atan2(-B, A))
                   u.solutions.append(sp.atan2(-B, A) + sp.pi)
         
-                #u.solutions.append(sp.asin(targument)-sp.atan2(A,B))
-                #u.solutions.append(sp.pi - sp.asin(targument)-sp.atan2(A,B))
                 u.nsolutions = 2
                 u.set_solved(R,unknowns)
                 if(self.BHdebug):
@@ -349,9 +343,9 @@ class TestSolver003(unittest.TestCase):
            the solver returns complex solutions rather than reporting failure.
 
            This may be intentional -- the real part is the closest reachable
-           pose -- but it is not tracked consistently across leaves.  See the
-           note in ImplementationThoughts.md.  Characterization test: it pins
-           the behavior so a future change is a deliberate decision.'''
+           pose -- but it is not tracked consistently across leaves.
+           Characterization test: it pins the behavior so a future change
+           is a deliberate decision.'''
         sp.var('th_1')
         fs = ' sinANDcos unreachable-case FAIL'
         A, B, C = 3, 4, 10                      # 25 < 100  -> unreachable
@@ -421,7 +415,7 @@ class TestSolver003(unittest.TestCase):
  
 def run_test():
     print('\n\n===============  Test sinANDcos_solver.py =====================')
-    testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver003)  # replace TEMPLATE 
+    testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver003)
     unittest.TextTestRunner(verbosity=2).run(testsuite)
         
 if __name__ == "__main__":
