@@ -14,6 +14,9 @@ There are four questions worth asking of a change, and one command for each.
 Run 1–3 after any edit. Run 4 before a commit that touches the tree, a solver
 leaf, or the code generators.
 
+Why a particular threshold, timeout or expected count is what it is:
+[DEV_NOTES.md](DEV_NOTES.md).
+
 ---
 
 ## 1. Unit tests — `tests/leavestest.py`

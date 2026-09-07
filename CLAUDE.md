@@ -42,7 +42,11 @@ python3 -m scripts.numerical_closed_loop_sol_check KinovaLite # ... same command
 ```
 
 **`IKdocs/TESTING.md` is the one-page orientation** — what to run, when, what each command asserts,
-and where every log and artifact lands. Read it before adding a test.  
+and where every log and artifact lands. Read it before adding a test.
+
+**`IKdocs/DEV_NOTES.md`** carries the rationale that used to be inline in the source: measured
+numbers, dated decisions, and designs that were tried and abandoned. Nothing there is needed to
+read or change IKBT; it is where a "why is it like this?" question gets answered.  
 
 Compile the report: `cd LaTex && pdflatex ik_solution_<RobotName>.tex`  
 
@@ -128,23 +132,22 @@ exactly (perturb a known-good pose, confirm it comes back) with no dependence on
 `dq = J'(JJ' + lam^2 I)^-1 e`, with the residual `[dp ; w_rot*theta*axis]` and BH's scalar metric
 `||dp|| + w_rot*theta` sharing one rotation parameterisation and one weight, so the step and the
 stopping test agree about "closer". The Jacobian's rotation rows are scaled by `w_rot` to match.
-Measured on Puma: 10/10 convergence from perturbations of 0.05 to 2.0 rad (3 to 19 iterations),
-quadratic error sequence `1.9e-01 1.6e-02 3.4e-04 1.0e-07 2.3e-15`, and 10/10 even at the wrist
-singularity `th_5 = 0` where `J` is rank-deficient and an undamped Newton step does not exist.
- 
+It converges quadratically, and it converges at the wrist singularity `th_5 = 0` where an
+undamped Newton step does not exist — which is what the damping is for. Convergence data:
+@IKdocs/DEV_NOTES.md.
+
 Two non-obvious requirements, both learned the hard way:
 
-- **Everything flushes** (`_say()`). Python buffers stdout when it is not a tty, so on `> log`,
-  `| tee`, and `robot_baseline`'s captured logs every line was withheld until exit — an Issue4 solve
-  printed nothing for 12 minutes and then everything at once.
+- **Everything flushes** (`_say()`). Python buffers stdout when it is not a tty, so under `> log`
+  or `| tee` every line was withheld until exit — a solve printed nothing for 12 minutes and
+  then everything at once.
 - **Reporting may never break a solve.** `pass_done()` and `finished()` are wrapped and degrade to a
   warning: they run on the hot path of every pass, and a solve that took minutes must not be thrown
   away because a status line would not format.
 
-Output is **line-oriented, never `\r`-animated** — the sum-of-angles progress bar collapses in
-`logs/baseline/<robot>.log` into one unreadable multi-kilobyte line, which is what made `Issue4`'s log
-useless for diagnosis. Do not add animation.
- 
+Output is **line-oriented, never `\r`-animated** — a `\r` progress bar collapses in a captured log
+into one unreadable multi-kilobyte line. Do not add animation.
+
 ### Hybrid code generation (`ikbtfunctions/output_hybrid_python.py`)
 
 What a hybrid solve delivers, for `KinovaLite` (true) simplified to `KinovaLite_d_5_0` (derived):
@@ -183,9 +186,10 @@ behalf from information IKBT does not have.
 Long equations used to run off the right margin. They no longer do: the report is written, **measured**,
 and the equations that did not fit are re-written. `ik_driver.write_latex_fitted()` drives it.
 
-**PREDICTING WIDTH DOES NOT WORK — MEASURE IT.** Two proxies were tried and both failed on data:
- 
- 
+**PREDICTING WIDTH DOES NOT WORK — MEASURE IT.** Character count and `count_ops` were both tried
+and both failed on data: they are properties of the expression, and overflow is a property of the
+typeset line. The numbers are in @IKdocs/DEV_NOTES.md.
+
 
 **Every equation is emitted on its own source line, preceded by a `%%IKBT-EQ <lhs>` comment**, which is
 what makes a reported line number attributable. This is also why raw line length predicted so badly
@@ -194,8 +198,8 @@ before: a whole `align` block used to be one source line.
 **THE REMEDY IS `K_i` NAMING, applied where TeX says it is needed.** An equation measured too wide has
 its pieces named whatever the dependency rule thinks, which shortens it without changing its shape. The
 loop repeats while each pass turns up equations the previous one had not seen, since shortening one can
-expose another (Craig417 took three passes).
- 
+expose another.
+
 
 ### The solution graph as a figure (`ikbtfunctions/graph2latex.py`)
 

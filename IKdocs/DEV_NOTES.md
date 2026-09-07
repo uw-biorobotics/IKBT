@@ -11,6 +11,20 @@ For release history, see [oldNews.md](oldNews.md).
 
 ---
 
+## Contents
+
+**Pipeline and entry points** — [`ikSolver.py`](#iksolverpy), [`ikbtfunctions/ik_driver.py`](#ikbtfunctionsik_driverpy)
+
+**Kinematics and numerics** — [`ikbtbasics/numeric_ik.py`](#ikbtbasicsnumeric_ikpy), [`ikbtbasics/kin_cl.py`](#ikbtbasicskin_clpy), [`ikbtbasics/eqn_sanity.py`](#ikbtbasicseqn_sanitypy), [`ikbtbasics/dh_analysis.py`](#ikbtbasicsdh_analysispy)
+
+**The behavior tree and its leaves** — [`ikbtfunctions/bt_assembly.py`](#ikbtfunctionsbt_assemblypy), [`ikbtleaves/symbolic_loop.py`](#ikbtleavessymbolic_looppy), [`ikbtleaves/assigner_leaf.py`](#ikbtleavesassigner_leafpy), [`ikbtleaves/comp_detect.py`](#ikbtleavescomp_detectpy), [`ikbtleaves/invariant_gen.py`](#ikbtleavesinvariant_genpy), [`ikbtleaves/parallel_triple.py`](#ikbtleavesparallel_triplepy), [`ikbtleaves/tan_solver.py`](#ikbtleavestan_solverpy), [`ikbtleaves/updateL.py, ikbtbasics/ik_classes.py`](#ikbtleavesupdatelpy-ikbtbasicsik_classespy)
+
+**Report and code generation** — [`ikbtfunctions/progress.py`](#ikbtfunctionsprogresspy), [`ikbtfunctions/texwidth.py`](#ikbtfunctionstexwidthpy), [`ikbtfunctions/subexpressions.py`](#ikbtfunctionssubexpressionspy), [`ikbtfunctions/output_python.py`](#ikbtfunctionsoutput_pythonpy), [`ikbtfunctions/ik_robots.py`](#ikbtfunctionsik_robotspy)
+
+**Robot models and test harness** — [`scripts/robot_baseline.py`](#scriptsrobot_baselinepy), [`scripts/expected.py`](#scriptsexpectedpy), [`scripts/check_solution_sets.py`](#scriptscheck_solution_setspy)
+
+---
+
 ## ikSolver.py
 
 **`PERFORMANCE_OUTPUT`.** Measured across the robot set, 37–85% of a solve's wall clock is
