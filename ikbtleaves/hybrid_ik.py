@@ -294,6 +294,8 @@ class install_simplified(b3.Action):
             print(self.Name, ': no simplification chosen -- nothing to install.')
             return b3.FAILURE
 
+        print('\n\n        HYBRID Solution Started:  now solving simplified arm\n\n')
+
         true_name = getattr(R_true, 'name', None)
         if not true_name:
             print(self.Name, ': the blackboard Robot has no name;  cannot derive'
