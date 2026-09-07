@@ -38,7 +38,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "partial (hybrid)",
-   "wall_s": 187.91,
+   "wall_s": 189.74,
    "written": [],
    "written_derived": []
   },
@@ -68,7 +68,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 52.58,
+   "wall_s": 52.8,
    "written": [
     "cpp",
     "py",
@@ -101,7 +101,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 25.3,
+   "wall_s": 26.14,
    "written": [
     "cpp",
     "py",
@@ -134,7 +134,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 2.67,
+   "wall_s": 2.66,
    "written": [
     "cpp",
     "py",
@@ -166,7 +166,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 2.98,
+   "wall_s": 3.0,
    "written": [
     "cpp",
     "py",
@@ -199,7 +199,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 3.96,
+   "wall_s": 3.9,
    "written": [
     "cpp",
     "py",
@@ -232,7 +232,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 5.57,
+   "wall_s": 7.33,
    "written": [
     "cpp",
     "py",
@@ -266,7 +266,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 94.37,
+   "wall_s": 97.16,
    "written": [
     "cpp",
     "py",
@@ -299,7 +299,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 71.23,
+   "wall_s": 76.78,
    "written": [
     "cpp",
     "py",
@@ -331,7 +331,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 44.78,
+   "wall_s": 36.39,
    "written": [
     "cpp",
     "py",
@@ -367,7 +367,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 84.43,
+   "wall_s": 86.45,
    "written": [
     "cpp",
     "py",
@@ -402,7 +402,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 151.77,
+   "wall_s": 137.21,
    "written": [
     "cpp",
     "py",
@@ -437,7 +437,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 109.07,
+   "wall_s": 108.93,
    "written": [
     "cpp",
     "py",
@@ -478,7 +478,7 @@
    "no_progress": true,
    "solution_set_error": null,
    "status": "unsolved",
-   "wall_s": 254.11,
+   "wall_s": 258.03,
    "written": [],
    "written_derived": []
   },
@@ -509,7 +509,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 138.47,
+   "wall_s": 138.7,
    "written": [
     "cpp",
     "py",
@@ -545,18 +545,18 @@
     "th_2": "simultaneous eqn",
     "th_23": "algebra",
     "th_3": "arcsin",
-    "th_4": "simultaneous eqn",
-    "th_5": "arccos",
-    "th_6": "sinANDcos"
+    "th_4": "atan2(y,x)",
+    "th_5": "simultaneous eqn",
+    "th_6": "simultaneous eqn"
    },
-   "n_solutions": 16,
+   "n_solutions": 8,
    "n_solved": 7,
    "n_unknowns": 7,
    "name": "KinovaLite",
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved (hybrid)",
-   "wall_s": 361.51,
+   "wall_s": 298.21,
    "written": [
     "fk",
     "hybrid",
@@ -592,7 +592,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 91.51,
+   "wall_s": 94.83,
    "written": [
     "cpp",
     "py",
@@ -624,7 +624,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 2.52,
+   "wall_s": 2.6,
    "written": [
     "cpp",
     "py",
@@ -657,7 +657,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 69.91,
+   "wall_s": 70.43,
    "written": [
     "cpp",
     "py",
@@ -692,7 +692,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 33.28,
+   "wall_s": 33.33,
    "written": [
     "cpp",
     "py",
@@ -724,7 +724,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 2.54,
+   "wall_s": 2.63,
    "written": [
     "cpp",
     "py",
@@ -771,7 +771,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved (hybrid)",
-   "wall_s": 706.11,
+   "wall_s": 2129.69,
    "written": [
     "fk",
     "hybrid",
@@ -808,7 +808,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 63.73,
+   "wall_s": 66.06,
    "written": [
     "cpp",
     "py",
@@ -843,7 +843,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 123.17,
+   "wall_s": 126.94,
    "written": [
     "cpp",
     "py",
@@ -883,7 +883,7 @@
    "no_progress": true,
    "solution_set_error": null,
    "status": "unsolved",
-   "wall_s": 963.68,
+   "wall_s": 981.82,
    "written": [],
    "written_derived": []
   },
@@ -912,7 +912,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 29.51,
+   "wall_s": 29.7,
    "written": [
     "cpp",
     "py",
@@ -946,7 +946,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 28.5,
+   "wall_s": 29.37,
    "written": [
     "cpp",
     "py",
@@ -980,7 +980,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 5.42,
+   "wall_s": 5.44,
    "written": [
     "cpp",
     "py",
@@ -1017,7 +1017,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 229.24,
+   "wall_s": 231.44,
    "written": [
     "cpp",
     "py",
@@ -1051,7 +1051,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 42.44,
+   "wall_s": 43.91,
    "written": [
     "cpp",
     "py",
@@ -1082,7 +1082,7 @@
    "no_progress": false,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 2.31,
+   "wall_s": 2.3,
    "written": [
     "cpp",
     "py",

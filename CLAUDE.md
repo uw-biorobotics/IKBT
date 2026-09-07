@@ -247,7 +247,8 @@ also contains a `test_<name>_id` action that fabricates a blackboard for unit te
 keeps it out of the import system). All leaves have a `BHdebug` flag, wired to commented-out per-robot debug
 blocks in `ikSolver.py`.
 
-Non-solver leaves: `assigner_leaf` (round-robins `curr_unk` over unsolved unknowns), `rank_leaf` (when both
+Non-solver leaves: `assigner_leaf` (round-robins `curr_unk` over unsolved unknowns, but see **Offer a
+determined variable first** below), `rank_leaf` (when both
 tan and sin/cos solved a variable, picks fewer solutions / fewer dependencies, then calls `set_solved`),
 `updateL` (re-scans equations and folds `R.kequation_aux_list` SOA definitions into L1/L2/L3p),
 `comp_detect` (termination), `sum_id` (identifies sum-of-angles terms; the actual solving is left to the
@@ -258,9 +259,101 @@ Test-class numbers are global and referenced by `tests/leavestest.py` (001 sinco
 defines a `TestSolver010` — 011 rank, 012 invariant_gen, 013 bt_assembly, 014 comp_detect,
 015 output_latex, 016 symbolic_loop, 017 output_gen, 018 hybrid_ik, 019 dh_analysis,
 020 clear_state, 021 progress, 022 numeric_ik, 023 parallel_triple,
-024 output_hybrid_python, 025 subexpressions, 026 texwidth). A test double that lives in a
+024 output_hybrid_python, 025 subexpressions, 026 texwidth,
+027 assigner_leaf). A test double that lives in a
 leaf file must be named `test_*`, or the `bt_assembly_test.py` leaf-inventory scan picks it up as a
 real leaf.
+
+### Offer a determined variable first (`ikbtleaves/assigner_leaf.py`)
+
+`assigner_leaf` used to be a pure round-robin: walk `unknowns` in list order with a persistent
+counter, hand the next unsolved one to the solvers as `curr_unk`. A sum-of-angles (SOA) variable such
+as `th_23` is **appended** to that list by the SOA scan (`ik_classes.sum_of_angles_sub`, or `sum_id`
+mid-solve), so it was always offered **last** — after every real joint.
+
+That is wrong, not merely suboptimal. **`th_23 = th_2 + th_3` is arithmetic**: the instant `th_2` and
+`th_3` are solved, `th_23` is determined, one value, no branch, nothing to search for and nothing to
+choose. Leaving it unsolved is not a neutral delay, because `count_unknowns()`
+(`helperfunctions.py`) counts an unsolved SOA variable like any other — so **every** equation
+mentioning `th_23` is classified into L2/L3p instead of L1, and the ID nodes, which scan `eqns_1u`
+only, cannot see it. Delaying a variable that costs nothing to solve hides equations from the solvers
+that need them.
+
+Measured on `KinovaLite`'s derived arm `KinovaLite_d_5_0`: `th_23` was solved **6th of 7, after
+`th_6`**. At `th_6`'s turn, 35 equations mentioning `th_23` were still held out of L1, so `eqns_1u`
+held only three `th_6` equations, all of the ambiguous `A*sin + B*cos = C` shape. `simu_id` found no
+canonical sin/cos pair, declined, and `sinANDcos_solver` fired instead and returned **two** roots.
+`th_6` is the *terminal* joint: given `th_1..th_5` it is unique and must contribute a factor of
+exactly 1. That spurious 2 doubled the solution matrix to 16 rows, 8 of them meaningless.
+
+    solve order BEFORE:  th_1, th_3, th_2, th_5, th_6, th_23, th_4
+    solve order AFTER :  th_1, th_3, th_2, th_23, th_4, th_5, th_6
+
+    th_6   sinANDcos      nsol=2  ->  simultaneous eqn  nsol=1   the spurious factor, gone
+    th_5   arccos         nsol=2  ->  simultaneous eqn  nsol=1   the wrist flip, relocated ...
+    th_4   simultaneous   nsol=1  ->  atan2(y,x)        nsol=2   ... to here
+
+    n_solutions:  16 -> 8   (solListMatrix rows 16 -> 8),  7/7 in 8 passes, was 9
+
+The wrist's genuine two-fold ambiguity did not disappear — it is now carried by `th_4` instead of
+`th_5`, which is the same posture pair written round the other way. What disappeared is `th_6`'s,
+which was never real. Closed loop after the change: **8 of 8**.
+
+**THE RULE, precisely.** An unsolved unknown is **determined** when `Robot.kequation_aux_list` holds a
+*definition* of it — an equation whose LHS is that unknown's own symbol and whose RHS is free of
+transcendental functions and mentions only joint variables that are **already solved**. Such an RHS
+evaluates to a number as it stands. A determined unknown is offered ahead of the round-robin cursor;
+the cursor itself is never advanced by a promotion, so no ordinary variable is skipped.
+
+**WHY THE RULE IS THIS NARROW — a broader one was tried first and measured.**
+`kequation_aux_list` is *not* only the SOA definitions: `invariant_gen` and `parallel_triple` mine
+invariants into it and `x2y2_transform` appends its product there too. Instrumented on `KinovaLite`,
+the list **grows from 1 entry to 9 during the solve** — which is the answer to why an earlier version
+of this preemption appeared to fire on `th_5`, a variable no SOA equation mentions. The broad rule
+"any aux equation with one unsolved unknown left" also fires on things like
+
+    Px**2 - 2*Px*d_3*sin(th_1) - ... = d_4**2 + 2*d_4*d_6*cos(th_5) + d_6**2
+
+where "one unknown remains" says nothing about determinacy: `th_5` there is inside a `cos`, worth two
+branches, and no leaf is guaranteed to crack it. Measured, the broad rule fired three times on
+`KinovaLite` and only the one SOA firing changed the outcome; the other two changed the offer order
+and nothing else. Widening the trigger would move solve order on 31 robots in exchange for nothing,
+so the trigger is the arithmetic-determinacy test, which is the property the argument rests on.
+
+**A STARVATION GUARD IS MANDATORY — this is a trap, not a refinement.** Being determined is a
+property of the solved *set*, so it does not stop being true because the variable was offered. If
+whatever leaf should have finished it does not, the rule fires again on the next tick with the same
+answer, forever, and the assigner stops offering anything else at all. Measured without the guard on
+`KinovaLite`: `th_23` re-offered on every tick, **102 consecutive preemptions**, the solve flatlined
+at 2 of 7 and burned all 20 passes. So each `(variable, solved-state)` pair is promoted at most
+**once**: if the promotion does not take, the solved set is unchanged, the memo refuses the repeat and
+the round-robin resumes untouched. The memo is keyed on the solved state rather than being a
+permanent one-shot, because once the solved set moves the variable deserves another offer. It lives
+on the **blackboard**, so `clear_state` drops it and the hybrid branch's second solver gets a fresh
+one.
+
+`TestSolver027` holds both halves apart: remove the promotion and `test_asgA` fails, remove the memo
+and `test_asgB` fails.
+
+**MEASURED OVER THE WHOLE SWEEP: EXACTLY ONE ROBOT MOVES.** 31 robots, codegen and closed loop on,
+`PYTHONHASHSEED=0` — `1 moved, 30 unchanged`, and the mover is `KinovaLite` at `16 -> 8 solutions`
+with its closed loop still 8 of 8 and every artifact set identical. Nothing else changed: no status,
+no `n_solved`, no `n_solutions`, no `written` set, and no `methods` entry anywhere else in the sweep.
+Seventeen of the 31 robots carry an SOA variable, so the promotion is *available* on more than half
+of them and fires usefully on one, because on the rest the SOA variable is already solved before its
+constituents are. `Puma` is the representative case: it solves `th_23` from a simultaneous equation
+*first* and then gets `th_2` by algebra, so the definition's constituents are never both solved while
+`th_23` is still open and the rule has nothing to promote.
+
+`Panda` deliberately does **not** move: its derived arm has no SOA variable at all, so it keeps its
+16 branches of which 8 are spurious (Phase I filters them, hence `8/8`). That is a separate defect
+with a different cause, and this change is not a fix for it.
+
+Note what caught this and what did not. `scripts/expected.EXPECT` for `KinovaLite` is `(8, 8)` and
+stayed `(8, 8)` across the fix, because Phase I evaluates the approximate arm's FK on each candidate
+and had been *discarding* the eight spurious branches all along. The eight were only ever visible in
+`robot_baseline`'s `n_solutions` — which is exactly why that field is in `COMPARED` while `methods`
+is not.
 
 ### Numerical IK (`ikbtbasics/numeric_ik.py`)
 

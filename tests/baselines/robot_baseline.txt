@@ -18,7 +18,7 @@ KR16               solved             7/7         8 -              cpp, py, tex
 KawasakiRS007L     solved             7/7         8 8/8 symbolic   cpp, py, tex
 KawasakiRS05L      unsolved           0/7         -                -
 Khat6DOF           solved             7/7         8 8/8 symbolic   cpp, py, tex
-KinovaLite         solved (hybrid)    7/7        16 8/8 hybrid     fk, hybrid, tex  [KinovaLite_d_5_0: fk, py]
+KinovaLite         solved (hybrid)    7/7         8 8/8 hybrid     fk, hybrid, tex  [KinovaLite_d_5_0: fk, py]
 Mackler13          solved             5/5         4 1/4 symbolic   cpp, py, tex
 Minder13           solved             4/4         2 2/2 symbolic   cpp, py, tex
 MiniDD             solved             5/5         4 1/4 symbolic   cpp, py, tex
@@ -156,9 +156,9 @@ KinovaLite
     th_2     simultaneous eqn
     th_23    algebra
     th_3     arcsin
-    th_4     simultaneous eqn
-    th_5     arccos
-    th_6     sinANDcos
+    th_4     atan2(y,x)
+    th_5     simultaneous eqn
+    th_6     simultaneous eqn
 Mackler13
     d_1      algebra
     th_2     simultaneous eqn
