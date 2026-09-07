@@ -270,10 +270,6 @@ class Robot:
                 eqns_row.append(thiseqn)
             self.FinalEqnMatrix.append(eqns_row)
             self.nversions += 1
-        print('\n\n')
-        for r in self.FinalEqnMatrix:
-            print(r)
-        print('\n\n')
 
 
     #
