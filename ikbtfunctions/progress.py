@@ -2,45 +2,28 @@
 #
 #   progress.py --  tell the user what a long solve is doing
 #
-#   A full IK solve runs from 1 s (Wrist) to 700 s (Issue4 on the hybrid branch).
-#   For most of that time the old output was silent, so the only honest question
-#   a user could ask -- "is this working, or is it stuck?" -- had no answer.
-#   comp_detect's `read_pause = 2` was the previous attempt at this:  sleep two
-#   seconds per pass so a human can read the status wall as it scrolls by.  That
-#   costs ~18 s of an interactive Puma's ~27 s and still does not say whether
-#   anything is improving.  One compact line per pass replaces it.
+#   A full IK solve runs from a second to many minutes, and for most of that
+#   time the old output was silent -- so the one question a user could ask,
+#   "is this working or is it stuck?", had no answer.  One compact line per
+#   pass answers it.
 #
 #   WHAT MAKES THIS TRUSTWORTHY:  the solved count is MONOTONIC.  set_solved()
-#   never un-solves a variable, so the count can only rise.  If it is rising, the
-#   solver is working.  If it is flat, the solver is spinning -- but *bounded*,
-#   because symbolic_loop's budget is finite, so the line can say exactly how
-#   many passes remain before it gives up.  A user never has to guess whether to
-#   keep waiting.
+#   never un-solves a variable, so the count can only rise.  Rising means the
+#   solver is working;  flat means it is spinning -- but *bounded*, because
+#   symbolic_loop's budget is finite, so the line can say how many passes
+#   remain before it gives up.
 #
-#   ON EXPRESSION SIZE, AND WHY THIS MEASURES CALL COUNT INSTEAD.  The first
-#   design printed sp.count_ops() of each expression before handing it to sympy,
-#   on the theory that size predicts runtime.  Measured over Puma, KR16 and
-#   KinovaLite, it does not:
+#   THE METER COUNTS CALLS, NOT EXPRESSION SIZE.  Every expression IKBT
+#   simplifies is under 50 ops on every robot, while the number of simplify()
+#   calls varies 34x -- so size does not discriminate a fast call from a slow
+#   one.  A long run here is thousands of small sympy calls, not a few enormous
+#   ones.  Individual slow calls are still named as they happen (slow_call_s),
+#   and their size is printed there, where it is diagnostic.  See
+#   IKdocs/DEV_NOTES.md for the measurements.
 #
-#       robot        wall    simplify calls   % wall in simplify   max count_ops
-#       Puma         13 s        22                52 %                33
-#       KR16         40 s        69                85 %                46
-#       KinovaLite   49 s       746                37 %                44
-#
-#   EVERY expression IKBT simplifies is under 50 ops, on every robot -- while the
-#   call count varies 34x.  Size does not discriminate a 0.025 s call from a
-#   2.3 s one, and it never grows, so printing it before each call would be a
-#   constant.  Long runtime here is thousands of small sympy calls, not a few
-#   enormous ones, so the meter counts CALLS and CUMULATIVE SECONDS, which is
-#   what actually tracks wall clock.  Individual slow calls are still reported
-#   as they happen (see slow_call_s) -- those are the ones worth naming, and
-#   their size is printed there, where it is diagnostic rather than noise.
-#
-#   Output is deliberately LINE-ORIENTED, never carriage-return animated.
-#   scripts/robot_baseline.py captures every solve to logs/baseline/<robot>.log,
-#   and the existing sum-of-angles progress bar collapses into one unreadable
-#   multi-kilobyte line there -- which is what made Issue4's log useless for
-#   diagnosis.  Do not add \r animation to this file.
+#   Output is deliberately LINE-ORIENTED, never carriage-return animated:  a
+#   \r-animated progress bar collapses into one unreadable multi-kilobyte line
+#   in a captured log.  Do not add \r animation to this file.
 #
 #   Copyright 2026 University of Washington
 #
@@ -82,14 +65,13 @@ def _say(msg):
 #
 #   The sympy meter.
 #
-#   sp.simplify() is 37-85 % of a solve's wall clock (table above), and the
-#   calls are scattered over a dozen leaves.  Counting them at the call sites
-#   would mean touching every one and would rot the moment a new leaf is added,
-#   so the meter wraps sp.simplify and sp.trigsimp once, here.
+#   sp.simplify() dominates a solve's wall clock, and the calls are scattered
+#   over a dozen leaves -- counting them at the call sites would rot the moment
+#   a new leaf is added, so the meter wraps sp.simplify and sp.trigsimp once,
+#   here.
 #
-#   It is OPT-IN and reversible.  Rebinding a name inside a third-party module
-#   is not something to do implicitly:  enable_sympy_meter() is called by ikSolver.py, where a
-#   human is waiting and wants the feedback.  Nothing else turns it on.
+#   OPT-IN and reversible, because rebinding a name inside a third-party module
+#   should not happen implicitly.  Only ikSolver.py turns it on.
 #
 
 _meter = {'calls': 0, 'seconds': 0.0, 'on': False, 'orig': None,

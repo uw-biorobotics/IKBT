@@ -441,3 +441,97 @@ which `count_unknowns(Dw) > 0` then rejected — same outcome, no crash.
 KawasakiRS05L's `eqns_2u` and a quarter of ArmRobo's were sign duplicates. Beyond inflating
 every list the solvers scan, they make a pair of equations look independent when the pair
 carries no new information — exactly the precondition a future elimination leaf would test.
+
+---
+
+## ikbtfunctions/progress.py
+
+**Why the meter counts calls, not expression size.** The first design printed `sp.count_ops()`
+of each expression before handing it to sympy, on the theory that size predicts runtime.
+Measured over Puma, KR16 and KinovaLite, it does not:
+
+| robot | wall | simplify calls | % wall in simplify | max count_ops |
+|---|---|---|---|---|
+| Puma | 13 s | 22 | 52% | 33 |
+| KR16 | 40 s | 69 | 85% | 46 |
+| KinovaLite | 49 s | 746 | 37% | 44 |
+
+Every expression IKBT simplifies is under 50 ops on every robot, while the call count varies
+34×. Size does not discriminate a 0.025 s call from a 2.3 s one, and it never grows, so
+printing it before each call would be a constant.
+
+**What the line replaced.** `comp_detect.read_pause = 2` slept two seconds per pass so a human
+could read the status wall as it scrolled by. That cost ~18 s of an interactive Puma's ~27 s
+and still did not say whether anything was improving.
+
+**Never `\r`-animated.** The sum-of-angles progress bar collapses in `logs/baseline/<robot>.log`
+into one unreadable multi-kilobyte line, which is what made Issue4's log useless for diagnosis.
+
+## ikbtfunctions/texwidth.py
+
+The two proxies that were tried and failed:
+
+- **LaTeX string length** — a 439-character equation overflows while a 2030-character one fits.
+  No threshold separates them, over 160 equations from four robots.
+- **`sympy.count_ops`** — Brad's `th_3` is 25 ops with 12 in each `atan2` argument, under any
+  sane trigger, yet its typeset line is 144 pt too wide. A trigger low enough to catch it
+  doubles the definitions in reports that were already fine (Craig417 30 → 59).
+
+Both fail for the same reason: ops and characters are properties of the *expression*, and
+overflow is a property of the *typeset line*.
+
+**Why one environment per equation** (`output_latex.py`). For an `align` block, pdflatex
+reports the overfull box against the line where the environment *ends* — `\end{align}` — not
+the row that is too wide. Measured on Craig417: a 297 pt overflow reported at `\end{align}`,
+which folded the wrong equation and never converged. `dmath` reports the real line, which is
+why Brad folded cleanly on the first try.
+
+## ikbtfunctions/subexpressions.py
+
+Every long solution is a **single top-level term**, which is why the split has to descend into
+function arguments:
+
+    Craig417 th_4    root=atan2   top-level terms=1   ops=87   deps=3
+    Stanford th_6    root=atan2   top-level terms=1   ops=29   deps=3
+    Stanford th_5    root=atan2   top-level terms=1   ops=20   deps=3
+
+The `K_i` prefix is chosen at run time rather than fixed because `a_2` and `a_3` are DH link
+lengths in 7 of the 32 robots and `a_1` in 4 — a report would otherwise define
+`a_2 = <expression>` for an arm where `a_2` is also 0.432 m. `K` is free everywhere today, but
+Wrist's joints are literally named `A`, `B` and `C`.
+
+## ikbtfunctions/output_python.py
+
+**The old return contract.** `ikin_*()` used to return each branch as an *unlabelled* list,
+ordered by sorting the version names as strings and including the sum-of-angles variables. Puma
+came back 7 wide in the order `['th_1','th_23','th_2','th_3','th_4','th_5','th_6']` — `th_23`
+sorts between `th_1` and `th_2` — and nothing in the module recorded that, so a caller could
+not tell which entry was which joint. The values were right; the contract was unusable.
+
+Separately, the parameter declarations used to be printed *uninindented* inside the function
+body, which closed the function early:
+
+    l_1 = 2                 <- column 0, so the def ends here
+        print ( " Caution ...
+    IndentationError: unexpected indent
+
+Every generated IK module was therefore unloadable, for every robot.
+
+## ikbtfunctions/ik_robots.py
+
+**Why Issue4 is out of the all-robots sweep** (BH, 2026-08-24). Excluded for run time, not for
+its result, which is stable when it finishes: partial (hybrid) 1/7 via `Issue4_d_5_0`
+(`d_5: 0.029 -> 0`). Its duration is not stable — on identical code at `PYTHONHASHSEED=0`:
+97 s, 101 s, 187 s, 246 s, and twice over 1790 s, a factor of 18. Raising the batch timeout
+from 900 to 1800 s did not settle it.
+
+Suspected, **not** confirmed: `PYTHONHASHSEED` pins hashing of `str`/`bytes` only. `unknown`
+and `Robot` use the default identity hash, which moves with memory layout, so a set of them
+iterates in a different order run to run — and the solver would then break ties between
+equally-ranked options differently, some choices far more expensive than others. Not yet
+followed up.
+
+The robot list also used to carry five duplicates and `Chair6DOF`, which had no definition
+block at all and so fell through every `if(name == ...)` and died with an `UnboundLocalError`
+on `variables`. A missing comma once concatenated `'Issue4'` and `'DZhang'` into one bogus
+entry, making the second robot unselectable.

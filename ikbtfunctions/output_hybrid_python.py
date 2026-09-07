@@ -16,13 +16,10 @@
 #         imports FK_numericKinovaLite_d_5_0.py      approximate arm, FK
 #         imports FK_numericKinovaLite.py            TRUE arm, FK *and Jacobian*
 #
-#   FOUR FILES, NOT ONE.  The alternative was a single self-contained module
-#   with everything inlined.  Imports won for a reason that matters here:  the
-#   whole hazard of this method is confusing the two arms, and separate files
-#   named for the arm they describe make that confusion visible instead of
-#   burying both arms in one namespace.  The top level is then small enough to
-#   read in one sitting, which is what a user needs when the answer they are
-#   holding is approximate.
+#   FOUR FILES, NOT ONE.  The hazard of this method is confusing the two arms,
+#   and separate files named for the arm they describe make that confusion
+#   visible instead of burying both arms in one namespace.  The top level is
+#   then small enough to read in one sitting.
 #
 #   THE TWO ENTRY POINTS, and why it is two and not one:
 #
@@ -31,21 +28,17 @@
 #       refine_<Robot>(T, index)    PHASE II.  Damped least squares against the
 #                                   TRUE arm's FK, seeded from branch `index`.
 #
-#   A serial arm has several IK branches -- elbow up and down, wrist flipped --
-#   and they are genuinely different postures, not different spellings of one
-#   answer.  Which one is wanted depends on obstacles, joint limits and where
-#   the arm is now, none of which this code knows.  So Phase I enumerates and
-#   Phase II commits, with a human (or a planner) choosing in between.  Folding
-#   them into one call would mean picking a posture on the user's behalf using
-#   information we do not have.
+#   A serial arm's IK branches -- elbow up and down, wrist flipped -- are
+#   genuinely different postures, and which one is wanted depends on obstacles,
+#   joint limits and where the arm is now, none of which this code knows.  So
+#   Phase I enumerates and Phase II commits, with a human or a planner choosing
+#   in between.  One call would pick a posture on the user's behalf.
 #
 #   PHASE I FILTERS.  IKBT enumerates combinations of each unknown's solution
-#   branches and does not discard the spurious ones, so a returned branch is a
+#   branches without discarding the spurious ones, so a returned branch is a
 #   candidate, not a solution.  Phase I evaluates the approximate arm's own FK
-#   on each branch and keeps those that reproduce T.  That is why the
-#   approximate arm's FK is imported and not merely its IK:  without it the
-#   caller would be choosing a seed from a list in which some entries do not
-#   reach the pose at all.
+#   on each branch and keeps those that reproduce T -- which is why the
+#   approximate arm's FK is imported and not merely its IK.
 #
 #   Copyright 2026 University of Washington
 #
@@ -220,15 +213,13 @@ def write_fk_module(M, name, jacobian=True, dirname=DIR_NAME, what=None):
 #    The hybrid top level
 #
 
-#  The numeric core, emitted verbatim.  It is damped least squares --
-#  Levenberg-Marquardt -- and it is a COPY of ikbtbasics.numeric_ik: the
-#  generated module has to stand on numpy alone, so it cannot import the
-#  library that IKBT itself uses.
+#  The numeric core, emitted verbatim:  damped least squares, and a COPY of
+#  ikbtbasics.numeric_ik, because the generated module has to stand on numpy
+#  alone and cannot import IKBT.
 #
-#  A copy is a liability, so it is pinned rather than trusted:
-#  TestSolver024 runs this generated refine() and numeric_ik.solve_numeric()
-#  on the same robot from the same seed and requires the same answer.  If the
-#  algorithm here drifts from the tested one, that test says so.
+#  A copy is a liability, so it is pinned:  TestSolver024 runs this generated
+#  refine() and numeric_ik.solve_numeric() on the same robot from the same seed
+#  and requires the same answer.
 REFINE_CORE = '''
 
 #############################################################

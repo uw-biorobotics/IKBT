@@ -249,18 +249,10 @@ pi = np.pi
 
     funcname = 'ikin_' + py_identifier(orig_name)
 
-    #  MODULE LEVEL, and before the def.  These used to be printed UNINDENTED
-    #  in the middle of the function body, which closed the function early and
-    #  made the next indented line a syntax error:
-    #
-    #      l_1 = 2                 <- column 0, so the def ends here
-    #          print ( " Caution ...
-    #      IndentationError: unexpected indent
-    #
-    #  Every generated IK module was therefore unloadable, for every robot --
-    #  not only the ones whose name broke the def line.  At module level they
-    #  are also inspectable and overridable by a caller, which is what the
-    #  "Declare the parameters" comment always implied.
+    #  MODULE LEVEL, and before the def:  printed inside the function body at
+    #  column 0 they close the function early and make the next indented line
+    #  an IndentationError.  At module level they are also inspectable and
+    #  overridable by a caller.
     print('#  Declare the parameters (link lengths etc.)', file=f)
     print(par_decl_str, file=f)
 
@@ -268,21 +260,15 @@ pi = np.pi
     #
     #   THE RETURN CONTRACT.
     #
-    #   ikin_*() used to return each branch as an UNLABELLED list, ordered by
-    #   sorting the version names as STRINGS, and including the sum-of-angles
-    #   variables.  Puma came back 7 wide in the order
-    #   ['th_1','th_23','th_2','th_3','th_4','th_5','th_6'] -- 'th_23' sorts
-    #   between 'th_1' and 'th_2' -- and nothing in the module recorded that,
-    #   so a caller could not tell which entry was which joint.  The values
-    #   were right;  the contract was unusable.
+    #   ikin_*() returns JOINTS ONLY, in CHAIN order, with the names emitted
+    #   alongside.  The sum-of-angle variables are still computed -- later
+    #   solutions depend on them -- but they are intermediates, not joints, so
+    #   they are not returned.
     #
-    #   Now:  joints only, in CHAIN order, with the names emitted alongside.
-    #   The sum-of-angle variables are still computed (later solutions depend
-    #   on them), but they are intermediates rather than joints, so they are
-    #   not returned.  Chain order comes from the DH table via
-    #   numeric_ik.joint_symbols():  NOT from the unknown list, which is
-    #   extended with SOA variables, and NOT from solve order, which is an
-    #   artifact of how the tree happened to solve this particular arm.
+    #   Chain order comes from the DH table via numeric_ik.joint_symbols():
+    #   NOT from the unknown list, which is extended with SOA variables, and
+    #   NOT from solve order, which is an artifact of how the tree happened to
+    #   solve this particular arm.
     #
     #####################################################################
     jnames = [str(s) for s in nik.joint_symbols(Robot.Mech)]

@@ -3,38 +3,26 @@
 #   texwidth.py --  which equations actually run off the page?
 #
 #   THE MEASUREMENT PROBLEM.  An equation is too wide when TeX cannot fit it in
-#   \textwidth -- and that depends on the font, the margins, the environment it
+#   \textwidth -- which depends on the font, the margins, the environment it
 #   sits in (align does not wrap, dmath does), and how much of the line the LHS
-#   already used.  None of that is visible from the expression, which is why
-#   every cheap proxy tried here failed on measured data:
-#
-#     LaTeX string length   a 439-character equation overflows while a
-#                           2030-character one fits.  No threshold separates
-#                           them (160 equations, four robots).
-#     sympy count_ops       Brad's th_3 is 25 ops, and its two atan2 arguments
-#                           are 12 ops each -- under any sane trigger -- yet the
-#                           typeset line is 144pt too wide.  A trigger low
-#                           enough to catch it doubles the definitions in
-#                           reports that were already fine (Craig417 30 -> 59).
-#
-#   Both fail for the same reason:  ops and characters are properties of the
-#   EXPRESSION, and overflow is a property of the TYPESET LINE.
+#   already used.  None of that is visible from the expression, so every cheap
+#   proxy tried here failed on measured data:  character count and count_ops are
+#   properties of the EXPRESSION, and overflow is a property of the TYPESET
+#   LINE.  See IKdocs/DEV_NOTES.md.
 #
 #   SO ASK TeX.  pdflatex already reports exactly this, in points, with source
 #   line numbers:
 #
 #       Overfull \hbox (144.6304pt too wide) detected at line 276
 #
-#   That is the ground truth, measured in the real document at the real
-#   geometry.  One subprocess for the whole report -- against sympy.preview(),
-#   which renders one equation per subprocess (160 of them), measures each in
-#   isolation at ITS OWN default geometry rather than this document's, and needs
-#   dvipng, which is not installed here.
+#   That is ground truth, in the real document at the real geometry, and one
+#   subprocess covers the whole report.  (sympy.preview() renders one equation
+#   per subprocess, measures each at ITS OWN default geometry rather than this
+#   document's, and needs dvipng.)
 #
 #   IT MUST NEVER COST US THE REPORT.  Every entry point degrades to "no
 #   measurement" -- pdflatex missing, a LaTeX error, a timeout -- and the caller
-#   then emits the unfolded report, which is correct and merely wide.  Losing a
-#   solved robot's report to a formatting step would be a far worse trade.
+#   then emits the unfolded report, which is correct and merely wide.
 #
 #   Copyright 2026 University of Washington
 #

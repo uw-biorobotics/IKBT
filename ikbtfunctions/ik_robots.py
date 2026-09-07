@@ -31,15 +31,11 @@ from ikbtbasics.ik_classes import *     # special classes for Inverse kinematics
 #
 #####
 #
-#   Every robot this module can build.  ONE entry per robot:  the list used to
-#   carry five duplicates and 'Chair6DOF', which had no definition block at all
-#   and so fell through every `if(name == ...)` below and died with an
-#   UnboundLocalError on `variables`.  A duplicate is harmless to robot_params()
-#   itself but it makes any sweep over "all robots" solve the same arm twice.
+#   Every robot this module can build.  ONE entry per robot -- a duplicate
+#   makes a sweep over "all robots" solve the same arm twice.
 #
-#   Keep this sorted-ish and comma-checked:  a missing comma silently
-#   concatenates two names into one bogus entry and makes the second robot
-#   unselectable (that is what happened to 'Issue4' + 'DZhang' before b013d9c).
+#   Watch the commas:  a missing one silently concatenates two names into a
+#   bogus entry and makes the second robot unselectable.
 #
 ROBOT_LIST = [ 'KinovaLite',
                'ICP5p5_A21', 'KR16',
@@ -65,30 +61,18 @@ ROBOT_LIST = [ 'KinovaLite',
                'DZhang',
                'JennyGuoSp24' ]
 
-#  DEFINED AND RUNNABLE BY NAME, BUT DELIBERATELY OUT OF THE ALL-ROBOTS SWEEP.
+#  DEFINED AND RUNNABLE BY NAME, BUT OUT OF THE ALL-ROBOTS SWEEP.
 #
 #  `python3 ikSolver.py Issue4` still works -- robot_params() accepts these --
-#  but scripts/robot_baseline.py sweeps ROBOT_LIST, so they do not gate.
-#  Keeping the two lists separate is the point:  dropping a name from
-#  ROBOT_LIST alone would ALSO make it unrunnable, because robot_params()
-#  validates against the list and rejects anything not on it, so there would be
-#  no way to investigate the very robot that was excluded for being odd.
+#  but the batch scripts sweep ROBOT_LIST only.  The two lists are separate
+#  because robot_params() validates against ROBOT_LIST and rejects anything
+#  not on it, so dropping a name from ROBOT_LIST alone would leave no way to
+#  investigate the very robot that was excluded for being odd.
 #
-#  Issue4 (BH, 2026-08-24) -- excluded for WALL TIME, not for solving.  Its
-#  result is stable when it finishes:  partial (hybrid) 1/7 via Issue4_d_5_0
-#  (d_5: 0.029 -> 0).  Its duration is not:  measured on identical code at
-#  PYTHONHASHSEED=0, 97 s, 101 s, 187 s, 246 s, and twice over 1790 s -- a
-#  factor of 18.  A timeout IS a status, and status is compared, so --diff
-#  reported Issue4 as a regression on runs where nothing had changed.  Raising
-#  DEFAULT_TIMEOUT from 900 to 1800 s did not settle it, and a gate that cries
-#  wolf is worse than no gate.
-#
-#  Suspected, NOT confirmed:  PYTHONHASHSEED pins hashing of str/bytes only.
-#  `unknown` and `Robot` use the default identity hash, which moves with memory
-#  layout, so a set of them iterates in a different order run to run -- and the
-#  solver would then break ties between equally-ranked options differently,
-#  some choices far more expensive than others.  scripts/robot_baseline.py's own
-#  header already worries about this.  Not yet followed up.
+#  Issue4 (BH, 2026-08-24) is excluded because its RUN TIME varies by a factor
+#  of 18 on identical code, not because of its result, which is stable:
+#  partial (hybrid) 1/7 via Issue4_d_5_0 (d_5: 0.029 -> 0).  See
+#  IKdocs/DEV_NOTES.md.
 EXCLUDED_FROM_SWEEP = ['Issue4']
 
 
@@ -108,8 +92,8 @@ def number_unknowns(variables):
 
 def robot_params(name):
     pvals = {}   # null for most robots
-    #  Sweep list PLUS the deliberately-excluded ones:  an excluded robot must
-    #  stay runnable by name, or it cannot be investigated.
+    #  Sweep list PLUS the excluded ones:  an excluded robot must stay
+    #  runnable by name.
     List = ROBOT_LIST + EXCLUDED_FROM_SWEEP
 
     if not (name in List):
@@ -119,10 +103,9 @@ def robot_params(name):
             print('   ', n)
         quit()
 
-    #  Sentinel:  every branch below assigns these.  If a name is in ROBOT_LIST
-    #  but has no definition block, the fall-through check after the blocks
-    #  reports which robot is missing instead of raising UnboundLocalError on
-    #  whichever name happens to be referenced first.
+    #  Sentinel:  every branch below assigns these.  A name in ROBOT_LIST with
+    #  no definition block is then named by the fall-through check after the
+    #  blocks, rather than raising UnboundLocalError.
     dh = vv = params = variables = None
 
 ############################################################

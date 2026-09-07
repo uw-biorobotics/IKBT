@@ -3,51 +3,39 @@
 #   subexpressions.py --  name the big pieces, so the equations fit on the page
 #
 #   THE PROBLEM.  A solved joint variable's closed form is routinely one
-#   enormous expression.  Craig417's th_4 is a single atan2 of 87 operations;
-#   Stanford's th_6 is 29.  Printed as one equation it runs off the right
-#   margin, and no amount of LaTeX cleverness fixes it -- breqn breaks an
-#   equation at its operators, but it cannot break inside a \frac, and a
-#   fraction of two forty-term sums is a single unbreakable box.
+#   enormous expression -- Craig417's th_4 is a single atan2 of 87 operations.
+#   Printed as one equation it runs off the right margin, and LaTeX cannot fix
+#   it:  breqn breaks an equation at its operators, but not inside a \frac, and
+#   a fraction of two forty-term sums is one unbreakable box.
 #
 #   THE FIX (BH).  Shorten the equation at the SOURCE.  Pull the big pieces out,
-#   give each a name, define them just above, and write the equation compactly
-#   in terms of the names.  That is what a person does by hand, and it helps
-#   every consumer of the report rather than only the typesetter.
+#   name each one, define them just above, and write the equation compactly in
+#   terms of the names -- what a person does by hand, and it helps every reader
+#   of the report rather than only the typesetter.
 #
 #   THE RULE.  A subexpression is worth naming when it involves more than two
-#   PREVIOUSLY SOLVED variables.  Dependency count, not size, is the primary
-#   test:  it is what makes an expression hard to read, and it is what a reader
-#   is actually trying to follow.
+#   PREVIOUSLY SOLVED variables.  Dependency count, not size:  that is what
+#   makes an expression hard to follow.
 #
-#   WHAT COUNTS AS "A PIECE", and this is where the obvious reading fails.
-#   Splitting the top-level TERMS of a sum does nothing here, because measured
-#   over the robots that produce long output, every long solution is a SINGLE
-#   term:
+#   WHAT COUNTS AS "A PIECE".  Splitting the top-level TERMS of a sum does
+#   nothing, because every long solution is a SINGLE term -- a term-level rule
+#   turns `th_4 = atan2(BIG, BIG)` into `th_4 = K_1` with
+#   `K_1 = atan2(BIG, BIG)`, a rename that shortens nothing.  So the split
+#   descends into FUNCTION ARGUMENTS (atan2's two arguments are exactly the
+#   pieces a person would name) and into the factors of a product.
 #
-#       Craig417 th_4    root=atan2   top-level terms=1   ops=87   deps=3
-#       Stanford th_6    root=atan2   top-level terms=1   ops=29   deps=3
-#       Stanford th_5    root=atan2   top-level terms=1   ops=20   deps=3
-#
-#   A term-level rule turns `th_4 = atan2(BIG, BIG)` into `th_4 = K_1` with
-#   `K_1 = atan2(BIG, BIG)`, which is a rename and shortens nothing.  So the
-#   split descends into FUNCTION ARGUMENTS as well -- atan2's two arguments are
-#   exactly the pieces a person would name -- and into the factors of a product.
-#
-#   ONE NAME PER DISTINCT SUBEXPRESSION.  The pool remembers what it has already
-#   named, so a piece appearing in eight versions of a variable is defined once
-#   and referenced eight times.  That is most of the saving in the "all
-#   versions" section, where the same inner expressions recur constantly, and it
-#   is why the numbering runs across a whole section rather than restarting at
-#   each variable:  K_7 means one thing in the document, not one thing per
-#   subsection.
+#   ONE NAME PER DISTINCT SUBEXPRESSION.  The pool remembers what it has named,
+#   so a piece appearing in eight versions of a variable is defined once and
+#   referenced eight times.  That is most of the saving in the "all versions"
+#   section.  It is also why the numbering runs across a whole section rather
+#   than restarting at each variable:  K_7 means one thing in the document.
 #
 #   THE PREFIX IS CHECKED, NOT ASSUMED.  `a_1, a_2, ...` is the natural choice
-#   and it is not available:  measured over ROBOT_LIST, a_2 and a_3 are DH link
-#   lengths in 7 of the 32 robots and a_1 in 4, so a report would define
-#   `a_2 = <expression>` for an arm where a_2 is also 0.432 m.  K is free
-#   everywhere today, but "today" is the operative word -- Wrist's joints are
-#   literally named A, B and C -- so the prefix is chosen against the robot's
-#   own parameter and variable names at run time and falls back when taken.
+#   and is not available -- a_2 and a_3 are DH link lengths on several robots,
+#   so a report would define `a_2 = <expression>` for an arm where a_2 is also
+#   0.432 m.  K is free everywhere today, but Wrist's joints are literally named
+#   A, B and C, so the prefix is chosen against the robot's own parameter and
+#   variable names at run time and falls back when taken.
 #
 #   Copyright 2026 University of Washington
 #

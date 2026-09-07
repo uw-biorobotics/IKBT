@@ -136,10 +136,9 @@ if __name__ == "__main__":
 #
 #   The solution dependency graph, as a TikZ figure
 #
-#   The report has always printed this graph as a list of edges --
-#   'Edge:th_4 depends on: th_23' -- which is complete and nearly unreadable:
-#   the shape of the solve, which variable unlocks which, is exactly the thing
-#   a list of pairs does not show.  This draws it.
+#   The report also prints this graph as a list of edges
+#   ('Edge:th_4 depends on: th_23'), which is the exact data but does not show
+#   the SHAPE of the solve -- which variable unlocks which.  This draws it.
 #
 
 import re
@@ -264,14 +263,12 @@ def solution_graph_tikz(order, edges, eol='\n', caption=None, label=None):
     #  Drawn b -> a:  b unlocks a.  deps[a] holds what a needs, so the arrow
     #  is emitted the other way round from how the dependency is stored.
     #
-    #  ROUTING.  An edge between adjacent rows is drawn straight -- there is
-    #  nothing between its ends to avoid.  An edge spanning more rows is the
-    #  problem:  rows are stacked directly under one another, so a straight or
-    #  slightly-bent long edge runs through whatever nodes sit between, which
-    #  is what made Stanford's picture unreadable.  Those are sent right around
-    #  the outside with out/in angles, on whichever side carries fewer nodes in
-    #  the rows they cross -- bending them all the same way just moves the pile
-    #  from one side to the other.
+    #  ROUTING.  Rows are stacked directly under one another, so an edge
+    #  spanning more than one row would run through the nodes between.  Those
+    #  are sent around the outside with out/in angles, on whichever side
+    #  carries fewer nodes in the rows they cross -- bending them all the same
+    #  way just moves the pile to the other side.  Adjacent-row edges are
+    #  drawn straight.
     xof = {n: pos[n][0] for n in order}
     for a in sorted(deps):
         for b in sorted(deps[a]):

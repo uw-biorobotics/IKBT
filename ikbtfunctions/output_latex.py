@@ -219,19 +219,15 @@ def emit_equations(eqns, eol, force_align=False):
     out = ''
     keep = list(eqns)
 
-    #  ONE ENVIRONMENT PER EQUATION, not one align block for the variable.
-    #  This is what makes the measurement usable:  for an align block pdflatex
-    #  reports the overfull box against the line where the ENVIRONMENT ENDS --
-    #  '\end{align}' -- not the row that is too wide, so every equation in the
-    #  block gets attributed to whichever one happens to sit last.  Measured on
-    #  Craig417:  a 297pt overflow reported at \end{align}, folding the wrong
-    #  equation and never converging.  dmath reports the real line, which is why
-    #  Brad folded cleanly on the first try.
+    #  ONE ENVIRONMENT PER EQUATION, not one align block per variable.  This is
+    #  what makes the width measurement attributable:  for an align block
+    #  pdflatex reports the overfull box against '\end{align}', not the row
+    #  that is too wide, so every equation in the block is blamed on whichever
+    #  one sits last.  dmath reports the real line.
     #
-    #  The cost is the '&' alignment between a variable's versions.  Each is a
-    #  separate equation with its own left-hand side, so little is lost -- and
-    #  dmath breaks a long line at its operators, which align could not do at
-    #  all.
+    #  The cost is the '&' alignment between a variable's versions -- little,
+    #  since each has its own left-hand side, and dmath breaks a long line at
+    #  its operators, which align cannot do at all.
     for e in keep:
         out += texwidth.MARKER + eq_id(e.LHS) + eol
         out += r'\begin{dmath} ' + str(e.LaTexOutput(False)) + r' \end{dmath}' + eol
@@ -626,18 +622,15 @@ def output_latex_solution(Robot, variables, groups, hybrid=None, R_true=None,
 
     ####################  Joint axis geometry (Pieper condition)
 
-    #  Written by the report_gen leaf (output_gen.py), which ticks after
-    #  whichever branch produced the solution, so the statement appears either
-    #  way -- on the hybrid path from pieper_geom_report's snapshot of the TRUE
-    #  robot, otherwise computed there from the DH table.
-    #  getattr: a Robot restored from a pickle written before this existed will
-    #  not carry the attribute, and a missing statement must not break the
-    #  report.  (output_FK_equations() below deliberately does not get this --
-    #  fkOnly.py never ticks the BT, so nothing would have written it.)
-    #  SKIPPED on the hybrid path.  hybrid_true_arm_section() above already
-    #  printed this statement, for the TRUE arm, which is the arm the reader
-    #  needs it for -- report_gen hands both that section and this one the same
-    #  snapshot, so leaving both in printed the identical section twice.
+    #  Written by the report_gen leaf, which ticks after whichever branch
+    #  produced the solution, so the statement appears either way.
+    #  getattr:  a Robot restored from an older pickle will not carry the
+    #  attribute, and a missing statement must not break the report.
+    #  (output_FK_equations() below does not get this -- fkOnly.py never ticks
+    #  the BT, so nothing would have written it.)
+    #  SKIPPED on the hybrid path:  hybrid_true_arm_section() above already
+    #  printed the same snapshot, for the TRUE arm, which is the arm the reader
+    #  needs it for.
     pieper_section = None if hybrid else getattr(Robot, 'pieper_latex', None)
     if pieper_section:
         LF.sections.append(pieper_section.splitlines())
