@@ -154,7 +154,10 @@ int ikin(double T[4][4], double solution_list[IK_NBRANCHES][IK_NJOINTS]);
     #  equations.  Here the omission is a COMPILE error rather than a runtime
     #  one, since C++ needs every name declared.
     for p in (getattr(Robot.Mech, 'params', None) or Robot.params):
-        tmp += 'double '+str(p) + ' = XXXXX ; \\ deliberate undeclared error!  USER needs to give numerical value\n'
+        #  '//', not '\'.  A backslash here made g++ report "stray '\' in
+        #  program" instead of the intended, informative
+        #  "'XXXXX' was not declared in this scope".
+        tmp += 'double '+str(p) + ' = XXXXX ;  // USER MUST supply a numerical value here\n'
     par_decl_str = tmp
 
     nlist = Robot.solution_nodes

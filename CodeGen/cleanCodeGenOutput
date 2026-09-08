@@ -1,3 +1,4 @@
 #!/bin/bash
-rm Python/*.py
-rm Cpp/*.cpp
+#  Delete the GENERATED code in CodeGen/.  Run from the repo root.
+#  Everything removed here is rebuilt by the next solve.
+rm -f CodeGen/Python/*.py CodeGen/Cpp/*.cpp

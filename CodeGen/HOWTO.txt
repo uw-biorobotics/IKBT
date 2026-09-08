@@ -1,16 +1,53 @@
-IKBT can generate code with which to implement the derived inverse kinematics solution. 
+Generated inverse kinematics code
+=================================
 
-Python:
-
-The generated file is really a fragment, designed to save the tedium and error prone-ness 
-of typing in equations, it is not yet a fully functioning program. However it does 
-contain domain tests to make sure that valid arguments are presented to arccos() arcsin(). 
+IKBT writes the closed-form IK solution as both Python and C++.  Everything in
+Python/ and Cpp/ is a GENERATED artifact and is overwritten by the next solve.
 
 
-Cpp:
+Python  --  Python/IK_equations<Robot>.py
+------------------------------------------
 
-The Cpp output should compile without error:
+A runnable, importable module.  It defines
 
-Linux:
->g++  filename.cpp
+    ikin_<Robot>(T)      goal pose T (4x4 numpy) -> list of joint vectors,
+                         or False if the pose is unreachable
+    JOINT_NAMES          the joints, in CHAIN order, matching each vector
+    AUX_NAMES            sum-of-angle intermediates (computed, not returned)
 
+and carries a __main__ that solves one sample pose, so
+
+    python3 Python/IK_equations<Robot>.py
+
+runs as a self-check.  Parameter values (link lengths etc.) are declared at
+module level, so a caller can inspect or override them.
+
+The module tests the domain of arccos() and arcsin() before calling them and
+reports an unreachable pose rather than raising.
+
+
+Python, HYBRID robots  --  Python/IK_hybrid_<Robot>.py
+-------------------------------------------------------
+
+For an arm IKBT cannot solve symbolically, see the two-phase module and its
+sibling FK modules.  Phase I enumerates postures of a SIMPLIFIED arm; Phase IIa
+refines one of them numerically against the TRUE arm.  The module's own
+docstrings carry the details, and the LaTeX report names every file.
+
+
+C++  --  Cpp/IK_equations<Robot>.cpp
+-------------------------------------
+
+    g++ -c IK_equations<Robot>.cpp
+
+DOES NOT COMPILE AS SHIPPED, deliberately.  Any parameter with no numerical
+value in the robot's pvals is emitted as
+
+    double d_1 = XXXXX ;  // USER MUST supply a numerical value here
+
+so the compiler stops with "'XXXXX' was not declared in this scope" and names
+the line.  Supply your values and it compiles.  A robot whose pvals cover every
+parameter (Wrist, for one) compiles as it stands.
+
+Unlike the Python, this is a fragment: it is the solution equations, not a
+finished program.  There is no C++ output on the hybrid path.
