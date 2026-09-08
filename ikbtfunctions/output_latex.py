@@ -51,10 +51,13 @@ class LatexFile():
         self.sections = [] # list of lists of line strings
         self.close =    []  # list of line strings
 
-        f = open('LaTex/IK_preamble.tex','r')
+        #  SOURCE, not output:  these two are read and INLINED here, so a
+        #  generated report is self-contained.  They live in LaTex_src/ rather
+        #  than beside the reports in LaTex/, which is wiped freely.
+        f = open('LaTex_src/IK_preamble.tex','r')
         self.preamble = f.readlines()
         f.close()
-        f = open('LaTex/IK_close.tex','r')
+        f = open('LaTex_src/IK_close.tex','r')
         self.close = f.readlines()
         f.close()
 

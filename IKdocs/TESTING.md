@@ -179,6 +179,7 @@ python3 -m tests.test_chair_helper        # full-solve regression, one robot
 | `tests/baselines/robot_baseline.txt` | the same, laid out for a person | **checked in** |
 | `logs/baseline/<robot>.log` | one child's full stdout | generated |
 | `LaTex/ik_solution_<robot>.tex` | the report | generated |
+| `LaTex_src/IK_preamble.tex` | inlined into every report | **checked in** |
 | `CodeGen/Python/IK_equations<robot>.py` | closed-form IK | generated |
 | `CodeGen/Python/IK_hybrid_<robot>.py` | hybrid two-phase top level | generated |
 | `CodeGen/Python/FK_numeric<robot>.py` | FK (+ Jacobian) callables | generated |

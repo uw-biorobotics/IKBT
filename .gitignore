@@ -2,6 +2,7 @@
 fk_eqns/*
 LaTex/ik_sol*
 LaTex/fk_eq*
+LaTex/*.pdf
 CodeGen/*
 *_log.txt
 BT*_log.txt

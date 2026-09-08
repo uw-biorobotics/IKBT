@@ -50,7 +50,12 @@ read or change IKBT; it is where a "why is it like this?" question gets answered
 Compile the report: `cd LaTex && pdflatex ik_solution_<RobotName>.tex`  
 
 Generated artifacts, not source: `fk_eqns/` (FK pickle cache), `CodeGen/Python/`, `CodeGen/Cpp/`,
-`LaTex/ik_solution_*.tex`, `logs/`.
+`LaTex/` (everything in it), `logs/`.
+
+`LaTex_src/` **is** source: `IK_preamble.tex` and `IK_close.tex` are read and inlined by
+`output_latex.py`, so a generated report is self-contained. They live apart from `LaTex/`
+precisely so that wiping the reports cannot take the templates with them
+(`LaTex_src/cleanLaTexFolder` does that wipe, from the repo root).
 
 FK pickle cache directory or individual files can be deleted at any time without penalty (except some added 
 execution time). 
@@ -211,7 +216,7 @@ The report has always printed the dependency graph as a list of edges
 which variable unlocks which, is exactly what a list of pairs does not show. `solution_graph_tikz()`
 draws it as a TikZ figure placed **before** the listing; the listing stays, because it is the exact data.
 
-`\usepackage{tikz}` was already in `IK_preamble.tex`, so no preamble change was needed.
+`\usepackage{tikz}` was already in `LaTex_src/IK_preamble.tex`, so no preamble change was needed.
 
 - **Rows are dependency DEPTH, not solve order.** A variable sits one row below everything it needs, so
   every arrow runs downward. Those differ: the solver may reach `th_5` before `th_23` while `th_4` waits

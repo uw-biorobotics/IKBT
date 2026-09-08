@@ -1,0 +1,6 @@
+#!/bin/bash
+#  Delete the GENERATED reports in LaTex/ and their pdflatex debris.
+#  The templates this repo generates them from live here in LaTex_src/ and
+#  are deliberately out of reach:  they are source.
+#  Run from the repo root.
+rm -f LaTex/ik_sol* LaTex/fk_equ*

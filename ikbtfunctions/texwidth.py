@@ -61,10 +61,10 @@ def overfull_by_line(texpath, timeout=DEFAULT_TIMEOUT):
        a crash, a timeout.  {} means "nothing measured", NOT "nothing wrong",
        and the caller must treat it as the former.
 
-       pdflatex is run in the file's own directory (the generated reports
-       \\input nothing, but IK_preamble.tex lives beside them) and in
-       nonstopmode, because a document that errors still reports the overfull
-       boxes it found before erroring -- which are exactly what we want.'''
+       pdflatex is run in the file's own directory -- the generated reports
+       \\input nothing, the preamble having been inlined by output_latex --
+       and in nonstopmode, because a document that errors still reports the
+       overfull boxes it found before erroring, which is what we want.'''
 
     if not pdflatex_available():
         return {}
