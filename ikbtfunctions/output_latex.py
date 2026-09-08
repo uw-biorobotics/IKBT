@@ -442,18 +442,25 @@ def hybrid_numeric_section(hybrid, true_name):
             r' through a singularity, where an undamped Newton step does not'
             r' exist.' + eol)
     sec += (r'Because the seed determines which solution branch the correction'
-            r' converges to, the two phases are separate entry points:  the'
+            r' converges to, the phases are separate entry points:  the'
             r' caller enumerates the branches, chooses one, and only then'
             r' refines it.' + eol)
 
     sec += r'\subsection{Generated code}' + eol
     sec += r'\begin{center}\begin{tabular}{ll}' + eol
-    sec += r'{\tt IK\_hybrid\_' + ident + r'.py} & the two phases \\' + eol
-    sec += (r'{\tt ikin\_' + ident + r'\_approx(T)} & Phase I: branches of the'
-            r' simplified arm \\' + eol)
-    sec += (r'{\tt refine\_' + ident + r'(T, index)} & Phase II: correct'
-            r' branch {\tt index} \\' + eol)
+    sec += r'{\tt IK\_hybrid\_' + ident + r'.py} & the phases \\' + eol
+    sec += (r'{\tt ikin\_' + ident + r'\_approx(T)} & Phase I: seed branches of'
+            r' the simplified arm \\' + eol)
+    sec += (r'{\tt refine\_seed\_' + ident + r'(T, q)} & Phase IIa: refine ONE'
+            r' seed \\' + eol)
+    sec += (r'{\tt refine\_all\_' + ident + r'(T)} & Phase II: score every'
+            r' seed \\' + eol)
     sec += r'\end{tabular}\end{center}' + eol
+    sec += (r'Phase IIa is the operational call:  it takes a seed --- normally'
+            r' the branch nearest where the arm is now --- and returns the'
+            r' refined joints, the residual error and the iteration count.'
+            r'  Phase II is its wrapper over a whole seed list, for finding'
+            r' out once which postures the real arm can reach.' + eol)
     sec += (r'Phase I discards candidate branches that do not reproduce $T_d$'
             r' on the simplified arm;  IKBT enumerates combinations of each'
             r" unknown's solution branches and does not itself filter the"

@@ -478,59 +478,89 @@ def ikin_**IDENT**_approx(T, filter_spurious=True):
         print('''
 #############################################################
 #
-#   PHASE II -- correct one chosen branch against the TRUE arm
+#   PHASE IIa -- refine ONE seed against the TRUE arm
+#
+#   This is the operational call.  You pick the posture you want -- normally
+#   the branch nearest where the arm is now -- and refine that one seed.
 #
 #############################################################
 
 
-def refine_**IDENT**(T, index=0, seeds=None, tol=1e-9, max_iter=100):
-    """Numerically correct one Phase I branch against the TRUE arm's FK.
+def refine_seed_**IDENT**(T, q_seed, tol=1e-9, max_iter=100):
+    """Correct one seed against the TRUE arm's FK.  Damped least squares.
 
-           T       the goal pose, the same 4x4 given to Phase I
-           index   WHICH Phase I branch to start from
-           seeds   an explicit branch list, if you already have Phase I's
+           T       the goal pose, 4x4, in the DH table's length units
+           q_seed  NDOF joint values to start from, in JOINT_NAMES order --
+                   normally one entry of ikin_**IDENT**_approx(T), but any
+                   joint vector will do (the arm's current pose, say)
 
-       Returns the solve_numeric() dict -- q, metric, iterations, converged,
-       reason, history -- with 'index' and 'seed' added.
+       Returns THREE values:
 
-       WHY YOU CHOOSE THE INDEX.  The branches are different postures (elbow
-       up or down, wrist flipped), not different spellings of one answer, and
-       which is wanted depends on obstacles, joint limits, and where the arm is
-       now.  None of that is known here.  Refinement stays in the basin of the
-       seed it is given, so the choice of index is the choice of posture.
+           q           the refined joint vector, NDOF floats
+           error       ||dp|| + W_ROT*theta at q -- 0 means q reaches T
+           iterations  how many steps it took
 
-       converged=False is a real answer, not an error:  the true arm may not
-       reach this pose at all, or may reach it only from a different branch.
-       Check it."""
+       Converged means error <= tol;  test it, because a large error is a real
+       answer.  The true arm may not reach T from this seed, or at all.
+
+       REFINEMENT STAYS IN THE BASIN OF ITS SEED, which is the whole reason
+       this takes a seed rather than choosing one:  the branches are different
+       postures (elbow up or down, wrist flipped), and which is wanted depends
+       on obstacles, joint limits and where the arm is now.  None of that is
+       known here."""
+
+    q_seed = np.asarray(q_seed, dtype=float).flatten()
+    if q_seed.size != NDOF:
+        raise ValueError('refine_seed_**IDENT**: seed has %d joints, %s has %d'
+                         % (q_seed.size, TRUE_ROBOT, NDOF))
+
+    r = solve_numeric(true_fk.fk_**IDENT**, true_fk.jacobian_**IDENT**,
+                      q_seed, np.asarray(T, dtype=float),
+                      w_rot=W_ROT, tol=tol, max_iter=max_iter)
+    return r['q'], r['metric'], r['iterations']
+
+
+#############################################################
+#
+#   PHASE II -- refine EVERY seed, so you can see which postures survive
+#
+#   A wrapper over Phase IIa.  Diagnostic:  run it once to learn which
+#   branches the true arm can actually reach, then call refine_seed_**IDENT**
+#   on the one you want from then on.
+#
+#############################################################
+
+
+def refine_all_**IDENT**(T, seeds=None, tol=1e-9, max_iter=100):
+    """Phase IIa over every seed.  Returns a list of dicts, one per seed:
+
+           index       position in the seed list
+           q_seed      the seed it started from
+           q           the refined joint vector, or None if it raised
+           error       ||dp|| + W_ROT*theta at q
+           iterations  steps taken
+           converged   error <= tol
+
+       seeds defaults to ikin_**IDENT**_approx(T).  Pass your own to avoid
+       re-solving Phase I, or to score candidates of your own."""
 
     if seeds is None:
         seeds = ikin_**IDENT**_approx(T)
-    if not seeds:
-        return {'q': None, 'converged': False, 'metric': float('inf'),
-                'iterations': 0, 'reason': 'no approximate solution',
-                'history': [], 'index': index, 'seed': None}
-    if not (0 <= index < len(seeds)):
-        raise IndexError('branch %d of %d -- Phase I returned %d branches'
-                         % (index, len(seeds), len(seeds)))
 
-    seed = seeds[index]
-    T_d = np.asarray(T, dtype=float)
-    r = solve_numeric(true_fk.fk_**IDENT**, true_fk.jacobian_**IDENT**,
-                      seed, T_d, w_rot=W_ROT, tol=tol, max_iter=max_iter)
-    r['index'] = index
-    r['seed'] = seed
-    return r
-
-
-def refine_all_**IDENT**(T, tol=1e-9, max_iter=100):
-    """Phase II from EVERY Phase I branch.  Returns a list of result dicts.
-
-       Convenience for the caller who wants to see which postures actually
-       survive on the true arm before choosing one."""
-
-    seeds = ikin_**IDENT**_approx(T)
-    return [refine_**IDENT**(T, i, seeds=seeds, tol=tol, max_iter=max_iter)
-            for i in range(len(seeds))]
+    out = []
+    for i, q_seed in enumerate(seeds):
+        try:
+            q, err, iters = refine_seed_**IDENT**(T, q_seed, tol=tol,
+                                                  max_iter=max_iter)
+        except Exception as e:
+            out.append({'index': i, 'q_seed': q_seed, 'q': None,
+                        'error': float('inf'), 'iterations': 0,
+                        'converged': False,
+                        'note': '%s: %s' % (type(e).__name__, e)})
+            continue
+        out.append({'index': i, 'q_seed': q_seed, 'q': q, 'error': err,
+                    'iterations': iters, 'converged': bool(err <= tol)})
+    return out
 '''.replace('**IDENT**', ident), file=f)
 
         #####################################################################
@@ -546,22 +576,40 @@ if __name__ == '__main__':
     print('')
     print('  %s -- hybrid IK via %s' % (TRUE_ROBOT, APPROXIMATE_ARM))
     print('  approximated by: %s' % DH_CHANGES)
+    print('  goal pose T_goal is FK(%s) on the TRUE arm'
+          % ' '.join('%.2f' % v for v in q_demo))
     print('')
 
-    branches = ikin_**IDENT**_approx(T_goal)
-    print('  PHASE I: %d usable branch(es) from the approximate arm' % len(branches))
-    for i, q in enumerate(branches):
+    #  PHASE I -- the postures on offer.  Your own code supplies T_goal from
+    #  wherever the task comes from;  this demo manufactures one so the answer
+    #  is known.
+    seeds = ikin_**IDENT**_approx(T_goal)
+    print('  PHASE I: %d usable branch(es) from the approximate arm' % len(seeds))
+    print('           joints: %s' % '  '.join(JOINT_NAMES))
+    for i, q in enumerate(seeds):
         print('     [%d]  %s' % (i, ' '.join('%8.4f' % v for v in q)))
 
+    #  PHASE II -- score them all, to see which postures the TRUE arm reaches.
+    #  Run once;  in operation you would remember the answer.
     print('')
-    print('  PHASE II: refined against the true arm')
-    for r in refine_all_**IDENT**(T_goal):
+    print('  PHASE II: every seed scored against the true arm')
+    for r in refine_all_**IDENT**(T_goal, seeds=seeds):
         if r['q'] is None:
-            print('     [%d]  no seed' % r['index'])
+            print('     [%d]  failed -- %s' % (r['index'], r.get('note', '')))
             continue
-        print('     [%d]  %s   metric %.2e  %2d iters  %s'
+        print('     [%d]  %s   error %.2e  %2d iters  %s'
               % (r['index'], ' '.join('%8.4f' % v for v in r['q']),
-                 r['metric'], r['iterations'], r['reason']))
+                 r['error'], r['iterations'],
+                 'converged' if r['converged'] else 'NOT converged'))
+
+    #  PHASE IIa -- the operational call.  Pick the posture you want (usually
+    #  the one nearest where the arm is now) and refine that seed alone.
+    print('')
+    print('  PHASE IIa: refining seed [0] on its own -- this is the call you')
+    print('             use in operation, once you know which posture you want')
+    q, error, iters = refine_seed_**IDENT**(T_goal, seeds[0])
+    print('     q      %s' % ' '.join('%8.4f' % v for v in q))
+    print('     error  %.3e   iterations %d' % (error, iters))
     print('')
 '''.replace('**IDENT**', ident), file=f)
 

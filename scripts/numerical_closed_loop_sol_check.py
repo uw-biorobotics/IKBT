@@ -273,12 +273,13 @@ def import_hybrid(name):
 
     p1 = [getattr(mod, a) for a in dir(mod)
           if a.startswith('ikin_') and a.endswith('_approx')]
-    p2 = [getattr(mod, a) for a in dir(mod)
-          if a.startswith('refine_') and not a.startswith('refine_all_')]
+    #  Phase IIa is the primitive:  it takes ONE seed and returns
+    #  (q, error, iterations).  refine_all_* is the wrapper over a seed list.
+    p2 = [getattr(mod, a) for a in dir(mod) if a.startswith('refine_seed_')]
     if not p1:
         raise ValueError('%s has no Phase I entry point' % path)
     if not p2:
-        raise ValueError('%s has no Phase II entry point' % path)
+        raise ValueError('%s has no Phase IIa entry point' % path)
     return mod, p1[0], p2[0]
 
 
@@ -347,18 +348,18 @@ def check_hybrid(name, verbose=False):
 
         with contextlib.redirect_stdout(buf):
             try:
-                r = phase2(T, i, seeds=seeds)
+                q_ref, error, iters = phase2(T, seed)
             except Exception as e:
                 if verbose:
-                    print('      branch %-2d Phase II raised %s'
+                    print('      branch %-2d Phase IIa raised %s'
                           % (i, type(e).__name__))
                 continue
 
-        if r.get('q') is None:
+        if q_ref is None:
             continue
         try:
             e1 = float(np.max(np.abs(
-                np.asarray(fk_true(r['q']), dtype=float) - T)))
+                np.asarray(fk_true(q_ref), dtype=float) - T)))
         except Exception:
             continue
         final_err.append(e1)
@@ -367,11 +368,10 @@ def check_hybrid(name, verbose=False):
             good += 1
             if verbose:
                 print('      branch %-2d  seed err %.2e -> %.2e   %2d iters  OK'
-                      % (i, e0, e1, r.get('iterations', -1)))
+                      % (i, e0, e1, iters))
         elif verbose:
-            print('      branch %-2d  seed err %.2e -> %.2e   %2d iters  %s'
-                  % (i, e0, e1, r.get('iterations', -1),
-                     r.get('reason', '?')))
+            print('      branch %-2d  seed err %.2e -> %.2e   %2d iters  '
+                  'error %.2e' % (i, e0, e1, iters, error))
 
     note = ''
     if seed_err and final_err:
