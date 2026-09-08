@@ -123,8 +123,8 @@ hand-checked, and a failure is the solver's, never the target's.
 | `scripts/numerical_closed_loop_sol_check.py` | the **generated Python**, imported and called | later |
 
 ```bash
-python3 -m scripts.check_solution_sets --robots Puma
-python3 -m scripts.check_solution_sets --gate
+python3 -m scripts.check_solution_sets --robots Puma     # one robot, ~1 min
+python3 -m scripts.check_solution_sets --gate           # all 23 recorded robots, SLOW (re-solves each)
 python3 -m scripts.numerical_closed_loop_sol_check Puma
 python3 -m scripts.numerical_closed_loop_sol_check --keep     # don't re-solve
 ```
