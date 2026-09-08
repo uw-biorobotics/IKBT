@@ -11,7 +11,7 @@ Solutions are fully symbolic and are output as LaTex, Python, and C++.
     2. User selects one of the solutions as desired.
     3. Get an accurate numerical solution to the true arm by a damped least squares method using the true arm's FK and Jacobian matrix. 
     
-* Additionally, there is a key new script for symbolic solutions, xxxx, which performs the full `closed-loop` solution validation: 
+* Additionally, there is a key new script for symbolic solutions, numerical_closed_loop_sol_check.py, which performs the full `closed-loop` solution validation: 
     1. Solves the IK symbolically (where possible)
     2. Chooses one or more random end-effector configurations
     3. Generates all IK solutions for each EE configuration.
@@ -101,6 +101,12 @@ A list of all DH parameters tested in the paper:
 'Sims11', 'Srisuan11', 'Axtman13', 'Mackler13', 'Minder13', 'Palm13', 
 'Parkman13', 'Frei13', 'Wachtveitl', 'Bartell', 'DZhang', 'Khat6DOF'.]
 
+Many more robots have been added since the paper, including the arms that motivate the hybrid
+solver (KinovaLite, Panda, ArmRobo) and several standard industrial arms (UR5, KR16, KawasakiRS007L).
+For the current set see `ROBOT_LIST` in `ikbtfunctions/ik_robots.py`, or run
+
+ > python3 -m scripts.robot_baseline --list
+
 We suggest you first run the Wrist since it is relatively fast:
 
  > python ikSolver.py Wrist 
@@ -109,7 +115,7 @@ To solve your own problem open the file ikbtfunctions/ik_robots.py and create an
 for your robot.  You should copy an entry for an existing robot and edit it's entries. 
 Create an "unknown" for each joint variable and package them into the vector "variables".
 Enter the DH parameters in matrix form.   Also, enter the name of your robot into the list
-of valid names (ikbtfunctions/ik_robots.py, line 31).
+of valid names (the `ROBOT_LIST` list near the top of ikbtfunctions/ik_robots.py).
 
 DH parameters explained:
 The vector "vv" encodes whether each joint is rotary (1) or prismatic (0).   If your 

@@ -35,7 +35,7 @@ python3 -m scripts.robot_baseline --full --diff  # ... and diff it against the c
 python3 -m scripts.axis_triple_check       # DH joint-axis geometry vs. numeric FK (exit 1 on mismatch)
 
 python3 -m scripts.check_solution_sets --robots Puma          # is the SYMBOLIC solution set correct?
-python3 -m scripts.check_solution_sets --gate                 # ... exit 1 if a recorded robot drops
+python3 -m scripts.check_solution_sets --gate                 # ... exit 1 if a recorded robot drops (slow: re-solves all 23)
 python3 -m scripts.numerical_closed_loop_sol_check Puma       # is the GENERATED python IK correct?
 python3 -m scripts.numerical_closed_loop_sol_check KinovaLite # ... same command for a HYBRID robot
 ```
