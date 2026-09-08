@@ -38,8 +38,10 @@ sp.var('r_11 r_12 r_13 r_21 r_22 r_23 r_31 r_32 r_33 Px Py Pz')
 
 
 class TestChairHelper(unittest.TestCase):
-    '''Solve Chair_Helper end to end and check the two closed-form results that
-       have been stable since 2017.'''
+    '''Solve Chair_Helper end to end and check its closed-form results.
+
+       d_1 has been stable since 2017.  th_2 changed in Sept 2026 when
+       Simu_Eqn_Sol was promoted ahead of sc_tan -- see test_chair_th2.'''
 
     #  solved once for the whole class -- a full solve is expensive
     _unks = None
@@ -68,13 +70,25 @@ class TestChairHelper(unittest.TestCase):
         self.assertEqual(u.solutions[0], Pz - l_4*r_33, fs + '  [d_1]')
 
     def test_chair_th2(self):
-        '''th_2 comes out of an arcsin, so it has the two standard branches.'''
+        '''th_2 comes from the simultaneous pair, so it has ONE solution.
+
+           NOT two.  It used to be asin(arg) and pi - asin(arg):  an equation
+           holding only sin(th_2) admits both, but the rest of the FK still
+           constrains cos(th_2), so the supplementary branch was wrong at every
+           pose -- measured, valid 0 times out of 20.  Simu_Eqn_Sol now runs
+           ahead of sc_tan and reads a sin/cos PAIR, which pins both and yields
+           one atan2.  Do not "restore" the second branch;  see
+           IKdocs/DEV_NOTES.md and bt_assembly.build_worktools().'''
         fs = 'Chair_Helper   FAIL'
         u = self.unk(th_2)
-        self.assertEqual(u.nsolutions, 2, fs + ' n(th_2)')
-        arg = (Px - l_1 - l_4*r_13)/l_2
-        self.assertEqual(u.solutions[0],  sp.asin(arg),          fs + ' [th_2a]')
-        self.assertEqual(u.solutions[1], -sp.asin(arg) + sp.pi,  fs + ' [th_2b]')
+        self.assertEqual(u.nsolutions, 1, fs + ' n(th_2)')
+        self.assertIn('simultaneous', u.solvemethod,
+                      fs + ' (solved by %r, not the simultaneous pair)'
+                      % u.solvemethod)
+        self.assertEqual(u.solutions[0],
+                         sp.atan2(-l_2*(-Px + l_1 + l_4*r_13),
+                                   l_2*(-Py + l_4*r_23)),
+                         fs + ' [th_2]')
 
     def test_chair_all_solved(self):
         '''Every unknown the front end handed us must end up solved.'''
