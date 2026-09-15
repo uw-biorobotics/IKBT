@@ -233,9 +233,17 @@ The TikZ figure above draws the VARIABLES.  This draws the **versions**, London-
 
 | map | solve |
 |---|---|
-| column (a "fare zone") | one variable, in solve order, left to right |
+| column (a "fare zone") | one dependency LEVEL, left to right — one variable or several |
 | station | one version of that variable (`th_4v5`) |
 | line, one colour each | one complete solution — one row of `solListMatrix` |
+
+**A column is a depth, not a solve position, because THE SOLUTION GRAPH IS NOT A TREE.**  Arm_3
+solves `th_2` and then `th_123` and neither depends on anything;  Puma's `th_2` and `th_4` are
+likewise independent.  Which went first is an artifact of which leaf the BT happened to fire, so
+`dependency_levels()` puts variables of equal depth in one shaded band under a bracket reading
+*independent — solved in either order*.  Variables at the same depth cannot depend on each other
+(a dependency would push the dependent one strictly deeper), so the bracket's claim is sound.
+Each variable still carries its own "Nth solved" label, which is the way back to the report.
 
 A line is a walk from the first variable solved to the last, calling at the version of each variable
 that solution uses.  Where solutions agree they run together and the shared version is drawn as an

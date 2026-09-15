@@ -12,9 +12,17 @@
 #
 #   WHAT THE MAP SAYS
 #
-#     column   a variable, in solve order, left to right ("fare zones")
+#     column   a LEVEL -- one dependency depth, left to right ("fare zones"),
+#              holding one variable or several
 #     station  one VERSION of that variable (th_4v5)
 #     line     one complete solution -- one row of Robot.solListMatrix
+#
+#   A column is a depth and not a solve position because THE SOLUTION GRAPH IS
+#   NOT A TREE and must not be drawn as one.  Arm_3 solves th_2 and then th_123,
+#   but neither depends on anything:  the order between them is an artifact of
+#   which leaf the behaviour tree happened to fire first, and a map that gave
+#   them two columns would be asserting a precedence that does not exist.  So
+#   variables at the same depth share a column, under one bracket saying so.
 #
 #   So a line is a walk from the first variable solved to the last, calling at
 #   the version of each variable that this solution uses;  where two solutions
@@ -107,6 +115,33 @@ def _parse_col(rest):
         elif k == 'deps':
             col['deps'] = [] if v == '-' else v.split(',')
     return col
+
+
+###############################################################################
+#
+#    Levels:  how deep into the solve a variable really is
+#
+
+def dependency_levels(cols):
+    '''The dependency DEPTH of each column:  0 for a variable that needs
+       nothing, otherwise one more than the deepest thing it needs.
+
+       Two variables at the same depth cannot depend on each other -- a
+       dependency would push the dependent one strictly deeper -- so everything
+       in a level is mutually independent and the solver's order among them is
+       arbitrary.  That is the whole claim the map makes by sharing a column.
+
+       Deps are resolved against columns solved EARLIER, which drops the
+       self-reference a sum-of-angles variable carries (th_23 lists th_23) and
+       would stop any other cycle from looping here too.'''
+
+    when = {col['var']: i for i, col in enumerate(cols)}
+    depth = []
+    for i, col in enumerate(cols):
+        d = [depth[when[v]] for v in col['deps']
+             if v in when and when[v] < i]
+        depth.append(1 + max(d) if d else 0)
+    return depth
 
 
 ###############################################################################
@@ -324,12 +359,34 @@ MARGIN, TITLE_H, HEADER_H, PAD_V = 42.0, 104.0, 104.0, 58.0
 LEAD = 30.0            # horizontal room beside a station before a line turns
 R_TICK, W_CAP = 5.0, 14.0
 ORIGIN_DX = 108.0      # the strip to the left of the first variable
+SUB_DX = 172.0         # a variable's slot when it SHARES a level
+BRACKET_H = 32.0       # extra header room, only when some level is shared
 
 
 def draw(G, title=None):
     '''The whole SVG, as a string.'''
 
     cols, rows = G['cols'], G['rows']
+
+    #  LEFT TO RIGHT IS DEPTH, NOT SOLVE ORDER.  Sorting is stable, so within a
+    #  level the variables stay in the order the solver reached them and the map
+    #  still reads the way the report discusses it;  only variables the solver
+    #  could equally well have swapped end up side by side.
+    depth = dependency_levels(cols)
+    perm = sorted(range(len(cols)), key=lambda i: depth[i])
+    nth_of = [i + 1 for i in perm]        # each slot's place in the solve order
+    cols = [cols[i] for i in perm]
+    depth = [depth[i] for i in perm]
+    rows = [[r[i] for i in perm] for r in rows]
+
+    levels = []
+    for c in range(len(cols)):
+        if c and depth[c] == depth[c - 1]:
+            levels[-1].append(c)
+        else:
+            levels.append([c])
+    shared = any(len(lv) > 1 for lv in levels)
+
     order = station_order(cols, rows)
     ncol, nline = len(cols), len(rows)
 
@@ -347,11 +404,24 @@ def draw(G, title=None):
     nrow = max(len(o) for o in order)
     map_h = (nrow - 1) * ROW_DY + 2 * PAD_V
     legend_h = 30.0 + nline * 23.0
-    W = 2 * MARGIN + ORIGIN_DX + ncol * COL_DX
-    H = TITLE_H + HEADER_H + map_h + legend_h + MARGIN
+    header_h = HEADER_H + (BRACKET_H if shared else 0)
 
-    X = [MARGIN + ORIGIN_DX + COL_DX / 2 + c * COL_DX for c in range(ncol)]
-    top = TITLE_H + HEADER_H
+    #  Slot centres, and the extent of the level each belongs to.  A level of
+    #  one keeps the full column width;  a level of several packs its variables
+    #  closer, so the band still reads as one column of the map.
+    X = [0.0] * ncol
+    lv_x0, lv_w = [], []
+    x = MARGIN + ORIGIN_DX
+    for lv in levels:
+        w = COL_DX if len(lv) == 1 else SUB_DX
+        lv_x0.append(x)
+        for c in lv:
+            X[c] = x + w / 2.0
+            x += w
+        lv_w.append(x - lv_x0[-1])
+    W = x + MARGIN
+    H = TITLE_H + header_h + map_h + legend_h + MARGIN
+    top = TITLE_H + header_h
 
     #  THE COMMON ORIGIN:  the state just before the first variable is solved.
     #  Every solution starts from the same place -- they have not yet chosen
@@ -381,40 +451,50 @@ def draw(G, title=None):
                f'font-family="Helvetica Neue,Helvetica,Arial,sans-serif">')
     out.append(f'<rect width="{W:.0f}" height="{H:.0f}" fill="#FFFFFF"/>')
 
-    ####  Zones.  One band per variable -- the map's columns are its fare zones.
-    for c in range(ncol):
-        if c % 2 == 0:
-            out.append(f'<rect x="{MARGIN + ORIGIN_DX + c*COL_DX:.1f}" '
-                       f'y="{TITLE_H:.1f}" '
-                       f'width="{COL_DX:.1f}" '
-                       f'height="{HEADER_H + map_h:.1f}" fill="{ZONE}"/>')
+    ####  Zones.  One band per LEVEL -- the map's columns are its fare zones,
+    ####  and a shared level is one band however many variables are in it.
+    for k, lv in enumerate(levels):
+        if k % 2 == 0:
+            out.append(f'<rect x="{lv_x0[k]:.1f}" y="{TITLE_H:.1f}" '
+                       f'width="{lv_w[k]:.1f}" '
+                       f'height="{header_h + map_h:.1f}" fill="{ZONE}"/>')
 
     ####  Title block, with a roundel
     out += roundel(MARGIN + 22, TITLE_H / 2 + 4)
     name = title or f'{G["robot"]} Solution Graph'
     out.append(text(MARGIN + 52, TITLE_H / 2 - 4, name, size=27,
                     anchor='start', weight='bold'))
-    sub = (f'IKBT  ·  {ncol} variables  ·  '
-           f'{nline} solution' + ('s' if nline != 1 else ''))
+    sub = f'IKBT  ·  {ncol} variables'
+    if len(levels) < ncol:
+        sub += f'  ·  {len(levels)} dependency levels'
+    sub += f'  ·  {nline} solution' + ('s' if nline != 1 else '')
     if G['true_robot'] and G['true_robot'] != G['robot']:
         sub += f'  ·  closed form for the simplified {G["robot"]}'
     out.append(text(MARGIN + 52, TITLE_H / 2 + 17, sub, size=12.5, fill=GREY,
                     anchor='start'))
 
-    ####  Column headers:  the variable, when it was solved, how, and on what
-    for c, col in enumerate(cols):
-        y = TITLE_H + 30
-        out.append(text(X[c], y, parts_of(col['var']), size=25, weight='bold'))
-        nth = ordinal(c + 1)
-        out.append(text(X[c], y + 21, f'{nth} solved', size=11.5, fill=GREY))
-        out.append(text(X[c], y + 38, col['method'] or '-', size=11.5,
-                        fill=GREY, style='italic'))
-        if col['deps']:
-            need = ', '.join(pretty_ascii(d) for d in col['deps'])
-            out.append(text(X[c], y + 55, f'needs {need}', size=11.5, fill=GREY))
-        else:
-            out.append(text(X[c], y + 55, 'needs nothing', size=11.5,
-                            fill=GREY, opacity=0.65))
+    ####  Column headers:  the variable, when it was solved, how, and on what.
+    ####  A shared level gets a bracket under its variables saying why they are
+    ####  together -- without it the column reads as one variable's two names.
+    y = TITLE_H + 30
+    for lv in levels:
+        for c in lv:
+            col = cols[c]
+            out.append(text(X[c], y, parts_of(col['var']), size=25,
+                            weight='bold'))
+            out.append(text(X[c], y + 21, f'{ordinal(nth_of[c])} solved',
+                            size=11.5, fill=GREY))
+            out.append(text(X[c], y + 38, col['method'] or '-', size=11.5,
+                            fill=GREY, style='italic'))
+            if col['deps']:
+                need = ', '.join(pretty_ascii(d) for d in col['deps'])
+                out.append(text(X[c], y + 55, f'needs {need}', size=11.5,
+                                fill=GREY))
+            else:
+                out.append(text(X[c], y + 55, 'needs nothing', size=11.5,
+                                fill=GREY, opacity=0.65))
+        if len(lv) > 1:
+            out += level_bracket(X[lv[0]], X[lv[-1]], y + 72, len(lv))
 
     ####  The lines.  Drawn before the stations, so a station sits on top of
     ####  the track the way a real map's interchange does.
@@ -469,7 +549,7 @@ def draw(G, title=None):
 
     ####  Legend.  One entry per solution, naming the row of solListMatrix it
     ####  is -- the map is useless without the way back to the report.
-    ly = TITLE_H + HEADER_H + map_h + 22
+    ly = top + map_h + 22
     out.append(text(MARGIN, ly, 'Solutions', size=14, anchor='start',
                     weight='bold'))
     for i, r in enumerate(rows):
@@ -489,6 +569,25 @@ def draw(G, title=None):
 
     out.append('</svg>')
     return '\n'.join(out)
+
+
+def level_bracket(x0, x1, y, n):
+    '''The tie that says "these variables are one level".
+
+       The map's other columns are read as "this, then that";  here there is no
+       "then" to read, and the bracket is what stops the reader from supplying
+       one.  It says independent rather than simultaneous, because the solver
+       did take them one at a time -- it just did not have to.'''
+
+    ext = 46.0
+    a, b = x0 - ext, x1 + ext
+    label = ('independent — solved in either order' if n == 2 else
+             'independent — solved in any order')
+    return [f'<path d="M {a:.1f} {y - 7:.1f} L {a:.1f} {y:.1f} '
+            f'L {b:.1f} {y:.1f} L {b:.1f} {y - 7:.1f}" fill="none" '
+            f'stroke="{GREY}" stroke-width="1.4" opacity="0.65"/>',
+            text((a + b) / 2, y + 16, label, size=11.5, fill=GREY,
+                 style='italic')]
 
 
 def roundel(cx, cy, r=15.0):
@@ -541,9 +640,16 @@ def main(argv=None):
     with open(out, 'w') as f:
         f.write(draw(G, title=a.title))
 
+    depth = dependency_levels(G['cols'])
     print(f'{path}  ->  {out}')
-    print(f'   {len(G["cols"])} variables, {len(G["rows"])} solutions, '
+    print(f'   {len(G["cols"])} variables in {len(set(depth))} dependency '
+          f'levels, {len(G["rows"])} solutions, '
           f'{sum(len(o) for o in station_order(G["cols"], G["rows"]))} versions')
+    for d in sorted(set(depth)):
+        share = [c['var'] for c, dd in zip(G['cols'], depth) if dd == d]
+        if len(share) > 1:
+            print(f'   level {d}: {", ".join(share)} -- independent, '
+                  f'solved in an arbitrary order')
     return 0
 
 
