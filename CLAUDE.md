@@ -34,6 +34,8 @@ python3 -m scripts.robot_baseline --full    # all 32, codegen + IK check, record
 python3 -m scripts.robot_baseline --full --diff  # ... and diff it against the checked-in record
 python3 -m scripts.axis_triple_check       # DH joint-axis geometry vs. numeric FK (exit 1 on mismatch)
 
+python3 -m scripts.tube_map Puma           # solution graph as a subway map -> graphs/Puma_tube.svg
+
 python3 -m scripts.check_solution_sets --robots Puma          # is the SYMBOLIC solution set correct?
 python3 -m scripts.check_solution_sets --gate                 # ... exit 1 if a recorded robot drops (slow: re-solves all 23)
 python3 -m scripts.numerical_closed_loop_sol_check Puma       # is the GENERATED python IK correct?
@@ -50,7 +52,7 @@ read or change IKBT; it is where a "why is it like this?" question gets answered
 Compile the report: `cd LaTex && pdflatex ik_solution_<RobotName>.tex`  
 
 Generated artifacts, not source: `fk_eqns/` (FK pickle cache), `CodeGen/Python/`, `CodeGen/Cpp/`,
-`LaTex/` (everything in it), `logs/`.
+`LaTex/` (everything in it), `logs/`, `graphs/`.
 
 `LaTex_src/` **is** source: `IK_preamble.tex` and `IK_close.tex` are read and inlined by
 `output_latex.py`, so a generated report is self-contained. They live apart from `LaTex/`
@@ -224,6 +226,29 @@ draws it as a TikZ figure placed **before** the listing; the listing stays, beca
   discusses them.
 - **Arrows point from a variable to what it DEPENDS ON**, matching the listing's own wording so the two
   cannot be read as contradicting each other. 
+
+### The solution graph as a subway map (`scripts/tube_map.py`)
+
+The TikZ figure above draws the VARIABLES.  This draws the **versions**, London-Underground style:
+
+| map | solve |
+|---|---|
+| column (a "fare zone") | one variable, in solve order, left to right |
+| station | one version of that variable (`th_4v5`) |
+| line, one colour each | one complete solution — one row of `solListMatrix` |
+
+A line is a walk from the first variable solved to the last, calling at the version of each variable
+that solution uses.  Where solutions agree they run together and the shared version is drawn as an
+**interchange** (the white capsule);  where they differ they part.  All lines start from one unnamed
+station: the state before anything is solved.  Past 13 solutions the 13 real line colours repeat
+dashed, then dotted, then dash-dot — no robot has ever needed it.
+
+**The script imports nothing from IKBT** — no sympy, no pickle, no solve.  Its whole input is
+`graphs/<robot>_graph.txt`, written by `output_latex.py` alongside the report (columns, dependency
+edges, and the version matrix, in ~25 inline lines).  So redrawing is free, and the drawing code
+cannot break a solve.  It is run **by hand**;  nothing in the pipeline calls it.
+
+Output is a static SVG — open it in a browser or Inkscape, and export from there if a raster is wanted.
  
 ### Closed Loop Testing
 `scripts/numerical_closed_loop_sol_check.py` thoroughly tests a robot by 1) solving by either method

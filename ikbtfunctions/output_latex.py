@@ -843,6 +843,43 @@ def output_latex_solution(Robot, variables, groups, hybrid=None, R_true=None,
 
     LF.sections.append(edgesection.splitlines())
 
+    ####################  The same graph as DATA:  graphs/<name>_graph.txt
+    #
+    #  Columns are the solution nodes in solve order, rows are solListMatrix,
+    #  and the names in a row are VERSIONS (th_1v5).  Everything here is
+    #  already in hand for the report;  writing it out lets a tool draw the
+    #  graph without importing IKBT or re-solving the arm -- see
+    #  scripts/tube_map.py, which is run by hand and is the only consumer.
+    #  A failed export must never cost the report, hence the try.
+    try:
+        if not os.path.isdir('graphs'):
+            os.makedirs('graphs')
+        with open(f'graphs/{solved_name}_graph.txt', 'w') as gf:
+            gf.write(f'#  IKBT solution graph:  {solved_name}{eol}')
+            gf.write(f'#  col <n> <var> nsol= nver= deps= method=<to eol>{eol}')
+            gf.write(f'#  edge <var> <the var it depends on>{eol}')
+            gf.write(f'#  row <n> <one version name per column>{eol}')
+            gf.write(f'format 1{eol}')
+            gf.write(f'robot {solved_name}{eol}')
+            if orig_name != solved_name:   # hybrid: Robot is the derived arm
+                gf.write(f'true_robot {orig_name}{eol}')
+            for i, nd in enumerate(Robot.solution_nodes):
+                u = nd.unknown
+                #  sorted by solve order: dependencies is a SET, and an
+                #  unstable order would make the file undiffable
+                dl = sorted(u.dependencies, key=lambda d: d.solveorder)
+                deps = ','.join(str(d.symbol) for d in dl) or '-'
+                gf.write(f'col {i+1} {u.name} nsol={u.nsolutions} '
+                         f'nver={u.nversions} deps={deps} '
+                         f'method={u.solvemethod or "-"}{eol}')
+            for a, b in sorted(set((str(e.StartNode), str(e.dependsOn))
+                                   for e in graph)):
+                gf.write(f'edge {a} {b}{eol}')
+            for i, row in enumerate(solution_rows(Robot, groups)):
+                gf.write(f'row {i+1} {" ".join(str(v) for v in row)}{eol}')
+    except Exception as e:
+        print(f'  solution graph export skipped -- {type(e).__name__}: {e}')
+
 
     ####################  Solution Sets
 
