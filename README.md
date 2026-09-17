@@ -5,6 +5,7 @@ Solutions are fully symbolic and are output as LaTex, Python, and C++.
 
 # Latest News
 
+
 ## Sept 2026: Coming soon, IKBT2 on branch newSolverStrategies
 * Key new feature:  IKBT2 introduces a new hybrid symbolic/numerical solver for arms which cannot be solved (by IKBT) symbolically.   In this method IKBT finds a solvable arm which is as close as possible to the true arm.  Then the solution becomes: 
     1. Get an exact IK solution set for the approximate arm.
@@ -19,6 +20,15 @@ Solutions are fully symbolic and are output as LaTex, Python, and C++.
     
 This automates the rigorous validation demonostrated for the Puma in our JAIR paper to easily apply it to any robot. 
 
+## Sept 2026: London Tube Map output
+
+* (beta feature on the newSolverStrategies branch):   The solutions to  a robot arm can be viewed as a London Tube Map!   After solving the robot, go into /graph and 
+run
+
+```
+> python3 ../scripts/tube_map.py ROBOTNAME_graph.txt 
+```
+That will generate a .svg vector graphics file which you can view in a browser or Inkscape. 
 
 ## August 2026
 
