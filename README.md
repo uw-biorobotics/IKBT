@@ -18,9 +18,9 @@ Solutions are fully symbolic and are output as LaTex, Python, and C++.
     2. Chooses one or more random end-effector configurations
     3. Generates all IK solutions for each EE configuration.
     4. Evaluates the FK for each solution and verifies that each solution produces (matches) the input EE configuration.
-    
-This automates the rigorous validation demonstrated for the Puma in our JAIR paper to easily apply it to any robot. 
-See tests/TESTING_HOWTO.md.
+
+
+    This automates the rigorous validation demonstrated for the Puma in our JAIR paper to easily apply it to any robot. See tests/TESTING_HOWTO.md.
 
 
 * New Solution set visualization: London Tube Map output
