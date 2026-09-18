@@ -135,7 +135,7 @@ of valid names (the `ROBOT_LIST` list near the top of ikbtfunctions/ik_robots.py
 
 DH parameters explained:
 The vector "vv" encodes whether each joint is rotary (1) or prismatic (0).   If your 
-robot is less than 6 DOF, create empty rows:  [      0 ,     0,   0,   0  ], in the 
+robot is less than 6 DOF, create empty rows([      0 ,     0,   0,   0  ]) in the 
 DH table so that it has six rows.  Many standard symbols in robot kinematics are pre-defined
 for you but if you use any new ones, be sure to define them using sp.var().  See "Wrist" 
 for an example in which the three joint variables "A, B, C" are set up for sympy by
