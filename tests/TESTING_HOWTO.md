@@ -1,8 +1,8 @@
 
 ## Closed-loop test of your robot's solution set
 
-`scripts/check_solution_sets.py` validates that all solutions 
-returned by ikSolver are correct: 
+`scripts/check_solution_sets.py` validates that all
+symbolic solutions (solution versions) returned by ikSolver are correct: 
 it generates random poses, and for each pose
 
 1. generates the end effector config `T = FK(pose)`,
@@ -12,9 +12,9 @@ it generates random poses, and for each pose
 
 To run it on your own robot, enter your robot info 
 in the list of robot names and in
-`robot_params()` in `ikbtfunctions/ik_robots.py`:
+`robot_params()` in `ikbtfunctions/ik_robots.py`.
 
-Example command lines: 
+Then refer to these example command lines: 
 ```bash
 cd ..
 python3 -m scripts.check_solution_sets Puma              # one robot

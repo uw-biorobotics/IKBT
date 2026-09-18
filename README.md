@@ -13,20 +13,23 @@ Solutions are fully symbolic and are output as LaTex, Python, and C++.
     2. User selects one of the solutions as desired.
     3. Selected solution seeds an accurate numerical solution to the true arm by a damped least squares method using the true arm's FK and Jacobian matrix. 
     
-* Additionally, there is a key new script for symbolic solutions, numerical_closed_loop_sol_check.py, which performs the full `closed-loop` solution validation: 
+* Additionally, there two new script for validation of symbolic solutions: `check_solution_sets.py`,
+and `numerical_closed_loop_sol_check.py`.  
+Both perform the full *closed-loop* solution validation: 
     1. Solves the IK symbolically (where possible)
     2. Chooses one or more random end-effector configurations
     3. Generates all IK solutions for each EE configuration.
-    4. Evaluates the FK for each solution and verifies that each solution produces (matches) the input EE configuration.
-
-
-    This automates the rigorous validation demonstrated for the Puma in our JAIR paper to easily apply it to any robot. See tests/TESTING_HOWTO.md.
+    4. Evaluates the FK for each solution and verifies that each solution produces (matches) the input EE configuration. 
+    
+ The difference is that `check_solution_sets.py` checks the symbolic solution sets numerically by plugging in joint values and `numerical_closed_loop_sol_check.py` checks the numerical solutions returned by the *generated* python solution code.  These scripts automate the rigorous validation demonstrated for the Puma in our JAIR paper to easily apply it to any robot. 
+ 
+For detailed usage, see `tests/TESTING_HOWTO.md`. 
 
 
 * New Solution set visualization: London Tube Map output
 
-(beta feature on the newSolverStrategies branch):   The solutions to  a robot arm can be viewed as a London Tube Map!   After solving the robot, go into /graph and 
-run
+The solutions to  a robot arm can be viewed as a London Tube Map!   After solving the robot, go 
+into /graphs and run
 
 ```
 > python3 ../scripts/tube_map.py ROBOTNAME_graph.txt 
