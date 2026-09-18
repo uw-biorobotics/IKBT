@@ -5,6 +5,11 @@ Solutions are fully symbolic and are output as LaTex, Python, and C++.
 
 # Latest News
 
+## September 2026
+
+Release Candidate for IKBT2 is available on branch `RelCandidate2`.   Please check it out 
+to learn about major new features which are **ready for user testing**.
+
 ## August 2026
 
 * Working with Claude to tighten the test coverage and fix a few bugs.  Now 27/27 tests passing.
