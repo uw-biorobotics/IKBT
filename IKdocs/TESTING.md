@@ -123,8 +123,8 @@ hand-checked, and a failure is the solver's, never the target's.
 | `scripts/numerical_closed_loop_sol_check.py` | the **generated Python**, imported and called | later |
 
 ```bash
-python3 -m scripts.check_solution_sets --robots Puma     # one robot, ~1 min
-python3 -m scripts.check_solution_sets --gate           # all 23 recorded robots, SLOW (re-solves each)
+python3 -m scripts.check_solution_sets Puma              # one robot, 10 random poses
+python3 -m scripts.check_solution_sets Puma Stanford --poses 20 --gate
 python3 -m scripts.numerical_closed_loop_sol_check Puma
 python3 -m scripts.numerical_closed_loop_sol_check --keep     # don't re-solve
 ```
@@ -139,6 +139,44 @@ simplified arm would pass no matter how bad the approximation was.
 
 Keep the first one for **diagnosis**: when the generated code is wrong, it tells
 you whether the fault is in the closed form or in the code generator.
+
+**It takes a robot name and holds no expectation table.** The closed loop is its
+own oracle — `T` came from `FK`, so a version that does not reproduce it is
+wrong and no stored count is needed to say so — and the sweep role belongs to
+`robot_baseline`, which calls the *second* script. It solves the robot **once**
+and then evaluates the version matrix at several random poses, because the
+solve is pose-independent and is the only expensive step.
+
+It fails on two defects:
+
+- **a version that does not reproduce the pose.** Every version, not most of
+  them — a partial score is a failure here, so Craig417 (2-of-4), MiniDD
+  (1-of-4) and the rest of `expected.py`'s KNOWN INCOMPLETE list do not pass.
+  They never had high-confidence solutions; why they fail is open, that they
+  fail is not (BH, 2026-09-17). A version that evaluates *complex* is excused
+  — that posture does not exist at that pose.
+- **two versions that are identical** — the same arm configuration — whether or
+  not that configuration is correct (compared mod 2π on revolute joints, since
+  `th` and `th + 2π` place the arm the same way). A repeated *right* one
+  inflates the solution count; a repeated *wrong* one is two spurious branches
+  that are not even distinct from each other.
+  There is a known producer: at the tangency case `A²+B² == C²` the two
+  `sinANDcos` branches coincide while `nsolutions` stays 2 — see
+  `test_scB_tangency_duplicate_solutions`.
+
+It also reports when **which versions fail depends on the pose** — a stable
+2-of-4 can mean two permanently broken branches or two-spurious-at-a-time with
+the guilty pair rotating, and the counts cannot tell those apart. Craig417 is
+the second kind.
+
+Note this is **stricter than `EXPECT`**, which records those partial counts as
+floors to be met. That table still governs `numerical_closed_loop_sol_check`
+and the sweep, so the two checkers deliberately disagree about Craig417: the
+sweep asks "did it get worse?", this asks "is it right?".
+
+What it **cannot** see is a solution that is *missing*: every count it has
+descends from the same leaves that built the solution set, so there is nothing
+to disagree with.
 
 ## The one expectation table — `scripts/expected.py`
 

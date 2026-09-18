@@ -36,8 +36,8 @@ python3 -m scripts.axis_triple_check       # DH joint-axis geometry vs. numeric 
 
 python3 -m scripts.tube_map Puma           # solution graph as a subway map -> graphs/Puma_tube.svg
 
-python3 -m scripts.check_solution_sets --robots Puma          # is the SYMBOLIC solution set correct?
-python3 -m scripts.check_solution_sets --gate                 # ... exit 1 if a recorded robot drops (slow: re-solves all 23)
+python3 -m scripts.check_solution_sets Puma                   # is the SYMBOLIC solution set correct? (10 random poses)
+python3 -m scripts.check_solution_sets Puma --poses 20 --gate # ... exit 1 unless EVERY version reproduces EVERY pose
 python3 -m scripts.numerical_closed_loop_sol_check Puma       # is the GENERATED python IK correct?
 python3 -m scripts.numerical_closed_loop_sol_check KinovaLite # ... same command for a HYBRID robot
 ```

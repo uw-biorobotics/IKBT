@@ -583,6 +583,29 @@ It replaced three hand-maintained tables over overlapping sets of the same robot
     numerical_closed_loop_sol_check.KNOWN_GOOD  8 robots, "at least N"
     bt_path_gate.EXPECTED[*]['closed_loop']     5 robots, a copy of the above
 
+`check_solution_sets` no longer consults `EXPECT` at all (BH, 2026-09-17). Its counts were
+measured at ONE fixed probe pose, and it now runs several random ones, so a recorded count could
+not be met or missed reproducibly. It also did not need them: the closed loop is its own oracle.
+`EXPECT` survives in `numerical_closed_loop_sol_check`, which is what `robot_baseline` calls and
+is where the regression gate belongs. The one thing lost is `total` — a *spurious branch coming
+back* leaves `good` untouched — and that check stays with the generated-code sweep.
+
+**And it is now stricter than `EXPECT` ever was**: a version that does not reproduce the pose is a
+FAILURE, not a recorded floor, so the eight KNOWN INCOMPLETE robots fail it. `EXPECT` asks "did
+this get worse?"; the closed loop asks "is this right?", and for Craig417 and MiniDD the answer
+has always been no (BH, 2026-09-17). The two checkers disagree about them on purpose.
+
+Multi-pose turned up something the single fixed probe had hidden: Craig417 scores 2-of-4 at every
+pose, but *which* two versions fail rotates with the pose — over six random poses all four rows
+fail somewhere and only two at a time. So it is not two permanently broken branches; two of the
+four combinations are spurious at any given configuration and which ones depends on where the arm
+is. The checker reports this itself (`WHICH ones varies by pose`), because the counts alone cannot
+distinguish the two stories and the count is what a single probe gave you.
+
+The individual poses are deliberately NOT printed. A real defect shows at essentially every random
+pose, so the list is the poses tested with extra steps; `--verbose` prints each `q` when a specific
+failure has to be reproduced.
+
 Puma appeared in all three, and one carried a comment saying its 8 had been copied by hand from
 another. The counts were measured 2026-08-24 (the solution/version namespace fix), 2026-09-02
 (KinovaLite, hybrid) and 2026-09-03 (Chair_Helper and ICP5p5_A21, when `Simu_Eqn_Sol` was
