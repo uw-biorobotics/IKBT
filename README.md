@@ -6,11 +6,12 @@ Solutions are fully symbolic and are output as LaTex, Python, and C++.
 # Latest News
 
 
-## Sept 2026: Coming soon, IKBT2 on branch newSolverStrategies
-* Key new feature:  IKBT2 introduces a new hybrid symbolic/numerical solver for arms which cannot be solved (by IKBT) symbolically.   In this method IKBT finds a solvable arm which is as close as possible to the true arm.  Then the solution becomes: 
+## Sept 2026: Release candidate  IKBT2.rc on branch newSolverStrategies
+* Summer of 2026 marks significant upgrades to IKBT resulting from a collaboration between Blake Hannaford and Claude Code Pro. 
+* Key new feature:  IKBT2 introduces a new hybrid symbolic/numerical solver for arms which cannot be solved (by IKBT) symbolically.   In this method, IKBT finds a solvable arm which is as close as possible to the true arm.  Then the solution becomes: 
     1. Get an exact IK solution set for the approximate arm.
     2. User selects one of the solutions as desired.
-    3. Get an accurate numerical solution to the true arm by a damped least squares method using the true arm's FK and Jacobian matrix. 
+    3. Selected solution seeds an accurate numerical solution to the true arm by a damped least squares method using the true arm's FK and Jacobian matrix. 
     
 * Additionally, there is a key new script for symbolic solutions, numerical_closed_loop_sol_check.py, which performs the full `closed-loop` solution validation: 
     1. Solves the IK symbolically (where possible)
@@ -18,11 +19,11 @@ Solutions are fully symbolic and are output as LaTex, Python, and C++.
     3. Generates all IK solutions for each EE configuration.
     4. Evaluates the FK for each solution and verifies that each solution produces (matches) the input EE configuration.
     
-This automates the rigorous validation demonostrated for the Puma in our JAIR paper to easily apply it to any robot. 
+This automates the rigorous validation demonstrated for the Puma in our JAIR paper to easily apply it to any robot. 
 
-## Sept 2026: London Tube Map output
+* New Solution set visualization: London Tube Map output
 
-* (beta feature on the newSolverStrategies branch):   The solutions to  a robot arm can be viewed as a London Tube Map!   After solving the robot, go into /graph and 
+(beta feature on the newSolverStrategies branch):   The solutions to  a robot arm can be viewed as a London Tube Map!   After solving the robot, go into /graph and 
 run
 
 ```
