@@ -6,7 +6,7 @@ Solutions are fully symbolic and are output as LaTex, Python, and C++.
 # Latest News
 
 
-## Sept 2026: Release candidate  IKBT2.rc on branch newSolverStrategies
+## Sept 2026: Release candidate for IKBT2 on branch RelCandidate2.
 * Summer of 2026 marks significant upgrades to IKBT resulting from a collaboration between Blake Hannaford and Claude Code Pro. 
 * Key new feature:  IKBT2 introduces a new hybrid symbolic/numerical solver for arms which cannot be solved (by IKBT) symbolically.   In this method, IKBT finds a solvable arm which is as close as possible to the true arm.  Then the solution becomes: 
     1. Get an exact IK solution set for the approximate arm.
