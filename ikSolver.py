@@ -27,6 +27,7 @@ import sympy as sp
 from sys import exit, argv
 import pickle     # for storing pre-computed FK eqns
 
+import ikbtfunctions.ik_robots as ikr
 import ikbtfunctions.ik_driver as ik_driver
 from ikbtfunctions.ik_driver   import (load_robot, run_solver,
                                        print_solved_equations, ensure_logdir,
@@ -68,7 +69,6 @@ PERFORMANCE_OUTPUT = False
 
 
 def main(argv):
-    banner()
 
     ########################################################
     #
@@ -84,6 +84,13 @@ def main(argv):
 
     elif len(argv) == 2:
         robot = str(argv[1])
+
+        if robot.lower() == 'list':
+            for rn in ikr.ROBOT_LIST:
+                print(f'   {rn}')
+            quit()
+
+    banner()
 
     print('')
     print('')
