@@ -43,6 +43,7 @@ from ikbtleaves.symbolic_loop   import symbolic_loop
 from ikbtleaves.output_gen      import report_gen
 from ikbtleaves.hybrid_ik       import (pieper_geom_report,
                                         simplified_arm, install_simplified)
+from ikbtleaves.onevar_ik       import onevar_rank, install_known
 from ikbtleaves.clear_state     import clear_state
 
 
@@ -261,6 +262,21 @@ def make_leaves(leaf_debug=False, solver_debug=False):
     installSimplified.BHdebug = leaf_debug
     n['installSimplified'] = installSimplified
 
+    ###  Rank the unknowns by what declaring each one KNOWN would restock.
+    #  THIS LEAF DECIDES whether the one-variable branch proceeds:  it refuses
+    #  when no unknown, made known, restocks a single one-unknown equation, and
+    #  the measurement costs one equation scan per unknown -- no sympy solving.
+    onevarRank = onevar_rank()
+    onevarRank.BHdebug = leaf_debug
+    n['onevarRank'] = onevarRank
+
+    ###  Declare the next ranked candidate known and install the reduced
+    #  problem, so the solver that follows solves one unknown fewer.  Fresh
+    #  unknowns and a fresh Robot per attempt;  the DH table is untouched.
+    installKnown = install_known()
+    installKnown.BHdebug = leaf_debug
+    n['installKnown'] = installKnown
+
     ###  tan and sin/cos compete, then rank picks the nicer solution.
     #  b3.OrNode (unlike b3.Priority) runs ALL its children -- that is deliberate
     #  and load-bearing:  rank needs both candidate solutions to choose between.
@@ -413,10 +429,16 @@ def build_default_bt(leaf_debug=False, solver_debug=False, nodes=None,
 
            Sequence[ analysis, report_gen ]
 
-           analysis        = Priority[ symbolic_branch, hybrid_branch ]
+           analysis        = Priority[ symbolic_branch, onevar_branch,
+                                       hybrid_branch ]
 
            symbolic_branch = Sequence[ clear_state,
                                        symbolic_loop(x20, solveRoutine) ]
+
+           onevar_branch   = Sequence[ onevar_rank,
+                                       RepeatUntilSuccess(
+                                           Sequence[ install_known,
+                                                     symbolic_branch (3rd) ]) ]
 
            hybrid_branch   = Sequence[ pieper_geom_report,   # always SUCCESS
                                        simplified_arm,
@@ -491,11 +513,64 @@ def build_default_bt(leaf_debug=False, solver_debug=False, nodes=None,
     hybridBranch.Name = "Hybrid Branch"
     nodes['hybridBranch'] = hybridBranch
 
+    #  A THIRD complete symbolic solver over its own leaf set, applied to the
+    #  same arm with one unknown declared KNOWN.  Same reasoning as the hybrid
+    #  set above:  instances, not positions.
+    onevar_nodes = rename_leaves(
+        make_leaves(leaf_debug=leaf_debug, solver_debug=solver_debug),
+        ' (onevar)')
+    symbolicBranch3 = build_symbolic_branch(onevar_nodes, tag=' (onevar)',
+                                            solver_debug=solver_debug)
+
+    in_branch3 = _reachable(symbolicBranch3)
+    for k, v in onevar_nodes.items():
+        if any(nd is v for nd in in_branch3):
+            nodes[k + '_onevar'] = v
+
+    #  ONE ATTEMPT PER LOOP.  install_known hands the solver the next candidate
+    #  and FAILs when the ranked list is exhausted, so the Sequence fails, the
+    #  loop tries again with the cursor advanced, and the branch closes when
+    #  there is nothing left.  RepeatUntilSuccess loops INSIDE one tick, so the
+    #  whole sweep happens in a single pass and stops at the first candidate
+    #  that solves.
+    #
+    #  ONE instance of the solver serves every attempt:  a node repeated by a
+    #  loop is not a node in two tree positions, and only the latter collides in
+    #  b3's per-node blackboard state.  What does NOT reset itself is the
+    #  application state, which is why each attempt reloads the robot
+    #  (install_known) and each solver starts with clear_state.
+    #
+    #  The bound is onevar_rank.max_candidates + 1 -- the extra iteration is the
+    #  one that discovers the list is empty.  It is also a REQUIRED safety net:
+    #  an unbounded RepeatUntilSuccess would spin forever once install_known
+    #  starts failing.  Raising max_candidates on the leaf afterwards therefore
+    #  needs the tree rebuilt;  set it on a `nodes` dict passed in here.
+    onevarAttempt = b3.Sequence([nodes['installKnown'], symbolicBranch3])
+    onevarAttempt.Name = "One Variable Attempt"
+    nodes['onevarAttempt'] = onevarAttempt
+
+    onevarLoop = b3.RepeatUntilSuccess(onevarAttempt,
+                                       nodes['onevarRank'].max_candidates + 1)
+    onevarLoop.Name = "One Variable Attempt Loop"
+    nodes['onevarLoop'] = onevarLoop
+
+    onevarBranch = b3.Sequence([nodes['onevarRank'], onevarLoop])
+    onevarBranch.Name = "One Variable Branch"
+    nodes['onevarBranch'] = onevarBranch
+
     #  b3.Priority (the standard Selector/Fallback) stops at its first
-    #  non-FAILURE child, so the hybrid branch ticks ONLY when the symbolic
-    #  solver came up empty.  Either branch can SUCCEED, and report_gen -- the
-    #  shared node after this Priority -- reads hybrid_source to tell which.
-    analysis = b3.Priority([symbolicBranch, hybridBranch])
+    #  non-FAILURE child, so each branch ticks ONLY when everything before it
+    #  came up empty.  Any of the three can SUCCEED, and report_gen -- the
+    #  shared node after this Priority -- reads onevar_source / hybrid_source to
+    #  tell which.
+    #
+    #  ONE VARIABLE BEFORE HYBRID (BH, 2026-09-21), so a robot it can crack
+    #  never reaches the hybrid method.  It solves the TRUE arm:  the DH table
+    #  is untouched and the answer is exact wherever the 1-D search finds a
+    #  root, where the hybrid method answers about a DERIVED arm and has to
+    #  correct its way back numerically.  When both would work, the one that
+    #  never approximated the robot is the one to keep.
+    analysis = b3.Priority([symbolicBranch, onevarBranch, hybridBranch])
     analysis.Name = "Analysis"
     nodes['analysis'] = analysis
 

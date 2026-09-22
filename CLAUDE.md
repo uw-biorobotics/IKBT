@@ -76,8 +76,10 @@ execution time).
    `L1`/`L2`/`L3p` (having 1, 2, and 3+ unknowns) — these go on the blackboard.
 4. The BT is assembled by `bt_assembly.build_default_bt()` and ticked. The BT encodes the high level steps to 
 produce a solution.
-5. The BT implements two possible solution path. First, if it can find a symbolic solution to all unknowns, then it proceeds directly
-to generate code and Latex output.  But, if the solver fails to find a symbolic solution we go to the "hybrid" method which involves 
+5. The BT implements three possible solution paths, tried in order. First, if it can find a symbolic solution to all unknowns, then it proceeds directly
+to generate code and Latex output.  If that fails, the "one-variable" method declares ONE unknown to be a known parameter and solves
+the rest of the arm symbolically -- the true arm, unmodified -- leaving a 1-D numerical search over that parameter.  If that fails too,
+the "hybrid" method involves
 1) finding a "low cost" modification to the DH parameters which creates a new solvable robot as close as possible to the original arm. 
 2) Using the new solvable robot to get a set of approximate solutions.
 3) Using a damped least squares numerical method to get the exact solution using FK and Jacobian Matrix of the original robot. 
@@ -103,9 +105,11 @@ Pieper's condition is sufficient for a solution but not necessary.
 `simplified_arm` ranks the DH changes that would give the arm a triple, cheapest first by task-space
 displacement, and publishes `simplification_candidates` / `simplification_choice`. 
 
-**The solver appears TWICE**, over two separate leaf sets (the second renamed ` (hybrid)`). One
-*instance* in two tree slots really would collide — b3 keys per-node state on the blackboard by node id
-and `bt_problems()` rejects it — but two instances are legal and get that state fresh for free.  
+**The solver appears THREE TIMES**, over three separate leaf sets (renamed ` (onevar)` and ` (hybrid)`). One
+*instance* in three tree slots really would collide — b3 keys per-node state on the blackboard by node id
+and `bt_problems()` rejects it — but separate instances are legal and get that state fresh for free.
+A node repeated by a LOOP is not the same thing and does not collide, which is why the one-variable branch
+retries with a single solver instance.  
  
 
 ### Leaf conventions (`ikbtleaves/`)
@@ -190,6 +194,78 @@ is known here, and damped least squares stays in the basin of the seed it is giv
 index *is* the choice of posture. Folding the two calls into one would pick a posture on the user's
 behalf from information IKBT does not have.
  
+
+### The one-variable branch (`ikbtleaves/onevar_ik.py`)
+
+The third strategy, and the one tried **before** hybrid: declare ONE unknown to be a known parameter and
+the rest of the arm often falls out symbolically.  Method and 1-D search from Friedman et al., 2010
+(`IKdocs/`), whose arm is `C-Arm` in `ik_robots.py`.
+
+**NOTHING ABOUT THE ROBOT CHANGES.**  The DH table, the FK and the equations stay the true arm's;  the only
+edit is removing one entry from the `unknowns` list.  `count_unknowns()` reads that list, so the symbol
+becomes a constant everywhere at once, and `comp_det` — which iterates the same list — comes to mean "all
+the others are solved".  No derived robot and no second FK, which is what separates this from
+`install_simplified`.  It is also why this branch precedes hybrid: its answer is about the REAL arm.
+
+`onevar_rank` measures, for every unknown, how many equations declaring it known would restock, and ranks by
+**L1 count first** (then L2, then `count_ops`, then chain position).  L1 leads because a solver leaf can only
+start from an equation in one unknown, and a robot that fails symbolically usually has none — C-Arm has 0 of
+63.  A candidate that restocks nothing is dropped;  the rest are tried best-first, capped at
+`max_candidates` (3).  The measurement is one equation scan per unknown — milliseconds, no sympy solving —
+against the minutes a symbolic attempt costs.  Sum-of-angles variables are ordinary candidates
+(`th_34` ranks third on C-Arm): assuming th_3 + th_4 known is as legitimate a one-parameter family as
+assuming a joint known.
+
+`install_known` declares the next candidate known and installs the reduced problem, one candidate per tick,
+FAILing when the list is exhausted — which is what closes the retry loop.  Each attempt **reloads the robot**
+(`fresh_problem()`, 20-30 ms from the FK cache), because a failed attempt leaves `solved` flags, candidate
+solution lists and `R.solveN` behind.
+
+**WHAT COMES OUT IS A CONDITIONAL CLOSED FORM**, exact only where the assumed value is right.  C-Arm solves
+6 of 6 remaining variables in 33 s with `th_2` assumed known, on the first candidate, with th_2 riding
+through the equations as a parameter (`0 = Px*sin(th_2) - Pz*cos(th_2) + d_1*cos(th_2)` is the one that
+gives `d_1`).  It must
+never be written out as `IK_equations<Robot>.py`, which means an unconditional IK for that robot —
+`report_gen` refuses on `onevar_source`, the same naming discipline the hybrid branch follows.
+
+**What a one-variable solve delivers**, for `C-Arm` with `th_2` assumed known:
+
+| file | describes | written by |
+|---|---|---|
+| `LaTex/ik_solution_C-Arm.tex` | the equations **and the assumption** | `output_latex_solution(..., onevar=)` |
+| `CodeGen/Python/IK_onevarC-Arm.py` | the 1-D search — **the entry point** | `output_onevar_python.write_onevar_top()` |
+| `CodeGen/Python/IK_conditionalC-Arm.py` | the closed form, `th_2` an argument | `output_python.output_python_code(..., known=)` |
+| `CodeGen/Python/FK_numericC-Arm.py` | this arm's FK (no Jacobian needed) | `output_numeric_common.write_fk_module()` |
+
+`IK_conditional`, never `IK_equations`: that name means an unconditional inverse kinematics for the
+robot, and these equations hold only where the assumed value is right. `ikin_C_Arm_given(T, th_2)`
+takes the assumed value as an **argument**, not a module constant — it is not a property of the arm,
+it is what the search sweeps — and returns a **complete** joint vector with `th_2` in its own chain
+position, so it can go straight into FK. There is no C++ yet, for the same reason as the hybrid path.
+
+`write_fk_module` and the emitted pose-error code moved to `ikbtfunctions/output_numeric_common.py`.
+They were in `output_hybrid_python.py`, and this branch is not hybrid; that module re-exports them,
+so every existing caller still works.
+
+**The search** (`SEARCH_CORE` in `output_onevar_python.py`, emitted verbatim — a generated module
+stands on numpy alone). Sampling is a **Van der Corput sequence**: each new point falls in the middle
+of the largest untested gap, no end bias, and the sequence is a prefix of itself, so raising
+`n_samples` refines everywhere and repeats nothing. **One error curve per branch** — the branches are
+separate functions of the assumed variable with separate zeros and separate domains, and mixing them
+would bracket minima no single branch has. Each bracketed minimum is refined by **golden section**
+(near a solution the error is a norm going to zero — a V, not a parabola, so nothing based on
+curvature behaves), and **a minimum is accepted only if it reaches zero**: this is root finding, and
+a dip that stops short is a feature of that branch, not an answer. On a periodic domain the sweep is
+**wrapped at both ends**, or a root at ±pi has only one neighbour and is silently never found.
+
+Measured on C-Arm: `solve_C_Arm(T)` returns **8 of 8 solutions reproducing the pose** with errors of
+1e-16 to 1e-14, and the joint vector the probe pose was built from is among them
+(`python3 -m scripts.numerical_closed_loop_sol_check C-Arm`, which now detects this third path from
+`IK_onevar<name>.py` and checks **completeness** as well as soundness — the question the other two
+paths cannot ask, since a 1-D search can step over a basin narrower than its sample spacing).
+
+Joint ranges and 2*pi wraps stay out of the search: they are one range test applied to the accepted
+joint vectors afterwards.
 
 ### Latex output: Equations that fit the page (`ikbtfunctions/texwidth.py`)
 
@@ -295,11 +371,12 @@ Please keep commit messages to 5 lines or less.
    artifact the naming rules exist to prevent.   An alternative to consider is a new script which could 
    generate C++ code by *translating* the python code to C++.
    
-2. New solver method.  In addition to the fully symbolic solution and the hybrid solution (based on an approximate arm). The new branch dev_OneVarSolve will develop and test a third solver approach.   Eventually this will be
-integrated into the top level BT selector node: selector(symbolic, OneVar, hybrid) so that if symbolic works
-the one-variable method will be tried next.   *IF* git is on the dev_OneVarSolve branch when you read this, then
-get details on the new one-variable method in the new document:  OneVarSolve.md.  Only read dev_OneVarSolve.md 
-if git is on that branch. 
+2. New solver method.  In addition to the fully symbolic solution and the hybrid solution (based on an approximate arm),
+a third solver approach: the one-variable method.  The BT selector is now `Priority[symbolic, onevar, hybrid]`, so
+one-variable is tried when symbolic fails and suppresses hybrid when it succeeds.  What remains is the 1-D search and the
+code generation it needs — see "The one-variable branch" above, and `dev_OneVarSolve.md` for the method.
+*IF* git is on the dev_OneVarSolve branch when you read this, then get details on the new one-variable method in the
+document:  dev_OneVarSolve.md.  Only read dev_OneVarSolve.md if git is on that branch. 
 
  
 

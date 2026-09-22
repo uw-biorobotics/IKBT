@@ -130,12 +130,19 @@ python3 -m scripts.numerical_closed_loop_sol_check --keep     # don't re-solve
 ```
 
 The second one is what the sweep calls (with `resolve=False`, so nothing is
-solved twice). It covers **both paths from one command**: `detect_path()` reads
-which artifacts exist, so a caller with a robot name needs no idea which branch
-answered it. The hybrid check is
+solved twice). It covers **all three paths from one command**: `detect_path()`
+reads which artifacts exist, so a caller with a robot name needs no idea which
+branch answered it. The hybrid check is
 `q → T = FK_true(q) → Phase I → Phase II → FK_true(refined) == T` — **every
 check goes through the TRUE arm's FK**, because judging Phase I against the
 simplified arm would pass no matter how bad the approximation was.
+
+The one-variable check is `q → T = FK(q) → solve_*(T) → FK(each found) == T`,
+**plus one question the other two cannot ask: was `q` itself among them.** A
+closed form enumerates its branches and either contains the answer or does not;
+a 1-D search can step over a basin narrower than its sample spacing, and the
+only way to notice is to look for a solution you already know is there. The
+note column says `probe recovered` or `PROBE NOT FOUND among N`.
 
 Keep the first one for **diagnosis**: when the generated code is wrong, it tells
 you whether the fault is in the closed form or in the code generator.
@@ -195,12 +202,16 @@ by path:
 | path | under the true name | under the derived name |
 |---|---|---|
 | symbolic, complete | `tex`, `py`, `cpp` | — |
+| one variable, complete | `tex`, `onevar`, `cond`, `fk` | — |
 | hybrid, derived arm complete | `tex`, `hybrid`, `fk` | `py`, `fk` |
 | anything incomplete | nothing | nothing |
 
 Sets are compared **exactly**: an unexpected artifact is a failure, not just a
 missing one. The characteristic hybrid defect is an *extra* file — a simplified
-arm's equations shipped under the real robot's name.
+arm's equations shipped under the real robot's name. The one-variable path has
+its own version of that defect: `py` (`IK_equations<robot>.py`) would claim an
+unconditional closed form for equations that hold only at the right value, so
+it ships `cond` (`IK_conditional<robot>.py`) and never `py`.
 
 ## Other checks
 
@@ -220,6 +231,8 @@ python3 -m tests.test_chair_helper        # full-solve regression, one robot
 | `LaTex_src/IK_preamble.tex` | inlined into every report | **checked in** |
 | `CodeGen/Python/IK_equations<robot>.py` | closed-form IK | generated |
 | `CodeGen/Python/IK_hybrid_<robot>.py` | hybrid two-phase top level | generated |
+| `CodeGen/Python/IK_onevar<robot>.py` | one-variable 1-D search (the entry point) | generated |
+| `CodeGen/Python/IK_conditional<robot>.py` | closed form given one assumed value | generated |
 | `CodeGen/Python/FK_numeric<robot>.py` | FK (+ Jacobian) callables | generated |
 | `CodeGen/Cpp/IK_equations<robot>.cpp` | closed-form IK, C++ | generated |
 | `fk_eqns/<robot>_pickle.p` | FK cache | generated, safe to delete |

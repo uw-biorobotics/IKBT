@@ -28,6 +28,8 @@ import ikbtfunctions.output_latex  as ol
 import ikbtfunctions.output_python as op
 import ikbtfunctions.output_cpp    as oc
 import ikbtfunctions.output_hybrid_python as ohp
+import ikbtfunctions.output_onevar_python as oop
+import ikbtfunctions.output_numeric_common as onc
 import ikbtfunctions.texwidth as texwidth
 
 #  Messages from the report-fitting pass ("2 equations too wide, shortening:").
@@ -136,8 +138,8 @@ def emit_outputs(R, unks):
     oc.output_cpp_code(R, R.solutionSet)
 
 
-def write_latex_fitted(R, unks, groups, hybrid=None, R_true=None, passes=4,
-                       slack_pt=6.0):
+def write_latex_fitted(R, unks, groups, hybrid=None, R_true=None, onevar=None,
+                       passes=4, slack_pt=6.0):
     '''Write the LaTeX report, then MEASURE it and re-write what did not fit.
 
        Pass 1 writes the report.  pdflatex then reports which equations are too
@@ -156,7 +158,8 @@ def write_latex_fitted(R, unks, groups, hybrid=None, R_true=None, passes=4,
        Degrades to pass 1:  with no pdflatex, a LaTeX error, or a timeout, the
        pass 1 report is already written and correct, just wide.'''
 
-    path = ol.output_latex_solution(R, unks, groups, hybrid=hybrid, R_true=R_true)
+    path = ol.output_latex_solution(R, unks, groups, hybrid=hybrid,
+                                    R_true=R_true, onevar=onevar)
 
     force = set()
     for _ in range(max(0, passes - 1)):
@@ -176,7 +179,7 @@ def write_latex_fitted(R, unks, groups, hybrid=None, R_true=None, passes=4,
             print('  LaTeX: %d equation(s) too wide, shortening: %s'
                   % (len(new_force), ', '.join(sorted(new_force))))
         ol.output_latex_solution(R, unks, groups, hybrid=hybrid, R_true=R_true,
-                                 force_ids=force)
+                                 onevar=onevar, force_ids=force)
     return path
 
 
@@ -230,6 +233,43 @@ def emit_hybrid_outputs(R, unks, hybrid, R_true=None):
         ohp.write_hybrid_top(R_true.Mech, true_name, derived_name, edits,
                              '' if cost is None else
                              'task-space cost %.4g' % float(cost))
+
+
+def emit_onevar_outputs(R, unks, onevar):
+    '''Write the artifacts for a ONE-VARIABLE solve.
+
+       R        the TRUE robot -- nothing was approximated, so there is only
+                one arm here and every file carries its name
+       unks     its unknowns, MINUS the one that was assumed known
+       onevar   the blackboard's onevar_source dict
+
+       Three files and one report:
+
+           LaTex/ik_solution_<Robot>.tex        the equations, and the assumption
+           CodeGen/Python/IK_onevar<Robot>.py   the 1-D search  <- the entry point
+           CodeGen/Python/IK_conditional<Robot>.py  closed form, assumed value in
+           CodeGen/Python/FK_numeric<Robot>.py  this arm's FK
+
+       NOT IK_equations<Robot>.py.  That name means the inverse kinematics of
+       this robot, and a solution conditional on an assumed value is not that.
+
+       No Jacobian:  the search is 1-D and golden section needs no derivative.
+
+       No C++ on this path yet, for the same reason as the hybrid one.'''
+
+    known = onevar.get('known')
+
+    write_latex_fitted(R, unks, R.solutionSet, onevar=onevar)
+
+    #  The closed form, with the assumed variable as a function ARGUMENT.
+    op.output_python_code(R, R.solutionSet, known=known)
+
+    #  The true arm's FK -- what the search measures the closed form against.
+    onc.write_fk_module(R.Mech, R.name, jacobian=False,
+                        what='Forward kinematics for %s (the TRUE arm)' % R.name)
+
+    #  The search itself:  the module a user actually calls.
+    oop.write_onevar_top(R.Mech, R.name, known)
 
 
 def print_solved_equations(unks):

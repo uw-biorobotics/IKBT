@@ -47,9 +47,13 @@ EXPECT = {
     #  expected to hold, and the first full sweep will say so either way.
     'ICP5p5_A21':   (1, 1),
 
-    #  HYBRID.  `total` is the number of Phase I seeds, `good` the number that
-    #  reach the TRUE arm after Phase II.  All eight converge, from a raw seed
-    #  error of 43-57 mm down to 1e-12..1e-9 in 4 or 5 iterations.
+    #  ONE VARIABLE since 2026-09-21, HYBRID before that, and the counts happen
+    #  to be the same 8 of 8 -- so the entry did not move and the reason it
+    #  passes did.  It is now `total` solutions returned by the 1-D search over
+    #  th_1 and `good` that reach the pose, on the TRUE arm with no DH parameter
+    #  changed.  The hybrid figures it replaced: eight Phase I seeds, all
+    #  converging from a raw seed error of 43-57 mm to 1e-12..1e-9 in 4 or 5
+    #  iterations, on a derived arm with d_5 zeroed.
     'KinovaLite':   (8, 8),
 
     #  --------------------------------------------------------------------
@@ -66,6 +70,24 @@ EXPECT = {
     #  turned away;  it now solves 6/6 on the derived arm and all eight refined
     #  poses reach the true arm.
     'Panda':        (8, 8),
+
+    #  ONE VARIABLE.  `total` is how many solutions the 1-D search RETURNED and
+    #  `good` how many of them reach the pose -- and a third thing is checked
+    #  that no count can carry: whether the joint vector the probe pose was
+    #  built from is among them.  C-Arm is Friedman et al.'s own arm, solved
+    #  with th_2 assumed known;  all eight reproduce the pose to 1e-14 or
+    #  better, and the probe is recovered.
+    'C-Arm':        (8, 8),
+
+    #  ONE VARIABLE, and both were previously beyond IKBT:  KawasakiRS05L
+    #  solved nothing by either earlier path, ArmRobo reached 2 of 7 on a
+    #  derived arm.  Every returned solution reaches the pose and the probe is
+    #  recovered in both.  The counts are low for a 6-DOF arm and they are
+    #  MEASURED, not settled:  raising the sweep from 128 samples to 2048 finds
+    #  no more, so they are not a sampling artifact at this pose, but whether
+    #  the arm has others elsewhere is a question about the arm.
+    'ArmRobo':      (4, 4),
+    'KawasakiRS05L': (2, 2),
 
     #  --------------------------------------------------------------------
     #  KNOWN INCOMPLETE.  These are floors, not targets:  IKBT does not filter
@@ -138,15 +160,17 @@ def judge_counts(name, good, total):
 #    What a finished solve owes the user, and where it lands
 #
 
-#  Five kinds, because the two paths write different sets and WHICH set appeared
-#  is the thing worth asserting.
+#  Seven kinds, because the three paths write different sets and WHICH set
+#  appeared is the thing worth asserting.
 #
-#      tex     the report                    both paths
+#      tex     the report                    every path
 #      py      closed-form IK                symbolic path, and the DERIVED arm
 #                                            on the hybrid one
 #      cpp     closed-form IK, C++           symbolic path only
 #      hybrid  the two-phase top level       hybrid path, TRUE name only
-#      fk      FK (+ Jacobian) callables     hybrid path
+#      onevar  the 1-D search                one-variable path
+#      cond    closed form given one value   one-variable path
+#      fk      FK (+ Jacobian) callables     hybrid and one-variable paths
 #
 #  A name here is an ARM, not a robot:  on the hybrid path the true robot and
 #  the derived arm each own some of these, and both are checked.
@@ -156,6 +180,8 @@ def artifact_paths(name):
         'py':     os.path.join('CodeGen', 'Python', 'IK_equations%s.py' % name),
         'cpp':    os.path.join('CodeGen', 'Cpp', 'IK_equations%s.cpp' % name),
         'hybrid': os.path.join('CodeGen', 'Python', 'IK_hybrid_%s.py' % name),
+        'onevar': os.path.join('CodeGen', 'Python', 'IK_onevar%s.py' % name),
+        'cond':   os.path.join('CodeGen', 'Python', 'IK_conditional%s.py' % name),
         'fk':     os.path.join('CodeGen', 'Python', 'FK_numeric%s.py' % name),
     }
 
@@ -166,9 +192,10 @@ NOTHING = frozenset()
 def artifacts_owed(branch, complete):
     """Which artifacts a run owes, as (under the TRUE name, under the DERIVED name).
 
-       branch    'symbolic' or 'hybrid', read from the blackboard's
-                 hybrid_source -- NOT inferred from what is on disk, which
-                 would make this check compare the files against themselves.
+       branch    'symbolic', 'onevar' or 'hybrid', read from the blackboard's
+                 onevar_source / hybrid_source -- NOT inferred from what is on
+                 disk, which would make this check compare the files against
+                 themselves.
        complete  did the arm that was actually solved solve every unknown?
 
        A RULE, NOT A PER-ROBOT TABLE.  This used to be five hand-written entries
@@ -187,12 +214,21 @@ def artifacts_owed(branch, complete):
        claiming to be one would be a simplified arm's equations shipped under
        the real robot's name.  That is the one thing this method must never do,
        and it is why the sets are compared EXACTLY: an unexpected artifact is a
-       failure, not just a missing one."""
+       failure, not just a missing one.
+
+       THE SAME ON THE ONE-VARIABLE PATH, for a different reason.  There the
+       equations ARE this robot's -- nothing was approximated -- but they hold
+       only where the assumed value is right, so they ship as 'cond'
+       (IK_conditional<name>.py), never as 'py'.  'onevar' is the search that
+       makes them usable and is the entry point;  'fk' is what the search
+       measures against.  No C++ yet on either fallback path."""
 
     if not complete:
         return NOTHING, NOTHING
     if branch == 'hybrid':
         return frozenset({'tex', 'hybrid', 'fk'}), frozenset({'py', 'fk'})
+    if branch == 'onevar':
+        return frozenset({'tex', 'onevar', 'cond', 'fk'}), NOTHING
     return frozenset({'tex', 'py', 'cpp'}), NOTHING
 
 

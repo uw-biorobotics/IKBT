@@ -382,11 +382,107 @@ def check_hybrid(name, verbose=False):
 
 ###############################################################################
 #
+#    The ONE-VARIABLE path
+#
+#  The same question, with one more answer available.  The generated search
+#  returns every joint vector it FOUND, so the check is both directions:
+#
+#    soundness     does each returned vector actually reach T
+#    completeness  is the vector the pose was BUILT from among them
+#
+#  Completeness is the one the other two paths cannot ask.  A closed form
+#  enumerates its branches and either contains the answer or does not;  a 1-D
+#  search can step over a basin narrower than its sample spacing, and the only
+#  way to notice is to look for a solution you already know is there.
+#
+
+def import_onevar(name):
+    """Load CodeGen/Python/IK_onevar<name>.py and find what it offers.
+
+       -> (module, solve callable, true-arm fk callable)"""
+
+    path = os.path.join(GEN_DIR, 'IK_onevar%s.py' % name)
+    if not os.path.exists(path):
+        raise IOError('no generated one-variable code at %s' % path)
+
+    spec = importlib.util.spec_from_file_location('onevar_' + name, path)
+    mod = importlib.util.module_from_spec(spec)
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        spec.loader.exec_module(mod)
+
+    solve = [getattr(mod, a) for a in dir(mod)
+             if a.startswith('solve_') and not a.endswith('_labeled')]
+    if not solve:
+        raise ValueError('one-variable module has no solve_* entry point')
+
+    tf = getattr(mod, 'true_fk', None)
+    fks = [getattr(tf, a) for a in dir(tf or ())] if tf else []
+    fks = [f for f in fks if callable(f) and getattr(f, '__name__', '').startswith('fk_')]
+    if not fks:
+        raise ValueError('one-variable module did not load a true-arm FK')
+    return mod, solve[0], fks[0]
+
+
+def check_onevar(name, verbose=False):
+    """Round-trip one robot through its generated ONE-VARIABLE search.
+
+       Returns (solutions that reached the pose, solutions returned, note).
+       Never raises."""
+
+    try:
+        mod, solve, fk_true = import_onevar(name)
+    except Exception as e:
+        return 0, 0, '%s: %s' % (type(e).__name__, str(e)[:90])
+
+    ndof = int(getattr(mod, 'NDOF', len(Q_PROBE)))
+    q_true = [float(x) for x in Q_PROBE[:ndof]]
+
+    try:
+        T = np.asarray(fk_true(q_true), dtype=float)
+    except Exception as e:
+        return 0, 0, 'true FK failed: %s: %s' % (type(e).__name__, str(e)[:70])
+
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        try:
+            sols = solve(T)
+        except Exception as e:
+            return 0, 0, 'search raised %s: %s' % (type(e).__name__, str(e)[:70])
+
+    if not sols:
+        return 0, 0, ('the search found nothing for a pose built from this '
+                      "arm's own FK")
+
+    good = 0
+    for i, s in enumerate(sols):
+        try:
+            e = float(np.max(np.abs(np.asarray(fk_true(s['q']), dtype=float) - T)))
+        except Exception:
+            continue
+        if e < TOL:
+            good += 1
+        if verbose:
+            print('      %-6s = %9.4f  pose err %.2e  %s'
+                  % (mod.KNOWN_VARIABLE, s['known_value'], e,
+                     'OK' if e < TOL else 'FAILED'))
+
+    #  COMPLETENESS.  The pose was built from q_true, so q_true is a solution;
+    #  a search that returns four other solutions and not that one has stepped
+    #  over its basin.
+    recovered = any(max(abs(a - b) for a, b in zip(s['q'], q_true)) < 1e-5
+                    for s in sols)
+    note = 'probe recovered' if recovered else 'PROBE NOT FOUND among %d' % len(sols)
+    return good, len(sols), note
+
+
+###############################################################################
+#
 #    Which path did this robot take, and therefore which check applies
 #
 
 def detect_path(name):
-    """'symbolic', 'hybrid' or None, from the artifacts on disk.
+    """'symbolic', 'hybrid', 'onevar' or None, from the artifacts on disk.
 
        Returns (path, note).
 
@@ -394,36 +490,38 @@ def detect_path(name):
        and asking the blackboard -- would make the checker's answer depend on a
        second solve rather than on what was actually shipped, which is the one
        thing a checker of generated code must not do.  The naming contract is
-       what makes this reliable:
+       what makes this reliable, one file per path under the TRUE robot's name:
 
            IK_hybrid_<name>.py     only the hybrid path writes this
+           IK_onevar<name>.py      only the one-variable path writes this
            IK_equations<name>.py   only the symbolic path writes this
-                                   UNDER THE TRUE ROBOT'S NAME
 
-       A hybrid solve also writes IK_equations<derived>.py, but that carries the
-       derived arm's name, so it can never be mistaken for this robot's closed
-       form.  That separation exists exactly so questions like this one have an
-       unambiguous answer."""
+       The other paths write closed forms too, but never under this name:  a
+       hybrid solve writes IK_equations<derived>.py, carrying the derived arm's
+       name, and a one-variable solve writes IK_conditional<name>.py, whose own
+       name says the equations hold only conditionally.  That separation exists
+       exactly so questions like this one have an unambiguous answer."""
 
-    hyb = os.path.join(GEN_DIR, 'IK_hybrid_%s.py' % name)
-    sym = os.path.join(GEN_DIR, 'IK_equations%s.py' % name)
-    has_hyb, has_sym = os.path.exists(hyb), os.path.exists(sym)
+    candidates = [('hybrid',   os.path.join(GEN_DIR, 'IK_hybrid_%s.py' % name)),
+                  ('onevar',   os.path.join(GEN_DIR, 'IK_onevar%s.py' % name)),
+                  ('symbolic', os.path.join(GEN_DIR, 'IK_equations%s.py' % name))]
+    present = [(p, f) for p, f in candidates if os.path.exists(f)]
 
-    if has_hyb and has_sym:
-        #  NOT legitimate:  a robot solves one way or the other.  Almost always
-        #  one of them is left over from an earlier run, before the robot
-        #  changed character.  Go with the newer and SAY SO, rather than
-        #  picking silently -- a checker that quietly tested the stale artifact
-        #  would report a confident PASS about code nobody is using.
-        newer = 'hybrid' if os.path.getmtime(hyb) > os.path.getmtime(sym) else 'symbolic'
-        return newer, ('both %s and %s exist -- checking the newer (%s);  the '
-                       'other is stale, delete it'
-                       % (os.path.basename(hyb), os.path.basename(sym), newer))
-    if has_hyb:
-        return 'hybrid', ''
-    if has_sym:
-        return 'symbolic', ''
-    return None, 'nothing generated for %s' % name
+    if not present:
+        return None, 'nothing generated for %s' % name
+    if len(present) == 1:
+        return present[0][0], ''
+
+    #  NOT legitimate:  a robot solves one way or another.  Almost always all
+    #  but one is left over from an earlier run, before the robot changed
+    #  character.  Go with the newest and SAY SO, rather than picking silently
+    #  -- a checker that quietly tested the stale artifact would report a
+    #  confident PASS about code nobody is using.
+    present.sort(key=lambda pf: os.path.getmtime(pf[1]), reverse=True)
+    newer = present[0][0]
+    stale = ', '.join(os.path.basename(f) for _, f in present[1:])
+    return newer, ('%s also exist(s) -- checking the newest (%s);  the rest '
+                   'are stale, delete them' % (stale, newer))
 
 
 def check(name, resolve=True, verbose=False):
@@ -434,6 +532,8 @@ def check(name, resolve=True, verbose=False):
          symbolic  q -> T = FK(q) -> ikin_*(T) -> FK(each branch) == T
          hybrid    q -> T = FK_true(q) -> Phase I -> Phase II
                                        -> FK_true(refined) == T
+         onevar    q -> T = FK(q) -> 1-D search -> FK(each found) == T,
+                                  and was q itself found
 
        name:    robot name
        resolve: re-run ikSolver.py first (False re-uses what is on disk)
@@ -459,6 +559,8 @@ def check(name, resolve=True, verbose=False):
 
     if path == 'hybrid':
         good, n, hnote = check_hybrid(name, verbose=verbose)
+    elif path == 'onevar':
+        good, n, hnote = check_onevar(name, verbose=verbose)
     else:
         good, n, hnote = check_symbolic(name, verbose=verbose)
 
@@ -485,6 +587,8 @@ def main(argv=None):
     print('    symbolic  q -> T = FK(q) -> ikin_*(T) -> FK(each branch) == T')
     print('    hybrid    q -> T = FK_true(q) -> Phase I -> Phase II')
     print('                                  -> FK_true(refined) == T')
+    print('    onevar    q -> T = FK(q) -> 1-D search -> FK(each found) == T,')
+    print('                             and whether q itself was found')
     print("  T comes from the robot's own FK, so it is reachable by")
     print("  construction and a failure is the solver's, never the target's.")
     print('')

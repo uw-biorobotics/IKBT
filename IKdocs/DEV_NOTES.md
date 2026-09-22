@@ -17,7 +17,7 @@ For release history, see [oldNews.md](oldNews.md).
 
 **Kinematics and numerics** — [`ikbtbasics/numeric_ik.py`](#ikbtbasicsnumeric_ikpy), [`ikbtbasics/kin_cl.py`](#ikbtbasicskin_clpy), [`ikbtbasics/eqn_sanity.py`](#ikbtbasicseqn_sanitypy), [`ikbtbasics/dh_analysis.py`](#ikbtbasicsdh_analysispy)
 
-**The behavior tree and its leaves** — [`ikbtfunctions/bt_assembly.py`](#ikbtfunctionsbt_assemblypy), [`ikbtleaves/symbolic_loop.py`](#ikbtleavessymbolic_looppy), [`ikbtleaves/assigner_leaf.py`](#ikbtleavesassigner_leafpy), [`ikbtleaves/comp_detect.py`](#ikbtleavescomp_detectpy), [`ikbtleaves/invariant_gen.py`](#ikbtleavesinvariant_genpy), [`ikbtleaves/parallel_triple.py`](#ikbtleavesparallel_triplepy), [`ikbtleaves/tan_solver.py`](#ikbtleavestan_solverpy), [`ikbtleaves/updateL.py, ikbtbasics/ik_classes.py`](#ikbtleavesupdatelpy-ikbtbasicsik_classespy)
+**The behavior tree and its leaves** — [`ikbtfunctions/bt_assembly.py`](#ikbtfunctionsbt_assemblypy), [`ikbtleaves/symbolic_loop.py`](#ikbtleavessymbolic_looppy), [`ikbtleaves/assigner_leaf.py`](#ikbtleavesassigner_leafpy), [`ikbtleaves/onevar_ik.py`](#ikbtleavesonevar_ikpy), [`ikbtleaves/comp_detect.py`](#ikbtleavescomp_detectpy), [`ikbtleaves/invariant_gen.py`](#ikbtleavesinvariant_genpy), [`ikbtleaves/parallel_triple.py`](#ikbtleavesparallel_triplepy), [`ikbtleaves/tan_solver.py`](#ikbtleavestan_solverpy), [`ikbtleaves/updateL.py, ikbtbasics/ik_classes.py`](#ikbtleavesupdatelpy-ikbtbasicsik_classespy)
 
 **Report and code generation** — [`ikbtfunctions/progress.py`](#ikbtfunctionsprogresspy), [`ikbtfunctions/texwidth.py`](#ikbtfunctionstexwidthpy), [`ikbtfunctions/subexpressions.py`](#ikbtfunctionssubexpressionspy), [`ikbtfunctions/output_python.py`](#ikbtfunctionsoutput_pythonpy), [`ikbtfunctions/ik_robots.py`](#ikbtfunctionsik_robotspy)
 
@@ -353,6 +353,117 @@ exchange for nothing.
 **The starvation guard is mandatory.** The first version had none. Measured on KinovaLite:
 `th_23` re-offered on every tick, **102 consecutive preemptions**, the solve flatlined at 2 of
 7 and burned all 20 passes.
+
+---
+
+## ikbtleaves/onevar_ik.py
+
+**Why the L1 count is the ranking signal (BH, 2026-09-21).** A solver leaf can only start from
+an equation in ONE unknown, and the robots that fail symbolically are usually the ones with an
+empty `L1`. Declaring a variable known is exactly the act that restocks it. Measured on C-Arm
+(Friedman et al.'s arm), by scanning the equation lists once per candidate — milliseconds, no
+sympy solving:
+
+    baseline          L1/L2/L3p = 0/9/54     <- nothing to start from
+    freeze th_2                   4/25/34    <- ranked first, and it solves
+    freeze th_6                   4/20/39
+    freeze th_34                  4/24/36
+    freeze th_5                   3/23/37
+    freeze th_3                   2/9/53
+    freeze d_1                    1/9/53
+    freeze th_4                   0/10/54    <- dropped, restocks nothing
+
+C-Arm then solves 6 of its 6 remaining variables in 33 s, in 7 passes, on the FIRST candidate.
+
+**What it moved, measured 2026-09-21.** Every robot that had no exact answer, and the gate's
+two hybrid arms:
+
+    C-Arm           unsolved      -> 6/6 in 33 s,  th_2 known, candidate 1 of 3
+    KawasakiRS05L   unsolved      -> 6/6 in 1.7 m, th_1 known, candidate 1
+    ArmRobo         partial 2/7   -> 6/6 in 66 s,  th_3 known, candidate 1
+    KinovaLite      solved hybrid -> 6/6 in 343 s, th_1 known, candidate 1
+    Raven-II        unsolved      -> onevar_rank REFUSES, hybrid still gets its turn
+
+Every one of them solved on the FIRST ranked candidate, so the fallback down the list has yet
+to fire on any robot. Raven-II is the other half of the gate working: no unknown restocks a
+one-unknown equation, the branch closes, and the tree falls through to hybrid exactly as it did
+before. Puma and Chair_Helper are untouched -- a robot that solves symbolically never reaches
+this branch.
+
+KinovaLite is the interesting one: it no longer needs a derived arm at all. The answer is about
+the REAL robot, and the numerical part drops from a 6-D damped-least-squares correction to a
+1-D search.
+
+**Nothing predicts a solve, so there is a fallback.** The count says an attempt can START, not
+that it will finish, so the branch keeps trying down the ranked list. Each attempt is a full
+symbolic solve, though, which is why `max_candidates` caps it at 3.
+
+**Sum-of-angles variables are ordinary candidates.** `th_34` ranks third on C-Arm and restocks
+as well as a joint does. Assuming `th_3 + th_4` known is as legitimate a one-parameter family
+as assuming a joint known; the cost is that `th_3` and `th_4` must then still come out
+individually, which the solver either manages or does not. Nothing has to decide that in
+advance, so nothing does.
+
+**Each attempt reloads the robot.** A failed attempt leaves `solved` flags and candidate
+solution lists on the unknowns, and `solveN` / `solution_nodes` / graph edges on the Robot.
+`fresh_problem()` re-reads the FK pickle instead of trying to reset them: measured at 20-30 ms
+(C-Arm 0.02 s, Puma 0.03 s) against the minutes an attempt costs. It is also why the ranking
+itself measures a fresh reload — the attempt that follows starts from one, so the ranking
+predicts the problem the solver is actually handed, and the live Robot is never touched
+(`scan_for_equations()` writes `R.l1/l2/l3p` in place).
+
+**One solver instance, repeated by a loop.** `bt_problems()` rejects one node INSTANCE in two
+tree positions, because b3 keys per-node state on the blackboard by node id. A node ticked
+repeatedly by `RepeatUntilSuccess` is not that case and needs no extra leaf set. What does not
+reset itself is the unscoped application state, which is why `clear_state` heads the solver and
+why `onevar_candidates` / `onevar_cursor` are on its KEEP list — wiping the cursor would make
+every attempt retry the first candidate.
+
+**The search: why golden section and not something cleverer.** Near a solution the pose error is a
+norm going to zero -- a V, not a parabola -- so its derivative jumps sign at the root and every
+method that models curvature misbehaves there. Golden section needs only unimodality on the bracket.
+80 iterations shrink a bracket by 0.618**80, which is past float resolution, at one closed-form
+evaluation each; a C-Arm pose costs about 950 evaluations all told and runs in a second.
+
+**The sweep wraps at BOTH ends, and that is not decoration.** A root at the edge of [-pi, pi) has
+only one neighbour in an unwrapped scan, so it is never bracketed and never found -- a whole posture
+missing from the answer, silently. The fix is a halo: the last sample repeated below SEARCH_LO and
+the first above SEARCH_HI, which also means the bracket search needs no modular arithmetic.
+TestSolver029's test_ovgE pins it, because nothing else would notice.
+
+**Accept only what reaches zero.** The first version accepted the best minimum on each bracket. That
+is wrong in kind: this is root finding, and a reachable pose drives a true solution's error to zero,
+so a local minimum that stops above ACCEPT_TOL belongs to the shape of that branch's curve and is not
+a solution. Returning one would send the arm somewhere else entirely -- worse than returning nothing.
+The toy's third branch (1 + cos(t)/2, a clean minimum of 0.5) exists to pin the rejection.
+
+**The conditional module does not print.** `output_python_code()` emits three lines of advice for a
+human calling ikin once. The search calls it about a thousand times per pose: measured, 2868 lines
+of output for one C-Arm solve, against 12 after. The advice is also wrong there -- a value that puts
+an arcsine out of range is the search learning where that branch is undefined, which is data.
+
+**The generated code, measured on all four, 2026-09-21** (`--gate` plus C-Arm, closed loop on):
+
+    KinovaLite     th_1 known   8 of 8 solutions reach the pose, probe recovered
+    C-Arm          th_2 known   8 of 8, probe recovered
+    ArmRobo        th_3 known   4 of 4, probe recovered
+    KawasakiRS05L  th_1 known   2 of 2, probe recovered
+
+Every one chose its variable on the first ranked candidate. The last two counts are low for a
+6-DOF arm, so they were checked against the knob: raising the sweep from 128 samples to 512 and
+2048 finds no more solutions at that pose, which rules out the sampling artifact but says nothing
+about whether the arm has others elsewhere. Recorded as measured.
+
+**Measured end to end on C-Arm, 2026-09-21.** `solve_C_Arm(T)` on the standard probe pose returns 8
+solutions, all 8 reproducing it with a pose error of 1e-16 to 1e-14, and the joint vector the pose was
+built from is among them. That last part is the COMPLETENESS check, and it is the one question the
+symbolic and hybrid paths cannot ask: a closed form either contains the answer or does not, but a
+1-D search can step over a basin narrower than its sample spacing. `n_samples` is the knob, and
+because the sweep is a van der Corput sequence, raising it re-tests nothing.
+
+**The bound on the loop is mandatory.** `install_known` FAILs once the list is exhausted, so an
+unbounded `RepeatUntilSuccess` would spin forever. It is `max_candidates + 1`: the extra
+iteration is the one that discovers the list is empty.
 
 ---
 

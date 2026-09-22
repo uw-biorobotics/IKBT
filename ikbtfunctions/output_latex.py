@@ -36,6 +36,11 @@ import b3 as b3          # behavior trees
 
 from   ikbtfunctions.helperfunctions import *
 import ikbtfunctions.graph2latex as gl
+#  FILE names keep the robot's real name;  FUNCTION names are py_identifier()'s
+#  version of it.  For 'C-Arm' those differ ('IK_onevarC-Arm.py' holds
+#  'solve_C_Arm'), so a report that used one spelling for both would name a
+#  function that does not exist.
+from   ikbtfunctions.output_python import py_identifier
 from   ikbtfunctions.subexpressions import SubexprPool
 import ikbtfunctions.texwidth as texwidth
 #from kin_cl import *
@@ -531,10 +536,141 @@ def self_reference_warning(variables, eol):
     return w
 
 
+def known_math(known):
+    r"""The assumed variable as MATH, the way every equation in the report
+       renders it:  'th_2' -> '\theta_{2}'.
+
+       NOT tex_name(), which escapes an underscore for a robot NAME and would
+       set 'th\_2' in italics beside a '\theta_{2}' that means the same thing."""
+
+    return theta_expand(sp.latex(sp.Symbol(str(known))))
+
+
+def onevar_assumption_section(onevar):
+    r"""The part of a ONE-VARIABLE report that says what was assumed.
+
+       It goes SECOND, immediately after the introduction and before any
+       kinematics, for the same reason the hybrid arm section does:  a reader
+       who met the closed form first would have no way to know that every
+       equation in it carries an assumption.
+
+       Unlike the hybrid report there is no second arm to describe -- the DH
+       table, the forward kinematics and the equations are all this robot's."""
+
+    if not onevar:
+        return []
+
+    eol = '\n'
+    known = known_math(onevar.get('known') or '?')
+    robot = tex_name(str(onevar.get('robot') or '?'))
+
+    sec = r'\section{What Was Assumed}' + eol
+    sec += (r'IKBT could not solve ' + robot + r' in closed form.  It could,'
+            r' however, solve every other joint once $' + known + r'$ is'
+            r' treated as \emph{known}, and that is what the equations in this'
+            r' report are:' + eol)
+    sec += r'\begin{center}' + eol
+    sec += (r'\fbox{\parbox{0.8\textwidth}{\centering Given a value of $'
+            + known + r'$, these equations give every other joint exactly.'
+            r'\\ They hold only where that value is correct.}}' + eol)
+    sec += r'\end{center}' + eol
+    sec += (r'Nothing about the robot has been changed or approximated:  the'
+            r' kinematic parameters below, the forward kinematics and every'
+            r' equation are ' + robot + r"'s own.  What is missing is one"
+            r' number, and Section~\ref{sec:onevarsearch} is how it is found.'
+            + eol)
+
+    counts = onevar.get('counts') or {}
+    if counts.get('n1') is not None:
+        sec += (r'$' + known + r'$ was chosen by measurement:  declaring it'
+                r' known leaves ' + str(counts.get('n1')) + r' equations in a'
+                r' single unknown (and ' + str(counts.get('n2', '?')) + r' in'
+                r' two), more than any other choice, and a solver can only'
+                r' begin from an equation in one unknown.' + eol)
+    if onevar.get('of'):
+        sec += (r'It was candidate ' + str(onevar.get('attempt')) + r' of '
+                + str(onevar.get('of')) + r' tried.' + eol)
+
+    sec += (r'The method is that of Friedman \emph{et al.}, \emph{Freeing the'
+            r' serial mechanism designer from inverse kinematic solvability'
+            r' constraints}, Applied Bionics and Biomechanics 7(3), 2010,'
+            r' 209--216.' + eol)
+    return sec.splitlines()
+
+
+def onevar_search_section(onevar, name):
+    r"""The numerical half of a one-variable report:  the 1-D search, and what
+       the generated code calls it."""
+
+    if not onevar:
+        return []
+
+    eol = '\n'
+    fname = tex_name(name)                    # as the FILE is called
+    ident = tex_name(py_identifier(name))     # as the FUNCTION is called
+    known = known_math(onevar.get('known') or '?')
+
+    sec = r'\section{The One-Dimensional Search}\label{sec:onevarsearch}' + eol
+    sec += (r'Evaluate the equations above at some value of $' + known + r'$'
+            r' and they return joint vectors.  Put those joints through the'
+            r" arm's own forward kinematics and compare with the goal pose"
+            r' $T_d$, and the result is a function of one variable:' + eol)
+    sec += r'\begin{dmath}' + eol
+    sec += (r'\epsilon(' + known + r') = \|\Delta p\| + w_{rot}\,\theta,'
+            r' \qquad \Delta p = p_d - p(q(' + known + r')), \quad'
+            r' R_d R^{T}(q(' + known + r')) = \mathrm{Rot}(\hat{a}, \theta)'
+            + eol)
+    sec += r'\end{dmath}' + eol
+    sec += (r'The solutions of the true arm are the \emph{zeros} of'
+            r' $\epsilon$, so this is root finding rather than optimisation:'
+            r' a reachable pose drives a genuine solution to zero, and a local'
+            r' minimum that stops short is a feature of that branch and not an'
+            r' answer.  The generated code accepts a minimum only when it'
+            r' reaches zero.' + eol)
+    sec += (r'Each solution branch of the closed form is a separate function'
+            r' of $' + known + r'$, with its own zeros and its own domain --- a'
+            r' branch vanishes where its arcsine leaves $[-1,1]$ --- so they'
+            r' are searched separately.' + eol)
+    sec += (r'The sweep is a van der Corput sequence over the range of $'
+            + known + r'$: each new sample falls in the middle of the largest'
+            r' untested gap, with no bias toward either end, and the sequence'
+            r' is a prefix of itself, so asking for more samples refines'
+            r' everywhere and repeats nothing.  Each bracketed minimum is then'
+            r' refined by golden section, which needs no derivative --- near a'
+            r' solution $\epsilon$ is a norm going to zero, a V rather than a'
+            r' parabola.' + eol)
+
+    sec += r'\subsection{Generated code}' + eol
+    sec += r'\begin{center}\begin{tabular}{ll}' + eol
+    sec += (r'{\tt IK\_onevar' + fname + r'.py} & the search --- \textbf{start'
+            r' here} \\' + eol)
+    sec += (r'{\tt solve\_' + ident + r'(T)} & every joint vector that reaches'
+            r' $T$ \\' + eol)
+    sec += (r'{\tt IK\_conditional' + fname + r'.py} & the closed form above \\'
+            + eol)
+    sec += (r'{\tt ikin\_' + ident + r'\_given(T, '
+            + tex_name(str(onevar.get('known') or '?')) + r')} & it, at one'
+            r' assumed value \\' + eol)
+    sec += (r'{\tt FK\_numeric' + fname + r'.py} & this arm' + "'" + r's forward'
+            r' kinematics \\' + eol)
+    sec += r'\end{tabular}\end{center}' + eol
+    sec += (r'{\tt solve} is the call to make.  The conditional closed form is'
+            r' exposed because it is what the search evaluates and because'
+            r' plotting $\epsilon$ is the way to understand a pose that comes'
+            r' back unreachable --- but a joint vector taken from it at a value'
+            r' chosen by hand does not put the robot at $T_d$.' + eol)
+    return sec.splitlines()
+
+
 def output_latex_solution(Robot, variables, groups, hybrid=None, R_true=None,
-                          force_ids=None):
+                          onevar=None, force_ids=None):
     GRAPH = True
     '''Print out a latex document of the solution equations.
+
+       onevar is set on the ONE-VARIABLE path.  `Robot` is then the TRUE arm
+       -- nothing was approximated -- but every equation in the report assumes
+       one variable is known, so the report gains a section saying which, and a
+       section on the 1-D search that finds it.
 
        hybrid / R_true are set on the HYBRID path, where `Robot` is the
        DERIVED arm.  The report is then NAMED FOR and TITLED WITH the true
@@ -585,7 +721,9 @@ def output_latex_solution(Robot, variables, groups, hybrid=None, R_true=None,
     \end{center}
     \section{Introduction}
     This report describes ''' + ('a HYBRID inverse kinematic solution for '
-    if hybrid else 'closed form inverse kinematics solutions for ') + fixed_name + r'''.   The solution was generated by
+    if hybrid else ('a ONE-VARIABLE inverse kinematic solution for '
+                    if onevar else
+                    'closed form inverse kinematics solutions for ')) + fixed_name + r'''.   The solution was generated by
     the \href{https://github.com/uw-biorobotics/IKBT}{IK-BT package}
     from the University of Washington Biorobotics Lab.
     The IK-BT package is described in
@@ -615,6 +753,10 @@ def output_latex_solution(Robot, variables, groups, hybrid=None, R_true=None,
     #  reader who met the closed form first would have no way to know it was
     #  not the robot named on the title page.
     LF.sections.append(hybrid_true_arm_section(hybrid, R_true))
+
+    #  ONE-VARIABLE ONLY, and second for the same reason:  every equation below
+    #  carries the assumption, so the reader meets it first.
+    LF.sections.append(onevar_assumption_section(onevar))
 
     ####################   Kinematic params
 
@@ -989,6 +1131,7 @@ def output_latex_solution(Robot, variables, groups, hybrid=None, R_true=None,
     #  HYBRID ONLY, and LAST:  it refers to the equations above, and it is the
     #  step that turns them into an answer for the robot on the title page.
     LF.sections.append(hybrid_numeric_section(hybrid, orig_name))
+    LF.sections.append(onevar_search_section(onevar, orig_name))
 
     # Write out the file!!
     LF.output()

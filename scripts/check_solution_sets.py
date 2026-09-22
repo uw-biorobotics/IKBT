@@ -111,10 +111,32 @@ def solve_once(name):
             M, R, unknowns = load_robot(name)
             bt, nodes = build_default_bt()
             nodes['compDetect'].read_pause = 0
-            for nd in ('symLoop', 'symLoop_hybrid'):
+            for nd in ('symLoop', 'symLoop_onevar', 'symLoop_hybrid'):
                 if nd in nodes:
                     nodes[nd].progress = False
             R, unks, bb = run_solver(R, unknowns, bt, create_solutions=True)
+
+            #  THIS SCRIPT CHECKS AN UNCONDITIONAL SOLUTION SET OF THIS ARM,
+            #  and the two fallback branches do not produce one.  Say so rather
+            #  than measuring:  a one-variable solution is exact only where its
+            #  assumed value is right, and a hybrid one describes a derived arm,
+            #  so poses checked against this robot's FK would fail every version
+            #  and report a defect that is not there.  The generated code is
+            #  what to check for those -- see the message.
+            for key, what in (('onevar_source',
+                               'assumes %s is known, so its equations hold only'
+                               ' where that value is right'),
+                              ('hybrid_source',
+                               'describes the derived arm %s, not this one')):
+                src = bb.get(key)
+                if src:
+                    detail = what % (src.get('known') or src.get('derived_robot')
+                                     or '?')
+                    return None, (NOT_APPLICABLE + 'solved on the %s branch'
+                                  ' -- it %s;  check the generated code with '
+                                  'scripts/numerical_closed_loop_sol_check.py'
+                                  % (key.split('_')[0], detail))
+
             if not getattr(R, 'solListMatrix', None):
                 return None, 'no solution set (robot does not solve)'
             R.make_LHS_versions()
@@ -361,6 +383,13 @@ def check_robot(name, n_poses, verbose=False):
             'n_poses': n_poses}, ''
 
 
+#  Prefix on a note that means "this robot has nothing for this script to
+#  check", as opposed to "the check could not be run".  Carried as a prefix
+#  rather than a second return value so that check_robot()'s (summary, note)
+#  contract is unchanged for every existing caller.
+NOT_APPLICABLE = 'n/a: '
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('robots', nargs='+', help='one or more robot names')
@@ -392,6 +421,16 @@ def main(argv=None):
         summary, note = check_robot(name, a.poses, verbose=a.verbose)
 
         if summary is None:
+            #  NOT APPLICABLE IS NOT A FAILURE.  A robot answered by the
+            #  one-variable or hybrid branch has no unconditional solution set
+            #  of its own for this script to check, and that is a fact about the
+            #  robot, not a defect -- the named alternative is where its
+            #  generated code gets checked.
+            if note.startswith(NOT_APPLICABLE):
+                print(f'  {name:<16} {"-":>8} {"-":>10} {"-":>9}  '
+                      f'{note[len(NOT_APPLICABLE):]}  <-- n/a')
+                continue
+
             #  COULD NOT CHECK IS A GATE FAILURE.  The robot list is explicit
             #  now, so naming one is a claim that it should check out;  exiting
             #  0 after verifying nothing would answer a question never asked.

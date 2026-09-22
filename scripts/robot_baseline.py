@@ -145,6 +145,7 @@ def solve_one(name, codegen=False):
            'solution_set_error': None,
            'branch': None,
            'hybrid': None,
+           'onevar': None,
            'written': [],
            'written_derived': [],
            'wall_s': 0.0}
@@ -207,8 +208,20 @@ def solve_one(name, codegen=False):
         #  Read from the blackboard, NOT inferred from the status:
         #  KawasakiRS05L ends 'unsolved' having gone all the way through
         #  install_simplified, so solved-count and branch are independent.
+        #  Same for the one-variable branch:  its equations describe the TRUE
+        #  arm, but only where the assumed value of one variable is right, and
+        #  `n_solved` counts the REDUCED unknown list -- C-Arm's 6 of 6 is 6 of
+        #  7 real unknowns, with th_2 assumed.  Recording that as plain 'solved'
+        #  would claim an unconditional closed form.
+        os_ = bb.get('onevar_source')
         hs = bb.get('hybrid_source')
-        rec['branch'] = 'hybrid' if hs else 'symbolic'
+        rec['branch'] = 'onevar' if os_ else ('hybrid' if hs else 'symbolic')
+        if os_:
+            rec['onevar'] = {
+                'known': os_.get('known'),
+                'attempt': os_.get('attempt'),
+                'of': os_.get('of'),
+            }
         if hs:
             rec['hybrid'] = {
                 'derived_robot': hs.get('derived_robot'),
@@ -229,7 +242,7 @@ def solve_one(name, codegen=False):
             if derived:
                 rec['written_derived'] = fresh_since(artifact_paths(derived), t0)
 
-        suffix = ' (hybrid)' if hs else ''
+        suffix = ' (onevar)' if os_ else (' (hybrid)' if hs else '')
         if rec['n_unknowns'] and nsolved == rec['n_unknowns']:
             rec['status'] = 'solved' + suffix
         elif nsolved:
@@ -463,7 +476,7 @@ def sweep(names, timeout=DEFAULT_TIMEOUT, logdir=DEFAULT_LOGDIR,
 #  change must not alter is the ANSWER -- n_solutions, written, and the
 #  closed-loop counts.  'wall_s' is not compared because run time is noise.
 COMPARED = ['status', 'n_solved', 'n_unknowns', 'n_solutions',
-            'solution_set_error', 'branch', 'hybrid',
+            'solution_set_error', 'branch', 'hybrid', 'onevar',
             'written', 'written_derived']
 
 #  For deciding whether a status change is an improvement or a regression.
@@ -471,9 +484,14 @@ COMPARED = ['status', 'n_solved', 'n_unknowns', 'n_solutions',
 #  unsolved, so unsolved -> solved (hybrid) classifies as newly-solved, but a
 #  robot that moves from an exact closed form to a simplified one has REGRESSED
 #  and must not be reported as an improvement.
+#
+#  '(onevar)' sits BETWEEN them, matching the order the tree tries the branches:
+#  above hybrid because the arm is not modified -- the equations describe the
+#  real robot -- and below a plain solve because the answer is conditional on
+#  one variable and needs a 1-D search to pin it.
 RANK = {'crash': 0, 'timeout': 0, 'unsolved': 1,
-        'partial (hybrid)': 2, 'partial': 3,
-        'solved (hybrid)': 4, 'solved': 5}
+        'partial (hybrid)': 2, 'partial (onevar)': 3, 'partial': 4,
+        'solved (hybrid)': 5, 'solved (onevar)': 6, 'solved': 7}
 
 
 def _hybrid_str(rec):
@@ -666,6 +684,12 @@ def format_summary(record):
             quiet = False
         if r.get('solution_set_error'):
             lines.append('%-18s solution set: %s' % (name, r['solution_set_error']))
+            quiet = False
+        if r.get('onevar'):
+            lines.append('%-18s %s ASSUMED KNOWN (candidate %s of %s) -- solved'
+                         ' counts exclude it'
+                         % (name, r['onevar']['known'], r['onevar']['attempt'],
+                            r['onevar']['of']))
             quiet = False
         if r.get('hybrid'):
             lines.append('%-18s SIMPLIFIED to %s -- %s (axes %s, %s)'

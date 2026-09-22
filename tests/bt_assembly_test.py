@@ -77,6 +77,7 @@ from ikbtleaves.symbolic_loop    import symbolic_loop
 from ikbtleaves.output_gen       import report_gen
 from ikbtleaves.hybrid_ik        import (pieper_geom_report,
                                          simplified_arm, install_simplified)
+from ikbtleaves.onevar_ik       import onevar_rank, install_known
 from ikbtleaves.clear_state      import clear_state
 
 
@@ -119,6 +120,7 @@ OPTIONAL_LEAVES = [x2z2_transform, parallel_triple_transform,
                    invariant_gen, sum_solve,
                    symbolic_loop, report_gen,
                    pieper_geom_report, simplified_arm, install_simplified,
+                   onevar_rank, install_known,
                    clear_state]
 
 #  An ID leaf stashes state on the blackboard that its solver leaf then consumes,
@@ -847,13 +849,20 @@ class TestSolver013(unittest.TestCase):
         self.assertNotIn('hybrid_stub', kids,
                          fs + ' (hybrid_stub is back in the branch)')
 
-        #  TWO solve loops now -- one per branch, over separate leaf sets.  The
-        #  hybrid branch re-solves a simplified arm with its own solver rather
-        #  than hiding a second solve inside a leaf, so the tree shows it.
+        #  ONE SOLVE LOOP PER BRANCH, over separate leaf sets.  The fallback
+        #  branches re-solve (a simplified arm;  the same arm with one unknown
+        #  declared known) with their own solver rather than hiding a second
+        #  solve inside a leaf, so the tree shows it.  Counted against the
+        #  Analysis selector rather than hard-coded, so adding a fourth strategy
+        #  does not make this a false alarm -- what is asserted is the
+        #  correspondence, and below it that no two branches share an instance.
+        sel = [n for n in bt_nodes(bt)
+               if isinstance(n, b3.Priority) and n.Name == 'Analysis'][0]
+        branches = [k for k in child_slots(sel) if isinstance(k, b3.BaseNode)]
         loops = [n for n in bt_nodes(bt) if isinstance(n, symbolic_loop)]
-        self.assertEqual(len(loops), 2,
-                         fs + ' (expected one solve loop per branch, got %d)'
-                         % len(loops))
+        self.assertEqual(len(loops), len(branches),
+                         fs + ' (expected one solve loop per branch, got %d for'
+                         ' %d branches)' % (len(loops), len(branches)))
         for L in loops:
             self.assertTrue(L.max_loop > 0,
                             fs + ' ("%s" has no usable budget)' % L.Name)
@@ -867,8 +876,8 @@ class TestSolver013(unittest.TestCase):
                             fs + ' ("%s" would report a PARTIAL solve as a '
                             'success' % L.Name)
         #  distinct instances, or their blackboard state would collide
-        self.assertIsNot(loops[0], loops[1],
-                         fs + ' (the two branches share one loop INSTANCE)')
+        self.assertEqual(len({id(L) for L in loops}), len(loops),
+                         fs + ' (two branches share one loop INSTANCE)')
 
         #  every solver must start by clearing the previous solve's state
         clears = [n for n in bt_nodes(bt) if isinstance(n, clear_state)]

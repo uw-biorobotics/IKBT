@@ -36,6 +36,11 @@ class clear_state(b3.Action):
                               describe the arm we started from and must survive
                               into the report even though the Robot has been
                               swapped underneath
+         the one-variable cursor   onevar_candidates / onevar_cursor /
+                              onevar_source.  LOAD-BEARING:  this leaf heads the
+                              solver that runs INSIDE the one-variable retry
+                              loop, so wiping the cursor would make every
+                              attempt re-try the first candidate
          b3 bookkeeping       TotalCost, which BaseNode._tick increments and
                               Blackboard.__init__ requires to exist
 
@@ -48,6 +53,7 @@ class clear_state(b3.Action):
             'pieper_triples', 'pieper_ok', 'pieper_latex',
             'simplification_candidates', 'simplification_choice',
             'hybrid_source',
+            'onevar_candidates', 'onevar_cursor', 'onevar_source',
             'TotalCost')
 
     def __init__(self):

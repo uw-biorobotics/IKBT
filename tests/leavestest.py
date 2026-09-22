@@ -68,6 +68,8 @@ from ikbtfunctions.output_hybrid_python import TestSolver024
 from ikbtfunctions.subexpressions import TestSolver025
 from ikbtfunctions.texwidth import TestSolver026
 from ikbtleaves.assigner_leaf import TestSolver027
+from ikbtleaves.onevar_ik    import TestSolver028
+from ikbtfunctions.output_onevar_python import TestSolver029
 
 
 import b3 as b3          # behavior trees
@@ -402,6 +404,8 @@ if __name__ == '__main__':
     suite3.addTest(TestSolver025())   # subexpressions.py  # naming long subexpressions
     suite3.addTest(TestSolver026())   # texwidth.py       # which equations overflow the page
     suite3.addTest(TestSolver027())   # assigner_leaf.py  # promote a DETERMINED unknown
+    suite3.addTest(TestSolver028())   # onevar_ik.py      # rank + install a known variable
+    suite3.addTest(TestSolver029())   # output_onevar_python.py # the 1-D search
     suite1.addTest(TestSolver009())   # helperfunctions.py
 
     if(not HTML):

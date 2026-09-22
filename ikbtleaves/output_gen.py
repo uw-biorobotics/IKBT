@@ -24,7 +24,8 @@
 
 import b3 as b3          # behavior trees
 
-from ikbtfunctions.ik_driver import emit_outputs, emit_hybrid_outputs, load_robot
+from ikbtfunctions.ik_driver import (emit_outputs, emit_hybrid_outputs,
+                                     emit_onevar_outputs, load_robot)
 
 import ikbtbasics.dh_analysis as da
 
@@ -80,6 +81,7 @@ class report_gen(b3.Action):
         #  Either way a failure here is a warning: no statement must never cost
         #  us the report.
         hybrid = bb.get('hybrid_source')
+        onevar = bb.get('onevar_source')
 
         stashed = bb.get('pieper_latex')
         if stashed:
@@ -107,6 +109,15 @@ class report_gen(b3.Action):
         if self.BHdebug:
             print('\n', self.Name, ': ', len(R.solutionSet), ' solutions for ',
                   R.name)
+
+        if onevar:
+            #  ONE VARIABLE.  R is the TRUE arm -- nothing was approximated --
+            #  but every equation assumes one variable is known, so what gets
+            #  written is a conditional closed form plus the 1-D search that
+            #  finds the values where it holds.  Never IK_equations<Robot>.py:
+            #  that name means an unconditional inverse kinematics.
+            emit_onevar_outputs(R, unks, onevar)
+            return b3.SUCCESS
 
         if not hybrid:
             emit_outputs(R, unks)

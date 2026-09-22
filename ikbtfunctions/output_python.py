@@ -208,7 +208,31 @@ pi = np.pi
 #   Output python code to   evaluate the inverse kinematic equations
 #
 
-def output_python_code(Robot, groups):
+def output_python_code(Robot, groups, known=None):
+    """Write the generated python IK for `Robot`.
+
+       known=None       CodeGen/Python/IK_equations<Robot>.py, ikin_<Robot>(T)
+                        -- an unconditional closed form
+       known='th_2'     CodeGen/Python/IK_conditional<Robot>.py,
+                        ikin_<Robot>_given(T, th_2) -- the ONE-VARIABLE branch's
+                        closed form, valid only where th_2 is right
+
+       A DIFFERENT FILE AND A DIFFERENT FUNCTION NAME, because they answer
+       different questions.  `IK_equations<Robot>.py` means "the inverse
+       kinematics of this robot";  a solution conditional on an assumed value
+       is not that, and shipping one under that name is the misleading artifact
+       the naming rules exist to prevent.
+
+       `known` is emitted as an ARGUMENT, not as a module-level constant like
+       the link lengths.  It is not a property of the robot -- it is the search
+       variable IK_onevar<Robot>.py sweeps -- and a module global would be both
+       wrong to read and unusable from two threads.
+
+       The assumed variable is still RETURNED in its chain position, so a caller
+       gets a complete joint vector and can hand it straight to FK.  (A
+       sum-of-angles variable has no chain position and is simply not in the
+       returned vector, exactly as when it is solved.)"""
+
     print('\n\n\n                       Starting IK Python Output work \n\n\n')
 
     importString = '''#!/usr/bin/python
@@ -230,7 +254,7 @@ pi = np.pi
     orig_name  = Robot.name.replace('test: ', '')
 
     DirName = 'CodeGen/Python/'
-    fname = DirName + 'IK_equations'+orig_name+'.py'
+    fname = DirName + ('IK_conditional' if known else 'IK_equations') + orig_name + '.py'
     f = open(fname, 'w')
 
     importString = importString.replace('**Robot**', Robot.name)
@@ -261,7 +285,10 @@ pi = np.pi
 
     indent = '    ' # 4 spaces
 
-    funcname = 'ikin_' + py_identifier(orig_name)
+    funcname = 'ikin_' + py_identifier(orig_name) + ('_given' if known else '')
+
+    #  The argument list, and the one extra name the function body may use.
+    arglist = 'T' + (', ' + known if known else '')
 
     #  MODULE LEVEL, and before the def:  printed inside the function body at
     #  column 0 they close the function early and make the next indented line
@@ -287,8 +314,12 @@ pi = np.pi
     #####################################################################
     jnames = [str(s) for s in nik.joint_symbols(Robot.Mech)]
     order  = [nd.unknown.name for nd in Robot.solution_nodes]   # column order
-    joint_cols = [j for j in jnames if j in order]
-    unsolved   = [j for j in jnames if j not in order]
+    #  The assumed-known joint was never solved, so it is not in `order` -- but
+    #  it IS known, by assumption, and leaving it out would return a joint
+    #  vector with a hole in it.  It is a column like any other;  its value is
+    #  the argument.
+    joint_cols = [j for j in jnames if j in order or j == known]
+    unsolved   = [j for j in jnames if j not in order and j != known]
     aux_cols   = [nm for nm in order if nm not in jnames]
 
     print('#  Joint values returned by %s(), in this order:' % funcname, file=f)
@@ -306,7 +337,16 @@ pi = np.pi
 #        parameter:  T   4x4 numerical target for T06
 #
 ''', file=f)
-    print('def', funcname +'(T):', file=f) # no indent
+    if known:
+        print('#  CONDITIONAL.  %s is an INPUT, not an output:  these equations'
+              % known, file=f)
+        print('#  hold only where its value is right.  IK_onevar%s.py searches'
+              % orig_name, file=f)
+        print('#  for the values that are, and is what you should normally call.',
+              file=f)
+        print('KNOWN_VARIABLE = %r' % known, file=f)
+        print('', file=f)
+    print('def', funcname + '(%s):' % arglist, file=f) # no indent
     print(indent+'if(T.shape != (4,4)):', file=f)
     #  funcname is a variable HERE, not in the generated module -- emitting
     #  it bare produced `print("bad input to "+funcname)`, a NameError the
@@ -335,9 +375,16 @@ pi = np.pi
     
 
 
-    print(indent + 'print ( " Caution - this code has no solution checking.")', file=f)
-    print(indent + 'print ("in case of domain errors, change the test position / orientation ")', file=f)
-    print(indent + 'print ( " to a pose reachable by your specific robot")', file=f)
+    #  SILENT ON THE CONDITIONAL PATH.  These three lines are advice for a
+    #  human calling ikin once.  The one-variable search calls the conditional
+    #  form a thousand times per pose -- measured, 2868 lines of output for one
+    #  C-Arm solve -- and the advice is wrong there anyway:  a value of the
+    #  assumed variable that puts an arcsin out of range is the search learning
+    #  where that branch is undefined, which is data, not a mistake.
+    if not known:
+        print(indent + 'print ( " Caution - this code has no solution checking.")', file=f)
+        print(indent + 'print ("in case of domain errors, change the test position / orientation ")', file=f)
+        print(indent + 'print ( " to a pose reachable by your specific robot")', file=f)
     print(indent + '', file=f)
     print(indent + 'solvable_pose = True', file=f)
     print(indent + '''
@@ -420,7 +467,9 @@ pi = np.pi
     print(indent + '#  each row is one solution branch, in JOINT_NAMES order',
           file=f)
     for row in rows:
-        vals = [row[order.index(j)] for j in joint_cols]
+        #  `known` has no column in the solution matrix -- nothing solved it --
+        #  so its cell is the argument's own name.
+        vals = [known if j == known else row[order.index(j)] for j in joint_cols]
         print(indent + 'solution_list.append( [ ' + ', '.join(vals) + ' ] )',
               file=f)
 
@@ -438,8 +487,8 @@ pi = np.pi
 #
 #   The same solutions, keyed by joint name.
 #
-def ''' + funcname + '''_labeled(T):
-    sols = ''' + funcname + '''(T)
+def ''' + funcname + '''_labeled(''' + arglist + '''):
+    sols = ''' + funcname + '''(''' + arglist + ''')
     if sols is False:
         return False
     return [dict(zip(JOINT_NAMES, s)) for s in sols]
@@ -499,7 +548,7 @@ if __name__ == "__main__":
     #  pose, giving "TypeError: bool is not iterable" instead of saying so.
     # try the Puma IK
 
-    sols = ''' + funcname + '''(T1)
+    sols = ''' + funcname + '''(''' + ('T1' if not known else 'T1, 0.3') + ''')
 
     if sols is False:
         print('  no solution:  that pose is not reachable by this arm')
