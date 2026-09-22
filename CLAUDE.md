@@ -292,6 +292,14 @@ Please keep commit messages to 5 lines or less.
    damped-least-squares loop emitted in C++, which is a bigger job than the Python one because there
    is no `sp.pycode()` equivalent already in use here and no numpy to lean on. Deliberately NOT done
    by emitting the derived arm's C++ under the true robot's name — that ships exactly the misleading
-   artifact the naming rules exist to prevent.
+   artifact the naming rules exist to prevent.   An alternative to consider is a new script which could 
+   generate C++ code by *translating* the python code to C++.
+   
+2. New solver method.  In addition to the fully symbolic solution and the hybrid solution (based on an approximate arm). The new branch dev_OneVarSolve will develop and test a third solver approach.   Eventually this will be
+integrated into the top level BT selector node: selector(symbolic, OneVar, hybrid) so that if symbolic works
+the one-variable method will be tried next.   *IF* git is on the dev_OneVarSolve branch when you read this, then
+get details on the new one-variable method in the new document:  OneVarSolve.md.  Only read dev_OneVarSolve.md 
+if git is on that branch. 
+
  
 

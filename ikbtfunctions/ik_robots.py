@@ -38,6 +38,7 @@ from ikbtbasics.ik_classes import *     # special classes for Inverse kinematics
 #   bogus entry and makes the second robot unselectable.
 #
 ROBOT_LIST = [ 'KinovaLite',
+               'C-Arm',
                'ICP5p5_A21', 'KR16',
                'UR5',
                'Puma', 'Panda',
@@ -144,6 +145,26 @@ def robot_params(name):
          params = [ l_2, d_3, d_4, d_5, d_6]
          pvals = {l_2: 280, d_3:10, d_4:245, d_5:57, d_6:105 }
 
+
+############################################################
+
+    if(name == 'C-Arm'):         #  See Friedman et al., 2010
+        #
+        sp.var('d_1 l_1 l_2')
+
+        dh = sp.Matrix([
+        [      0    ,    0 ,  d_1 ,   0 ],
+        [   sp.pi/2 ,    0 ,   0 , th_2 ],
+        [  -sp.pi/2 ,    0 ,   0 , th_3 ],
+        [       0   ,   l_1,   0 , th_4 ],
+        [   -sp.pi/2,    0 ,   l_2, th_5],
+        [    sp.pi/2,    0 ,   0 , th_6 ]
+        ])
+
+        vv = [0,1,1,1,1,1]
+        variables =  [unknown(d_1), unknown(th_2), unknown(th_3), unknown(th_4), unknown(th_5), unknown(th_6)]
+        params = [ l_1, l_2]
+        pvals = {l_1:1, l_2:1}
 
 ############################################################
 
