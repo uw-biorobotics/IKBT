@@ -25,11 +25,19 @@
 #   sweep), because a 1-D error curve is worth plotting when a pose comes back
 #   unreachable.
 #
-#   HOW THE SEARCH WORKS.  See SEARCH_CORE below:  a van der Corput sweep of
-#   the assumed variable, local minima of the pose error bracketed per branch,
+#   HOW THE SEARCH WORKS.  See SEARCH_CORE below:  a uniform sweep of the
+#   assumed variable, local minima of the pose error bracketed per branch,
 #   each bracket refined by golden section, and a minimum accepted only if it
 #   reaches ZERO.  A reachable pose drives a true root to zero;  a dip that
 #   stops short is an artifact of that branch, not a solution.
+#
+#   AND THEN THE WHOLE THING AGAIN AT TWICE THE RESOLUTION, until two
+#   successive grids agree about the answer.  Two roots can sit closer
+#   together than one sample spacing -- C-Arm has poses where they are 0.045
+#   rad apart -- and a grid that steps over the pair returns one posture where
+#   there are two, with nothing in the output to say so.  A fixed resolution
+#   cannot rule that out;  a grid that is refined until the answer repeats
+#   can, and costs little more, because the doubling re-uses every sample.
 #
 #   Friedman, D.C.W., Kowalewski, T., Jovanovic, R., Rosen, J. and Hannaford, B.
 #   "Freeing the serial mechanism designer from inverse kinematic solvability
@@ -106,10 +114,26 @@ SEARCH_CORE = '''
 #   the goal and where those joints actually put the arm is a function of
 #   one variable, and the solutions of the true arm are its ZEROS.
 #
-#   SAMPLING IS A VAN DER CORPUT SEQUENCE.  Each new point falls in the
-#   middle of the largest untested gap, with no bias toward either end, and
-#   the sequence is a prefix of itself:  raising n_samples re-tests nothing
-#   and refines everywhere.  A uniform grid has neither property.
+#   SAMPLING IS A UNIFORM GRID, AND THE GRID IS HALVED UNTIL THE ANSWER
+#   STOPS CHANGING.  Two solutions of a real arm can sit closer together in
+#   the assumed variable than one sample spacing -- C-Arm has reachable poses
+#   whose roots are 0.045 rad apart, against a spacing of 0.049 at 128
+#   samples -- and a scan that steps over such a pair sees one dip where
+#   there are two and returns one posture where there are two.  Silently.
+#   No fixed resolution can be ARGUED to be enough, so this does not argue
+#   one:  it solves at n samples, again at 2n, and again, until two
+#   successive resolutions return the SAME set of postures, or MAX_SAMPLES
+#   is reached.  Doubling a uniform grid re-uses every point of the coarser
+#   one -- n is a power of two, so the values are bit-identical -- and every
+#   sample's error is cached, so the whole ladder costs little more than its
+#   finest rung.  N_SAMPLES is where the ladder STARTS, not where it stops.
+#
+#   (This was a van der Corput sequence, whose selling point is that it is a
+#   prefix of itself.  That property was never used:  the sweep evaluates
+#   every point it draws and then SORTS them, and a sorted van der Corput
+#   sequence of 2^k points IS the uniform grid of 2^k points.  At any other
+#   count it is an UNEVEN grid, which is strictly worse for this job -- a
+#   bracketing scan is only as good as its widest gap.)
 #
 #   ONE ERROR CURVE PER BRANCH.  The closed form returns several branches
 #   (elbow up/down, wrist flipped), and they are separate functions of the
@@ -126,26 +150,23 @@ SEARCH_CORE = '''
 #############################################################
 
 
-def _vdc(n, base=2):
-    """The van der Corput radical inverse of n, in [0, 1)."""
-    v, denom = 0.0, 1.0
-    while n:
-        denom *= base
-        n, rem = divmod(n, base)
-        v += rem / denom
-    return v
-
-
 def sample_values(n_samples=N_SAMPLES, lo=None, hi=None):
-    """`n_samples` values of the assumed variable, ASCENDING.
+    """`n_samples` evenly spaced values of the assumed variable, ASCENDING.
 
-       Drawn as a van der Corput sequence and then sorted:  which order they
-       are drawn in matters if you stop early, but the sweep evaluates all of
-       them and the bracketing needs neighbours."""
+       A UNIFORM GRID.  On a periodic domain the two ends are the same point,
+       so the top one is left off and there are exactly n_samples of them;  on
+       a finite range both ends are wanted, so there are n_samples + 1.
+
+       Written as lo + span * (k / n) rather than by accumulating a step:  for
+       n a power of two, k / n is exact in binary and (2k) / (2n) is the SAME
+       float, which is what lets the doubling ladder re-use the coarse grid's
+       cached errors instead of recomputing them a bit away."""
     lo = SEARCH_LO if lo is None else lo
     hi = SEARCH_HI if hi is None else hi
+    n = int(n_samples)
     span = hi - lo
-    return sorted(lo + span * _vdc(i) for i in range(int(n_samples)))
+    top = n if PERIODIC else n + 1
+    return [lo + span * (k / float(n)) for k in range(top)]
 
 
 def branches_at_**IDENT**(T, value):
@@ -195,42 +216,76 @@ def errors_**IDENT**(T, value):
     return out
 
 
-def sweep_**IDENT**(T, n_samples=N_SAMPLES):
-    """The raw scan:  (values, curves) with curves[branch][i] the error.
+def _cached_errors_**IDENT**(T, value, cache):
+    """errors_**IDENT**() memoised on the sample value.
 
-       For plotting, and for understanding a pose that comes back unreachable.
+       The doubling ladder revisits every coarse sample at every finer
+       resolution, and a sample costs one closed-form solve plus one FK per
+       branch.  Keyed on the float itself, which is exact across a doubling
+       for a power-of-two n -- see sample_values()."""
+    key = float(value)
+    if key not in cache:
+        cache[key] = errors_**IDENT**(T, key)
+    return cache[key]
 
-       ON A PERIODIC DOMAIN THE SCAN IS WRAPPED AT BOTH ENDS:  the last sample
-       is repeated below SEARCH_LO and the first above SEARCH_HI.  Without that
-       halo a root sitting at either end has no bracket -- it is a minimum with
-       only one neighbour -- and the search would miss every solution near
-       +/- pi.  The halo values lie outside the range on purpose;  _wrap() puts
-       anything found there back inside.
 
-       On a non-periodic (prismatic) range there is nothing to wrap to, so a
-       root exactly at an end point is not bracketed.  Widen the range if that
-       is a worry -- for a guessed range it is what the guess is for."""
+def _scan_**IDENT**(T, n_samples, cache):
+    """(values, curves) at one resolution;  curves[branch][i] is the error.
+
+       EVERY REAL SAMPLE GETS TWO NEIGHBOURS, so every one of them can be the
+       middle of a bracket.  On a periodic domain that is a wrap:  the last
+       sample is repeated below SEARCH_LO and the first above SEARCH_HI,
+       without which a root sitting at either end is a minimum with only one
+       neighbour and is never found -- a whole posture missing, silently.
+       _wrap() puts anything found out there back inside.
+
+       On a finite (prismatic) range there is nothing to wrap to, so the grid
+       is extended by one step past each end instead:  the closed form is as
+       evaluable there as anywhere, and a root found just outside a GUESSED
+       range is worth more than a root not found."""
 
     values = sample_values(n_samples)
-    cols = [errors_**IDENT**(T, t) for t in values]
-    if PERIODIC and values:
+    if not values:
+        return values, []
+    cols = [_cached_errors_**IDENT**(T, t, cache) for t in values]
+    if PERIODIC:
         span = SEARCH_HI - SEARCH_LO
         values = [values[-1] - span] + values + [values[0] + span]
         cols = [cols[-1]] + cols + [cols[0]]
+    else:
+        step = (SEARCH_HI - SEARCH_LO) / float(int(n_samples))
+        lo_x, hi_x = values[0] - step, values[-1] + step
+        values = [lo_x] + values + [hi_x]
+        cols = ([_cached_errors_**IDENT**(T, lo_x, cache)] + cols
+                + [_cached_errors_**IDENT**(T, hi_x, cache)])
     nb = max([len(c) for c in cols] or [0])
     curves = [[(c[b] if b < len(c) else np.inf) for c in cols]
               for b in range(nb)]
     return values, curves
 
 
-def _golden(f, a, b, iters=80):
+def sweep_**IDENT**(T, n_samples=N_SAMPLES):
+    """The raw scan at ONE resolution:  (values, curves).
+
+       For plotting, and for understanding a pose that comes back unreachable.
+       solve_**IDENT**() does not stop at one resolution -- it climbs a ladder
+       of them until the answer repeats."""
+    return _scan_**IDENT**(T, n_samples, {})
+
+
+def _golden(f, a, b, iters=80, xtol=1e-15):
     """Minimise f on [a, b] by golden section.  -> (x, f(x)).
 
        Golden section and not a derivative method:  near a solution the error
        is a V, not a parabola -- it is a norm going to zero -- so its slope
        jumps sign and nothing based on curvature behaves.  Unimodality on the
-       bracket is all this needs, and 80 iterations shrink the bracket by
-       0.618**80, far past float resolution."""
+       bracket is all this needs.
+
+       It stops when the bracket reaches float resolution, which is what the
+       tail of those 80 iterations used to be spent on:  0.618**80 is far
+       below it, so the last dozen-odd passes were deciding between two floats
+       that are equal.  The ladder in solve_**IDENT**() calls this many times
+       per resolution, so that tail is worth not walking."""
 
     invphi = (5.0 ** 0.5 - 1.0) / 2.0
     invphi2 = (3.0 - 5.0 ** 0.5) / 2.0
@@ -238,6 +293,8 @@ def _golden(f, a, b, iters=80):
     c, d = a + invphi2 * h, a + invphi * h
     fc, fd = f(c), f(d)
     for _ in range(int(iters)):
+        if h <= xtol * (1.0 + abs(a) + abs(b)):
+            break
         if fc < fd:
             b, d, fd = d, c, fc
             h *= invphi
@@ -256,7 +313,10 @@ def _local_minima(curve):
 
        A neighbour of np.inf is allowed and is often where a real solution is:
        inf means the branch is undefined there, so the curve falls off a cliff
-       at the edge of that branch's domain and the minimum sits against it."""
+       at the edge of that branch's domain and the minimum sits against it.
+
+       Index 0 and the last index are never candidates and do not need to be:
+       _scan_**IDENT**() has already given every real sample two neighbours."""
 
     out = []
     for i in range(1, len(curve) - 1):
@@ -275,7 +335,187 @@ def _wrap(t):
     return SEARCH_LO + (t - SEARCH_LO) % span
 
 
-def solve_**IDENT**(T, n_samples=N_SAMPLES, tol=None, refine_iters=80):
+def _dedup(found):
+    """One entry per posture, keeping the most accurate of each.
+
+       Two branches can converge on the same posture -- IKBT enumerates
+       version combinations without discarding duplicates, and a bracket found
+       from either side lands in the same place.  Same joints, same solution."""
+    unique = []
+    for s in sorted(found, key=lambda s: s['error']):
+        if not any(np.max(np.abs(np.array(s['q']) - np.array(u['q']))) < DEDUP_TOL
+                   for u in unique):
+            unique.append(s)
+    return unique
+
+
+def _roots_in_**IDENT**(T, values, curve, b, cache, tol, refine_iters):
+    """Bracket every dip in one branch's sampled curve and refine it.
+
+       -> the accepted ones, as solve()'s dicts.  This is the whole
+       scan-then-optimise step, and it is used both on the global grid and on
+       the narrow windows _hunt_near_**IDENT**() opens around what it finds."""
+
+    def err_at(t):
+        e = _cached_errors_**IDENT**(T, _wrap(t), cache)
+        return e[b] if b < len(e) else np.inf
+
+    out = []
+    for i in _local_minima(curve):
+        t_star, e_star = _golden(err_at, values[i - 1], values[i + 1],
+                                 refine_iters)
+        if e_star > tol:
+            continue                     # a dip, not a root -- see the header
+        t_star = _wrap(t_star)
+        qs = branches_at_**IDENT**(T, t_star)
+        if b >= len(qs):
+            continue
+        out.append({'q': qs[b], 'known_value': float(t_star),
+                    'branch': int(b), 'error': float(e_star)})
+    return out
+
+
+def _hunt_near_**IDENT**(T, found, h, cache, tol, refine_iters,
+                    fanout=16, rounds=3):
+    """Look again, finely, in a window one grid step wide around each root.
+
+       ROOTS COME IN CLOSE PAIRS, and a pair closer together than the sample
+       spacing is one dip on the grid:  the search finds one of the two and
+       nothing says the other is missing.  Refining the WHOLE grid until they
+       separate is the general answer and solve() does that too, but it is
+       luck -- two successive resolutions can both step over the same pair.
+
+       This is the targeted answer, and it is not luck:  a root that a grid
+       hides is by definition within one grid step of a root the grid found,
+       so every root that IS found gets its neighbourhood re-scanned at
+       `fanout` times the resolution.  Anything new found there is itself
+       re-scanned, `fanout` times finer again, for `rounds` rounds.  The cost
+       goes with the number of roots, not with the size of the domain."""
+
+    known = list(found)
+    frontier = list(found)
+    for _ in range(int(rounds)):
+        fresh = []
+        for s in frontier:
+            b, t0 = int(s['branch']), float(s['known_value'])
+            vals = [t0 - h + 2.0 * h * (k / float(fanout))
+                    for k in range(int(fanout) + 1)]
+            curve = []
+            for t in vals:
+                e = _cached_errors_**IDENT**(T, _wrap(t), cache)
+                curve.append(e[b] if b < len(e) else np.inf)
+            for r in _roots_in_**IDENT**(T, vals, curve, b, cache, tol,
+                                         refine_iters):
+                if not any(np.max(np.abs(np.array(r['q']) - np.array(u['q'])))
+                           < DEDUP_TOL for u in known + fresh):
+                    fresh.append(r)
+        if not fresh:
+            break
+        known += fresh
+        frontier = fresh
+        h = h / float(fanout)
+    return _dedup(known)
+
+
+def _domain_edges(curve):
+    """Adjacent index pairs where one sample is defined and the next is not.
+
+       np.inf means the closed form had no answer there -- an arcsine out of
+       range, a division by zero -- so a finite/infinite pair straddles the
+       edge of this branch's domain."""
+    out = []
+    for i in range(len(curve) - 1):
+        if np.isfinite(curve[i]) != np.isfinite(curve[i + 1]):
+            out.append((i, i + 1))
+    return out
+
+
+def _hunt_edges_**IDENT**(T, values, curve, b, cache, tol, refine_iters,
+                     bisect=40, depth=40):
+    """Probe inward from every edge of this branch's domain, in halving steps.
+
+       A BASIN CAN BE NARROWER THAN ANY AFFORDABLE GRID, and when it is, it is
+       pressed against the edge of the branch's domain -- because that edge is
+       where the closed form's denominators vanish and its arcsines leave
+       range, so it is where the joint values, and the pose error built from
+       them, move fastest.  C-Arm's d_1 goes as 1 / cos(th_2), and it has poses
+       whose third and fourth solutions sit within 1e-3 of th_2 = +/- pi/2, in
+       a spike whose sides rise at a slope of 1000.  A uniform grid would need
+       about six thousand points to see one, and approaching it from inside the
+       curve RISES first, so the nearest sample is a local maximum and the
+       ordinary scan never even brackets it.
+
+       So: bisect each finite/infinite transition down to the edge, then walk
+       back inward in halving steps, one grid step down to nothing.  A
+       geometric ladder resolves a feature at any scale for the price of its
+       logarithm."""
+
+    def err_at(t):
+        e = _cached_errors_**IDENT**(T, _wrap(t), cache)
+        return e[b] if b < len(e) else np.inf
+
+    out = []
+    for i, j in _domain_edges(curve):
+        if np.isfinite(curve[i]):
+            inside, outside = values[i], values[j]
+        else:
+            inside, outside = values[j], values[i]
+        step = abs(outside - inside)
+        if not step:
+            continue
+
+        #  the edge itself, to a part in 2**bisect of one grid step
+        near, far = inside, outside
+        for _ in range(int(bisect)):
+            mid = 0.5 * (near + far)
+            if np.isfinite(err_at(mid)):
+                near = mid
+            else:
+                far = mid
+
+        inward = 1.0 if inside > outside else -1.0
+        probes = sorted(near + inward * step * (0.5 ** k)
+                        for k in range(int(depth)))
+        out += _roots_in_**IDENT**(T, probes, [err_at(t) for t in probes], b,
+                              cache, tol, refine_iters)
+    return out
+
+
+def _solve_at_**IDENT**(T, n_samples, cache, tol, refine_iters):
+    """Every root found at ONE global resolution.  -> what solve() returns.
+
+       Three passes, because roots hide in three ways.  The GRID finds the
+       ordinary ones.  The DOMAIN EDGES are probed geometrically, because a
+       spike too narrow for the grid is pressed against one of them.  And then
+       the neighbourhood of everything found so far is re-scanned, because a
+       root the grid stepped over is within one step of a root it did not."""
+
+    values, curves = _scan_**IDENT**(T, n_samples, cache)
+
+    found = []
+    for b, curve in enumerate(curves):
+        found += _roots_in_**IDENT**(T, values, curve, b, cache, tol,
+                                refine_iters)
+        found += _hunt_edges_**IDENT**(T, values, curve, b, cache, tol,
+                                  refine_iters)
+
+    step = (SEARCH_HI - SEARCH_LO) / float(int(n_samples))
+    return _hunt_near_**IDENT**(T, _dedup(found), step, cache, tol, refine_iters)
+
+
+def _same_postures(a, b):
+    """Do two solution lists describe the same set of postures?"""
+    if len(a) != len(b):
+        return False
+    for s in a:
+        if not any(np.max(np.abs(np.array(s['q']) - np.array(u['q'])))
+                   < DEDUP_TOL for u in b):
+            return False
+    return True
+
+
+def solve_**IDENT**(T, n_samples=N_SAMPLES, tol=None, refine_iters=80,
+               max_samples=MAX_SAMPLES):
     """Goal pose T (4x4) -> every joint vector that reaches it.
 
        Each entry is a dict:
@@ -284,44 +524,42 @@ def solve_**IDENT**(T, n_samples=N_SAMPLES, tol=None, refine_iters=80):
            known_value   the value of KNOWN_VARIABLE it was found at
            branch        which branch of the closed form it came from
            error         ||dp|| + W_ROT*theta, what ACCEPT_TOL is measured in
+           n_samples     the resolution the answer settled at
 
-       [] means no solution was FOUND, which is not quite "unreachable":  a
-       basin narrower than the gap between samples can be stepped over.  Raise
-       n_samples if a pose you believe in comes back empty -- the sweep is a
-       van der Corput sequence, so the extra points land in the gaps and none
-       of the old work is repeated."""
+       THE RESOLUTION IS NOT ASSUMED, IT IS REACHED.  A pair of roots closer
+       together than one sample spacing looks exactly like a single root until
+       the grid is fine enough to separate them, and the arms this method
+       exists for do have such poses -- so a single-resolution answer is a
+       guess.  Two things check it.  Globally, the scan runs at n_samples,
+       then at 2*n_samples, and on up, and returns as soon as two successive
+       resolutions agree about the whole set of postures.  Locally, and this
+       is the one that is not luck, _hunt_near_**IDENT**() re-scans the
+       neighbourhood of every root that IS found at far higher resolution,
+       because a root the grid hides is within one grid step of one it did
+       not.
+
+       max_samples is where the checking gives up.  The solutions returned
+       there are still SOUND -- every one of them reaches T to within tol --
+       but their completeness is once again unproven, and the 'n_samples'
+       field reads max_samples to say so.  Raise it for a pose whose count
+       looks wrong.
+
+       [] means no solution was FOUND, which is not quite "unreachable"."""
 
     tol = ACCEPT_TOL if tol is None else tol
-    values, curves = sweep_**IDENT**(T, n_samples)
-
-    found = []
-    for b, curve in enumerate(curves):
-
-        def err_at(t, b=b):
-            e = errors_**IDENT**(T, _wrap(t))
-            return e[b] if b < len(e) else np.inf
-
-        for i in _local_minima(curve):
-            t_star, e_star = _golden(err_at, values[i - 1], values[i + 1],
-                                     refine_iters)
-            if e_star > tol:
-                continue                 # a dip, not a root -- see the header
-            t_star = _wrap(t_star)
-            qs = branches_at_**IDENT**(T, t_star)
-            if b >= len(qs):
-                continue
-            found.append({'q': qs[b], 'known_value': float(t_star),
-                          'branch': int(b), 'error': float(e_star)})
-
-    #  Two branches can converge on the same posture -- IKBT enumerates version
-    #  combinations without discarding duplicates, and a bracket found from
-    #  either side lands in the same place.  Same joints, same solution.
-    unique = []
-    for s in sorted(found, key=lambda s: s['error']):
-        if not any(np.max(np.abs(np.array(s['q']) - np.array(u['q']))) < DEDUP_TOL
-                   for u in unique):
-            unique.append(s)
-    return unique
+    cache = {}
+    n = max(2, int(n_samples))
+    prev = None
+    while True:
+        sols = _solve_at_**IDENT**(T, n, cache, tol, refine_iters)
+        for s in sols:
+            s['n_samples'] = n
+        if prev is not None and _same_postures(prev, sols):
+            return sols
+        if 2 * n > int(max_samples):
+            return sols
+        prev = sols
+        n *= 2
 
 
 def solve_**IDENT**_labeled(T, n_samples=N_SAMPLES, tol=None):
@@ -340,40 +578,76 @@ MAIN_BLOCK = '''
 #
 #    TEST CODE:  pick a pose the arm can reach, and go back to it
 #
+#    THE POSE IS RANDOM AND THE SEED IS PRINTED.  A fixed seed exercises one
+#    pose forever, and what goes wrong here is pose-dependent -- a pair of
+#    roots too close for the starting grid, a branch undefined over most of
+#    the range.  Pass the printed seed back to get the same pose again:
+#
+#        python3 IK_onevar**ROBOT**.py <seed>
+#
 if __name__ == "__main__":
 
     import random
+    import sys
 
-    random.seed(0)
+    seed = int(sys.argv[1]) if len(sys.argv) > 1 else random.randrange(10 ** 9)
+    random.seed(seed)
     q_true = [random.uniform(-1.0, 1.0) for _ in range(NDOF)]
     T = true_fk.fk_**IDENT**(q_true)
 
-    print('%s:  searching over %s in [%.3f, %.3f]'
-          % (ROBOT, KNOWN_VARIABLE, SEARCH_LO, SEARCH_HI))
+    print('%s:  searching over %s in [%.3f, %.3f]   (seed %d)'
+          % (ROBOT, KNOWN_VARIABLE, SEARCH_LO, SEARCH_HI, seed))
     print('  a reachable pose, from joints:')
     print('   ', dict(zip(JOINT_NAMES, [round(v, 4) for v in q_true])))
 
     sols = solve_**IDENT**(T)
-    print('  %d solution(s) found:' % len(sols))
+    print('  %d solution(s) found, at %d samples:'
+          % (len(sols), sols[0]['n_samples'] if sols else N_SAMPLES))
+
+    #  THE ERROR IS RE-MEASURED HERE, from the joint vector actually returned.
+    #  The search's own number is what it accepted;  a self-test that prints
+    #  that number is testing nothing.
+    worst = 0.0
     for s in sols:
+        e = pose_error(np.asarray(true_fk.fk_**IDENT**(s['q']), dtype=float),
+                       np.asarray(T, dtype=float))[1]
+        worst = max(worst, e)
         print('    %s = %8.4f   error %.3e' % (KNOWN_VARIABLE,
-                                               s['known_value'], s['error']))
+                                               s['known_value'], e))
         print('      ', dict(zip(JOINT_NAMES, [round(v, 4) for v in s['q']])))
-    if not sols:
-        print('    none -- try a larger n_samples')
+    if sols:
+        print('  worst round-trip error %.3e   (accept tolerance %.1e)'
+              % (worst, ACCEPT_TOL))
+        #  the pose was built from q_true, so q_true had better be among them
+        near = min(max(abs(a - b) for a, b in zip(s['q'], q_true))
+                   for s in sols)
+        print('  the joints the pose was built from are %s'
+              % ('among them (%.1e)' % near if near < 1e-6
+                 else 'MISSING -- the closest is %.1e away' % near))
+    else:
+        print('    none -- try a larger max_samples')
 '''
 
 
-def write_onevar_top(M, name, known, dirname=DIR_NAME, n_samples=128):
+def write_onevar_top(M, name, known, dirname=DIR_NAME, n_samples=128,
+                     max_samples=4096):
     '''Write IK_onevar<name>.py -- the 1-D search over the assumed variable.
 
-       M       the TRUE arm's mechanism (nothing here is approximated)
-       name    the robot the user asked about
-       known   the variable the closed form assumes is known, e.g. 'th_2'
+       M            the TRUE arm's mechanism (nothing here is approximated)
+       name         the robot the user asked about
+       known        the variable the closed form assumes is known, e.g. 'th_2'
+       n_samples    where the resolution ladder starts
+       max_samples  where it gives up looking for more
 
        Returns the path written.'''
 
     ident = py_identifier(name)
+    #  BOTH ROUNDED UP TO A POWER OF TWO.  The ladder doubles, and it only
+    #  re-uses the coarse grid's cached errors when lo + span*(2k)/(2n) is the
+    #  same float as lo + span*k/n -- which it is exactly when n is a power of
+    #  two.  Off a power of two the answers are the same and the work is not.
+    n_samples = 1 << max(1, int(n_samples) - 1).bit_length()
+    max_samples = max(n_samples, 1 << max(1, int(max_samples) - 1).bit_length())
     ndof = nik.dof_of(M)
     jnames = [str(s) for s in nik.joint_symbols(M, ndof)]
     #  `or 1.0`:  w_rot scales the acceptance tolerance, and a degenerate DH
@@ -466,9 +740,17 @@ def _sibling(filename, modname):
         print('SEARCH_HI      = %r' % float(hi), file=f)
         print('PERIODIC       = %r' % bool(periodic), file=f)
         print('', file=f)
-        print('#  Samples of the first sweep.  More of them find narrower basins', file=f)
-        print('#  and cost one closed-form evaluation each.', file=f)
+        print('#  Where the resolution ladder STARTS.  solve() scans at this', file=f)
+        print('#  many samples, then twice as many, until two grids running agree', file=f)
+        print('#  about the answer -- so this is a starting cost, not a limit on', file=f)
+        print('#  what can be found.  A sample costs one closed-form evaluation.', file=f)
         print('N_SAMPLES      = %d' % int(n_samples), file=f)
+        print('', file=f)
+        print('#  ... and where it gives up.  Reaching this means the answer was', file=f)
+        print('#  still changing:  the solutions returned are sound, but there', file=f)
+        print('#  may be more of them.  Both are powers of two, which is what', file=f)
+        print('#  makes a doubling re-use the coarser grid exactly.', file=f)
+        print('MAX_SAMPLES    = %d' % int(max_samples), file=f)
         print('', file=f)
         print('#  A refined minimum is a SOLUTION only if it gets this close --', file=f)
         print('#  a millionth of an arm length.  Loose enough to survive float', file=f)
@@ -482,7 +764,8 @@ def _sibling(filename, modname):
 
         print(POSE_ERROR_CORE, file=f)
         print(SEARCH_CORE.replace('**IDENT**', ident), file=f)
-        print(MAIN_BLOCK.replace('**IDENT**', ident), file=f)
+        print(MAIN_BLOCK.replace('**IDENT**', ident)
+                        .replace('**ROBOT**', name), file=f)
 
     return path
 
@@ -520,6 +803,9 @@ class TestSolver029(unittest.TestCase):
         self.test_ovgC_search_finds_every_root()
         self.test_ovgD_a_dip_that_is_not_a_root_is_rejected()
         self.test_ovgE_roots_at_the_wrap_are_found()
+        self.test_ovgF_two_roots_inside_one_sample_gap()
+        self.test_ovgG_a_root_at_the_end_of_a_finite_range()
+        self.test_ovgH_a_spike_against_the_edge_of_a_domain()
 
     #  ----------------------------------------------------------  fixtures
 
@@ -578,16 +864,75 @@ def ikin_**IDENT**_given(T, th_1):
             [t, 1.0 + 0.5 * np.cos(t)]]
 '''
 
-    def build_toy(self, name='ToyOneVar'):
+    #  Two roots 0.02 apart.  The error is |(t - 0.40)(t - 0.42)|, whose hump
+    #  between them tops out at 1e-4 -- far above ACCEPT_TOL, so this really is
+    #  two roots and not one -- but 0.02 is under the sample spacing of any
+    #  grid coarser than 512 points, so a single-resolution scan sees one dip.
+    #  This is C-Arm's failure in miniature:  it has poses whose roots are 0.045
+    #  apart against a spacing of 0.049.
+    IK_TOY_PAIR = '''
+import numpy as np
+
+
+KNOWN_VARIABLE = 'th_1'
+
+
+def ikin_**IDENT**_given(T, th_1):
+    t = float(th_1)
+    return [[t, (t - 0.40) * (t - 0.42)]]
+'''
+
+    #  A root 5e-4 inside the edge of the branch's domain, in a spike of slope
+    #  1000, with a HILL between it and the rest of the domain -- so approaching
+    #  from inside, the curve RISES, and the grid sample nearest the root is a
+    #  local maximum that no scan will ever bracket.  This is C-Arm's third and
+    #  fourth solutions at a pose where they sit against th_2 = pi/2, where
+    #  d_1 = (...)/cos(th_2) blows up.  A uniform grid needs ~6000 points.
+    IK_TOY_EDGE = '''
+import numpy as np
+
+
+KNOWN_VARIABLE = 'th_1'
+
+
+def ikin_**IDENT**_given(T, th_1):
+    t = float(th_1)
+    if t > 0.5:
+        return False                  # the branch's domain ends here
+    d = 0.4995 - t                    # how far below the root we are
+    if abs(d) <= 0.004:
+        return [[t, 1000.0 * d]]      # the spike:  slope 1000, zero at the root
+    return [[t, 4.0 * np.exp(-(abs(d) - 0.004))]]   # the hill that hides it
+'''
+
+    #  A root at t = 3.0, which on the prismatic toy's guessed range [-3, 3] is
+    #  the very last grid point.  Nothing wraps on a finite range, so without
+    #  the grid being extended past each end this sample has one neighbour and
+    #  is never bracketed.
+    IK_TOY_END = '''
+import numpy as np
+
+
+KNOWN_VARIABLE = 'd_1'
+
+
+def ikin_**IDENT**_given(T, d_1):
+    t = float(d_1)
+    return [[t, t - 3.0]]
+'''
+
+    def build_toy(self, name='ToyOneVar', ik=None, mech=None, known='th_1',
+                  **kw):
         """Generate a search module over the toy siblings.  -> (dir, module)."""
         d = tempfile.mkdtemp(prefix='ikbt_onevar_')
         ident = py_identifier(name)
-        for tmpl, fn in ((self.FK_TOY, 'FK_numeric%s.py' % name),
-                         (self.IK_TOY, 'IK_conditional%s.py' % name)):
+        for tmpl, fn in (((self.FK_TOY, 'FK_numeric%s.py' % name),
+                          (ik or self.IK_TOY, 'IK_conditional%s.py' % name))):
             with open(os.path.join(d, fn), 'w') as f:
                 f.write(tmpl.replace('**IDENT**', ident))
 
-        path = write_onevar_top(self.two_link(), name, 'th_1', dirname=d)
+        path = write_onevar_top(mech if mech is not None else self.two_link(),
+                                name, known, dirname=d, **kw)
         spec = importlib.util.spec_from_file_location('toy_' + ident, path)
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
@@ -701,6 +1046,107 @@ def ikin_**IDENT**_given(T, th_1):
                          fs + ' (the root at the wrap was %s)'
                          % ('found twice, once at each end' if edge
                             else 'not found'))
+
+
+    def test_ovgF_two_roots_inside_one_sample_gap(self):
+        '''Two roots 0.02 apart, on a grid whose spacing is 0.049.
+
+           THE GRID SEES ONE DIP WHERE THERE ARE TWO ROOTS, and that is what
+           C-Arm was doing: returning one posture of a pair and saying nothing
+           about the other.  Refining the whole grid would eventually separate
+           them, but two successive resolutions can both step over the same
+           pair, so agreement is not proof.  What makes this sound is the
+           window opened around every root that IS found -- a hidden twin is
+           within one grid step of its sibling by definition.'''
+        fs = ' onevar resolution FAIL'
+
+        d, mod = self.build_toy(ik=self.IK_TOY_PAIR)
+        try:
+            #  the fixture really is one dip on the starting grid
+            values, curves = mod.sweep_ToyOneVar(np.eye(4))
+            dips = [i for i in mod._local_minima(curves[0])
+                    if curves[0][i] < 1e-3]
+            self.assertEqual(len(dips), 1,
+                             fs + ' (fixture: 128 samples should show one '
+                             'dip, showed %d)' % len(dips))
+            found = mod.solve_ToyOneVar(np.eye(4))
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+
+        got = sorted(s['known_value'] for s in found)
+        self.assertEqual(len(got), 2,
+                         fs + ' (found %s, expected both roots)'
+                         % [round(t, 5) for t in got])
+        for g, w in zip(got, (0.40, 0.42)):
+            self.assertAlmostEqual(g, w, places=7,
+                                   msg=fs + ' (root off by %.2e)' % abs(g - w))
+        for s in found:
+            self.assertLess(s['error'], 1e-9,
+                            fs + ' (accepted an error of %.2e)' % s['error'])
+        self.assertTrue(all('n_samples' in s for s in found),
+                        fs + ' (the answer must say what resolution it '
+                        'settled at)')
+
+    def test_ovgG_a_root_at_the_end_of_a_finite_range(self):
+        '''A root at t = 3.0, the last sample of the prismatic range [-3, 3].
+
+           A periodic domain wraps and a root at either end still has two
+           neighbours.  A finite one has nothing to wrap to, so the grid is
+           extended one step past each end instead;  without that the last
+           sample can never be the middle of a bracket and the root is gone.'''
+        fs = ' onevar finite-range end FAIL'
+
+        d, mod = self.build_toy(ik=self.IK_TOY_END,
+                                mech=self.two_link(prismatic=True),
+                                known='d_1')
+        try:
+            self.assertFalse(mod.PERIODIC, fs + ' (fixture: should be finite)')
+            self.assertAlmostEqual(mod.SEARCH_HI, 3.0, msg=fs + ' (fixture)')
+            found = self.toy_solutions(mod)
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+
+        self.assertEqual(len(found), 1,
+                         fs + ' (found %s, expected the root at 3.0)'
+                         % [round(t, 5) for t, e in found])
+        self.assertAlmostEqual(found[0][0], 3.0, places=7, msg=fs)
+
+
+    def test_ovgH_a_spike_against_the_edge_of_a_domain(self):
+        '''A root in a spike 5e-4 wide, pressed against the domain edge.
+
+           NOT FINDABLE BY REFINING THE GRID at any affordable resolution, and
+           not findable by looking near the roots that were found, because this
+           one is nowhere near them.  It is findable because of WHERE it is:
+           against the edge of the branch's domain, which is where the closed
+           form's denominators vanish and everything moves fastest.  Probing
+           geometrically inward from that edge costs 40 samples and finds a
+           feature of any width.'''
+        fs = ' onevar domain-edge FAIL'
+
+        d, mod = self.build_toy(ik=self.IK_TOY_EDGE)
+        try:
+            #  the fixture really is invisible to the grid:  the sample nearest
+            #  the root is a local MAXIMUM, so the scan brackets nothing there
+            values, curves = mod.sweep_ToyOneVar(np.eye(4))
+            near = [i for i in mod._local_minima(curves[0])
+                    if abs(values[i] - 0.4995) < 0.05]
+            self.assertEqual(near, [],
+                             fs + ' (fixture: the grid should see no dip near '
+                             'the root, saw %s)'
+                             % [round(values[i], 4) for i in near])
+            self.assertTrue(mod._domain_edges(curves[0]),
+                            fs + ' (fixture: the branch should have an edge)')
+            found = self.toy_solutions(mod)
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+
+        self.assertEqual(len(found), 1,
+                         fs + ' (found %s, expected the root at 0.4995)'
+                         % [round(t, 6) for t, e in found])
+        self.assertAlmostEqual(found[0][0], 0.4995, places=9, msg=fs)
+        self.assertLess(found[0][1], 1e-9,
+                        fs + ' (accepted an error of %.2e)' % found[0][1])
 
 
 def run_test():

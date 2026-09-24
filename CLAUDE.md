@@ -257,44 +257,92 @@ They were in `output_hybrid_python.py`, and this branch is not hybrid; that modu
 so every existing caller still works.
 
 **The search** (`SEARCH_CORE` in `output_onevar_python.py`, emitted verbatim — a generated module
-stands on numpy alone). Sampling is a **Van der Corput sequence**: each new point falls in the middle
-of the largest untested gap, no end bias, and the sequence is a prefix of itself, so raising
-`n_samples` refines everywhere and repeats nothing. **One error curve per solution branch** — the branches are
-separate functions of the assumed variable with separate zeros and separate domains, and mixing them
-would bracket minima no single branch has. Each bracketed minimum is refined by **golden section**,
-and **a minimum is accepted only if it reaches zero**. 
+stands on numpy alone). Sampling is a **uniform grid**. **One error curve per solution branch** — the
+branches are separate functions of the assumed variable with separate zeros and separate domains, and
+mixing them would bracket minima no single branch has. Each bracketed minimum is refined by **golden
+section**, and **a minimum is accepted only if it reaches zero**.
 
-Measured on C-Arm: `solve_C_Arm(T)` returns **8 of 8 solutions reproducing the pose** with errors of
-1e-16 to 1e-14, and the joint vector the probe pose was built from is among them
-(`python3 -m scripts.numerical_closed_loop_sol_check C-Arm`, which now detects this third path from
-`IK_onevar<name>.py` and checks **completeness** as well as soundness — the question the other two
-paths cannot ask, since a 1-D search can step over a basin narrower than its sample spacing).
+**THE RESOLUTION IS REACHED, NOT ASSUMED.** A root the grid steps over is a posture missing from the
+answer with nothing to say it is missing, and **roots hide in three different ways**, so there are
+three mechanisms — one general and two targeted at *where* narrow features actually are:
+
+- a **doubling ladder**: scan at `N_SAMPLES`, then 2N, 4N, … up to `MAX_SAMPLES`, stopping when two
+  successive resolutions agree about the whole set of postures. Doubling a uniform grid re-uses every
+  coarse point exactly (both constants are powers of two, so `lo + span*(2k)/(2n)` is the *same float*
+  as `lo + span*k/n`), and every sample's error is cached, so the ladder costs little more than its
+  finest rung. This is the general mechanism, and it is **not proof**: two successive grids can step
+  over the same pair, which a unit test demonstrates.
+- a **local twin hunt** (`_hunt_near_<Robot>()`), for roots that come in close pairs: a root a grid
+  hides is *by definition* within one grid step of a root the grid found, so every accepted root gets
+  its neighbourhood re-scanned at 16× the resolution, and anything new found there is re-scanned 16×
+  finer again. Cost goes with the number of roots, not the size of the domain.
+- a **domain-edge probe** (`_hunt_edges_<Robot>()`), for the spikes neither of the above can reach.
+  A basin can be narrower than any affordable grid, and when it is, it is pressed against the edge of
+  the branch's domain — because that edge is where the closed form's denominators vanish and its
+  arcsines leave range, so it is where the joint values, and the pose error built from them, move
+  fastest. C-Arm's `d_1` goes as `1/cos(th_2)`, and it has poses whose third and fourth solutions sit
+  within **1e-3 of `th_2 = ±π/2`** in a spike of slope 1000. Approaching from inside, the curve
+  *rises* first, so the nearest sample is a local **maximum** and the ordinary scan never brackets it
+  at any resolution; a uniform grid would need ~6000 points, and the twin hunt cannot see it because
+  it is nowhere near a root that was found. So: bisect every finite/infinite transition down to the
+  edge, then walk back inward in **halving steps**. A geometric ladder resolves a feature at any scale
+  for the price of its logarithm — 40 samples reach 1e-12 of the edge.
+
+A returned solution carries the resolution it settled at in its `n_samples` field; reaching
+`MAX_SAMPLES` means the answer was still changing, and says so.
+
+Measured on C-Arm over 160 random reachable poses (three seeds), against an independent multistart
+least-squares enumeration of the true arm's FK: **888 of 888 true solutions found, none spurious**,
+worst round-trip pose error 2.4e-12, at 0.14 s per pose.
+The count per pose is legitimately 4 **or** 8 — real branches go complex as the pose moves, and that
+is the arm, not the search. `python3 -m scripts.numerical_closed_loop_sol_check C-Arm` detects this
+third path from `IK_onevar<name>.py` and checks **completeness** as well as soundness — the question
+the other two paths cannot ask.
 
 Joint ranges and 2*pi wraps stay out of the search: they are one range test applied to the accepted
 joint vectors afterwards.
 
-#### Remaining problems
-IK_onevarC-Arm.py chooses a random pose to evaluate.   After commenting out a line which fixed the random
-numer seed, inconsistencies at several different random poses were exposed.  These may have been partially
-addressed earlier.   
+`IK_onevar<Robot>.py`'s `__main__` picks a **random** pose and **prints its seed**; pass the seed back
+(`python3 CodeGen/Python/IK_onevarC-Arm.py 12345`) to get that pose again. A fixed seed exercises one
+pose forever and what goes wrong here is pose-dependent. It re-measures each solution's error from the
+joint vector actually returned, rather than reprinting the number the search accepted.
 
-  1. Most residual magnitudes were in the range of 10^{-14} but sometimes they are/were as high as 10^{-7}
-  2. Different poses had different number of found solutions (they should all have the same unless the pose 
-  is EXACTLY at a singular configuration but at such a config, two identical solutions would be acceptable for 
-  two branches.)
-  3. Some solutions were missed, potentially caused by insufficient 1-D search resolution.
-  
-##### Potential remedies
+#### The three problems of 2026-09-23, and what they were
 
-  a. make sure that search resolution (by extending the Van der corput sequence) is sufficient to find all zeros
+All three were reproduced against an independent ground truth (multistart least squares on the true
+arm's FK) and are fixed. Kept here because the diagnoses are not re-derivable from the code.
 
-  b. consider elimination of the van der corput approach.  Does it really add value? or do we have to scan all 
-  intervals of a given size and shrink that size?  
-  
-  c. review the logic which switches from a brute force scan to local optimization (golden ratio).   Are there
-  bugs there?
-  
-  
+1. **Residuals as high as 1e-7.**  Not the search.  `CodeGen/Python/IK_onevar*.py` **on disk was
+   stale** — generated before `POSE_ERROR_CORE` switched `rotation_angle_axis` from
+   `arccos((tr-1)/2)` to `atan2` of the skew norm.  `arccos` has an infinite derivative at R = I, so
+   1e-16 of rounding in the trace comes back as `sqrt(2*eps)` = **2.107e-8** radians — the exact number
+   that kept appearing.  Worse for the search than for the report: that floor is *quantised*, so the
+   error curve near a root is a staircase, and golden section cannot see past a step.  Regenerating
+   the robot took the worst error from 1e-7 to 1e-14.  The lesson is about artifacts, not algorithms —
+   `CodeGen/` is gitignored, so a working copy can be arbitrarily far behind its own source.
+2. **Different poses, different numbers of solutions.**  Correct behaviour, not a bug.  C-Arm really
+   has **4 or 8** real solutions depending on the pose (verified by multistart, which agrees pose by
+   pose); branches go complex as the pose moves, and the count only has to be constant on a connected
+   region away from the branch-collision set.  The premise that it should be constant is wrong.
+3. **Missed solutions.**  Real, and there turned out to be **two independent causes**, found by
+   grading the search against that ground truth over 100 random poses.  *Close pairs*: C-Arm has poses
+   whose roots are **0.045 rad** apart against a sample spacing of 0.049 at 128 samples — one dip
+   where there are two roots.  *Spikes at a domain edge*: other poses put a root within **1e-3 of
+   `th_2 = ±π/2`**, where `d_1 = (...)/cos(th_2)` blows up, in a spike of slope 1000 that the grid
+   cannot bracket **at any resolution**, because the curve rises into it and the nearest sample is a
+   local maximum.  The first is fixed by the doubling ladder and the twin hunt, the second by the
+   domain-edge probe;  neither mechanism finds the other's case.  *Remedy (b) was the right question* —
+   the van der Corput sequence was adding nothing.  Its selling point is that it is a prefix of itself, and that was never used: the
+   sweep evaluated every point it drew and then **sorted** them, and a sorted van der Corput sequence
+   of 2^k points **is** the uniform grid of 2^k points.  At any other count it is an *uneven* grid,
+   which is strictly worse, since a bracketing scan is only as good as its widest gap.
+
+Reviewing the scan-to-golden-section handoff (remedy (c)) turned up one more real gap, now fixed and
+tested: on a **non-periodic** (prismatic) range, `_local_minima` could never flag the first or last
+sample, so a root at either end of the range had one neighbour and was never bracketed.  A periodic
+domain had always been wrapped; a finite one is now extended by one grid step past each end, so every
+real sample has two neighbours under both. Golden section also stops at float resolution now instead
+of always walking 80 iterations, which the ladder calls for many times per pose.
 
 ### Latex output: Equations that fit the page (`ikbtfunctions/texwidth.py`)
 
