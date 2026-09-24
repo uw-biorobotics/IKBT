@@ -78,12 +78,9 @@ def kinematics_pickle(rname, dh, constants, pvals, vv, unks, test):
 
     print('kinematics pickle: trying to open ', name,' in ', os.getcwd())
 
-    #  The cache is a pure optimization:  fk_eqns/ and everything in it may be
-    #  deleted at any time, and a stale entry must cost time, not correctness.
-    #  So a pickle is USED only if it loads and its DH table still matches;
-    #  otherwise we recompute and overwrite.  This used to be the caller's job
-    #  via check_the_pickle(), which printed "please remove it" and called
-    #  quit() -- fatal in a batch sweep, and fatal inside a BT leaf.
+    #
+    #  A pickle is USED only if it loads and its DH table still matches;
+    #  otherwise we recompute and overwrite.
     m = R = unknowns = None
 
     if os.path.isfile(name):

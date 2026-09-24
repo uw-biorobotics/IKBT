@@ -1,5 +1,23 @@
 # Testing IKBT
 
+## Testing overview:
+
+Key thing to keep in mind is that failure of solvers is a normal outcome.  Many otherwise-practical robot
+designs do not have known analytical, symbolic, solutions.  Testing therefore must focus on 1) Unit tests 
+of modules, and 2) ability to solve robots that IKBT has already solved in earlier verions.
+
+Some of the robots with known solutions which are correctly solved (as a fully symbolic solution) as of
+now are
+
+* Puma, Stanford, Chair_Helper, KawasakiRS007L
+
+Verification of symbolic functionality can be demonstrating that these 4 robots still get a complete solution, 
+generate the LaTex report, etc.   Fully closed loop testing is the most rigorous validation and this is available
+(see below).  
+
+
+
+
 Everything runs from the **repo root** — module imports are package-relative.
 
 There are four questions worth asking of a change, and one command for each.

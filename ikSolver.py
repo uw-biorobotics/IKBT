@@ -101,7 +101,21 @@ def main(argv):
     #
     #     Set up robot equations for further solution by BT
     #
+    print('xxxxxxx got here')
+
     M, R, unknowns = load_robot(robot)
+    print('****** got here')
+
+    i=0
+    #  Warn user of special case (\alpha_i != n*np.pi/2)
+    for i in range(6):
+        alpha_i = M.DH[i, 0]  #alpha is zeroth column
+        print(f'Alpha_{i}: {alpha_i}')
+        i+=1
+        if not (sp.sin(alpha_i) == 0 or sp.cos(alpha_i) == 0):  # alpha is not "nice"
+
+            print('''\n\nikSolver: This robot has one or more alpha DH parameters which are NOT a multiple of pi/2.
+                Expect significantly slower solution time (up to hours).\n\n''')
 
     ####################################################################################
     ##

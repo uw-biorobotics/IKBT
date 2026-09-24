@@ -220,18 +220,23 @@ def rotation_angle_axis(Rerr):
        symmetric part.'''
 
     Rerr = np.asarray(Rerr, dtype=float)
-    c = (np.trace(Rerr) - 1.0) / 2.0
-    c = min(1.0, max(-1.0, c))                 # arccos domain, always
-    theta = float(np.arccos(c))
+
+    #  theta via atan2 of the skew norm, NOT arccos((tr-1)/2).  arccos has an
+    #  infinite derivative at R = I, so O(1e-16) rounding in the trace comes
+    #  back as O(1e-8) radians -- times w_rot, an O(1e-6) floor on the metric,
+    #  which is the regime the last DLS passes live in.  atan2 is linear in
+    #  the perturbation and returns exactly 0.0 at R = I.
+    skew = np.array([Rerr[2, 1] - Rerr[1, 2],
+                     Rerr[0, 2] - Rerr[2, 0],
+                     Rerr[1, 0] - Rerr[0, 1]])
+    s = float(np.linalg.norm(skew))
+    theta = float(np.arctan2(0.5 * s, (np.trace(Rerr) - 1.0) / 2.0))
 
     if theta < 1e-12:
         return 0.0, np.zeros(3)
 
     if theta < np.pi - 1e-6:
-        axis = np.array([Rerr[2, 1] - Rerr[1, 2],
-                         Rerr[0, 2] - Rerr[2, 0],
-                         Rerr[1, 0] - Rerr[0, 1]]) / (2.0 * np.sin(theta))
-        return theta, axis
+        return theta, skew / s                 # s = 2*sin(theta), never 0 here
 
     #  theta ~ pi:  the skew part is ~0, so use  R + I = 2 a a'  and take the
     #  best-conditioned column.

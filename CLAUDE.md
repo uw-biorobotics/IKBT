@@ -14,6 +14,13 @@ operation is documented in the peer-reviewed report:  @IKdocs/IKBT_JAIR_2019.pdf
 Dependencies: Python 3, `sympy`, `numpy` (LaTeX distribution needed only to compile the report). No packaging
 files — everything runs from the repo root as modules.
 
+**`IKdocs/TESTING.md` is the one-page orientation** — what to run, when, what each command asserts,
+and where every log and artifact lands. Read it (especially "Testing Overview") before adding a test.
+
+**`IKdocs/DEV_NOTES.md`** carries the rationale that used to be inline in the source: measured
+numbers, dated decisions, and designs that were tried and abandoned. Nothing there is needed to
+read or change IKBT; it is where a "why is it like this?" question gets answered.  
+
 ## Commands
 
 All commands must be run **from the repo root** (module imports are package-relative):
@@ -42,24 +49,20 @@ python3 -m scripts.numerical_closed_loop_sol_check Puma       # is the GENERATED
 python3 -m scripts.numerical_closed_loop_sol_check KinovaLite # ... same command for a HYBRID robot
 ```
 
-**`IKdocs/TESTING.md` is the one-page orientation** — what to run, when, what each command asserts,
-and where every log and artifact lands. Read it before adding a test.
+How to compile the report: `cd LaTex && pdflatex ik_solution_<RobotName>.tex`  
 
-**`IKdocs/DEV_NOTES.md`** carries the rationale that used to be inline in the source: measured
-numbers, dated decisions, and designs that were tried and abandoned. Nothing there is needed to
-read or change IKBT; it is where a "why is it like this?" question gets answered.  
+After compiling a report, please remove all LaTex junk (.log, .bbl, etc etc files).  Leave only .tex and .pdf files. 
 
-Compile the report: `cd LaTex && pdflatex ik_solution_<RobotName>.tex`  
-
-Generated artifacts, not source: `fk_eqns/` (FK pickle cache), `CodeGen/Python/`, `CodeGen/Cpp/`,
+This package produces generated code artifacts, which are not source code for the project itself:
+`fk_eqns/` (FK pickle cache), `CodeGen/Python/`, `CodeGen/Cpp/`,
 `LaTex/` (everything in it), `logs/`, `graphs/`.
 
 `LaTex_src/` **is** source: `IK_preamble.tex` and `IK_close.tex` are read and inlined by
 `output_latex.py`, so a generated report is self-contained. They live apart from `LaTex/`
-precisely so that wiping the reports cannot take the templates with them
+ so that wiping the reports cannot take the templates with them
 (`LaTex_src/cleanLaTexFolder` does that wipe, from the repo root).
 
-FK pickle cache directory or individual files can be deleted at any time without penalty (except some added 
+FK pickle cache directory (fk_eqns) or individual pickle files within it can be deleted at any time without penalty (except some added 
 execution time). 
 
 ## Architecture
@@ -91,7 +94,9 @@ is stored on a `Blackboard`).
 
 **Node vocabulary.** `b3.Priority` is the standard **Selector** (a.k.a. Fallback) node: it ticks children in
 order and stops at the first non-FAILURE. `b3.OrNode` is a local addition and is *not* a Selector — it
-runs **all** its children and returns SUCCESS if any succeeded. 
+runs **all** its children and returns SUCCESS if any succeeded. `b3.Sequence` node tics each of its
+children in order but if any of the children returns FAIL, it returns FAIL. It returns SUCCESS of all 
+children succeed.
  
 
 `pieper_geom_report` (`ikbtleaves/hybrid_ik.py`, was `no_pieper_id`) analyses the joint-axis geometry
@@ -169,6 +174,8 @@ What a hybrid solve delivers, for `KinovaLite` (true) simplified to `KinovaLite_
 | `CodeGen/Python/FK_numericKinovaLite.py` | true arm, FK **and Jacobian** | `write_fk_module(jacobian=True)` |
 | `CodeGen/Python/IK_equationsKinovaLite_d_5_0.py` | derived arm, closed form | `output_python.output_python_code()` |
 | `CodeGen/Python/FK_numericKinovaLite_d_5_0.py` | derived arm, FK | `write_fk_module(jacobian=False)` |
+(note that KinvaLite does not need the hybrid method now that we have the oneVariable Solver). But the examples above
+work for some other robots that fall back to the hybrid numerical solver. 
 
 `FK_numeric*`, not `FK_equations*`: `output_python.output_FK_python_code()` already owns that name —
 it is what `fkOnly.py` writes, and it is a different artifact (a readable module-level dump of the
@@ -183,6 +190,8 @@ ikin_KinovaLite_approx(T)          # PHASE I   -> list of seed joint vectors (ap
 refine_seed_KinovaLite(T, q_seed)  # PHASE IIa -> (q, error, iterations), DLS against the TRUE arm
 refine_all_KinovaLite(T)           # PHASE II  -> Phase IIa over every seed, one dict each
 ```
+(same caveat here - Kinova no longer needs the hybrid path)
+
 
 **Phase IIa takes a seed, not an index** — it is the operational call, and the seed is normally
 the branch nearest where the arm is now. Phase II is its wrapper over a seed list, for learning
@@ -190,15 +199,15 @@ once which postures the true arm can actually reach.
 
 The branches are different postures — elbow up or down, wrist flipped — not different spellings of one
 answer, and which is wanted depends on obstacles, joint limits and where the arm is now. None of that
-is known here, and damped least squares stays in the basin of the seed it is given, so the choice of
+is known here, and damped least squares should stay in the basin of the seed it is given, so the choice of
 index *is* the choice of posture. Folding the two calls into one would pick a posture on the user's
 behalf from information IKBT does not have.
  
 
 ### The one-variable branch (`ikbtleaves/onevar_ik.py`)
 
-The third strategy, and the one tried **before** hybrid: declare ONE unknown to be a known parameter and
-the rest of the arm often falls out symbolically.  Method and 1-D search from Friedman et al., 2010
+The newest strategy, and the one tried **before** hybrid: declare ONE unknown to be a known parameter and
+the rest of the arm solution often falls out symbolically.  Method and 1-D search from Friedman et al., 2010
 (`IKdocs/`), whose arm is `C-Arm` in `ik_robots.py`.
 
 **NOTHING ABOUT THE ROBOT CHANGES.**  The DH table, the FK and the equations stay the true arm's;  the only
@@ -222,13 +231,13 @@ FAILing when the list is exhausted — which is what closes the retry loop.  Eac
 solution lists and `R.solveN` behind.
 
 **WHAT COMES OUT IS A CONDITIONAL CLOSED FORM**, exact only where the assumed value is right.  C-Arm solves
-6 of 6 remaining variables in 33 s with `th_2` assumed known, on the first candidate, with th_2 riding
-through the equations as a parameter (`0 = Px*sin(th_2) - Pz*cos(th_2) + d_1*cos(th_2)` is the one that
+all remaining variables in 33 s with `th_2` assumed known, on the first candidate, with th_2 riding
+through the equations as a parameter (for example: `0 = Px*sin(th_2) - Pz*cos(th_2) + d_1*cos(th_2)` is the one that
 gives `d_1`).  It must
 never be written out as `IK_equations<Robot>.py`, which means an unconditional IK for that robot —
 `report_gen` refuses on `onevar_source`, the same naming discipline the hybrid branch follows.
-
-**What a one-variable solve delivers**, for `C-Arm` with `th_2` assumed known:
+ 
+**What a one-variable solve delivers**, for e.g. `C-Arm` with `th_2` assumed known:
 
 | file | describes | written by |
 |---|---|---|
@@ -250,13 +259,10 @@ so every existing caller still works.
 **The search** (`SEARCH_CORE` in `output_onevar_python.py`, emitted verbatim — a generated module
 stands on numpy alone). Sampling is a **Van der Corput sequence**: each new point falls in the middle
 of the largest untested gap, no end bias, and the sequence is a prefix of itself, so raising
-`n_samples` refines everywhere and repeats nothing. **One error curve per branch** — the branches are
+`n_samples` refines everywhere and repeats nothing. **One error curve per solution branch** — the branches are
 separate functions of the assumed variable with separate zeros and separate domains, and mixing them
-would bracket minima no single branch has. Each bracketed minimum is refined by **golden section**
-(near a solution the error is a norm going to zero — a V, not a parabola, so nothing based on
-curvature behaves), and **a minimum is accepted only if it reaches zero**: this is root finding, and
-a dip that stops short is a feature of that branch, not an answer. On a periodic domain the sweep is
-**wrapped at both ends**, or a root at ±pi has only one neighbour and is silently never found.
+would bracket minima no single branch has. Each bracketed minimum is refined by **golden section**,
+and **a minimum is accepted only if it reaches zero**. 
 
 Measured on C-Arm: `solve_C_Arm(T)` returns **8 of 8 solutions reproducing the pose** with errors of
 1e-16 to 1e-14, and the joint vector the probe pose was built from is among them
@@ -266,6 +272,29 @@ paths cannot ask, since a 1-D search can step over a basin narrower than its sam
 
 Joint ranges and 2*pi wraps stay out of the search: they are one range test applied to the accepted
 joint vectors afterwards.
+
+#### Remaining problems
+IK_onevarC-Arm.py chooses a random pose to evaluate.   After commenting out a line which fixed the random
+numer seed, inconsistencies at several different random poses were exposed.  These may have been partially
+addressed earlier.   
+
+  1. Most residual magnitudes were in the range of 10^{-14} but sometimes they are/were as high as 10^{-7}
+  2. Different poses had different number of found solutions (they should all have the same unless the pose 
+  is EXACTLY at a singular configuration but at such a config, two identical solutions would be acceptable for 
+  two branches.)
+  3. Some solutions were missed, potentially caused by insufficient 1-D search resolution.
+  
+##### Potential remedies
+
+  a. make sure that search resolution (by extending the Van der corput sequence) is sufficient to find all zeros
+
+  b. consider elimination of the van der corput approach.  Does it really add value? or do we have to scan all 
+  intervals of a given size and shrink that size?  
+  
+  c. review the logic which switches from a brute force scan to local optimization (golden ratio).   Are there
+  bugs there?
+  
+  
 
 ### Latex output: Equations that fit the page (`ikbtfunctions/texwidth.py`)
 
@@ -369,14 +398,7 @@ Please keep commit messages to 5 lines or less.
    is no `sp.pycode()` equivalent already in use here and no numpy to lean on. Deliberately NOT done
    by emitting the derived arm's C++ under the true robot's name — that ships exactly the misleading
    artifact the naming rules exist to prevent.   An alternative to consider is a new script which could 
-   generate C++ code by *translating* the python code to C++.
-   
-2. New solver method.  In addition to the fully symbolic solution and the hybrid solution (based on an approximate arm),
-a third solver approach: the one-variable method.  The BT selector is now `Priority[symbolic, onevar, hybrid]`, so
-one-variable is tried when symbolic fails and suppresses hybrid when it succeeds.  What remains is the 1-D search and the
-code generation it needs — see "The one-variable branch" above, and `dev_OneVarSolve.md` for the method.
-*IF* git is on the dev_OneVarSolve branch when you read this, then get details on the new one-variable method in the
-document:  dev_OneVarSolve.md.  Only read dev_OneVarSolve.md if git is on that branch. 
+   generate C++ code by *translating* the python code to C++. 
 
  
 

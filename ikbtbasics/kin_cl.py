@@ -365,9 +365,11 @@ class mechanism:
 
         # find any alphas which are not n*90deg
         alpha_subs = {}
+        #  Replace cos(alpha) and sin(alpha) expresssions with symbols representing constants
         for i in range(6):
             alpha_i = self.DH[i,al]
             if not (sp.sin(alpha_i) == 0 or sp.cos(alpha_i) == 0):  # alpha is not "nice"
+
                 tmpvc = sp.var(f'ca{i}')  # create new parameter for cos(al)-> ca1, ca2, etc
                 tmpvs = sp.var(f'sa{i}')  # create new parameter for sin(al)
 
