@@ -5,8 +5,14 @@ Solutions are fully symbolic and are output as LaTex, Python, and C++.
 
 # Latest News
 
+* **New branch dev_OnVarSolution** developing new feature for RelCandidate2:  One-Variable hybrid solution for faster and more robust solution finding when no
+  fully analytic solution can be found.  Based on Friedman et al., 2010 (see ICdocs/ folder).
+  If fully symbolic solve fails, this **assumes** that one joint variable is known, which often unlocks the rest of the solutions.  All variables
+  are ranked on how many one-unknown equations they create.  Then IK becomes a 1D search of the EE configuration produced by various values of
+  the selected joint variable. y
 
 ## Sept 2026: Release candidate for IKBT2 on branch RelCandidate2.
+  
 * Summer of 2026 marks significant upgrades to IKBT resulting from a collaboration between Blake Hannaford and Claude Code Pro. 
 * Key new feature:  IKBT2 introduces a new hybrid symbolic/numerical solver for arms which cannot be solved (by IKBT) symbolically.   In this method, IKBT finds a solvable arm which is as close as possible to the true arm.  Then the solution becomes: 
     1. Get an exact IK solution set for the approximate arm.
