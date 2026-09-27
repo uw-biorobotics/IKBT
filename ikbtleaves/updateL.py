@@ -38,15 +38,9 @@ class updateL(b3.Action):    # Set up (update) the equation lists
         R = tick.blackboard.get('Robot')   # the current matrix equation
         variables = tick.blackboard.get('unknowns')   # the current list of unknowns
 
-        # below was a time waster!!!
         #R.sum_of_angles_transform(variables)
         [L1, L2, L3p] = R.scan_for_equations(variables)   # get the equation lists
 
-        #  Aux equations (e.g. th_45 = th_4 + th_5) in flattened "0 = LHS-RHS"
-        #  form.  scan_for_equations() ALREADY folds kequation_aux_list into
-        #  these lists, in "LHS = RHS" form -- so appending blindly here added
-        #  every SOA definition a second time wearing a different hat.  Reuse
-        #  the same key so a restatement (either split, either sign) is dropped.
         seen = set()
         for lst in (L1, L2, L3p):
             for e in lst:
@@ -189,6 +183,9 @@ class TestSolver007(unittest.TestCase):
 
         #############################################
         #  scan_for_equations must not report the same statement twice.
+        #
+        #  TODO:  should the kequation method __eq__() be modified to
+        #  correct this directly??
         #
         #  kequation equality compares the LHS/RHS split, so "e = 0" and
         #  "-e = 0" look like distinct equations.  Sign duplicates inflate every

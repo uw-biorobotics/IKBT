@@ -50,15 +50,7 @@ from ikbtfunctions.ik_robots import robot_params
 
 def fresh_problem(name):
     '''A pristine (Robot, unknowns) for `name`, straight from the FK cache.
-
-       A solve MUTATES both:  `set_solved()` writes the unknowns, and the Robot
-       accumulates solveN, solution_nodes and graph edges.  A failed attempt
-       leaves all of it behind, so every attempt here starts from a reload
-       rather than from whatever the last one left on the blackboard.
-
-       Cheap enough to do per attempt:  kinematics_pickle() serves
-       fk_eqns/<name>_pickle.p, measured at 20-30 ms against the minutes a
-       symbolic attempt costs.'''
+         restore robot to pre-solution state.'''
 
     dh, vv, params, pvals, unks = robot_params(name)
     M, R, unks = kinematics_pickle(name, dh, params, pvals, vv, unks, False)
@@ -68,22 +60,10 @@ def fresh_problem(name):
 
 
 def rank_by_restock(counts, min_new=1, limit=None):
-    '''Sort candidate dicts best-first and drop the ones not worth a solve.
+    '''Rank the unknowns on which one to *assume* is known.
 
-       Key:  most new 1-unknown equations, then most 2-unknown, then the
-       SIMPLEST of those equations (count_ops), then chain position.
-
-       n1 leads because a solver leaf can only start from an equation in one
-       unknown:  a robot that fails symbolically usually has an empty L1 (C-Arm
-       has 0 of 63), and declaring the right variable known is precisely the act
-       that restocks it.  n2 breaks the common tie -- those are next pass's L1.
-       count_ops then prefers short equations over long ones, which is the same
-       preference erank() applies inside every solver leaf.  u.n last, so the
-       order is reproducible rather than dict-ordered.
-
-       min_new=1 drops a candidate that restocks NOTHING.  It is not a
-       prediction that the others will solve;  it is a refusal to spend a full
-       symbolic attempt proving that an unchanged L1 still cannot be started.'''
+       Rank variables by:  most new 1-unknown equations, then most 2-unknown, then the
+       SIMPLEST of those equations (count_ops), then chain position.  '''
 
     usable = [c for c in counts if c['n1'] >= min_new]
     usable.sort(key=lambda c: (-c['n1'], -c['n2'], c['ops'], c['index']))
@@ -92,16 +72,15 @@ def rank_by_restock(counts, min_new=1, limit=None):
 
 class onevar_rank(b3.Action):
     '''Rank the unknowns by what declaring each one known would restock, and
-       put the ranked list on the blackboard.
+       put the ranked list on the blackboard. ('restock' == generates fresh
+       equations in L1/L2/L3).
 
            SUCCESS  at least one candidate worth attempting.  Blackboard carries
                     `onevar_candidates` (ranked, best first) and `onevar_cursor`.
            FAILURE  no robot to reload, or no candidate restocks anything.
 
-       THIS LEAF IS THE BRANCH'S GATE, and the measurement is nearly free:  one
-       scan_for_equations() per unknown, no sympy solving, milliseconds each.
        For C-Arm, which has no 1-unknown equation at all and so cannot even
-       start:
+       start: ('freeze' means select as the 'known' variable.)
 
            freeze th_2    L1/L2/L3p = 4/25/34        <- ranked first
            freeze th_6                4/20/39
@@ -111,7 +90,7 @@ class onevar_rank(b3.Action):
            freeze d_1                 1/9/53
            freeze th_4                0/10/54        <- dropped
 
-       SUM-OF-ANGLES VARIABLES RIDE ALONG as ordinary candidates (th_34 above).
+       SUM-OF-ANGLES VARIABLES are ordinary candidates (th_34 above).
        Assuming th_3 + th_4 known is as legitimate a one-parameter family as
        assuming a joint known, and it restocks as well;  what it costs is that
        th_3 and th_4 must then still come out individually, which the solver
@@ -201,16 +180,6 @@ class install_known(b3.Action):
                     with the candidate REMOVED, freshly scanned equation lists,
                     and `onevar_source` describing what was assumed
            FAILURE  no candidates, or the ranked list is exhausted
-
-       The exhaustion FAILURE is what ends the retry loop:  the branch ticks
-       this leaf once per attempt, and when the cursor runs off the end there is
-       nothing left to try and the branch closes.
-
-       Removing the unknown from the list is the entire edit.  Everything that
-       asks "is this an unknown?" -- count_unknowns(), the solver leaves, and
-       comp_det's completion test -- reads that list, so the symbol becomes a
-       constant everywhere at once and "solved" comes to mean "all the others
-       are solved".
 
        `onevar_source` is left on the blackboard for report_gen, and it is what
        stops a conditional solution being written out as an unconditional one.'''

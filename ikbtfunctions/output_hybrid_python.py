@@ -478,6 +478,11 @@ class TestSolver024(unittest.TestCase):
         self.test_hgB_generated_refine_matches_the_library()
         self.test_hgC_expr_py_refuses_what_it_cannot_emit()
 
+    #  TODO: fix this arcane code construction: instead, just do something like
+    #      M_puma, R, unks = kinematics_pickle('Puma ...')
+    #      and then instead of the calls (lines 511 and 548) just
+    #      do M = M_puma
+    #
     #  Puma, because it solves exactly and its pickle is always warm.  The
     #  generator does not care that Puma is not a hybrid robot:  what is under
     #  test is the emitted kinematics, not which branch produced them.
@@ -495,6 +500,8 @@ class TestSolver024(unittest.TestCase):
         return M
 
     def test_hgA_generated_fk_matches_the_library(self):
+        # TODO: does this test detect a fault that is likely to occur?  or did
+        #   it address a one-off bug that is now fixed.
         '''The EMITTED fk/jacobian must agree with numeric_ik's lambdified ones.
 
            Phase II refines against the generated FK, so if that FK is not the
@@ -534,7 +541,8 @@ class TestSolver024(unittest.TestCase):
 
     def test_hgB_generated_refine_matches_the_library(self):
         '''REFINE_CORE must solve identically to numeric_ik.solve_numeric().
-
+           # TODO: clarify why defined code cannont import ikbtbasics or copy code from
+           #   ikbtbasics
            The generated module cannot import ikbtbasics -- it stands on numpy
            alone -- so the damped-least-squares loop is emitted as a copy of
            the library one.  A copy that drifts is worse than no copy:  the

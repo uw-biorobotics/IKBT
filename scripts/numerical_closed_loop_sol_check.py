@@ -23,11 +23,6 @@
 #   checks the same property one stage earlier, on the symbolic version matrix
 #   in memory;  this runs what a user would actually import.
 #
-#   NOT EVERY BRANCH IS EXPECTED TO PASS.  The version matrix enumerates
-#   combinations of each unknown's solution branches without filtering spurious
-#   ones, so a robot legitimately scores less than 100%.  What must not happen
-#   is a robot dropping below the count in scripts/expected.py.
-#
 #   Copyright 2026 University of Washington
 #
 #   Developed by Blake Hannaford

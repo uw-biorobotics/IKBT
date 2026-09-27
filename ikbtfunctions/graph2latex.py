@@ -200,21 +200,10 @@ def solution_graph_tikz(order, edges, eol='\n', caption=None, label=None):
        ('th_4 depends on: th_23').  Both conventions are in use:  software
        dependency graphs (UML, package managers, make) point from the dependent
        to what it needs, while scheduling and dataflow networks (PERT/CPM, task
-       graphs) point along topological order.  This graph is a precedence
-       network -- th_1 must be solved before th_2 -- so the scheduling
-       convention is the right one, and it also makes the arrows agree with the
-       drawing, which already runs top to bottom in solution order.  Pointing at
-       dependencies ran every arrow backwards against the layout.
+       graphs) point along topological order.
 
-       Rows come from the dependency depth rather than from solve order.  Those
-       are different: the solver may solve th_5 before th_23 while th_4 needs
-       both, and depth is what shows that th_4 is the one waiting.  Within a row
-       the solve order is preserved, so the drawing still reads left to right in
-       the order the report discusses them.
-
-       NO EDGES IS NOT NOTHING.  An arm whose variables are all independent
-       draws a single row with no arrows, and that is worth seeing -- it says
-       the solve decoupled completely."""
+       Rows come from the dependency depth rather than from solve order.
+    """
 
     order = [str(n) for n in order]
     if not order:
@@ -237,9 +226,7 @@ def solution_graph_tikz(order, edges, eol='\n', caption=None, label=None):
 
     out = r'\begin{figure}[htb]' + eol + r'\centering' + eol
     #  SHRINK ONLY IF NEEDED.  A row is as wide as the number of variables that
-    #  share a dependency depth, and an arm whose variables are largely
-    #  independent puts them all on one row -- which can be wider than the text
-    #  block.  This idiom scales the picture down to \textwidth when it would
+    #  share a dependency depth. This idiom scales the picture down to \textwidth when it would
     #  overflow and leaves it alone when it fits, so a small graph is not blown
     #  up to fill the page.
     out += (r'\resizebox{\ifdim\width>\textwidth \textwidth\else\width\fi}{!}{%'

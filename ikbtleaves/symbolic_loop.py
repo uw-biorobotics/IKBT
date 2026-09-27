@@ -57,9 +57,7 @@ class symbolic_loop(b3.Decorator):
         bb = tick.blackboard
 
         #  Reported per pass, so a user watching a long solve can see whether
-        #  anything is improving.  Built here rather than in __init__ because
-        #  the robot and the unknown count are blackboard state, and on the
-        #  hybrid branch this node is ticked against a DERIVED arm.
+        #  anything is improving.
         R0 = bb.get('Robot')
         unks0 = bb.get('unknowns') or []
         prog = SolveProgress(getattr(R0, 'name', None), self.max_loop,
@@ -210,13 +208,8 @@ class TestSolver016(unittest.TestCase):
         self.assertTrue(bb.get('symbolic_exhausted'), fs + ' (should flag exhaustion)')
 
     def test_loopC_partial_solve_is_failure(self):
-        '''A partial solve is a FAILURE:  a closed form for some of the joints
-           is not inverse kinematics, so the tree must not treat it as an
-           answer and write a report for it (BH, 2026-08-23).
-
-           The solved variables are NOT discarded -- set_solved() already
-           recorded them and they stay on the blackboard.  Only the node's
-           verdict changes.'''
+        '''A partial solve is a FAILURE, so the tree must not treat it as an
+           answer and write a report for it (BH, 2026-08-23). '''
         fs = ' symbolic_loop partial FAIL'
         child = test_fake_pass(never_succeeds=True, solves=1)
         st, bb, _ = self.run_loop(child, nunk=3, max_loop=3)

@@ -1,6 +1,7 @@
 #!/usr/bin/python
 #
 #   clear_state.py --  drop leftover solver state so a solve starts clean
+#         a.k.a   How to Erase the Blackboard
 #
 #   The tree contains the symbolic solver TWICE:  once on the symbolic branch,
 #   once on the hybrid branch over a simplified arm.  They are separate node
@@ -9,10 +10,8 @@
 #   not -- comp_det's verdict from the FAILED first solve would still be there
 #   when the second solve starts.  So each solver begins with this leaf.
 #
-#   WIPE BY DEFAULT, KEEP BY EXCEPTION.  An enumerated *clear*-list rots
-#   silently:  add a blackboard key next year, forget to list it, and stale
-#   state leaks into the second solve with no symptom until some robot solves
-#   wrongly.  A keep-list inverts the failure mode -- a new key that should
+#   WIPE BY DEFAULT, KEEP BY EXCEPTION.
+#   A keep-list inverts the failure mode -- a new key that should
 #   have survived gets dropped, which shows up at once as a missing value.
 #
 #   Copyright 2026 University of Washington
@@ -37,10 +36,8 @@ class clear_state(b3.Action):
                               into the report even though the Robot has been
                               swapped underneath
          the one-variable cursor   onevar_candidates / onevar_cursor /
-                              onevar_source.  LOAD-BEARING:  this leaf heads the
-                              solver that runs INSIDE the one-variable retry
-                              loop, so wiping the cursor would make every
-                              attempt re-try the first candidate
+                              onevar_source.
+
          b3 bookkeeping       TotalCost, which BaseNode._tick increments and
                               Blackboard.__init__ requires to exist
 
@@ -63,7 +60,8 @@ class clear_state(b3.Action):
 
     def tick(self, tick):
         bb = tick.blackboard
-
+        #  TODO: explain what problem this solves more clearly.  (what is base_memory??)
+        #
         #  Reaching into _base_memory:  b3 here is a local fork and Blackboard
         #  exposes no "list my keys".  Guarded so a future b3 that renames it
         #  degrades to a no-op with a warning rather than an AttributeError in

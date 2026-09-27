@@ -95,6 +95,11 @@ def search_domain(M, known, ndof=None):
     import math
     return -math.pi, math.pi, True
 
+############################################################################
+#
+#   The following code blocks are used to construct robot-specific 1D search
+#     script (IK_onevarC-Arm.py)
+#
 
 #  The search, emitted verbatim.  A generated module stands on numpy alone and
 #  cannot import IKBT, so this is the only copy -- unlike the hybrid method's
@@ -621,9 +626,8 @@ if __name__ == "__main__":
         #  the pose was built from q_true, so q_true had better be among them
         near = min(max(abs(a - b) for a, b in zip(s['q'], q_true))
                    for s in sols)
-        print('  the joints the pose was built from are %s'
-              % ('among them (%.1e)' % near if near < 1e-6
-                 else 'MISSING -- the closest is %.1e away' % near))
+        if near >= 1e-6:
+            print('  The random starting pose is MISSING -- the closest is %.1e away' % near)
     else:
         print('    none -- try a larger max_samples')
 '''
@@ -663,6 +667,8 @@ def write_onevar_top(M, name, known, dirname=DIR_NAME, n_samples=128,
                           'ONE-VARIABLE inverse kinematics for %s' % name)
         print(hdr, file=f)
 
+        #  TODO: replace term "SIBLING" or define it here.   Clarify remaining
+        #      language below.
         #  SIBLINGS ARE LOADED BY PATH, not imported by name.  A robot name is
         #  not always a python identifier -- 'C-Arm' and 'Raven-II' are not --
         #  and `import IK_conditionalC-Arm` is a syntax error.  The file names

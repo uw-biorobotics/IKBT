@@ -56,7 +56,8 @@ class kequation:
         print(self.LHS, ' = ', self.RHS)
     #string representation of equations (so other module can print out the equ, instead of a pointer)
     def __repr__(self):
-        return "%s = %s" % (self.LHS, self.RHS)
+        return self.string
+
     def __eq__(self,other):
         if other is None:
             return False
@@ -89,50 +90,51 @@ class kequation:
         return tmp
 
 
-def self_referential_solutions(unknowns):
-    """Which solutions contain the very variable they solve for.
-
-       Returns [(varname, solution_name, expr), ...], empty when all is well.
-
-       A SOLUTION THAT CONTAINS ITS OWN UNKNOWN IS NOT A SOLUTION.  It is an
-       IMPLICIT EQUATION, and nothing downstream can evaluate it:  the generated
-       python comes out as
-
-           th_23v1 = atan2(... + a_3*sin(th_23v1 - th_2v1), ...)
-
-       which dies with UnboundLocalError because python evaluates the right hand
-       side first.  Found 2026-09-05 on Arm_3 (th_23), JennyGuoSp24 (th_3) and
-       UR5 (th_2), all three of which reported `solved` and wrote a full set of
-       artifacts.
-
-       The shape is always a sum-of-angles variable or its partner:
-       th_3 = th_23 - th_2 is substituted back into the equation being solved
-       FOR th_23, so a_3*sin(th_3) becomes a_3*sin(th_23 - th_2) and the unknown
-       reappears.
-
-       DETECTION ONLY.  Nothing here refuses the solution or changes a status --
-       per BH the outputs are generated as usual and the LaTeX report carries a
-       warning naming the offending equations, because a reader who knows which
-       equations are unusable can still use the rest of the report.
-
-       Tolerant of a partly-built unknown: an unsolved variable is skipped, a
-       solution sympy cannot give free_symbols for is skipped, and a solution
-       with no name yet is reported under a placeholder rather than raising."""
-
-    out = []
-    for u in unknowns:
-        if not getattr(u, 'solved', False):
-            continue
-        for i, sol in enumerate(getattr(u, 'solutions', []) or []):
-            try:
-                syms = sol.free_symbols
-            except AttributeError:
-                continue                 # not a sympy expression: nothing to check
-            if u.symbol in syms:
-                names = getattr(u, 'solutionNames', []) or []
-                name = names[i] if i < len(names) else '%s (unnamed)' % u.name
-                out.append((u.name, name, sol))
-    return out
+#  TODO: evalaute for deletion
+# def self_referential_solutions(unknowns):
+#     """Which solutions contain the very variable they solve for.
+#
+#        Returns [(varname, solution_name, expr), ...], empty when all is well.
+#
+#        A SOLUTION THAT CONTAINS ITS OWN UNKNOWN IS NOT A SOLUTION.  It is an
+#        IMPLICIT EQUATION, and nothing downstream can evaluate it:  the generated
+#        python comes out as
+#
+#            th_23v1 = atan2(... + a_3*sin(th_23v1 - th_2v1), ...)
+#
+#        which dies with UnboundLocalError because python evaluates the right hand
+#        side first.  Found 2026-09-05 on Arm_3 (th_23), JennyGuoSp24 (th_3) and
+#        UR5 (th_2), all three of which reported `solved` and wrote a full set of
+#        artifacts.
+#
+#        The shape is always a sum-of-angles variable or its partner:
+#        th_3 = th_23 - th_2 is substituted back into the equation being solved
+#        FOR th_23, so a_3*sin(th_3) becomes a_3*sin(th_23 - th_2) and the unknown
+#        reappears.
+#
+#        DETECTION ONLY.  Nothing here refuses the solution or changes a status --
+#        per BH the outputs are generated as usual and the LaTeX report carries a
+#        warning naming the offending equations, because a reader who knows which
+#        equations are unusable can still use the rest of the report.
+#
+#        Tolerant of a partly-built unknown: an unsolved variable is skipped, a
+#        solution sympy cannot give free_symbols for is skipped, and a solution
+#        with no name yet is reported under a placeholder rather than raising."""
+#
+#     out = []
+#     for u in unknowns:
+#         if not getattr(u, 'solved', False):
+#             continue
+#         for i, sol in enumerate(getattr(u, 'solutions', []) or []):
+#             try:
+#                 syms = sol.free_symbols
+#             except AttributeError:
+#                 continue                 # not a sympy expression: nothing to check
+#             if u.symbol in syms:
+#                 names = getattr(u, 'solutionNames', []) or []
+#                 name = names[i] if i < len(names) else '%s (unnamed)' % u.name
+#                 out.append((u.name, name, sol))
+#     return out
 
 
 class unknown(object):
@@ -210,6 +212,8 @@ class unknown(object):
         #  set_solved() once after choosing, and the solvers never call it.
         #  First answer wins -- every other solution already depends on it.
         if self.solved:
+            # TODO:  verify that this "re-entry guard" is really needed.
+            #
             #  UNDO WHAT THE SECOND SOLVE ALREADY DID.  Returning early is not
             #  enough:  a solver leaf appends to self.solutions and overwrites
             #  self.nsolutions BEFORE calling set_solved, so ignoring the call
@@ -572,6 +576,7 @@ class mechanism:
     #    T10*Td*T65 = T12*T23*T34*T45  (needed for UR5)
     #    T21*T10*Td*T65*T54 = T23*T34
     #
+    #  TODO: should we also try T32*T21*T10*Td*T65*T54 = T34 ???
 
 
     def get_mequation_set(self):

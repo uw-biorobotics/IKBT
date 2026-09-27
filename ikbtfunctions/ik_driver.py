@@ -140,7 +140,9 @@ def emit_outputs(R, unks):
 
 def write_latex_fitted(R, unks, groups, hybrid=None, R_true=None, onevar=None,
                        passes=4, slack_pt=6.0):
-    '''Write the LaTeX report, then MEASURE it and re-write what did not fit.
+    '''Long latex line 'wrapping':
+
+       Write the LaTeX report, then MEASURE it and re-write to avoid long equations overflowing the line.
 
        Pass 1 writes the report.  pdflatex then reports which equations are too
        wide, in points, against the source line each one sits on;  every equation

@@ -38,74 +38,22 @@ from ikbtfunctions.ik_robots import robot_params
 
 
 class pieper_geom_report(b3.Action):
-    """Analyse the arm's joint-axis geometry and publish it.  ALWAYS SUCCESS.
+    """Analyze the arm's joint-axis geometry and publish it.  ALWAYS SUCCESS.
 
        Publishes, whatever it finds:
 
            pieper_triples   the triples of consecutive joint axes that
                             intersect or are parallel (Pieper's condition), [] if none
+          TODO: review if this flag is actually necessary or was a random bug fix that is uneeded now.
            pieper_ok        True iff the DH table was actually analysed --
                             "no triple" is an ANSWER, "could not read the
                             table" is not, and only this flag separates them
            pieper_latex     the report's geometry statement, for the TRUE robot
 
-       WHY IT REPORTS AND DOES NOT DECIDE (BH, 2026-08-31).  This was
-       `no_pieper_id`, SUCCESS iff the arm had NO triple, sitting bare at the
-       head of `hybrid_branch` so that a `b3.Sequence` abort turned it into a
-       gate:  admit the hybrid branch only for an arm with no triple, because an
-       arm that HAS one and still failed symbolically is an IKBT defect rather
-       than a geometry problem, and simplifying it would hand back an
-       approximate arm for a robot whose exact arm is solvable in principle --
-       masking our own bug as an answer.
+    TODO:  add a 5 line description to flesh this out.
 
-       That reasoning fails on the same asymmetry that keeps this leaf away from
-       the symbolic branch.  Pieper's condition is SUFFICIENT for a closed form
-       and is not known to be necessary;  so its absence proves nothing, AND its
-       presence proves nothing either.  Measured over the unsolved set, ArmRobo
-       (triples (2,3,4) and (4,5,6)), Panda ((1,2,3)) and Raven-II
-       ((1,2,3),(2,3,4),(3,4,5)) all satisfy the condition and all solve 0 of
-       their unknowns -- so for the three arms the gate turned away, its answer
-       was "this is our bug, so you get nothing", which is strictly worse for
-       the user than a numerically corrected hybrid answer that names the
-       parameter it changed.
+   """
 
-       So the leaf returns SUCCESS unconditionally and the branch is gated on an
-       OUTCOME instead:  simplified_arm finding a usable candidate.  That is not
-       a weaker gate.  candidate_simplifications() skips triples that already
-       qualify, so an arm satisfying the condition on EVERY triple yields nothing
-       usable and the branch closes there by itself -- see
-       TestSolver018.test_hybJ.  An unconditional SUCCESS is also why there is no
-       `Priority[..., Succeeder]` wrapper around this node:  nothing has to
-       swallow a verdict that is never adverse.
-
-       WHY IT MUST STILL NOT GATE THE SYMBOLIC BRANCH.  Same asymmetry, other
-       direction, and this one is measured:  9 of the 32 robots in ROBOT_LIST
-       have no triple and still solve completely (Axtman13, Brad, DZhang,
-       ICP5p5_A21, Mackler13, MiniDD, Olson13, Sims11, Wachtveitl).  A leaf
-       whose FAILURE could abort the symbolic branch would stop that branch
-       ticking at all for those nine.  This one cannot FAIL, so it could not do
-       that even if it were moved -- which is a small safety property worth
-       having, not an invitation to move it.
-
-       AND THERE IS NO INVERTER.  The node began as `pieper_id` (SUCCESS when a
-       triple EXISTS) under `b3.Inverter` -- the only Inverter in the tree.  The
-       polarity was folded into the node, then the verdict dropped entirely;
-       tests/bt_assembly_test.py asserts the tree still contains no Inverter.
-       What the Inverter could never express survives as `pieper_ok`:  it turned
-       "could not read the table" into SUCCESS, indistinguishable from "no
-       triple".  With no gate left, that flag is the WHOLE of the protection --
-       simplified_arm reads it and refuses -- so it must stay False for
-       "could not run" and never be set optimistically.
-
-       `pieper_latex` IS WHY THE LEAF STILL TICKS FIRST IN THE BRANCH.  On the
-       hybrid path `install_simplified` replaces the blackboard's Robot with a
-       DERIVED arm, so by the time report_gen runs, describing "the robot" would
-       describe the simplified one -- the wrong answer, and a quietly misleading
-       report.  The statement made here describes the arm we actually started
-       from, and report_gen prefers it when present.  clear_state keeps the key
-       for exactly this reason.  "Had a triple, failed symbolically, and the
-       simplified arm solved" is also the report line that identifies a solver
-       gap and points at it, which the gate used to throw away."""
 
     def __init__(self):
         super(pieper_geom_report, self).__init__()
@@ -121,6 +69,7 @@ class pieper_geom_report(b3.Action):
 
         try:
             M = R.Mech
+            # TODO replace below with M.ndof
             ndof = da.ndof_from_unknowns(bb.get('unknowns'),
                                          fallback=len(getattr(R, 'variables', []) or []) or 6)
             triples = da.pieper_triples(M.DH, M.pvals, ndof)
@@ -160,24 +109,11 @@ class simplified_arm(b3.Action):
            FAILURE  no usable candidate, or the Pieper analysis was unreliable.
 
        THIS LEAF IS THE HYBRID BRANCH'S GATE (BH, 2026-08-31).
-       pieper_geom_report ahead of it reports and never FAILs, so admission
-       rests entirely on the two refusals here, and both are load-bearing:
-
-       REFUSES TO ACT WHEN `pieper_ok` IS FALSE.  Not defence in depth any more
-       -- it is the only defence.  Simplifying an arm because we failed to parse
-       its parameters would be the worst kind of silent wrong answer:  a derived
-       robot, solved perfectly, describing nothing.
-
-       REFUSES WHEN THERE IS NOTHING TO BUY, which is what closes the branch on
-       an arm that already satisfies Pieper's condition everywhere --
-       candidate_simplifications() skips triples that already qualify, so such an
-       arm yields no usable candidate.  That is the property that made dropping
-       the Pieper gate safe;  test_hybJ pins it.
+       pieper_geom_report ahead of it reports and never FAILs,
 
        Ranking is by task-space displacement (see dh_analysis.rank_candidates),
        which is what puts zeroing a length and snapping an angle in comparable
-       units.  `seed` is fixed so the choice is reproducible -- the whole
-       phase-gate discipline depends on a rerun giving the same answer."""
+       units.  `seed` is fixed so the choice is reproducible for testing."""
 
     def __init__(self):
         super(simplified_arm, self).__init__()
@@ -254,19 +190,7 @@ class install_simplified(b3.Action):
            FAILURE  no choice on the blackboard, or the derived FK could not be
                     built
 
-       Two things must be fresh, and neither is the node set:
-
-       FRESH `unknown` OBJECTS.  `set_solved()` mutates them in place and
-       `create_solution_set()` appends to `LHSversionNames`, so the outer
-       solve's objects cannot be reused even though that solve failed --
-       tan/sincos leaves may have recorded candidate solutions on them.  We call
-       robot_params() again for a clean set, through number_unknowns().
-
-       ITS OWN PICKLE NAME, encoding the change (e.g. `KinovaLite_d_5_0`).
-       kinematics_pickle() takes the name independently of the DH table, so a
-       derived arm gets its own cache entry;  sharing the true robot's name would
-       either serve the wrong FK or throw the cache away on every run.  The name
-       is also what a human reads in fk_eqns/.
+       TBD: rename "hybrid_source"  ?? to hybrid_simplified_arm ?? or hybrid_report??  unclear
 
        `hybrid_source` is left on the blackboard for report_gen and for
        scripts/robot_baseline.py:  a solve of a derived arm must not be recorded,
@@ -433,12 +357,7 @@ class TestSolver018(unittest.TestCase):
         """A blackboard with no Robot:  STILL SUCCESS, and pieper_ok stays False.
 
            The leaf reports, it does not decide, so an unreadable table is not
-           grounds for aborting the branch -- and it must not raise either.
-           `pieper_ok` carries the whole of the protection that the verdict used
-           to: simplified_arm reads it and refuses, which is the only thing
-           between a table nobody parsed and a derived robot describing nothing.
-           So False here is load-bearing, and never confusable with "no triple"
-           (which is a real answer, with pieper_ok True -- see hybF)."""
+           grounds for aborting the branch"""
         fs = ' pieper_geom_report FAIL'
         bb = b3.Blackboard()
         self.assertEqual(self.tick_pieper(bb), b3.SUCCESS,
@@ -449,12 +368,7 @@ class TestSolver018(unittest.TestCase):
                          fs + ' (triples must still be a list)')
 
     def test_hybD_pieper_geom_report_names_the_wrist(self):
-        """A spherical wrist HAS a triple:  found, named, and STILL SUCCESS.
-
-           This is the arm the dropped gate used to turn away.  Having a triple
-           is no longer grounds for refusing the hybrid branch (see hybJ for the
-           node that actually closes it), but the triple must still be named,
-           because the report says so."""
+        """A spherical wrist HAS a triple:  found, named, and STILL SUCCESS."""
         fs = ' pieper_geom_report wrist FAIL'
         R = TestSolver018.robot(self.puma_like(), {}, 'Wristy')
         bb = b3.Blackboard()
@@ -468,8 +382,9 @@ class TestSolver018(unittest.TestCase):
         got = [(t['axes'], t['kind']) for t in bb.get('pieper_triples')]
         self.assertIn(((4, 5, 6), 'intersect'), got, fs + ' (missed the wrist)')
 
-    def test_hybE_pieper_geom_report_ignores_sum_of_angle_unknowns(self):
-        """DOF count must skip the sum-of-angles unknowns.
+    def test_hybE_pieper_geom_report_ignores_sum_of_angle_unknowns(self):  # TODO: replace this with a test of the Mechanism class (which will auto generate DOF num)
+        """TODO: THIS TEST WILL BE REPLACED.
+        DOF count must skip the sum-of-angles unknowns.
 
            kinematics_pickle() EXTENDS the unknown list with th_23 (n = 23) and
            friends.  Counting those would inflate ndof past 6 and invent triples
@@ -489,6 +404,7 @@ class TestSolver018(unittest.TestCase):
                         fs + ' (a triple names an axis above 6: %s)' % axes)
 
     def test_hybF_pieper_geom_report_with_no_triple(self):
+        # TODO: review need for this once pieper_ok is justified
         """No triple:  an empty triple list, and pieper_ok TRUE.
 
            The pair (SUCCESS, pieper_ok=True, triples=[]) is what "this arm has
@@ -518,6 +434,8 @@ class TestSolver018(unittest.TestCase):
         return t.tick('testing simplified_arm', bb)
 
     def test_hybG_simplified_arm_refuses_when_pieper_unreliable(self):
+        # TODO: review need for this once pieper_ok is justified
+
         """pieper_ok False -> FAILURE, even though candidates could be found.
 
            pieper_geom_report cannot FAIL on "could not read the DH table"
@@ -561,11 +479,11 @@ class TestSolver018(unittest.TestCase):
             self.assertIsNotNone(c['dh_simp'], fs + ' (no derived DH table)')
             self.assertIsNotNone(c['metric'], fs + ' (unscored candidate)')
 
-    def test_hybI_simplified_arm_fails_with_nothing_to_buy(self):
+    def test_hybI_simplified_arm_fails_with_nothing_to_buy(self):  # TODO: this is not shopping - find descriptive term to replace "buy"
         """An arm that already satisfies Pieper everywhere has no candidates, so
            the leaf FAILs rather than returning an empty choice.
 
-           THIS IS THE HYBRID BRANCH'S GATE, as of 2026-08-31.
+           THIS IS THE HYBRID BRANCH'S GATE, as of 2026-08-31.  TODO:  this logic indicates this is a junk test as of 27-Sept.
            pieper_geom_report no longer decides admission -- it cannot FAIL --
            so every arm that failed symbolically
            reaches this leaf -- including arms that have a qualifying triple.
@@ -594,7 +512,7 @@ class TestSolver018(unittest.TestCase):
             self.assertIsNone(bb.get('simplification_choice'), fs)
 
     def test_hybJ_every_triple_qualifies_closes_the_branch(self):
-        """THE PROPERTY THAT MAKES DROPPING THE PIEPER GATE SAFE.
+        """THE PROPERTY THAT MAKES DROPPING THE PIEPER GATE SAFE.   TODO:  this logic indicates this is a junk test as of 27-Sept.
 
            An arm whose every triple already satisfies Pieper's condition is
            exactly the population the old `Sequence[no_pieper_id, ...]` gate

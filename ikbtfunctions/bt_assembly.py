@@ -48,9 +48,9 @@ from ikbtleaves.clear_state     import clear_state
 
 
 def make_leaves(leaf_debug=False, solver_debug=False):
-    '''Construct every node the default tree needs and return them in a dict.
+    '''Construct every node the default BT needs and return them in a dict.
 
-       Returning the dict, not just the tree, is what makes per-robot debugging
+       Returning the dict, not just the BT, is what makes per-robot debugging
        tractable:
 
            bt, nodes = build_default_bt()
@@ -61,7 +61,7 @@ def make_leaves(leaf_debug=False, solver_debug=False):
     ###  assigner and rank
     #  These two are a deliberate workaround, not a solver:  when more than one
     #  leaf can solve the current unknown, they pick the nicer solution (e.g.
-    #  atan2(y,x) over asin).  That choice did not fit the BT framework cleanly.
+    #  atan2(y,x) over asin()).  That choice did not fit the BT framework cleanly.
     asgn = assigner()
     asgn.Name = "Assigner"
     n['asgn'] = asgn

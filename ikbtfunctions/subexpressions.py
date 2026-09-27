@@ -1,21 +1,7 @@
 #!/usr/bin/python
 #
-#   subexpressions.py --  name the big pieces, so the equations fit on the page
-#
-#   THE PROBLEM.  A solved joint variable's closed form is routinely one
-#   enormous expression -- Craig417's th_4 is a single atan2 of 87 operations.
-#   Printed as one equation it runs off the right margin, and LaTeX cannot fix
-#   it:  breqn breaks an equation at its operators, but not inside a \frac, and
-#   a fraction of two forty-term sums is one unbreakable box.
-#
-#   THE FIX (BH).  Shorten the equation at the SOURCE.  Pull the big pieces out,
-#   name each one, define them just above, and write the equation compactly in
-#   terms of the names -- what a person does by hand, and it helps every reader
-#   of the report rather than only the typesetter.
-#
-#   THE RULE.  A subexpression is worth naming when it involves more than two
-#   PREVIOUSLY SOLVED variables.  Dependency count, not size:  that is what
-#   makes an expression hard to follow.
+#   subexpressions.py --  identify the big pieces in a solution equation
+#   so the equations can be broken up to fit on the page
 #
 #   WHAT COUNTS AS "A PIECE".  Splitting the top-level TERMS of a sum does
 #   nothing, because every long solution is a SINGLE term -- a term-level rule
@@ -24,18 +10,10 @@
 #   descends into FUNCTION ARGUMENTS (atan2's two arguments are exactly the
 #   pieces a person would name) and into the factors of a product.
 #
-#   ONE NAME PER DISTINCT SUBEXPRESSION.  The pool remembers what it has named,
+#   ONE NAME PER DISTINCT SUBEXPRESSION.  A pool contains all subexpressions
+#   for all equations
 #   so a piece appearing in eight versions of a variable is defined once and
-#   referenced eight times.  That is most of the saving in the "all versions"
-#   section.  It is also why the numbering runs across a whole section rather
-#   than restarting at each variable:  K_7 means one thing in the document.
-#
-#   THE PREFIX IS CHECKED, NOT ASSUMED.  `a_1, a_2, ...` is the natural choice
-#   and is not available -- a_2 and a_3 are DH link lengths on several robots,
-#   so a report would define `a_2 = <expression>` for an arm where a_2 is also
-#   0.432 m.  K is free everywhere today, but Wrist's joints are literally named
-#   A, B and C, so the prefix is chosen against the robot's own parameter and
-#   variable names at run time and falls back when taken.
+#   referenced eight times.
 #
 #   Copyright 2026 University of Washington
 #
@@ -45,6 +23,7 @@
 import sympy as sp
 
 
+# TODO: replace "BH's rule" with a concise rule description.
 #  More than two previously-solved variables:  BH's rule, verbatim.
 MIN_DEPS = 3
 
@@ -62,7 +41,7 @@ PREFIXES = ['K', 'C', 'G', 'W', 'Z']
 def dependency_names(Robot):
     """Every symbol name that refers to a previously-solved variable.
 
-       Three spellings of the same thing appear in the report and all of them
+       Three enumerations of the same variable appear in the report and all of them
        count:  the bare unknown (th_1) in the generic solutions, its per-
        solution name (th_1s2), and its per-version name (th_1v5).  Counting
        only the bare form would score every equation in the "all versions"
@@ -123,7 +102,7 @@ class SubexprPool(object):
         self.min_ops = min_ops
         self.max_defs = max_defs
 
-        #  DEEP ENOUGH TO REACH THE RADICAND:  at 3 the walk stopped before
+        #  DEEP ENOUGH TO REACH THE RADICAND:  at max_depth=3 the walk stopped before
         #  the sqrt inside KinovaLite's th_5/th_6, so the sqrt got named but
         #  its argument never did.  The recursion is bounded by big_enough(),
         #  not by this number, so the cap only has to clear the deepest thing
@@ -146,13 +125,7 @@ class SubexprPool(object):
            K_59 = K_55 + K_56 + K_57 + K_58 is a definition that defines
            nothing:  every symbol in it is already a name, so the reader must
            visit four more definitions to reconstruct a sum that was perfectly
-           readable written out.  Measured on Craig417, where forcing produced
-           exactly that chain (BH, 2026-09-04).
-
-           Suppressing the OUTER name -- not the inner ones -- is what keeps the
-           width fix.  The terms stay named, because their width is real and a
-           name is the only thing that shortens them;  what disappears is the
-           extra indirection that merely adds them up."""
+           readable written out.   """
 
         syms = getattr(e, 'free_symbols', None)
         if not syms:
@@ -181,8 +154,7 @@ class SubexprPool(object):
 
            Function arguments FIRST, because that is the case that matters:
            the long solutions are single atan2 calls, so their arguments are
-           the only decomposition available.  Sums and products contribute
-           their terms and factors."""
+           the only decomposition available. """
 
         if e.is_Atom:
             return []
@@ -196,11 +168,6 @@ class SubexprPool(object):
             #  `K_5 = sqrt(<forty terms>)` can never be shortened.  Nothing
             #  breaks inside a radical, so naming the radicand is the only
             #  lever there is.
-            #
-            #  BOTH ARGS, not just the base:  the rebuild below is
-            #  e.func(*new_pieces), and Pow needs a base AND an exponent.  The
-            #  exponent is safe to include -- it is an atom, and neither
-            #  worth_naming() nor big_enough() names an atom.
             return list(e.args)
         return []
 
@@ -209,10 +176,7 @@ class SubexprPool(object):
         """(rewritten expression, new definitions created by this call).
 
            force=True names this expression's pieces WHATEVER their dependency
-           count, subject only to the triviality guard.  It is for the caller
-           who has MEASURED the equation as too wide:  the dependency rule has
-           already had its say and been wrong, so the question is no longer
-           "is this worth naming" but "what is there to name"."""
+           count, subject only to the triviality guard."""
 
         before = len(self.order)
         try:
@@ -239,10 +203,7 @@ class SubexprPool(object):
             #  separate lines, so naming them buys no width and costs a
             #  definition apiece plus an aggregator to add them back up
             #  (`K_7 = K_3 + K_4 + K_5 + K_6`, which reads worse than the sum).
-            #
-            #  BUT THE RECURSION STILL DESCENDS, carrying force:  inside a term
-            #  there may be an atan2 whose arguments nothing can break, and
-            #  those are exactly what force exists to name.
+
             nameable_here = not e.is_Add
             if nameable_here and (self.worth_naming(p)
                                   or (force and self.big_enough(p))):

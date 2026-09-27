@@ -7,13 +7,6 @@
 #   how a sympy expression becomes python, what a generated module may import,
 #   the FK callable for an arm, and how far one pose is from another.
 #
-#   It lives apart from output_hybrid_python.py because the one-variable branch
-#   is not hybrid.  Importing an arm's FK writer from a module named for the
-#   hybrid method would say the wrong thing about which method owns it -- and
-#   this repo's naming rules exist precisely so that opening a file tells you
-#   what it is.  output_hybrid_python re-exports these names, so every existing
-#   caller (ohp.write_fk_module, ohp.expr_py) still works.
-#
 #   Copyright 2026 University of Washington
 #
 #   Developed by Blake Hannaford
@@ -57,13 +50,7 @@ def expr_py(e):
 
        sp.pycode() with fully_qualified_modules=False emits exactly the dialect
        the generated modules already support -- bare sin/cos/sqrt/atan2 and a
-       bare pi -- so nothing has to be post-processed into shape.
-
-       THE GUARD IS THE POINT.  A function this module cannot promise is
-       importable in the generated file (say a Piecewise, or a sympy-only
-       special function) would emit source that imports cleanly and then raises
-       NameError at the first call, from inside generated code, with no
-       indication of which expression was at fault.  Refusing here names it.'''
+       bare pi -- so nothing has to be post-processed into shape.'''
 
     src = sp.pycode(e, fully_qualified_modules=False)
     if 'ImmutableDenseMatrix' in src or 'Not supported' in src:
@@ -112,15 +99,9 @@ def write_fk_module(M, name, jacobian=True, dirname=DIR_NAME, what=None):
        THE PARAMETERS ARE BAKED IN, not left as module globals to be overridden.
        That is the opposite of what IK_equations*.py does, and deliberately:
        these two functions are the definition of "the true arm" that Phase II
-       refines against, and a caller who edited a link length here would move
-       the target without moving the closed form that seeds it.  Editing the
-       robot means regenerating.
+       refines against.
 
-       pvals is resolved through numeric_ik.pvals_numeric(), NOT read raw:
-       for a non-right-angle alpha kin_cl evaluates sin/cos to a number, but
-       falls back to the STRING 'np.cos(al_1)' when the twist's own symbols have
-       no numeric value -- and a raw read then leaves al_1 as a free symbol that
-       silently becomes a joint argument.'''
+       pvals is resolved through numeric_ik.pvals_numeric()'''
 
     ident = py_identifier(name)
     ndof = nik.dof_of(M)
@@ -194,14 +175,7 @@ def write_fk_module(M, name, jacobian=True, dirname=DIR_NAME, what=None):
 #  scalar metric ||dp|| + w_rot*theta share one rotation parameterisation and
 #  one weight, so a hybrid refinement and a one-variable search cannot disagree
 #  about which of two joint vectors is nearer the goal.
-#
-#  A copy, because a generated module stands on numpy alone and cannot import
-#  IKBT.  It is pinned by TestSolver024, which runs the generated code and
-#  ikbtbasics/numeric_ik.py on the same robot and requires the same answer.
-#
-#  W_ROT is a module constant of the GENERATED file, baked in per robot:
-#  nothing records a model's units and they are not consistent across the robot
-#  set, so the weight is one characteristic arm length per radian.
+
 POSE_ERROR_CORE = '''
 
 #############################################################

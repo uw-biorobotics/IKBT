@@ -48,26 +48,16 @@ def fmt_time(s):
 def _say(msg):
     """print(), but FLUSHED.
 
-       Python buffers stdout whenever it is not a tty, so every line in this
-       file would otherwise be withheld until the process exits -- which is
-       exactly backwards for a progress reporter.  It matters in three real
-       cases:  scripts/robot_baseline.py captures each solve to
-       logs/baseline/<robot>.log, `python3 ikSolver.py X | tee log` is the
-       obvious way to keep a record of a long run, and an editor/IDE terminal
-       is often not a tty either.  Measured:  without the flush, an Issue4 solve
-       printed NOTHING for 12 minutes and then everything at once.
     """
-
     print(msg, flush=True)
 
 
 #####################################################################
 #
-#   The sympy meter.
+#   The sympy meter.   TODO:  is this metering setup still in use?
 #
 #   sp.simplify() dominates a solve's wall clock, and the calls are scattered
-#   over a dozen leaves -- counting them at the call sites would rot the moment
-#   a new leaf is added, so the meter wraps sp.simplify and sp.trigsimp once,
+#   over a dozen leaves so the meter wraps sp.simplify and sp.trigsimp once,
 #   here.
 #
 #   OPT-IN and reversible, because rebinding a name inside a third-party module

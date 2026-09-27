@@ -46,16 +46,7 @@ def py_identifier(name):
 
        NOT the same string as the LaTeX label.  output_latex needs '_' escaped
        as '\\_';  Python needs the opposite -- underscores are legal in an
-       identifier and backslashes are not.  Reusing the LaTeX-escaped name here
-       emitted
-
-           def ikin_Chair\\_Helper(T):
-           SyntaxError: unexpected character after line continuation character
-
-       for every robot whose name contains '_' or '-':  Chair_Helper,
-       ICP5p5_A21, Arm_3, Raven-II.  It is fatal for the hybrid branch, whose
-       derived arms are named by the edit they encode and therefore ALWAYS
-       contain underscores (KinovaLite_d_5_0).
+       identifier and backslashes are not.
     """
 
     ident = re.sub(r'\W', '_', str(name))
@@ -133,10 +124,7 @@ pi = np.pi
     #  Mech.params, NOT Robot.params.  Robot.params holds what ik_robots.py
     #  DECLARED;  Mech.params also holds what forward_kinematics() had to
     #  INVENT -- the ca_i / sa_i for a twist angle that is not a multiple of 90
-    #  degrees.  Those appear in the equations below, so a module that declares
-    #  only the first list emits code referencing an undefined name:  measured
-    #  on Craig417, `NameError: name 'sa2' is not defined` on the first call to
-    #  ikin_Craig417().  (Pre-existing;  found 2026-09-03.)
+    #  degrees.
     decl_params = list(getattr(Robot.Mech, 'params', None) or Robot.params)
     if(Robot.Mech.pvals != {}):  # if we have numerical values stored
         for p in decl_params:
@@ -186,7 +174,7 @@ pi = np.pi
  ''', file=f)
 
 
-    Fkeqns = Robot.Mech.forward_kinematics()  # need to redo this????
+    Fkeqns = Robot.Mech.forward_kinematics()  # TODO: do we need to redo this????
 
     Tfk = (Robot.Mech.T_06)
 
@@ -201,9 +189,6 @@ pi = np.pi
 
     f.close()
 
-
-
-
 #
 #   Output python code to   evaluate the inverse kinematic equations
 #
@@ -211,27 +196,14 @@ pi = np.pi
 def output_python_code(Robot, groups, known=None):
     """Write the generated python IK for `Robot`.
 
+       Output filename convention:
+
        known=None       CodeGen/Python/IK_equations<Robot>.py, ikin_<Robot>(T)
                         -- an unconditional closed form
        known='th_2'     CodeGen/Python/IK_conditional<Robot>.py,
                         ikin_<Robot>_given(T, th_2) -- the ONE-VARIABLE branch's
                         closed form, valid only where th_2 is right
-
-       A DIFFERENT FILE AND A DIFFERENT FUNCTION NAME, because they answer
-       different questions.  `IK_equations<Robot>.py` means "the inverse
-       kinematics of this robot";  a solution conditional on an assumed value
-       is not that, and shipping one under that name is the misleading artifact
-       the naming rules exist to prevent.
-
-       `known` is emitted as an ARGUMENT, not as a module-level constant like
-       the link lengths.  It is not a property of the robot -- it is the search
-       variable IK_onevar<Robot>.py sweeps -- and a module global would be both
-       wrong to read and unusable from two threads.
-
-       The assumed variable is still RETURNED in its chain position, so a caller
-       gets a complete joint vector and can hand it straight to FK.  (A
-       sum-of-angles variable has no chain position and is simply not in the
-       returned vector, exactly as when it is solved.)"""
+"""
 
     print('\n\n\n                       Starting IK Python Output work \n\n\n')
 
@@ -265,10 +237,7 @@ pi = np.pi
     #  Mech.params, NOT Robot.params.  Robot.params holds what ik_robots.py
     #  DECLARED;  Mech.params also holds what forward_kinematics() had to
     #  INVENT -- the ca_i / sa_i for a twist angle that is not a multiple of 90
-    #  degrees.  Those appear in the equations below, so a module that declares
-    #  only the first list emits code referencing an undefined name:  measured
-    #  on Craig417, `NameError: name 'sa2' is not defined` on the first call to
-    #  ikin_Craig417().  (Pre-existing;  found 2026-09-03.)
+    #  degrees.
     decl_params = list(getattr(Robot.Mech, 'params', None) or Robot.params)
     if(Robot.Mech.pvals != {}):  # if we have numerical values stored
         for p in decl_params:
@@ -297,7 +266,6 @@ pi = np.pi
     print('#  Declare the parameters (link lengths etc.)', file=f)
     print(par_decl_str, file=f)
 
-    #####################################################################
     #
     #   THE RETURN CONTRACT.
     #
@@ -305,13 +273,6 @@ pi = np.pi
     #   alongside.  The sum-of-angle variables are still computed -- later
     #   solutions depend on them -- but they are intermediates, not joints, so
     #   they are not returned.
-    #
-    #   Chain order comes from the DH table via numeric_ik.joint_symbols():
-    #   NOT from the unknown list, which is extended with SOA variables, and
-    #   NOT from solve order, which is an artifact of how the tree happened to
-    #   solve this particular arm.
-    #
-    #####################################################################
     jnames = [str(s) for s in nik.joint_symbols(Robot.Mech)]
     order  = [nd.unknown.name for nd in Robot.solution_nodes]   # column order
     #  The assumed-known joint was never solved, so it is not in `order` -- but
@@ -376,11 +337,7 @@ pi = np.pi
 
 
     #  SILENT ON THE CONDITIONAL PATH.  These three lines are advice for a
-    #  human calling ikin once.  The one-variable search calls the conditional
-    #  form a thousand times per pose -- measured, 2868 lines of output for one
-    #  C-Arm solve -- and the advice is wrong there anyway:  a value of the
-    #  assumed variable that puts an arcsin out of range is the search learning
-    #  where that branch is undefined, which is data, not a mistake.
+    #  human calling ikin once.
     if not known:
         print(indent + 'print ( " Caution - this code has no solution checking.")', file=f)
         print(indent + 'print ("in case of domain errors, change the test position / orientation ")', file=f)
@@ -407,7 +364,7 @@ pi = np.pi
         #  ONE assignment per DISTINCT version.  A variable solved early shares
         #  its versions between matrix rows (Puma's th_1:  2 versions, 8 rows),
         #  so walking the rows emitted the same line four times.  Dedup on the
-        #  LHS in first-seen order -- set() would reorder, and unstably.
+        #  LHS in first-seen order.
         eqnlist = []
         seen = set()
         for rowindex in range(Robot.nversions):
@@ -455,10 +412,7 @@ pi = np.pi
     #groups = mtch.matching_func(Robot.notation_collections, Robot.solution_nodes)
 
     #  Rows come from Robot.solListMatrix:  an ORDERED list of lists whose
-    #  columns are in solve order.  `groups` is the same data as a SET of
-    #  tuples, so iterating it orders the branches by string hashing -- fine
-    #  for a set, wrong for generated source that ought to be diffable.  The
-    #  set is kept as a fallback for a caller that has only that.
+    #  columns are in solve order.
     rows = getattr(Robot, 'solListMatrix', None)
     if not rows:
         rows = [list(g) for g in sorted(groups)]

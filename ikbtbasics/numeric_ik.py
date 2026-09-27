@@ -114,6 +114,10 @@ def dof_of(M, maxrows=6):
        extends that list with sum-of-angle variables, so e.g. Craig417 reports
        5 unknowns for 4 joints.'''
 
+
+    # TODO: refactor to replace this method with a new member of the
+    #       mechanism class.  Self create it on init:
+    #       self.nDOF = (method below)
     n = 0
     for r in range(maxrows):
         (jr, jc), kind = da.joint_cell(M.DH, M.vv, r)
@@ -148,6 +152,7 @@ def joint_symbols(M, ndof=None):
 
 
 def _lambdify_checked(expr_matrix, syms, what):
+    # TODO: verify this guard is EVER needed with current version of everything else.
     '''lambdify, after proving nothing is left un-substituted.
 
        A leftover free symbol is the failure this guards:  lambdify would accept

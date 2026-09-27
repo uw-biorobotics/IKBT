@@ -34,12 +34,8 @@ def theta_expand(x):
 
 
 ## how many unknowns are in expr?
-def count_unknowns(unknowns, expr):
-    n = 0
-    for u in unknowns:
-        if(expr.has(u.symbol) and u.solved == False):
-            n += 1
-    return n
+def count_unknowns(unknowns, expr):  # BH 9/27/26:  compacted and cleaner
+    return len(get_unknowns(unknowns, expr))
 
 #return a list of unknown objects that exsits in a expression
 def get_unknowns(unknowns, expr):

@@ -9,7 +9,7 @@
 #   one.  This leaf is the parallel case.
 #
 #   See IKdocs/parallel_triple_refs.md for the derivation, the published
-#   algorithm this implements a step of, and the measurements below.
+#   algorithm.
 #
 #   WHAT IT DOES, in one sentence:  split each position component into the part
 #   that still contains an unsolved unknown and the part that does not, move the
@@ -197,13 +197,7 @@ class parallel_triple_transform(b3.Action):
 
        SUCCESS  at least one new one-unknown equation was appended
        FAILURE  no parallel triple, nothing new to say, or already said it
-
-       WHY IT IS NOT ONE-SHOT, unlike invariant_gen.  Its whole value depends on
-       WHICH variables are solved -- the wrist offsets only move to the known
-       side once the trailing joints are known -- so running once at the top of
-       the solve is running too early.  It re-runs whenever the solved set has
-       changed since its last attempt, and declines otherwise, which bounds it
-       at one run per variable solved rather than one per tick.'''
+        '''
 
     def __init__(self):
         super(parallel_triple_transform, self).__init__()
@@ -218,19 +212,17 @@ class parallel_triple_transform(b3.Action):
         if R is None or not unknowns:
             return b3.FAILURE
 
-        #  Nothing left to generate equations for.  Same guard, and the same
-        #  reason, as invariant_gen:  last-ish in the Priority, this leaf is
-        #  reached on the tick after the final variable is solved.
+        #  Nothing left to generate equations for.
         if all(u.solved for u in unknowns):
             return b3.FAILURE
 
-        #  No parallel triple, no work.  Pure DH arithmetic, so cheap enough
+        #  No parallel triple, return failure.  Pure DH arithmetic, so cheap enough
         #  to re-evaluate on every tick.
         triples = parallel_axis_triples(R, unknowns)
         if not triples:
             return b3.FAILURE
 
-        #  Re-run only when the solve has moved on since the last attempt.
+        #  TODO: clarify this explanation: Re-run only when the solve has moved on since the last attempt.
         sig = tuple(sorted(u.name for u in unknowns if u.solved))
         if bb.get('parallel_triple_sig') == sig:
             return b3.FAILURE
@@ -245,7 +237,7 @@ class parallel_triple_transform(b3.Action):
 
         if not keepers:
             if self.BHdebug:
-                print('parallel_triple: nothing beat the gate this pass')
+                print('parallel_triple: no parallel axes identified this pass')
             return b3.FAILURE
 
         for e in keepers:
@@ -294,7 +286,7 @@ class TestSolver023(unittest.TestCase):
         self.assertEqual(kn2, 0, fs + ' (nothing is known yet)')
 
     def test_ptB_gate_declines_without_a_parallel_triple(self):
-        '''Puma has an INTERSECTING wrist triple and no parallel one.  The leaf
+        '''Puma has an INTERSECTING wrist triple and only two parallel axes.  The leaf
            must decline:  Pieper-satisfied is not the gate, parallel is.'''
         fs = ' parallel_triple FAIL'
         from ikbtfunctions.ik_robots import robot_params
@@ -313,7 +305,7 @@ class TestSolver023(unittest.TestCase):
 
     def test_ptC_gate_fires_on_UR5(self):
         '''UR5 is the motivating robot: par(2,3,4), the three parallel elbow
-           axes.  Cheap DH arithmetic, so this is a real gate test.'''
+           axes. '''
         fs = ' parallel_triple FAIL'
         from ikbtfunctions.ik_robots import robot_params
         import contextlib, io

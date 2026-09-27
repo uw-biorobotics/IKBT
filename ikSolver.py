@@ -110,7 +110,7 @@ def main(argv):
     #  Warn user of special case (\alpha_i != n*np.pi/2)
     for i in range(6):
         alpha_i = M.DH[i, 0]  #alpha is zeroth column
-        print(f'Alpha_{i}: {alpha_i}')
+        # print(f'Alpha_{i}: {alpha_i}')
         i+=1
         if not (sp.sin(alpha_i) == 0 or sp.cos(alpha_i) == 0):  # alpha is not "nice"
 

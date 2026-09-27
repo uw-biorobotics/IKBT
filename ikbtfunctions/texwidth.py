@@ -15,14 +15,6 @@
 #
 #       Overfull \hbox (144.6304pt too wide) detected at line 276
 #
-#   That is ground truth, in the real document at the real geometry, and one
-#   subprocess covers the whole report.  (sympy.preview() renders one equation
-#   per subprocess, measures each at ITS OWN default geometry rather than this
-#   document's, and needs dvipng.)
-#
-#   IT MUST NEVER COST US THE REPORT.  Every entry point degrades to "no
-#   measurement" -- pdflatex missing, a LaTeX error, a timeout -- and the caller
-#   then emits the unfolded report, which is correct and merely wide.
 #
 #   Copyright 2026 University of Washington
 #
@@ -43,7 +35,7 @@ _OVERFULL = re.compile(
 
 #  Marker the generator writes on its own source line, immediately above each
 #  equation, so a reported line number can be attributed to an equation.
-#  A TeX comment, so it never reaches the page.
+#  marker for a LaTeX comment, so it never reaches the page.
 MARKER = '%%IKBT-EQ '
 
 DEFAULT_TIMEOUT = 180
@@ -89,10 +81,7 @@ def overfull_by_line(texpath, timeout=DEFAULT_TIMEOUT):
 
 def ids_by_line(texpath):
     '''{source line number: equation id} from the markers in the file.
-
-       Each marker claims every line from just after itself up to the next
-       marker, so an equation spanning several source lines is attributed
-       correctly however it was broken.'''
+    '''
 
     try:
         with open(texpath, 'r') as f:
@@ -117,10 +106,7 @@ def overfull_ids(texpath, slack_pt=0.0, timeout=DEFAULT_TIMEOUT):
 
        slack_pt ignores overflows smaller than that.  TeX reports a box 3.7pt
        over, which is about one character and not worth restructuring an
-       equation for;  the caller decides where the line is.
-
-       An overfull line with no marker above it is NOT this module's business
-       (a wide table, a long verbatim row) and is dropped rather than guessed at.'''
+       equation for;  the caller decides where the line is. '''
 
     by_line = overfull_by_line(texpath, timeout=timeout)
     if not by_line:

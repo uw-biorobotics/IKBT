@@ -48,12 +48,6 @@ def canonical_second_eqn(u, e1, e2):
        zero, e2 and -e2 are equally valid statements; return whichever one is
        in canonical form, or None if neither is.
 
-       The two sign choices are COUPLED.  Accepting "A matches up to sign" and
-       "B matches up to sign" independently admits mixed pairs, e.g.
-       e2 = -A*cos(u) - B*sin(u) - D, for which simu_solver's
-       D = A*cos(u) - B*sin(u) - e2 collapses to 2*A*cos(u) + D -- still a
-       function of u, so the resulting atan2 is not a solution at all.
-
        A == B == 0 means u appears in e1 with no sin/cos term; the atan2
        arguments would both be zero, yielding nan.  Reject.'''
     A = e1.coeff(sp.sin(u))
@@ -69,7 +63,7 @@ def canonical_second_eqn(u, e1, e2):
     return None
 
 
-class simu_id(b3.Action):
+class simu_id(b3.Action):  ## TODO:   Can this be combined with cannonical_second_eqn() to make a more elegant one-step process??
     # finding 
     #    c = Asin(th1) + Bcos(th1)
     #    d = Acos(th1) - Bsin(th1)  (nice arctan solution)
@@ -156,7 +150,10 @@ class simu_solver(b3.Action):
 
         unknowns = tick.blackboard.get('unknowns')
         R = tick.blackboard.get('Robot')
-        #  REFUSE AN EQUATION THAT DOES NOT CONSTRAIN THIS VARIABLE --
+        #  TODO: re-write this comment to describe the leaf WITHOUT reference to the tree it
+        #     belongs to.ArithmeticError
+        #
+        #  AN EQUATION THAT DOES NOT CONSTRAIN THIS VARIABLE --
         #  see ikbtbasics/eqn_sanity.py.  FAILURE here lets b3.Priority
         #  fall through to a transform that may restock eqns_1u with a
         #  real equation.

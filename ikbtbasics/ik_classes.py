@@ -128,9 +128,6 @@ def kinematics_pickle(rname, dh, constants, pvals, vv, unks, test):
 
         R.sum_of_angles_transform(unks)  # find sum of angles
 
-        #  Version 3 creates the solution nodes AS they are solved (see
-        #  unknown.set_solved), so there is no node-generation pass here.
-
         print(' Storing kinematics pickle for '+rname + '('+name+')')
         with open(name,'wb') as pf:
             pickle.dump( [m, R, unks], pf, protocol=pprotocol)
@@ -170,9 +167,7 @@ def check_the_pickle(dh1, dh2):
 
     print('''\n\n -----------------------------------------------------
                     DH parameters Differ
-             (kinematics_pickle() recomputes in this case;
-              if you see this message the caller built its
-              mechanism some other way)
+             (kinematics_pickle() recomputes.
   -----------------------------------------------------
   ''')
     return False
@@ -279,7 +274,7 @@ class Robot:
         solListMatrix = []  # a matrix, each row is a set of versions forming a solution
 
         #  WHICH SOLUTION each row uses, for each unknown.  Same shape as
-        #  solListMatrix.
+        #  solListMatrix.  "Solution identification matrix"
         solIdxMatrix = []
 
         for node in self.solution_nodes:
@@ -357,6 +352,9 @@ class Robot:
     #
     #   as two different equations.  These are common, and they make a pair of
     #   equations look independent when the pair carries no extra information.
+    #
+    #  TODO: would it be better to fix kequation._eq_ to return equality if
+    #          LHS and RHS meet this condition??
     #
     #   DO NOT extend this to collapse a re-split of the same statement, i.e.
     #
@@ -621,6 +619,7 @@ def sum_of_angles_sub(R, expr, variables):
         print('sum_of_angles_sub: Ive found a new SOA equation, ', tmpeqn, 'it is a 3-way SOA: ', found3)
     return (expr, newjoint, tmpeqn)
 
+# TODO: add concise comment describing uses of this.  Check if current code ever triggers this error.
 def get_variable_index(vars, symb):
     for v in vars:
         if v.n == 0:
