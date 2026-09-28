@@ -3,13 +3,36 @@ A python based system for generating closed-form solutions to the manipulator in
 behavior trees for action selection. 
 Solutions are fully symbolic and are output as LaTex, Python, and C++.
 
-# Latest News
+# Latest News 28-Sept-2026
 
-* **New branch dev_OnVarSolution** developing new feature for RelCandidate2:  One-Variable hybrid solution for faster and more robust solution finding when no
+* **New branch dev_OnVarSolution merged into RelCandidate2** 
+  Developed a major new feature for RelCandidate2: 
+
+  One-Variable hybrid solution for faster and more robust numerical solution finding when no
   fully analytic solution can be found.  Based on Friedman et al., 2010 (see ICdocs/ folder).
-  If fully symbolic solve fails, this **assumes** that one joint variable is known, which often unlocks the rest of the solutions.  All variables
-  are ranked on how many one-unknown equations they create.  Then IK becomes a 1D search of the EE configuration produced by various values of
-  the selected joint variable. y
+  If fully symbolic solve fails, this **assumes** that one joint variable is known, which often unlocks the rest of the joint variables'  symbolic solutions.  
+  
+  First, all variables
+  are ranked as candidates for the `known` value based on how many new one-unknown equations they create.  Then **IK becomes a 1D search** of the EE configuration produced by various values of
+  the selected joint variable.
+
+  So the top level of the BT is
+  
+    ```b3.Selector([ symbolic solver, one-variable solver, hybrid numerical solver]).```
+  
+  The three solvers are tried in order until one succeeds. 
+  
+  All the AI generated new code or modified code in this Release Candidate was manually
+  reviewed in detail by BH.  Many of the AI generated comments and docstrings were 
+  verbose, contained too much jargon, and described what "used to be there".   These
+  were extensively edited.   
+  
+  Some code and data structures were deemed unnecessary and refactored out. 
+  
+  A big payoff of this AI enabled release is much more detailed tests.  This includes
+  closed loop numerical testing of all the robots known to be solvable by this software
+  (currently 31 robots!).
+  
 
 ## Sept 2026: Release candidate for IKBT2 on branch RelCandidate2.
   
