@@ -37,19 +37,32 @@ thy = sp.Wild('thy')
 thz = sp.Wild('thz')
 
 
-def canonical_second_eqn(u, e1, e2):
-    '''Test whether (e1, e2) form the pair simu_solver knows how to solve:
+def _partner_of(u, e1, e2):
+    """Is e2 the PARTNER of e1 -- and if so, written the way simu_solver reads
+       it?  Returns e2, or -e2, or None when e2 is not a partner at all.
+
+       THE PAIR.  Two equations solve together for u when they read
 
            e1:   0 = A*sin(u) + B*cos(u) - C
            e2:   0 = A*cos(u) - B*sin(u) - D
 
-       A and B are read from e1 alone (that is what simu_solver does), so e2
-       must supply exactly the same A and B.  Since both expressions equal
-       zero, e2 and -e2 are equally valid statements; return whichever one is
-       in canonical form, or None if neither is.
+       with the SAME A and B.  simu_solver reads A and B off e1 alone, so e2
+       has to supply exactly those, and the two then collapse to one atan2.
 
-       A == B == 0 means u appears in e1 with no sin/cos term; the atan2
-       arguments would both be zero, yielding nan.  Reject.'''
+       WHY A SIGN FLIP IS ALLOWED.  Every equation here is stored as
+       "expression = 0", and `0 = X` and `0 = -X` state the same thing -- both
+       hold exactly when X is zero.  So each equation has two equally true
+       spellings, and only one of them is the spelling simu_solver reads
+       coefficients from;  handed the other it would extract -A and -B and
+       produce nonsense.  Hence: return whichever spelling fits, not merely a
+       yes/no.  (That is what "canonical form" meant in this function's former
+       name -- the one agreed spelling out of the two.)
+
+       A == B == 0 means u appears in e1 with no sin or cos of it at all;  both
+       atan2 arguments would vanish and the "solution" would be nan.  Reject.
+
+       Private: callers want solvable_pair(), which does not have to know
+       which equation plays e1."""
     A = e1.coeff(sp.sin(u))
     B = e1.coeff(sp.cos(u))
     if A == 0 and B == 0:
@@ -63,11 +76,42 @@ def canonical_second_eqn(u, e1, e2):
     return None
 
 
-class simu_id(b3.Action):  ## TODO:   Can this be combined with cannonical_second_eqn() to make a more elegant one-step process??
-    # finding 
-    #    c = Asin(th1) + Bcos(th1)
-    #    d = Acos(th1) - Bsin(th1)  (nice arctan solution)
+def solvable_pair(u, ea, eb):
+    '''These two equations in solver order -- (e1, e2) -- or None if they do
+       not solve together for u.
+
+           e1:   0 = A*sin(u) + B*cos(u) - C
+           e2:   0 = A*cos(u) - B*sin(u) - D
+
+       ORDER MATTERS, AND THE CALLER CANNOT KNOW IT.  A and B come from e1
+       alone, so the two equations are not interchangeable -- but a caller
+       holding an unordered pair out of the equation list has no way to tell
+       which is which.  BOTH assignments are tried here, so the question asked
+       is the one the caller actually has:  do these two solve together, and
+       in what order?
+
+       Rejects, before either assignment is tried, a pair that is one
+       statement twice:  e and -e state the same thing, so the "pair" carries
+       no second constraint and the solve would be underdetermined.'''
+
+    if ea - eb == 0 or ea + eb == 0:
+        return None
+
+    for e1, e2 in ((ea, eb), (eb, ea)):
+        second = _partner_of(u, e1, e2)
+        if second is not None:
+            return e1, second
+    return None
+
+
+class simu_id(b3.Action):
+    #  Find a pair of equations in ONE unknown of the form
     #
+    #    c = A sin(th1) + B cos(th1)
+    #    d = A cos(th1) - B sin(th1)     (nice arctan solution)
+    #
+    #  Which of the two plays which role is solvable_pair()'s business, not
+    #  this loop's.
   
     def tick(self, tick):
         curr_unk = tick.blackboard.get('curr_unk')
@@ -75,11 +119,6 @@ class simu_id(b3.Action):  ## TODO:   Can this be combined with cannonical_secon
         R = tick.blackboard.get('Robot')
 
         one_unk = tick.blackboard.get('eqns_1u')
-
-        found = False
-
-        eq1 = None
-        eq2 = None
 
         eqn_list= []
         if not curr_unk.solved:
@@ -112,33 +151,23 @@ class simu_id(b3.Action):  ## TODO:   Can this be combined with cannonical_secon
 
                 for j in range(i+1, len(eqn_list)):
                     cand2 = eqn_list[j]
-                    if cand2 - cand1 == 0 or cand2 + cand1 == 0:
+
+                    pair = solvable_pair(curr_unk.symbol, cand1, cand2)
+                    if pair is None:
                         continue
+                    eq1, eq2 = pair
 
-                    # try (cand1, cand2) in that role assignment ...
-                    norm2 = canonical_second_eqn(curr_unk.symbol, cand1, cand2)
-                    if norm2 is not None:
-                        eq1, eq2 = cand1, norm2
-                        found = True
-                    else:
-                        # ... and then with the roles reversed
-                        norm2 = canonical_second_eqn(curr_unk.symbol, cand2, cand1)
-                        if norm2 is not None:
-                            if self.BHdebug:
-                                print("reverse order")
-                            eq1, eq2 = cand2, norm2
-                            found = True
-
-                    if found:
-                        if self.BHdebug:
-                            print("found two eqns in one unknown")
-                            print(eq1)
-                            print(eq2)
-                        curr_unk.solvemethod += "simultaneous eqn"
-                        curr_unk.eqntosolve = kequation(0, eq1)
-                        curr_unk.secondeqn = kequation(0, eq2)
-                        tick.blackboard.set('curr_unk', curr_unk)
-                        return b3.SUCCESS
+                    if self.BHdebug:
+                        if eq1 is cand2:
+                            print("reverse order")
+                        print("found two eqns in one unknown")
+                        print(eq1)
+                        print(eq2)
+                    curr_unk.solvemethod += "simultaneous eqn"
+                    curr_unk.eqntosolve = kequation(0, eq1)
+                    curr_unk.secondeqn = kequation(0, eq2)
+                    tick.blackboard.set('curr_unk', curr_unk)
+                    return b3.SUCCESS
 
         return b3.FAILURE
 
@@ -213,6 +242,7 @@ class TestSolver005(unittest.TestCase):
         self.test_m7_accepts_zero_B()
         self.test_m7_rejects_algebraic_pair()
         self.test_m7_rejects_mixed_sign_pair()
+        self.test_m7_solvable_pair_tries_both_role_assignments()
 
     #####################################################################
     #  helpers
@@ -324,6 +354,61 @@ class TestSolver005(unittest.TestCase):
         back = dict(vals); back[th_23] = got
         self.assertAlmostEqual(float(exp1.subs(back)), 0.0, places=9, msg=fs)
         self.assertAlmostEqual(float(exp2.subs(back)), 0.0, places=9, msg=fs)
+
+    def test_m7_solvable_pair_tries_both_role_assignments(self):
+        """The leaf must not care which order the two equations arrive in.
+
+           A and B are read from e1 ALONE, so the pair is NOT symmetric -- but
+           the caller pulls two equations out of a list and cannot know which
+           should play e1.  solvable_pair() therefore tries both.
+
+           NOTE both assignments are legitimate, and they are NOT the same
+           assignment.  Handed (second, first) the function keeps `second` as
+           e1 and returns -first as e2, which is canonical for A' = -B,
+           B' = A -- a pi/2 relabelling of the same pair.  It cancels in the
+           atan2, so BOTH orders solve to the same angle.  That equivalence,
+           not a particular ordering, is what is asserted here.
+
+           This is the path the old code covered with a second, open-coded
+           call to the partner test;  nothing tested it."""
+        sp.var('AA BB CC DD th_23')
+        fs = ' solvable_pair role-assignment FAIL'
+        u = th_23
+        first  = AA*sp.sin(u) + BB*sp.cos(u) - CC
+        second = AA*sp.cos(u) - BB*sp.sin(u) - DD
+
+        fwd = solvable_pair(u, first, second)
+        rev = solvable_pair(u, second, first)
+        self.assertIsNotNone(fwd, fs + ' (rejected a valid pair)')
+        self.assertIsNotNone(rev, fs + ' (rejected the same pair reversed)')
+
+        #  each returned pair must be internally canonical: e2 as returned is
+        #  what _partner_of would produce for that e1
+        for label, (e1, e2) in (('forward', fwd), ('reversed', rev)):
+            self.assertEqual(sp.simplify(_partner_of(u, e1, e2) - e2), 0,
+                             fs + ' (%s pair is not self-consistent)' % label)
+
+        #  AND THE ANSWER IS THE SAME EITHER WAY -- end to end through the leaf
+        th = 0.7
+        subs = {AA: 2.0, BB: 3.0}
+        subs[CC] = float((AA*sp.sin(u) + BB*sp.cos(u)).subs(subs).subs({u: th}))
+        subs[DD] = float((AA*sp.cos(u) - BB*sp.sin(u)).subs(subs).subs({u: th}))
+
+        angles = []
+        for order in ([first, second], [second, first]):
+            status, unk = self.run_leaf(order, u)
+            self.assertEqual(status, b3.SUCCESS,
+                             fs + ' (leaf failed on one equation order)')
+            angles.append(float(unk.solutions[0].subs(subs)))
+
+        self.assertAlmostEqual(angles[0], th, places=9,
+                               msg=fs + ' (forward order got %g)' % angles[0])
+        self.assertAlmostEqual(angles[1], th, places=9,
+                               msg=fs + ' (reversed order got %g)' % angles[1])
+
+        #  one statement twice is NOT a pair -- it adds no second constraint
+        self.assertIsNone(solvable_pair(u, first, first), fs + ' (e with e)')
+        self.assertIsNone(solvable_pair(u, first, -first), fs + ' (e with -e)')
 
     def test_m7_accepts_negated_second_eqn(self):
         '''e2 and -e2 both state the same thing, so a uniformly negated second
