@@ -51,11 +51,12 @@ from ikbtleaves.x2y2_transform import *
 from ikbtleaves.rank_leaf import TestSolver011   # named import: rank_leaf also
                                                 #  defines count_variables()
 #  Named imports below:  these modules export helpers (element_forms,
-#  make_leaves, comp_det, ...) that would shadow names already imported above.
+#  comp_det, ...) that would shadow names already imported above.
 from ikbtleaves.invariant_gen  import TestSolver012
 from tests.bt_assembly_test    import TestSolver013
 from ikbtleaves.comp_detect    import TestSolver014
 from ikbtfunctions.output_latex import TestSolver015
+from ikbtbasics.ik_classes   import TestSolver030
 from ikbtleaves.symbolic_loop   import TestSolver016
 from ikbtleaves.output_gen      import TestSolver017
 from ikbtleaves.hybrid_ik       import TestSolver018
@@ -168,10 +169,11 @@ class TestIkClass(unittest.TestCase):
         print('----- Correct:')
         print(correctString)
         print('--------------')
-        # TODO:  Clean up this unreliable test!! (as of 2026 seems reliable)
-        print('WARNING:  this assertion seems to randomly fail!! Try running the test multiple times')
-        print('The failure mode is that the 3-way SOA substitution fails and terms like (th_2 + th_34) appear')
-        print('but just sometimes!!!')
+        #  HISTORICALLY FLAKY, reliable through 2026.  The old failure was the
+        #  3-way sum-of-angles substitution not firing, leaving terms like
+        #  (th_2 + th_34) in place of th_234.  If this assertion ever fails
+        #  again, that is the shape to look for -- and it was intermittent, so
+        #  run it several times before concluding it is fixed.
         assert str(term2) == correctString, fs
     
     def test_SOA_idsub_3(self):
@@ -208,9 +210,7 @@ class TestIkClass(unittest.TestCase):
 
         robot = 'SOA Test Robot'
 
-        testing = False  # not using this now
-        [m, R, tmpvars] = kinematics_pickle(robot, dh, params, pvals, vv, variables, testing)
-        print('GOT HERE: robot name: ', R.name)
+        [m, R, tmpvars] = kinematics_pickle(robot, dh, params, pvals, vv, variables)
 
         variables = tmpvars
         R.name = robot
@@ -406,6 +406,7 @@ if __name__ == '__main__':
     suite3.addTest(TestSolver027())   # assigner_leaf.py  # promote a DETERMINED unknown
     suite3.addTest(TestSolver028())   # onevar_ik.py      # rank + install a known variable
     suite3.addTest(TestSolver029())   # output_onevar_python.py # the 1-D search
+    suite3.addTest(TestSolver030())   # ik_classes.py     # COLD fk cache + staleness guards
     suite1.addTest(TestSolver009())   # helperfunctions.py
 
     if(not HTML):

@@ -54,7 +54,9 @@ def _say(msg):
 
 #####################################################################
 #
-#   The sympy meter.   TODO:  is this metering setup still in use?
+#   The sympy meter.  IN USE, opt-in:  `ikSolver.py <Robot> --perf` is the only
+#   thing that turns it on (it was a module constant, so it used to need a
+#   source edit).  See IKdocs/TESTING.md, "When a robot looks hung".
 #
 #   sp.simplify() dominates a solve's wall clock, and the calls are scattered
 #   over a dozen leaves so the meter wraps sp.simplify and sp.trigsimp once,

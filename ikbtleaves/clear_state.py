@@ -47,7 +47,7 @@ class clear_state(b3.Action):
        symbolic_exhausted, and anything added later.'''
 
     KEEP = ('Robot', 'unknowns', 'eqns_1u', 'eqns_2u', 'eqns_3pu',
-            'pieper_triples', 'pieper_ok', 'pieper_latex',
+            'pieper_triples', 'pieper_latex',
             'simplification_candidates', 'simplification_choice',
             'hybrid_source',
             'onevar_candidates', 'onevar_cursor', 'onevar_source',
@@ -60,12 +60,22 @@ class clear_state(b3.Action):
 
     def tick(self, tick):
         bb = tick.blackboard
-        #  TODO: explain what problem this solves more clearly.  (what is base_memory??)
+        #  WHAT _base_memory IS.  A b3 Blackboard keeps three separate stores
+        #  (b3/core/blackboard.py):  `_base_memory` for unscoped keys -- which
+        #  is everything IKBT itself puts there, the Robot, the equation lists,
+        #  the findings -- and `_tree_memory`, holding per-tree and per-node
+        #  state that belongs to b3 (a node's `is_open`, a loop's counter).
         #
-        #  Reaching into _base_memory:  b3 here is a local fork and Blackboard
-        #  exposes no "list my keys".  Guarded so a future b3 that renames it
-        #  degrades to a no-op with a warning rather than an AttributeError in
-        #  the middle of a solve.
+        #  THIS LEAF CLEARS ONLY THE FIRST.  The per-node state is b3's
+        #  bookkeeping for the tick in progress, and deleting it mid-tick would
+        #  reopen ancestors that are currently open and reset enclosing loop
+        #  budgets to zero.  What must go is the previous solve's application
+        #  state, and all of that is unscoped.
+        #
+        #  Reaching in directly because Blackboard exposes no "list my keys",
+        #  and there is no way to drop everything-except-KEEP without one.
+        #  Guarded so a future b3 that renames the attribute degrades to a
+        #  no-op with a warning rather than an AttributeError mid-solve.
         base = getattr(bb, '_base_memory', None)
         if base is None:
             print(self.Name, ': blackboard has no _base_memory -- nothing '
@@ -135,7 +145,7 @@ class TestSolver020(unittest.TestCase):
         bb = b3.Blackboard()
         keep = {'Robot': 'R', 'unknowns': ['u'],
                 'eqns_1u': [1], 'eqns_2u': [2], 'eqns_3pu': [3],
-                'pieper_triples': ['t'], 'pieper_ok': True,
+                'pieper_triples': ['t'],
                 'pieper_latex': r'\section{Geometry}',
                 'simplification_candidates': ['c'],
                 'simplification_choice': 'c',

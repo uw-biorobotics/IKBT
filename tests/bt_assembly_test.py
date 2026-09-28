@@ -54,7 +54,7 @@ import sympy as sp
 import b3 as b3
 
 import ikbtleaves
-from ikbtfunctions.bt_assembly import make_leaves, build_worktools, build_default_bt
+from ikbtfunctions.bt_assembly import build_worktools, build_default_bt, find
 
 #  Solver / support leaves referred to by class below.  Imported as classes (not
 #  instances) on purpose:  the checks ask "is this ALGORITHM in the tree", never
@@ -431,19 +431,40 @@ def discovered_leaf_classes():
 #    Tests
 #
 
-def alt_tree(nodes, worktools):
-    '''A tree with a DIFFERENT shape from build_default_bt(), built from the same
-       leaves:  one loop level instead of two, the failure-swallowing Priority
-       moved inside the loop, different loop budgets.  Used to prove this suite
-       accepts trees other than today's.'''
-    body = b3.Sequence([nodes['asgn'], nodes['sumOfAnglesID'], worktools])
+def leaf(node, name):
+    '''The node named `name` at or below `node`.
+
+       This replaces the old make_leaves() dict.  The tests reach a leaf the
+       same way production does now -- by Name, through bt_assembly.find() --
+       so there is no inventory to keep in step with the tree.'''
+    n = find(node, name)
+    assert n is not None, 'bt_assembly_test fixture: no node named %r' % name
+    return n
+
+
+def alt_tree(worktools):
+    '''A tree with a DIFFERENT shape from build_default_bt():  one loop level
+       instead of two, the failure-swallowing Priority moved inside the loop,
+       different loop budgets.  Used to prove this suite accepts trees other
+       than today's.
+
+       It builds its OWN support leaves rather than borrowing another tree's.
+       The point is an independent assembly, and sharing instances between two
+       trees is the very thing bt_problems() reports as a shared node.'''
+    asgn = assigner();      asgn.Name = 'alt: Assigner'
+    soa  = sum_id();        soa.Name  = 'alt: Sum of Angles ID'
+    subt = sub_transform(); subt.Name = 'alt: Substitution Transform'
+    upd  = updateL();       upd.Name  = 'alt: updateL Transform'
+    comp = comp_det();      comp.Name = 'alt: Completion Detect'
+
+    body = b3.Sequence([asgn, soa, worktools])
     body.Name = 'alt: assign + SOA + solve'
 
     loop = b3.RepeatUntilSuccess(b3.Priority([body, b3.Succeeder()]), 25)
     loop.Name = 'alt: solve loop'
 
-    onepass = b3.Sequence([b3.Priority([nodes['sub_trans'], b3.Succeeder()]),
-                           loop, nodes['updateLNode'], nodes['compDetect']])
+    onepass = b3.Sequence([b3.Priority([subt, b3.Succeeder()]),
+                           loop, upd, comp])
     onepass.Name = 'alt: one pass'
 
     top = b3.RepeatUntilSuccess(onepass, 4)
@@ -463,7 +484,7 @@ class TestSolver013(unittest.TestCase):
 
     def runTest(self):
         self.test_btaA_default_tree_is_sound()
-        self.test_btaB_default_tree_uses_every_leaf_it_builds()
+        self.test_btaB_three_solver_instances_not_three_positions()
         self.test_btaC_reordered_worktools_is_sound()
         self.test_btaD_alternative_shape_is_sound()
         self.test_btaE_no_root_detected()
@@ -477,7 +498,7 @@ class TestSolver013(unittest.TestCase):
         self.test_btaM_shared_node_and_cycle_detected()
         self.test_btaN_unnamed_and_duplicate_names_detected()
         self.test_btaO_debug_flags_reach_the_leaves()
-        self.test_btaP_nodes_dict_is_the_tree()
+        self.test_btaP_find_reaches_the_instance_in_the_tree()
         self.test_btaQ_leaf_inventory_advisory()
         self.test_btaR_codegen_is_off_unless_asked()
         self.test_btaS_hybrid_branch_can_succeed()
@@ -492,46 +513,58 @@ class TestSolver013(unittest.TestCase):
            test that looks at the default tree as a whole, and it asserts
            soundness, not shape -- re-ordering worktools keeps it passing.'''
         fs = ' bt_assembly FAIL: default tree has structural problems:\n   '
-        bt, nodes = build_default_bt()
+        bt = build_default_bt()
         probs = bt_problems(bt)
         self.assertEqual(probs, [], fs + '\n   '.join(probs))
 
-    def test_btaB_default_tree_uses_every_leaf_it_builds(self):
-        '''make_leaves() exists to serve the default tree, so a node in the dict
-           that is not IN the tree means someone built a leaf and forgot to wire
-           it up.  (Checks reachability, not position.)'''
-        fs = ' bt_assembly FAIL'
-        bt, nodes = build_default_bt()
-        in_tree = bt_nodes(bt)
-        for key, node in sorted(nodes.items()):
-            self.assertTrue(any(n is node for n in in_tree),
-                            fs + ' (node "%s" (%s) is in the make_leaves dict but '
-                            'is not reachable from the root -- never ticks)'
-                            % (key, node.__class__.__name__))
+    def test_btaB_three_solver_instances_not_three_positions(self):
+        '''THREE INSTANCES, ONE PER BRANCH -- the claim the file header makes.
+
+           b3 keys per-node state on the blackboard by node id, and ids are per
+           instance, so one solver instance in three tree POSITIONS would have
+           its is_open flag and loop counters fought over by the three branches.
+           Each branch therefore builds its own, tagged so the tick log can tell
+           them apart.
+
+           (This replaces a test that every leaf in the make_leaves() dict was
+           reachable from the root.  That failure mode -- building a leaf and
+           forgetting to wire it -- cannot happen now that every leaf is
+           constructed by the builder that wires it.)'''
+        fs = ' bt_assembly instance FAIL'
+        bt = build_default_bt()
+
+        branches = [leaf(bt.root, 'Symbolic Branch'),
+                    leaf(bt.root, 'Symbolic Branch (onevar)'),
+                    leaf(bt.root, 'Symbolic Branch (hybrid)')]
+
+        sets = [{id(n) for n in bt_nodes(b)} for b in branches]
+        for i in range(len(sets)):
+            for j in range(i + 1, len(sets)):
+                self.assertEqual(sets[i] & sets[j], set(),
+                                 fs + ' (branches %d and %d share a node '
+                                 'INSTANCE -- b3 would collide on its id)'
+                                 % (i, j))
 
     def test_btaC_reordered_worktools_is_sound(self):
         '''worktools order IS the solver preference policy, and changing it is a
            legitimate experiment (see build_worktools.__doc__ on promoting
            invariantGen).  A re-ordered worktools must still lint clean.'''
         fs = ' bt_assembly FAIL: reordered worktools rejected:\n   '
-        nodes = make_leaves()
-        wt = build_worktools(nodes)
+        wt = build_worktools()
         self.assertTrue(isinstance(wt, b3.Composite),
                         ' bt_assembly FAIL (worktools is not a composite)')
 
         reversed_wt = b3.Priority(list(reversed(wt.children)))
         reversed_wt.Name = 'Work Tools (reversed)'
-        probs = bt_problems(alt_tree(nodes, reversed_wt))
+        probs = bt_problems(alt_tree(reversed_wt))
         self.assertEqual(probs, [], fs + '\n   '.join(probs))
 
     def test_btaD_alternative_shape_is_sound(self):
         '''Same leaves, different topology -- the case the old version of this
            test failed by design.'''
         fs = ' bt_assembly FAIL: alternative tree shape rejected:\n   '
-        nodes = make_leaves()
-        wt = build_worktools(nodes)
-        wt.Name = 'Work Tools'
-        probs = bt_problems(alt_tree(nodes, wt))
+        wt = build_worktools()
+        probs = bt_problems(alt_tree(wt))
         self.assertEqual(probs, [], fs + '\n   '.join(probs))
 
     #  ------------------------------------------------  the error cases
@@ -555,37 +588,30 @@ class TestSolver013(unittest.TestCase):
         '''A childless Priority always FAILs and a childless Sequence always
            SUCCEEDs -- both without a word of complaint from b3, which is the
            worst way for a mis-assembled tree to behave.'''
-        nodes = make_leaves()
-
         empty_pri = b3.Priority([])
         empty_pri.Name = 'empty worktools'
-        self.has(bt_problems(alt_tree(nodes, empty_pri)),
+        self.has(bt_problems(alt_tree(empty_pri)),
                  'empty Priority', 'always FAILs')
 
-        nodes = make_leaves()
         empty_seq = b3.Sequence([])
         empty_seq.Name = 'empty sequence'
-        wt = b3.Priority(build_worktools(nodes).children + [empty_seq])
+        wt = b3.Priority(build_worktools().children + [empty_seq])
         wt.Name = 'Work Tools'
-        self.has(bt_problems(alt_tree(nodes, wt)),
+        self.has(bt_problems(alt_tree(wt)),
                  'empty Sequence', 'always SUCCEEDs')
 
         #  and an empty OrNode, which is the same bug in the tan/sincos slot
-        nodes = make_leaves()
         empty_or = b3.OrNode()
         empty_or.Name = 'empty ornode'
-        wt = b3.Priority(build_worktools(nodes).children + [empty_or])
+        wt = b3.Priority(build_worktools().children + [empty_or])
         wt.Name = 'Work Tools'
-        self.has(bt_problems(alt_tree(nodes, wt)), 'empty OrNode')
+        self.has(bt_problems(alt_tree(wt)), 'empty OrNode')
 
     def test_btaG_empty_decorator_detected(self):
         '''b3.Decorator defaults .child to [] and RepeatUntilSuccess returns
            b3.ERROR on a missing child -- ERROR is not FAILURE, so the parent
            composite treats it as success and the pass looks fine.'''
-        nodes = make_leaves()
-        wt = build_worktools(nodes)
-        wt.Name = 'Work Tools'
-        bt = alt_tree(nodes, wt)
+        bt = alt_tree(build_worktools())
 
         orphan = b3.RepeatUntilSuccess(None, 3)
         orphan.Name = 'loop with no child'
@@ -597,30 +623,25 @@ class TestSolver013(unittest.TestCase):
         '''b3.Sequence([tan_id, tan_solve]) -- forgetting the parens -- builds a
            tree that only blows up later, deep in a tick, with an unhelpful
            AttributeError.'''
-        nodes = make_leaves()
         bad = b3.Sequence([tan_id, tan_solve])       # classes, not instances!
         bad.Name = 'tan (mis-wired)'
-        wt = b3.Priority(build_worktools(nodes).children + [bad])
+        wt = b3.Priority(build_worktools().children + [bad])
         wt.Name = 'Work Tools'
-        self.has(bt_problems(alt_tree(nodes, wt)),
+        self.has(bt_problems(alt_tree(wt)),
                  'bad child', 'class, not instance')
 
         #  and outright junk in a child slot
-        nodes = make_leaves()
         junk = b3.Sequence(['solve it please'])
         junk.Name = 'junk'
-        wt = b3.Priority(build_worktools(nodes).children + [junk])
+        wt = b3.Priority(build_worktools().children + [junk])
         wt.Name = 'Work Tools'
-        self.has(bt_problems(alt_tree(nodes, wt)), 'is not a b3 node')
+        self.has(bt_problems(alt_tree(wt)), 'is not a b3 node')
 
     def test_btaI_missing_solver_detected(self):
         '''Dropping a solver silently costs IKBT whole robots.  Every entry in
            REQUIRED_SOLVERS / REQUIRED_SUPPORT is checked this way.'''
         for cls in REQUIRED_SOLVERS + REQUIRED_SUPPORT:
-            nodes = make_leaves()
-            wt = build_worktools(nodes)
-            wt.Name = 'Work Tools'
-            bt = alt_tree(nodes, wt)
+            bt = alt_tree(build_worktools())
 
             #  prune every node of this class out of the tree
             for node in bt_nodes(bt):
@@ -638,57 +659,52 @@ class TestSolver013(unittest.TestCase):
         '''An ID leaf stashes blackboard state that its solver consumes, so a
            solver without its ID, or ahead of its ID, is a real defect.'''
         #  solver present, ID gone
-        nodes = make_leaves()
-        wt = build_worktools(nodes)
-        wt.Name = 'Work Tools'
-        bt = alt_tree(nodes, wt)
-        nodes['algSol'].children = [nodes['algSolver']]      # ID dropped
+        wt = build_worktools()
+        bt = alt_tree(wt)
+        leaf(wt, 'Algebra ID and Solve').children = [
+            leaf(wt, 'Algebra Solver')]                      # ID dropped
         self.has(bt_problems(bt), 'unpaired leaf', 'algebra_id')
 
         #  ID present, solver gone
-        nodes = make_leaves()
-        wt = build_worktools(nodes)
-        wt.Name = 'Work Tools'
-        bt = alt_tree(nodes, wt)
-        nodes['Simu_Eqn_Sol'].children = [nodes['SimuEqnID']]
+        wt = build_worktools()
+        bt = alt_tree(wt)
+        leaf(wt, 'Simultaneous Eqn ID+Solve').children = [
+            leaf(wt, 'Simultaneous Eqn ID')]
         self.has(bt_problems(bt), 'unpaired leaf', 'simu_solver')
 
         #  both present, wrong order
-        nodes = make_leaves()
-        wt = build_worktools(nodes)
-        wt.Name = 'Work Tools'
-        bt = alt_tree(nodes, wt)
-        nodes['tanSol'].children = [nodes['tanSolver'], nodes['tanID']]
+        wt = build_worktools()
+        bt = alt_tree(wt)
+        leaf(wt, 'TanID+Solv').children = [leaf(wt, 'Tangent Solver'),
+                                           leaf(wt, 'Tangent ID')]
         self.has(bt_problems(bt), 'ordering', 'tan_id', 'tan_solve')
 
         #  both present but never sequenced together (siblings under a Priority,
         #  so the solver can be reached on a tick where the ID did not run)
-        nodes = make_leaves()
-        wt = b3.Priority([nodes['tanID'], nodes['tanSolver'],
-                          nodes['algSol'], nodes['sc_tan'],
-                          nodes['Simu_Eqn_Sol'], nodes['sacSol'],
-                          nodes['invariantGen']])
+        src = build_worktools()
+        wt = b3.Priority([leaf(src, 'Tangent ID'), leaf(src, 'Tangent Solver'),
+                          leaf(src, 'Algebra ID and Solve'),
+                          leaf(src, 'Tan/SinCos + Rank'),
+                          leaf(src, 'Simultaneous Eqn ID+Solve'),
+                          leaf(src, 'Sin AND Cos ID+Solve'),
+                          leaf(src, 'Invariant Generator')])
         wt.Name = 'Work Tools'
-        nodes['tanSol'].children = []              # move them out of the Sequence
-        self.has(bt_problems(alt_tree(nodes, wt)), 'ordering')
+        leaf(src, 'TanID+Solv').children = []   # move them out of the Sequence
+        self.has(bt_problems(alt_tree(wt)), 'ordering')
 
     def test_btaK_missing_rank_detected(self):
         '''tan_solve and sincos_solve leave set_solved() to the rank leaf
            (tan_solver.py:350).  Without rank they solve and discard.'''
-        nodes = make_leaves()
-        wt = build_worktools(nodes)
-        wt.Name = 'Work Tools'
-        bt = alt_tree(nodes, wt)
-        nodes['sc_tan'].children = [nodes['sc_tan'].children[0]]   # rank dropped
+        wt = build_worktools()
+        bt = alt_tree(wt)
+        sc_tan = leaf(wt, 'Tan/SinCos + Rank')
+        sc_tan.children = [sc_tan.children[0]]                     # rank dropped
         self.has(bt_problems(bt), 'missing rank', 'set_solved')
 
     def test_btaL_bad_loop_budget_detected(self):
         '''max_loop == 0 never runs the child;  max_loop < 0 is unbounded, which
            turns "no progress" into a hang instead of a report.'''
-        nodes = make_leaves()
-        wt = build_worktools(nodes)
-        wt.Name = 'Work Tools'
-        bt = alt_tree(nodes, wt)
+        bt = alt_tree(build_worktools())
         bt.root.max_loop = 0
         self.has(bt_problems(bt), 'max_loop == 0')
 
@@ -700,15 +716,14 @@ class TestSolver013(unittest.TestCase):
            same INSTANCE in two places is not two nodes -- it is one node whose
            open/close state the two positions fight over.  A cycle is the same
            mistake taken further:  the tick recurses forever.'''
-        nodes = make_leaves()
-        wt = b3.Priority(build_worktools(nodes).children + [nodes['algSol']])
+        src = build_worktools()
+        wt = b3.Priority(list(src.children)
+                         + [leaf(src, 'Algebra ID and Solve')])
         wt.Name = 'Work Tools'                     # algSol wired in twice
-        self.has(bt_problems(alt_tree(nodes, wt)), 'shared node')
+        self.has(bt_problems(alt_tree(wt)), 'shared node')
 
-        nodes = make_leaves()
-        wt = build_worktools(nodes)
-        wt.Name = 'Work Tools'
-        bt = alt_tree(nodes, wt)
+        wt = build_worktools()
+        bt = alt_tree(wt)
         wt.children = list(wt.children) + [bt.root]      # root under itself
         self.has(bt_problems(bt), 'cycle')
 
@@ -716,58 +731,66 @@ class TestSolver013(unittest.TestCase):
         '''Name is what the tick log and logs/* show.  An unnamed leaf prints as
            a bare class, and two leaves sharing a Name are indistinguishable in
            a 60-tick trace -- which is exactly when you are reading the trace.'''
-        nodes = make_leaves()
-        wt = build_worktools(nodes)
-        wt.Name = 'Work Tools'
-        bt = alt_tree(nodes, wt)
-        nodes['tanID'].Name = ''
+        wt = build_worktools()
+        bt = alt_tree(wt)
+        tanID = leaf(wt, 'Tangent ID')
+        tanID.Name = ''
         self.has(bt_problems(bt), 'unnamed node', 'tan_id')
-        nodes['tanID'].Name = 'Tangent ID'
+        tanID.Name = 'Tangent ID'
 
-        nodes['scID'].Name = nodes['sacID'].Name = 'Sin Cos ID'
+        leaf(wt, 'Sin Cos ID').Name = 'dup'
+        leaf(wt, 'Sin AND Cos ID').Name = 'dup'
         self.has(bt_problems(bt), 'duplicate Name')
 
-    #  ------------------------------------------------  the make_leaves contract
+    #  --------------------------------------------  the builder contract
 
     def test_btaO_debug_flags_reach_the_leaves(self):
-        '''make_leaves(leaf_debug=, solver_debug=) replaced ~200 lines of
+        '''build_default_bt(leaf_debug=, solver_debug=) replaced ~200 lines of
            commented-out debug blocks in ikSolver.py.  If the arguments stop
            arriving, debugging quietly does nothing.'''
         fs = ' bt_assembly debug flag FAIL'
-        nodes = make_leaves(leaf_debug=True, solver_debug=False)
-        self.assertTrue(nodes['tanID'].BHdebug, fs + ' (leaf_debug ignored)')
+        bt = build_default_bt(leaf_debug=True, solver_debug=False)
+        self.assertTrue(leaf(bt.root, 'Tangent ID').BHdebug,
+                        fs + ' (leaf_debug ignored)')
 
-        nodes = make_leaves(leaf_debug=False, solver_debug=True)
-        self.assertTrue(nodes['tanSolver'].BHdebug, fs + ' (solver_debug ignored)')
+        bt = build_default_bt(leaf_debug=False, solver_debug=True)
+        self.assertTrue(leaf(bt.root, 'Tangent Solver').BHdebug,
+                        fs + ' (solver_debug ignored)')
 
-    def test_btaP_nodes_dict_is_the_tree(self):
-        '''build_default_bt() hands back the node dict so a caller can set
-           BHdebug (or invariantGen.enabled) on the instances the tree really
-           holds.  If it ever handed back copies, every such flag would silently
-           do nothing -- so check by identity, not by shape.'''
-        fs = ' bt_assembly node sharing FAIL'
-        bt, nodes = build_default_bt()
+        #  and it must reach the TAGGED copies too, not just the first branch
+        bt = build_default_bt(leaf_debug=True, solver_debug=False)
+        for tag in ('', ' (onevar)', ' (hybrid)'):
+            self.assertTrue(leaf(bt.root, 'Tangent ID' + tag).BHdebug,
+                            fs + ' (leaf_debug did not reach "%s")' % tag)
+
+    def test_btaP_find_reaches_the_instance_in_the_tree(self):
+        '''find() is how a caller configures a leaf now that there is no node
+           dict, so it must return the instance the tree really holds.  If it
+           ever returned a copy, every BHdebug / enabled flag set through it
+           would silently do nothing -- so check by IDENTITY, not by shape.'''
+        fs = ' bt_assembly find() FAIL'
+        bt = build_default_bt()
         in_tree = bt_nodes(bt)
 
-        target = nodes['tanID']
+        target = leaf(bt.root, 'Tangent ID')
         found = [n for n in in_tree if n is target]
         self.assertEqual(len(found), 1,
-                         fs + ' (nodes["tanID"] is not the instance in the tree)')
+                         fs + ' (find() did not return the tree\'s instance)')
 
         target.BHdebug = True
         self.assertTrue(found[0].BHdebug,
-                        fs + ' (flag set via the nodes dict did not reach the tree)')
+                        fs + ' (a flag set through find() did not reach the tree)')
         target.BHdebug = False
 
-        #  the documented nodes= path must reuse the caller's instances too
-        pre = make_leaves()
-        pre['invariantGen'].enabled = True
-        bt2, nodes2 = build_default_bt(nodes=pre)
-        self.assertIs(nodes2['invariantGen'], pre['invariantGen'], fs)
-        self.assertTrue([n for n in bt_nodes(bt2)
-                         if n is pre['invariantGen']][0].enabled,
-                        fs + ' (build_default_bt(nodes=...) did not use the '
-                        'caller\'s nodes)')
+        #  the documented way to switch invariant_gen off
+        gen = leaf(bt.root, 'Invariant Generator')
+        self.assertTrue(gen.enabled, fs + ' (invariant_gen should ship ON)')
+        gen.enabled = False
+        self.assertFalse([n for n in in_tree if n is gen][0].enabled, fs)
+
+        #  a name that is not there returns None rather than raising
+        self.assertIsNone(find(bt.root, 'No Such Leaf'),
+                          fs + ' (find() must return None, not raise)')
 
     def test_btaQ_leaf_inventory_advisory(self):
         '''ADVISORY, does not fail:  list any b3 node class in ikbtleaves/ that
@@ -804,22 +827,15 @@ class TestSolver013(unittest.TestCase):
            suite.'''
         fs = ' bt_assembly codegen FAIL'
 
-        bt, nodes = build_default_bt()
+        bt = build_default_bt()
         gens = [n for n in bt_nodes(bt) if isinstance(n, report_gen)]
         self.assertEqual(len(gens), 1, fs + ' (expected exactly one codegen leaf)')
         self.assertFalse(gens[0].enabled,
                          fs + ' (codegen is ON by default -- it must not be)')
 
-        bt, nodes = build_default_bt(codegen=True)
+        bt = build_default_bt(codegen=True)
         gens = [n for n in bt_nodes(bt) if isinstance(n, report_gen)]
         self.assertTrue(gens[0].enabled, fs + ' (codegen=True did not enable it)')
-
-        #  ... and the opt-in must survive the documented nodes= path, which is
-        #  where it would be easy to drop it.
-        pre = make_leaves()
-        bt, nodes = build_default_bt(nodes=pre, codegen=True)
-        self.assertTrue(pre['reportGen'].enabled,
-                        fs + ' (codegen=True lost through nodes=)')
 
     def test_btaS_hybrid_branch_can_succeed(self):
         '''The hybrid branch must be able to SUCCEED, and must end on the solver.
@@ -838,10 +854,10 @@ class TestSolver013(unittest.TestCase):
            child of it is a leaf that cannot succeed.'''
         fs = ' bt_assembly hybrid FAIL'
 
-        bt, nodes = build_default_bt()
-        hb = nodes['hybridBranch']
+        bt = build_default_bt()
+        hb = leaf(bt.root, 'Hybrid Branch')
 
-        self.assertIs(hb.children[-1], nodes['symbolicBranch_hybrid'],
+        self.assertIs(hb.children[-1], leaf(bt.root, 'Symbolic Branch (hybrid)'),
                       fs + ' (the branch must END on the second solver -- a'
                       ' trailing leaf after it can only withhold the result)')
 
@@ -904,7 +920,7 @@ class TestSolver013(unittest.TestCase):
                whose only other answer was "unsolved" (BH, 2026-08-31).
 
            So the leaf ALWAYS RETURNS SUCCESS and ticks for its side effects
-           alone -- pieper_triples, pieper_ok, and the pieper_latex snapshot of
+           alone -- pieper_triples and the pieper_latex snapshot of
            the TRUE robot.  A leaf that cannot FAIL cannot gate anything, in
            either branch, however it is wired;  that is why it needs no
            Priority[.., Succeeder] wrapper.  What gates the hybrid branch is
@@ -918,7 +934,7 @@ class TestSolver013(unittest.TestCase):
            creeping back.'''
         fs = ' bt_assembly pieper_geom_report gating FAIL'
 
-        bt, nodes = build_default_bt()
+        bt = build_default_bt()
         memo = {}
 
         sel = [n for n in bt_nodes(bt)
@@ -969,7 +985,7 @@ class TestSolver013(unittest.TestCase):
            b3.Sequence aborts on FAILURE, so a solve that got nowhere never
            reaches it and no empty report is written.'''
         fs = ' bt_assembly report_gen FAIL'
-        bt, nodes = build_default_bt()
+        bt = build_default_bt()
 
         gens = [n for n in bt_nodes(bt) if isinstance(n, report_gen)]
         self.assertEqual(len(gens), 1,
@@ -996,8 +1012,8 @@ class TestSolver013(unittest.TestCase):
            pieper_geom_report, and must not be reachable from the symbolic branch.
 
            It IS the hybrid branch's gate now (pieper_geom_report cannot FAIL),
-           and it must still run second, because it reads pieper_ok and refuses
-           when the DH analysis did not run -- the only thing left between an
+           and it must still run second, because it reads pieper_triples and
+           refuses on None, meaning the DH analysis did not run -- the only thing left between an
            unparseable table and a derived robot describing nothing.
 
            Ranking simplifications costs a couple of seconds of joint-space
@@ -1006,7 +1022,7 @@ class TestSolver013(unittest.TestCase):
            standing invitation to use it.'''
         fs = ' bt_assembly simplified_arm placement FAIL'
 
-        bt, nodes = build_default_bt()
+        bt = build_default_bt()
         memo = {}
 
         arms = [n for n in bt_nodes(bt) if isinstance(n, simplified_arm)]
@@ -1035,12 +1051,12 @@ class TestSolver013(unittest.TestCase):
             if gi is not None and ai is not None and gi != ai:
                 self.assertLess(gi, ai,
                                 fs + ' (simplified_arm runs BEFORE '
-                                'pieper_geom_report in "%s", so pieper_ok is '
-                                'not set yet)' % node.Name)
+                                'pieper_geom_report in "%s", so pieper_triples '
+                                'is not set yet)' % node.Name)
                 placed = True
         self.assertTrue(placed,
                         fs + ' (simplified_arm does not share a Sequence with '
-                        'pieper_geom_report -- pieper_ok would never be set)')
+                        'pieper_geom_report -- pieper_triples would never be set)')
 
 
 def run_test():

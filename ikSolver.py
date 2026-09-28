@@ -6,7 +6,13 @@
 #   and the behavior tree in ikbtfunctions/bt_assembly.py, so importing either
 #   does not trigger a solve.
 #
-#        python3 ikSolver.py <RobotName>       ( no argument -> Wrist )
+#        python3 ikSolver.py <RobotName> [--perf]   ( no argument -> Wrist )
+#
+#   --perf  report per-call sympy timings, and name each slow call AS IT
+#           HAPPENS.  That heartbeat is the only thing that can print from
+#           inside a blocking sp.simplify(), so it is what to reach for when
+#           a robot looks hung.  Off by default: the extra lines bury the
+#           per-pass progress report.
 
 # Copyright 2017 University of Washington
 
@@ -63,12 +69,12 @@ def banner():
         print('-'*50)
 
 
-#  Diagnostics for a slow solve:  per-call sympy timings and report-fitting
-#  messages.  Off by default because they bury the per-pass progress lines.
-PERFORMANCE_OUTPUT = False
-
-
 def main(argv):
+    #  --perf is stripped from argv HERE, before the robot-name logic below,
+    #  which is positional and counts arguments.
+    performance_output = '--perf' in argv
+    argv = [a for a in argv if a != '--perf']
+
 
     ########################################################
     #
@@ -101,10 +107,8 @@ def main(argv):
     #
     #     Set up robot equations for further solution by BT
     #
-    print('xxxxxxx got here')
 
     M, R, unknowns = load_robot(robot)
-    print('****** got here')
 
     i=0
     #  Warn user of special case (\alpha_i != n*np.pi/2)
@@ -123,13 +127,13 @@ def main(argv):
     #
     #  codegen=True: the tree writes LaTex/ and CodeGen/ via the output_gen_full
     #  leaf.  This front end is the only caller that wants those side effects.
-    ikbt, nodes = build_default_bt(leaf_debug=False, solver_debug=False,
-                                   codegen=not TEST_DATA_GENERATION)
+    ikbt = build_default_bt(leaf_debug=False, solver_debug=False,
+                            codegen=not TEST_DATA_GENERATION)
 
     #  Most of a solve is spent inside sp.simplify().  The meter is the only
     #  thing that can print DURING a blocking simplify, so it is useful when a
     #  robot appears to hang.  It wraps a sympy class, hence opt-in.
-    if PERFORMANCE_OUTPUT:
+    if performance_output:
         enable_sympy_meter()
         ik_driver.REPORT_PROGRESS = True
 
@@ -138,16 +142,21 @@ def main(argv):
     #
     #     Logging and per-robot debug setup
     #
-    #   Every node is reachable through the `nodes` dict, e.g.
+    #   Every node is reachable by Name with bt_assembly.find(), e.g.
+    #
+    #       from ikbtfunctions.bt_assembly import find
+    #       find(ikbt.root, 'Tangent ID').BHdebug = True
+    #       find(ikbt.root, 'Sum of Angles ID').BHdebug = True
+    #       find(ikbt.root, 'Completion Detect').FailAllDone = True
+    #                       # SUCCEED when work REMAINS
+    #                       # (default False = succeed when all done)
+    #
+    #   A tagged copy: find(ikbt.root, 'Tangent ID (onevar)').
+    #   Logging, e.g.
     #
     #       ikbt.log_flag = 2       # log exits: 1=SUCCESS only, 2=BOTH S,F
     #       ikbt.log_file = open('logs/BT_'+robot+'_node_log.txt', 'w')
     #       ikbt.log_file.write(robot+' Solution Node Log\n')
-    #
-    #       nodes['tanID'].BHdebug        = True
-    #       nodes['x2z2_Solver'].BHdebug  = True
-    #       nodes['sumOfAnglesID'].BHdebug = True
-    #       nodes['compDetect'].FailAllDone = True   # SUCCEED when work REMAINS (default False = succeed when all done)
 
     ################################################################################
     #

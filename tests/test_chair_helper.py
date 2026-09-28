@@ -50,7 +50,7 @@ class TestChairHelper(unittest.TestCase):
     def setUpClass(cls):
         print('\n\n=========  Full IK solve:  Chair_Helper  =========\n')
         M, R, unknowns = load_robot('Chair_Helper')
-        bt, nodes = build_default_bt()
+        bt = build_default_bt()
         R, unks, bb = run_solver(R, unknowns, bt)
         cls._unks = unks
 

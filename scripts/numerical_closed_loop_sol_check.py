@@ -113,7 +113,7 @@ def robot_fk(name):
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
         dh, vv, params, pvals, unks = robot_params(name)
-        M, R, unks = kinematics_pickle(name, dh, params, pvals, vv, unks, False)
+        M, R, unks = kinematics_pickle(name, dh, params, pvals, vv, unks)
 
     jnames = [str(s) for s in nik.joint_symbols(M)]
     return nik.fk_callable(M), jnames

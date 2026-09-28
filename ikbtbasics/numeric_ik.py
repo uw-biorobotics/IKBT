@@ -104,27 +104,8 @@ def pvals_numeric(M):
     return out
 
 
-def dof_of(M, maxrows=6):
-    '''How many joints this arm really has.
-
-       The DH table is ALWAYS 6 rows -- shorter arms are padded with [0,0,0,0]
-       -- so count the leading rows whose joint cell carries a symbol.
-
-       This must NOT be taken from the unknown list:  kinematics_pickle()
-       extends that list with sum-of-angle variables, so e.g. Craig417 reports
-       5 unknowns for 4 joints.'''
-
-
-    # TODO: refactor to replace this method with a new member of the
-    #       mechanism class.  Self create it on init:
-    #       self.nDOF = (method below)
-    n = 0
-    for r in range(maxrows):
-        (jr, jc), kind = da.joint_cell(M.DH, M.vv, r)
-        if not sp.sympify(M.DH[jr, jc]).free_symbols:
-            break                      # padding starts here
-        n = r + 1
-    return n
+#  dof_of() lived here.  The joint count is a fixed property of the DH table,
+#  so it is now computed once in mechanism.__init__ and read as M.ndof.
 
 
 def joint_symbols(M, ndof=None):
@@ -135,7 +116,7 @@ def joint_symbols(M, ndof=None):
        DH table is what fixes the order a q vector must be in.'''
 
     if ndof is None:
-        ndof = dof_of(M)
+        ndof = M.ndof
     syms = []
     for r in range(ndof):
         (jr, jc), kind = da.joint_cell(M.DH, M.vv, r)
@@ -171,7 +152,7 @@ def _lambdify_checked(expr_matrix, syms, what):
 
 
 def fk_callable(M, ndof=None):
-    '''q -> 4x4 homogeneous transform, as pure numpy.  len(q) == dof_of(M).'''
+    '''q -> 4x4 homogeneous transform, as pure numpy.  len(q) == M.ndof.'''
     pv = pvals_numeric(M)
     syms = joint_symbols(M, ndof)
     return _lambdify_checked(sp.Matrix(M.T_06).subs(pv), syms, 'T_06')
@@ -188,7 +169,7 @@ def jacobian_callable(M, ndof=None):
        Use jacobian_base() to rotate the result into the base frame, where the
        pose error lives.'''
     if ndof is None:
-        ndof = dof_of(M)
+        ndof = M.ndof
     pv = pvals_numeric(M)
     syms = joint_symbols(M, ndof)
     J = sp.Matrix(M.J66).subs(pv)[:, :ndof]
@@ -453,7 +434,7 @@ class TestSolver022(unittest.TestCase):
 
         for name in ('Puma', 'KinovaLite', 'Craig417', 'ICP5p5_A21'):
             M, R, unks = _robot(name)
-            ndof = dof_of(M)
+            ndof = M.ndof
             fk = fk_callable(M, ndof)
             rows, slots, kinds, defaulted = da.compile_rows(M.DH, M.pvals,
                                                             M.vv, ndof)
@@ -661,14 +642,14 @@ class TestSolver022(unittest.TestCase):
     def test_nikI_sub_six_dof_arm(self):
         """A 4-DOF table padded to 6 rows must use 4 joints, not 6.
 
-           ICP5p5_A21 is the case:  dof_of() must say 4, the Jacobian must be
+           ICP5p5_A21 is the case:  M.ndof must say 4, the Jacobian must be
            6x4 (J66 is stored 6x6 with NON-zero surplus columns), and a
            reachable target must still converge."""
 
         fs = ' numeric_ik sub-6-DOF FAIL'
         M, R, unks = _robot('ICP5p5_A21')
-        n = dof_of(M)
-        self.assertEqual(n, 4, fs + ' (dof_of said %d)' % n)
+        n = M.ndof
+        self.assertEqual(n, 4, fs + ' (M.ndof said %d)' % n)
 
         fk, jac = fk_callable(M), jacobian_callable(M)
         q = np.array([0.3, 0.2, 0.4, 0.5])

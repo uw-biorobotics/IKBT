@@ -62,13 +62,19 @@ pprotocol = 2
 #
 #   retrieve forward kinematics from a pickle file if it exists.
 #      if it doesn't, compute the FK and store it in a pickle file.
-def kinematics_pickle(rname, dh, constants, pvals, vv, unks, test):
-    #
-    #   Check for a pickle file of combined pre-computed Mech and Robot objects
-    #
-    #  TODO: refactor code to get rid of unused "test" argument
+def kinematics_pickle(rname, dh, constants, pvals, vv, unks,
+                      pickle_dir='fk_eqns/'):
+    """The mechanism, Robot and (extended) unknown list for `rname`, from the
+       FK cache when there is a usable one and from scratch when there is not.
 
-    pickle_dir = 'fk_eqns/'
+       pickle_dir -- where the cache lives.  A PARAMETER so that the COLD path
+       can be exercised without touching the repo's fk_eqns/:  point it at a
+       tempfile.TemporaryDirectory() and the first call computes, the second
+       loads.  That path -- forward_kinematics() and the sum-of-angles scan --
+       is otherwise never run by the unit suite, because the suite always finds
+       a warm cache, and a bug that only a cold cache reaches went unnoticed for
+       exactly that reason (2026-09-27).  See TestSolver030.
+    """
 
     if not os.path.isdir(pickle_dir):  # if this doesn't exist, create it.
         print('Creating a new pickle directory: ./'+pickle_dir)
@@ -98,6 +104,15 @@ def kinematics_pickle(rname, dh, constants, pvals, vv, unks, test):
 
         if m is not None and not dh_tables_match(getattr(m, 'DH', None), dh):
             print('   Cached DH table differs from the current one -- recomputing.')
+            m = R = unknowns = None
+
+        #  A pickle written before mechanism.ndof existed carries no joint
+        #  count, and unpickling does not call __init__, so it never would.
+        #  Every consumer now reads M.ndof, so treat its absence as staleness
+        #  -- same self-healing contract as the DH check above, and it means
+        #  nobody has to be told to delete their fk_eqns/ by hand.
+        if m is not None and getattr(m, 'ndof', None) is None:
+            print('   Cached mechanism predates M.ndof -- recomputing.')
             m = R = unknowns = None
 
         if m is not None:
@@ -353,8 +368,12 @@ class Robot:
     #   as two different equations.  These are common, and they make a pair of
     #   equations look independent when the pair carries no extra information.
     #
-    #  TODO: would it be better to fix kequation._eq_ to return equality if
-    #          LHS and RHS meet this condition??
+    #   NOT kequation.__eq__ (asked and answered, BH 2026-09-27).  Two callers
+    #   need __eq__ to stay exact STRUCTURAL equality:  two_eqn_m7.simu_id
+    #   dedups its candidate list with `if e_flat not in eqn_list`, and the
+    #   solver leaves are sp.Wild matchers.  Collapsing sign there would make
+    #   equality mean one thing to the scan and another to the matchers.  The
+    #   collapse belongs here, at the scan site, where the dedup is wanted.
     #
     #   DO NOT extend this to collapse a re-split of the same statement, i.e.
     #
@@ -619,18 +638,32 @@ def sum_of_angles_sub(R, expr, variables):
         print('sum_of_angles_sub: Ive found a new SOA equation, ', tmpeqn, 'it is a 3-way SOA: ', found3)
     return (expr, newjoint, tmpeqn)
 
-# TODO: add concise comment describing uses of this.  Check if current code ever triggers this error.
+#  Chain position of `symb` among the joint variables.
+#
+#  The n == 0 guard fires for real:  unknown.n defaults to 0 meaning UNSET, and
+#  a caller that numbers its unknowns from 0 hands the first one that sentinel.
+#  x2y2_transform's self-test did exactly that, and it went unnoticed because
+#  only a COLD pickle reaches the sum-of-angles scan that calls this.
+#  (Diagnosed 2026-09-27.)
 def get_variable_index(vars, symb):
     for v in vars:
         if v.n == 0:
-            print('get_variable_index()/ik_classes: at least one index is not initialized for joint variables (or is 0!)')
-            quit()
-        found = False
+            #  RAISE, do not quit().  This runs inside the sum-of-angles scan,
+            #  which runs inside kinematics_pickle, which runs inside a BT leaf
+            #  -- and quit() there took down the whole process, including a
+            #  32-robot sweep.  check_the_pickle() was de-quit()ed for exactly
+            #  this reason;  robot_baseline still carries a handler for
+            #  'SystemExit -- a quit() on the unhappy path'.  A ValueError is
+            #  caught by the leaves' own handlers and reported.
+            raise ValueError(
+                'get_variable_index: unknown %s has n == 0, which means UNSET. '
+                'Every unknown needs its 1-based chain position;  any list '
+                'built outside robot_params() must go through '
+                'ik_robots.number_unknowns().' % v.name)
         if v.symbol == symb:
-            found = True
             return v.n
-    assert found, 'Error: trying to get index of an unknown joint variable' + str(symb)
-    return False
+    raise ValueError('get_variable_index: %s is not among the joint variables '
+                     '%s' % (symb, [v.name for v in vars]))
 
 
 
@@ -657,10 +690,175 @@ def erank(list_L):  # rearrange list of eqns by length (count_ops), SHORTEST FIR
 
 
 
+import unittest
+
+
+class TestSolver030(unittest.TestCase):
+    """kinematics_pickle:  the COLD cache path, and the staleness guards.
+
+       WHY THIS EXISTS.  Every other test in the suite runs against a warm
+       fk_eqns/, so the `if m is None:` branch -- forward_kinematics() and the
+       sum-of-angles scan -- was never executed by the unit suite at all.  A
+       fixture bug living on that path survived indefinitely and surfaced only
+       when fk_eqns/ was wiped by hand (2026-09-27, x2y2_transform).
+
+       BRAD is the robot.  3 DOF, so a cold FK costs about 4 s, and it HAS a
+       sum-of-angles variable (th_23), so it actually reaches the scan.  Wrist
+       and Chair_Helper are cheaper and would NOT: neither has one.
+
+       NOTHING HERE TOUCHES THE REPO'S fk_eqns/.  Every call is pointed at a
+       TemporaryDirectory, which is what the pickle_dir parameter is for -- no
+       moving the real cache aside, so no restore step and nothing left
+       displaced if this test dies half way."""
+
+    def setUp(self):
+        print('\n\n=======  Test kinematics_pickle:  cold cache  =========')
+
+    def runTest(self):
+        self.test_pkA_cold_then_warm()
+        self.test_pkB_a_pickle_without_ndof_is_stale()
+        self.test_pkC_a_changed_dh_table_is_stale()
+        self.test_pkD_unset_index_raises_instead_of_quitting()
+
+    def brad(self):
+        """A FRESH Brad.  Fresh every time, because the cold path EXTENDS the
+           unknown list IN PLACE -- a shared list would carry th_23 into the
+           next call and the second call would not be testing what it looks
+           like it is testing.
+
+           Imported here, not at module scope:  ik_robots imports ik_classes,
+           so a module-level import would be circular."""
+        import contextlib
+        import io as _io
+        from ikbtfunctions.ik_robots import robot_params
+        buf = _io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            dh, vv, params, pvals, unks = robot_params('Brad')
+        return dh, vv, params, pvals, unks
+
+    def _load(self, pdir, dh=None):
+        """kinematics_pickle into `pdir`, returning (M, R, unks, stdout)."""
+        import contextlib
+        import io as _io
+        d, vv, params, pvals, unks = self.brad()
+        buf = _io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            M, R, ext = kinematics_pickle('Brad', dh if dh is not None else d,
+                                          params, pvals, vv, unks,
+                                          pickle_dir=pdir)
+        return M, R, ext, buf.getvalue()
+
+    def test_pkA_cold_then_warm(self):
+        """An empty cache COMPUTES;  the same cache then LOADS, with the same
+           answer.  This is the path the rest of the suite never runs."""
+        import tempfile
+        fs = ' kinematics_pickle cold/warm FAIL'
+
+        with tempfile.TemporaryDirectory() as d:
+            pdir = d + '/'
+
+            M1, R1, unks1, out1 = self._load(pdir)
+            self.assertIn('No usable stored pickle file', out1,
+                          fs + ' (an empty cache should have COMPUTED)')
+            self.assertEqual(M1.ndof, 3, fs + ' (Brad is a 3-joint arm)')
+
+            #  the sum-of-angles scan ran:  robot_params gives 3 unknowns and
+            #  the scan appends th_23.  This is the code the cold path exists
+            #  to cover.
+            names1 = [u.name for u in unks1]
+            self.assertIn('th_23', names1,
+                          fs + ' (the sum-of-angles scan did not run)')
+            self.assertEqual(len(names1), 4, fs + ' (unknowns: %s)' % names1)
+
+            M2, R2, unks2, out2 = self._load(pdir)
+            self.assertIn('Successfully read pre-computed', out2,
+                          fs + ' (a warm cache should have LOADED)')
+            self.assertNotIn('No usable stored pickle file', out2,
+                             fs + ' (it recomputed with a usable pickle there)')
+
+            #  and the two paths must agree
+            self.assertEqual(M2.ndof, M1.ndof, fs + ' (ndof differs warm vs cold)')
+            self.assertEqual(sorted(u.name for u in unks2), sorted(names1),
+                             fs + ' (the unknown list differs warm vs cold)')
+
+    def test_pkB_a_pickle_without_ndof_is_stale(self):
+        """A pickle written before mechanism.ndof existed must be recomputed.
+
+           Unpickling does not call __init__, so such a mechanism can never
+           acquire the attribute on its own, and every consumer now reads it."""
+        import tempfile
+        import pickle as _pk
+        fs = ' kinematics_pickle ndof-staleness FAIL'
+
+        with tempfile.TemporaryDirectory() as d:
+            pdir = d + '/'
+            self._load(pdir)                       # populate the cache
+            path = pdir + 'Brad_pickle.p'
+
+            with open(path, 'rb') as f:
+                m, R, unks = _pk.load(f)
+            del m.ndof                             # make it look pre-ndof
+            with open(path, 'wb') as f:
+                _pk.dump([m, R, unks], f, protocol=pprotocol)
+
+            M, R2, ext, out = self._load(pdir)
+            self.assertIn('predates M.ndof', out,
+                          fs + ' (the guard did not fire)')
+            self.assertEqual(M.ndof, 3,
+                             fs + ' (the recomputed mechanism has no ndof)')
+
+    def test_pkC_a_changed_dh_table_is_stale(self):
+        """dh_tables_match() is the other staleness guard.  Tested directly:
+           its wiring into kinematics_pickle is proved by pkB, and a second
+           end-to-end recompute would cost another cold FK for nothing."""
+        fs = ' dh_tables_match FAIL'
+        dh, vv, params, pvals, unks = self.brad()
+
+        self.assertTrue(dh_tables_match(dh, dh), fs + ' (a table differs from itself)')
+
+        changed = sp.Matrix(dh)
+        changed[1, 1] = changed[1, 1] + 1          # one cell
+        self.assertFalse(dh_tables_match(dh, changed),
+                         fs + ' (a changed cell went undetected)')
+        self.assertFalse(dh_tables_match(None, dh), fs + ' (None should not match)')
+
+    def test_pkD_unset_index_raises_instead_of_quitting(self):
+        """get_variable_index() must RAISE on an unset index, never quit().
+
+           It runs inside the sum-of-angles scan, inside kinematics_pickle,
+           inside a BT leaf:  quit() there killed the process and took a
+           32-robot sweep with it."""
+        fs = ' get_variable_index FAIL'
+        th_1, th_2 = sp.symbols('th_1 th_2')
+        good = kc.unknown(th_1)
+        good.n = 1
+        bad = kc.unknown(th_2)                     # .n defaults to 0 == UNSET
+
+        self.assertEqual(get_variable_index([good], th_1), 1,
+                         fs + ' (a properly numbered unknown)')
+
+        with self.assertRaises(ValueError, msg=fs + ' (must raise, not quit)'):
+            get_variable_index([bad], th_2)
+
+        #  and the message has to say how to fix it
+        try:
+            get_variable_index([bad], th_2)
+        except ValueError as e:
+            self.assertIn('number_unknowns', str(e),
+                          fs + ' (the message should name the remedy)')
+
+        #  a symbol that is simply absent is also an error, not a False
+        with self.assertRaises(ValueError, msg=fs + ' (absent symbol)'):
+            get_variable_index([good], th_2)
+
+
+def run_test():
+    suite = unittest.TestLoader().loadTestsFromTestCase(TestSolver030)
+    unittest.TextTestRunner(verbosity=2).run(suite)
+
+
 #############    main       test the library  #########################
 #
 if __name__ == "__main__":   # tester code for the classes in this file
-   # testing for these classes and methods now in tests/leavestest.py
-   # TBD   properly integrate with unittest module
-   pass
+    run_test()
 

@@ -150,13 +150,14 @@ class simu_solver(b3.Action):
 
         unknowns = tick.blackboard.get('unknowns')
         R = tick.blackboard.get('Robot')
-        #  TODO: re-write this comment to describe the leaf WITHOUT reference to the tree it
-        #     belongs to.ArithmeticError
+        #  REFUSE AN EQUATION THAT DOES NOT CONSTRAIN THIS VARIABLE.
+        #  `0 = 0` and friends are satisfied by every value, so "solving" one
+        #  yields an arbitrary answer that looks like a result.  See
+        #  ikbtbasics/eqn_sanity.py for what counts as constraining.
         #
-        #  AN EQUATION THAT DOES NOT CONSTRAIN THIS VARIABLE --
-        #  see ikbtbasics/eqn_sanity.py.  FAILURE here lets b3.Priority
-        #  fall through to a transform that may restock eqns_1u with a
-        #  real equation.
+        #  Reporting FAILURE rather than a bogus solution is the leaf's whole
+        #  contribution here:  a caller can respond to FAILURE, and cannot
+        #  detect a confidently wrong answer.
         if not _eqsan.constrains(curr_unk.eqntosolve, curr_unk.name, R):
             _eqsan.reject(curr_unk, 'simultaneous eqn solver')
             return b3.FAILURE

@@ -33,25 +33,31 @@
 import b3 as b3          # behavior trees
 
 import ikbtbasics.dh_analysis as da
+import ikbtbasics.kin_cl as kc
 from ikbtbasics.ik_classes  import kinematics_pickle
 from ikbtfunctions.ik_robots import robot_params
 
 
 class pieper_geom_report(b3.Action):
-    """Analyze the arm's joint-axis geometry and publish it.  ALWAYS SUCCESS.
+    """Analyse the arm's joint-axis geometry and publish it.  ALWAYS SUCCESS.
 
-       Publishes, whatever it finds:
+       PIEPER'S CONDITION:  three consecutive joint axes that either intersect
+       at a point or are parallel are SUFFICIENT for a closed-form solution --
+       not necessary.  This leaf finds every such triple by pure DH-table
+       arithmetic:  no FK, no pickle, milliseconds.  It DECIDES NOTHING, which
+       is why it always SUCCEEDs:  having a triple does not mean IKBT can solve
+       the arm, and having none does not mean it cannot, so the hybrid branch
+       is gated by simplified_arm finding a usable candidate, never by this.
+
+       Publishes:
 
            pieper_triples   the triples of consecutive joint axes that
-                            intersect or are parallel (Pieper's condition), [] if none
-          TODO: review if this flag is actually necessary or was a random bug fix that is uneeded now.
-           pieper_ok        True iff the DH table was actually analysed --
-                            "no triple" is an ANSWER, "could not read the
-                            table" is not, and only this flag separates them
+                            intersect or are parallel;  [] when the arm has
+                            none, and None when the DH table could not be read.
+                            "No triple" is an ANSWER and "could not read the
+                            table" is not -- None is what separates them, and
+                            it is the only reason this value is not just a list.
            pieper_latex     the report's geometry statement, for the TRUE robot
-
-    TODO:  add a 5 line description to flesh this out.
-
    """
 
 
@@ -64,22 +70,22 @@ class pieper_geom_report(b3.Action):
         bb = tick.blackboard
         R = bb.get('Robot')
 
-        bb.set('pieper_triples', [])
-        bb.set('pieper_ok', False)
+        #  None means "not analysed".  Overwritten the moment the analysis
+        #  succeeds -- including with [], which is a real answer.
+        bb.set('pieper_triples', None)
 
         try:
             M = R.Mech
-            # TODO replace below with M.ndof
-            ndof = da.ndof_from_unknowns(bb.get('unknowns'),
-                                         fallback=len(getattr(R, 'variables', []) or []) or 6)
-            triples = da.pieper_triples(M.DH, M.pvals, ndof)
+            #  M.ndof, never a count of the unknown list:  the one-variable
+            #  branch removes an entry from that list, which would drop a
+            #  6-joint arm to 5 and hide the triple at axes (4,5,6).
+            triples = da.pieper_triples(M.DH, M.pvals, M.ndof)
             bb.set('pieper_triples', triples)
-            bb.set('pieper_ok', True)
 
             #  Snapshot the report section for the TRUE robot, before anything
             #  downstream swaps the Robot for a derived one.
             bb.set('pieper_latex',
-                   da.pieper_latex(M.DH, M.pvals, ndof, getattr(R, 'name', None)))
+                   da.pieper_latex(M.DH, M.pvals, M.ndof, getattr(R, 'name', None)))
 
             if self.BHdebug:
                 print('\n', self.Name, ':', getattr(R, 'name', '?'), '->',
@@ -87,8 +93,8 @@ class pieper_geom_report(b3.Action):
 
         except Exception as e:
             #  Reported, never raised, and STILL SUCCESS:  this leaf reports, it
-            #  does not decide.  pieper_ok is left False, which is what stops
-            #  simplified_arm from deriving a robot out of a table nobody read.
+            #  does not decide.  pieper_triples is left None, which is what
+            #  stops simplified_arm deriving a robot from a table nobody read.
             print(self.Name, ': could not analyse the DH table --',
                   '%s: %s' % (type(e).__name__, e))
 
@@ -134,17 +140,16 @@ class simplified_arm(b3.Action):
         bb.set('simplification_candidates', [])
         bb.set('simplification_choice', None)
 
-        if not bb.get('pieper_ok'):
+        #  `is None`, never a bare truth test:  [] is falsy and is a perfectly
+        #  good answer ("this arm has no triple").
+        if bb.get('pieper_triples') is None:
             print(self.Name, ': the Pieper analysis did not run, so "no triple"'
                   ' is not established -- refusing to simplify.')
             return b3.FAILURE
 
         try:
             M = R.Mech
-            ndof = da.ndof_from_unknowns(
-                bb.get('unknowns'),
-                fallback=len(getattr(R, 'variables', []) or []) or 6)
-            ranked = da.rank_candidates(M.DH, M.pvals, M.vv, ndof,
+            ranked = da.rank_candidates(M.DH, M.pvals, M.vv, M.ndof,
                                         n=self.n_samples, seed=self.seed,
                                         w_rot=self.w_rot)
         except Exception as e:
@@ -234,8 +239,7 @@ class install_simplified(b3.Action):
             dh, vv, params, pvals, unks = robot_params(true_name)
             dh = choice['dh_simp']
 
-            M2, R2, unks = kinematics_pickle(dname, dh, params, pvals, vv,
-                                             unks, False)
+            M2, R2, unks = kinematics_pickle(dname, dh, params, pvals, vv, unks)
             R2.name = dname
             R2.params = params
 
@@ -294,20 +298,23 @@ class TestSolver018(unittest.TestCase):
     def runTest(self):
         self.test_hybC_pieper_geom_report_succeeds_when_it_cannot_tell()
         self.test_hybD_pieper_geom_report_names_the_wrist()
-        self.test_hybE_pieper_geom_report_ignores_sum_of_angle_unknowns()
+        self.test_hybE_dof_count_ignores_the_unknown_list_entirely()
         self.test_hybF_pieper_geom_report_with_no_triple()
         self.test_hybG_simplified_arm_refuses_when_pieper_unreliable()
         self.test_hybH_simplified_arm_ranks_cheapest_first()
-        self.test_hybI_simplified_arm_fails_with_nothing_to_buy()
+        self.test_hybI_simplified_arm_fails_with_nothing_to_simplify()
         self.test_hybJ_every_triple_qualifies_closes_the_branch()
 
     #  ------------------------------------------------  pieper_geom_report
 
-    #  Small stand-ins, so these stay fast and need no FK pickle.
-    class mech(object):
-        def __init__(self, dh, pvals, vv=None):
-            self.DH, self.pvals = dh, pvals
-            self.vv = vv or [1]*6                 # all rotary unless told
+    #  REAL mechanisms, not stand-ins:  mechanism.__init__ does no FK, so one
+    #  is as cheap as a stub and it carries .ndof, which is what the leaves
+    #  read.  Still needs no FK pickle.
+    @staticmethod
+    def mech(dh, pvals, vv=None):
+        M = kc.mechanism(dh, [], vv or [1]*6)     # all rotary unless told
+        M.pvals = pvals
+        return M
 
     class robot(object):
         def __init__(self, dh, pvals, name='Fake', vv=None):
@@ -354,7 +361,7 @@ class TestSolver018(unittest.TestCase):
                            sp.Symbol('th_%d' % (r+1))] for r in range(6)])
 
     def test_hybC_pieper_geom_report_succeeds_when_it_cannot_tell(self):
-        """A blackboard with no Robot:  STILL SUCCESS, and pieper_ok stays False.
+        """A blackboard with no Robot:  STILL SUCCESS, and triples stays None.
 
            The leaf reports, it does not decide, so an unreadable table is not
            grounds for aborting the branch"""
@@ -362,10 +369,8 @@ class TestSolver018(unittest.TestCase):
         bb = b3.Blackboard()
         self.assertEqual(self.tick_pieper(bb), b3.SUCCESS,
                          fs + ' (a reporting leaf must never FAIL)')
-        self.assertFalse(bb.get('pieper_ok'),
-                         fs + ' (pieper_ok must be False when it could not run)')
-        self.assertEqual(bb.get('pieper_triples'), [],
-                         fs + ' (triples must still be a list)')
+        self.assertIsNone(bb.get('pieper_triples'),
+                          fs + ' (None is how "could not run" is reported)')
 
     def test_hybD_pieper_geom_report_names_the_wrist(self):
         """A spherical wrist HAS a triple:  found, named, and STILL SUCCESS."""
@@ -378,39 +383,65 @@ class TestSolver018(unittest.TestCase):
         self.assertEqual(self.tick_pieper(bb), b3.SUCCESS,
                          fs + ' (a triple must not make this leaf FAIL -- that'
                          ' was the gate)')
-        self.assertTrue(bb.get('pieper_ok'), fs + ' (analysis should have run)')
         got = [(t['axes'], t['kind']) for t in bb.get('pieper_triples')]
         self.assertIn(((4, 5, 6), 'intersect'), got, fs + ' (missed the wrist)')
 
-    def test_hybE_pieper_geom_report_ignores_sum_of_angle_unknowns(self):  # TODO: replace this with a test of the Mechanism class (which will auto generate DOF num)
-        """TODO: THIS TEST WILL BE REPLACED.
-        DOF count must skip the sum-of-angles unknowns.
+    def test_hybE_dof_count_ignores_the_unknown_list_entirely(self):
+        """THE JOINT COUNT COMES FROM THE DH TABLE, NOT FROM THE UNKNOWNS.
 
-           kinematics_pickle() EXTENDS the unknown list with th_23 (n = 23) and
-           friends.  Counting those would inflate ndof past 6 and invent triples
-           over the zero-padded rows."""
-        fs = ' pieper_geom_report SOA FAIL'
-        R = TestSolver018.robot(self.puma_like(), {}, 'Soa')
-        bb = b3.Blackboard()
-        bb.set('Robot', R)
-        bb.set('unknowns', [TestSolver018.unk(i) for i in range(1, 7)]
-                           + [TestSolver018.unk(23), TestSolver018.unk(234)])
+           M.ndof is set once in mechanism.__init__ from the DH table, so the
+           unknown list cannot influence it however it is mangled.  Two ways it
+           used to:
 
-        #  This table HAS a wrist;  what is under test is that no triple
-        #  names an axis above 6.
-        self.assertEqual(self.tick_pieper(bb), b3.SUCCESS, fs)
-        axes = [t['axes'] for t in bb.get('pieper_triples')]
+             - kinematics_pickle() EXTENDS the list with sum-of-angle variables
+               (th_23 has n = 23), which would inflate the count past 6 and
+               invent triples over the mandatory zero-padded rows;
+             - onevar_ik.install_known() REMOVES an entry, which dropped the
+               count to 5 and hid the triple at axes (4,5,6).
+
+           So the assertion is an INVARIANCE:  the same arm, three different
+           unknown lists, one answer.  (Replaces a test that only checked no
+           axis above 6 -- the first failure mode, not the second.)"""
+        fs = ' pieper_geom_report DOF-count FAIL'
+        table = self.puma_like()
+
+        plain = [TestSolver018.unk(i) for i in range(1, 7)]
+        lists = {
+            'plain 6':          plain,
+            'extended by SOA':  plain + [TestSolver018.unk(23),
+                                         TestSolver018.unk(234)],
+            'reduced by onevar': [u for u in plain if u.n != 2],
+            'empty':            [],
+        }
+
+        answers = {}
+        for label, unks in lists.items():
+            R = TestSolver018.robot(table, {}, 'Soa')
+            bb = b3.Blackboard()
+            bb.set('Robot', R)
+            bb.set('unknowns', unks)
+            self.assertEqual(self.tick_pieper(bb), b3.SUCCESS, fs)
+            self.assertEqual(R.Mech.ndof, 6,
+                             fs + ' (%s changed M.ndof)' % label)
+            answers[label] = sorted(t['axes'] for t in bb.get('pieper_triples'))
+
+        distinct = {tuple(v) for v in answers.values()}
+        self.assertEqual(len(distinct), 1,
+                         fs + ' (the unknown list changed the triples: %s)'
+                         % answers)
+
+        #  and the answer is the real one:  a wrist, named within 6 axes
+        axes = answers['plain 6']
+        self.assertIn((4, 5, 6), axes, fs + ' (missed the wrist)')
         self.assertTrue(all(a[2] <= 6 for a in axes),
                         fs + ' (a triple names an axis above 6: %s)' % axes)
 
     def test_hybF_pieper_geom_report_with_no_triple(self):
-        # TODO: review need for this once pieper_ok is justified
-        """No triple:  an empty triple list, and pieper_ok TRUE.
+        """No triple:  SUCCESS and an EMPTY LIST -- [] is the answer.
 
-           The pair (SUCCESS, pieper_ok=True, triples=[]) is what "this arm has
-           no triple" looks like now that the verdict is constant.  Contrast
-           hybC, where the SAME verdict comes with pieper_ok False -- the flag is
-           the only thing distinguishing a real answer from a failure to run."""
+           Contrast hybC, where the same SUCCESS comes with None because the
+           analysis could not run.  [] vs None is the whole distinction between
+           "this arm has no triple" and "nobody could read the table"."""
         fs = ' pieper_geom_report no-triple FAIL'
         R = TestSolver018.robot(self.no_triple_table(), {}, 'Plain')
         bb = b3.Blackboard()
@@ -418,9 +449,8 @@ class TestSolver018(unittest.TestCase):
         bb.set('unknowns', [TestSolver018.unk(i) for i in range(1, 7)])
 
         self.assertEqual(self.tick_pieper(bb), b3.SUCCESS, fs)
-        self.assertTrue(bb.get('pieper_ok'),
-                        fs + ' ("no triple" is an ANSWER, not a failure to run')
-        self.assertEqual(bb.get('pieper_triples'), [], fs)
+        self.assertEqual(bb.get('pieper_triples'), [],
+                         fs + ' ("no triple" is an ANSWER, not a failure to run)')
 
 
     #  ------------------------------------------------  simplified_arm
@@ -434,20 +464,17 @@ class TestSolver018(unittest.TestCase):
         return t.tick('testing simplified_arm', bb)
 
     def test_hybG_simplified_arm_refuses_when_pieper_unreliable(self):
-        # TODO: review need for this once pieper_ok is justified
-
-        """pieper_ok False -> FAILURE, even though candidates could be found.
+        """triples None -> FAILURE, even though candidates could be found.
 
            pieper_geom_report cannot FAIL on "could not read the DH table"
            any more, so this refusal is the only thing standing between a
            parse failure and a derived robot that describes nothing."""
-        fs = ' simplified_arm pieper_ok FAIL'
+        fs = ' simplified_arm unreliable-analysis FAIL'
         R = TestSolver018.robot(self.no_triple_table(), {}, 'Plain')
         bb = b3.Blackboard()
         bb.set('Robot', R)
         bb.set('unknowns', [TestSolver018.unk(i) for i in range(1, 7)])
-        bb.set('pieper_ok', False)          # analysis did not run
-        bb.set('pieper_triples', [])
+        bb.set('pieper_triples', None)      # analysis did not run
 
         self.assertEqual(self.tick_simplify(bb), b3.FAILURE,
                          fs + ' (must not simplify on an unreliable analysis)')
@@ -461,7 +488,6 @@ class TestSolver018(unittest.TestCase):
         bb = b3.Blackboard()
         bb.set('Robot', R)
         bb.set('unknowns', [TestSolver018.unk(i) for i in range(1, 7)])
-        bb.set('pieper_ok', True)
         bb.set('pieper_triples', [])
 
         self.assertEqual(self.tick_simplify(bb), b3.SUCCESS, fs)
@@ -479,7 +505,7 @@ class TestSolver018(unittest.TestCase):
             self.assertIsNotNone(c['dh_simp'], fs + ' (no derived DH table)')
             self.assertIsNotNone(c['metric'], fs + ' (unscored candidate)')
 
-    def test_hybI_simplified_arm_fails_with_nothing_to_buy(self):  # TODO: this is not shopping - find descriptive term to replace "buy"
+    def test_hybI_simplified_arm_fails_with_nothing_to_simplify(self):
         """An arm that already satisfies Pieper everywhere has no candidates, so
            the leaf FAILs rather than returning an empty choice.
 
@@ -497,7 +523,6 @@ class TestSolver018(unittest.TestCase):
         bb = b3.Blackboard()
         bb.set('Robot', R)
         bb.set('unknowns', [TestSolver018.unk(i) for i in range(1, 7)])
-        bb.set('pieper_ok', True)
         bb.set('pieper_triples', [{'axes': (4, 5, 6), 'kind': 'intersect'}])
 
         st = self.tick_simplify(bb)
@@ -534,7 +559,6 @@ class TestSolver018(unittest.TestCase):
         self.assertEqual(self.tick_pieper(bb), b3.SUCCESS, fs)
         self.assertTrue(bb.get('pieper_triples'),
                         fs + ' (fixture reports no triple at all)')
-        self.assertTrue(bb.get('pieper_ok'), fs + ' (analysis did not run)')
 
         self.assertEqual(self.tick_simplify(bb), b3.FAILURE,
                          fs + ' (nothing to simplify must close the branch)')

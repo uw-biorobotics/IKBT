@@ -104,7 +104,7 @@ def write_fk_module(M, name, jacobian=True, dirname=DIR_NAME, what=None):
        pvals is resolved through numeric_ik.pvals_numeric()'''
 
     ident = py_identifier(name)
-    ndof = nik.dof_of(M)
+    ndof = M.ndof
     syms = nik.joint_symbols(M, ndof)
     pv = nik.pvals_numeric(M)
 

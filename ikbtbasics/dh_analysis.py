@@ -550,16 +550,12 @@ def describe_edits(cand):
 #    A LaTeX statement of the geometry, for the report
 #
 
-def ndof_from_unknowns(unknowns, fallback=6):
-    '''How many real joints, from a solver's unknown list.
-
-       kinematics_pickle() EXTENDS that list with sum-of-angles variables whose
-       .n is 23 or 234, so a plain len() would inflate the DOF count past 6 and
-       invent triples over the mandatory zero-padded rows.'''
-
-    n = len([u for u in (unknowns or [])
-             if getattr(u, 'n', 0) and u.n <= 6])
-    return n or fallback
+#  ndof_from_unknowns() lived here.  It counted joints from the SOLVER'S
+#  UNKNOWN LIST, which was right until the one-variable branch started removing
+#  an entry from that list:  a 6-joint arm then read as 5, joint_triples()
+#  stopped at axes (3,4,5), and the triple at (4,5,6) went untested on 7 of the
+#  32 robots.  The joint count comes from the DH table now -- M.ndof, set in
+#  mechanism.__init__ -- which nothing downstream can shorten.
 
 
 def latex_symbol(name):

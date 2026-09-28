@@ -84,9 +84,7 @@ print('')
 
 #   Cached FK:  computes the kinematic equations only if fk_eqns/ has no
 #   usable pickle for this robot.
-testing = False
-[M, R, unknowns] = kinematics_pickle(robot, dh, params, pvals, vv, unknowns, testing)
-print('GOT HERE (after FK): robot name: ', R.name)
+[M, R, unknowns] = kinematics_pickle(robot, dh, params, pvals, vv, unknowns)
 
 R.name = robot
 R.params = params

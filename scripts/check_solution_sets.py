@@ -109,11 +109,7 @@ def solve_once(name):
     try:
         with contextlib.redirect_stdout(buf):
             M, R, unknowns = load_robot(name)
-            bt, nodes = build_default_bt()
-            nodes['compDetect'].read_pause = 0
-            for nd in ('symLoop', 'symLoop_onevar', 'symLoop_hybrid'):
-                if nd in nodes:
-                    nodes[nd].progress = False
+            bt = build_default_bt(quiet=True)
             R, unks, bb = run_solver(R, unknowns, bt, create_solutions=True)
 
             #  THIS SCRIPT CHECKS AN UNCONDITIONAL SOLUTION SET OF THIS ARM,

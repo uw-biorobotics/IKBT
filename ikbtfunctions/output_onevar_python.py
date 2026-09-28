@@ -53,6 +53,7 @@ import os
 import numpy as np
 import sympy as sp
 
+import ikbtbasics.kin_cl as kc
 import ikbtbasics.numeric_ik as nik
 from ikbtfunctions.output_python import py_identifier
 from ikbtfunctions.output_numeric_common import (DIR_NAME, MODULE_HEADER,
@@ -74,7 +75,7 @@ def search_domain(M, known, ndof=None):
        it -- that is why the bounds are module constants and an argument, not
        baked into the loop."""
 
-    ndof = ndof or nik.dof_of(M)
+    ndof = ndof or M.ndof
     syms = [str(s) for s in nik.joint_symbols(M, ndof)]
     vv = list(getattr(M, 'vv', None) or [])
 
@@ -652,7 +653,7 @@ def write_onevar_top(M, name, known, dirname=DIR_NAME, n_samples=128,
     #  two.  Off a power of two the answers are the same and the work is not.
     n_samples = 1 << max(1, int(n_samples) - 1).bit_length()
     max_samples = max(n_samples, 1 << max(1, int(max_samples) - 1).bit_length())
-    ndof = nik.dof_of(M)
+    ndof = M.ndof
     jnames = [str(s) for s in nik.joint_symbols(M, ndof)]
     #  `or 1.0`:  w_rot scales the acceptance tolerance, and a degenerate DH
     #  table (every length zero) would otherwise make it 0 -- a test no root
@@ -667,13 +668,16 @@ def write_onevar_top(M, name, known, dirname=DIR_NAME, n_samples=128,
                           'ONE-VARIABLE inverse kinematics for %s' % name)
         print(hdr, file=f)
 
-        #  TODO: replace term "SIBLING" or define it here.   Clarify remaining
-        #      language below.
-        #  SIBLINGS ARE LOADED BY PATH, not imported by name.  A robot name is
-        #  not always a python identifier -- 'C-Arm' and 'Raven-II' are not --
-        #  and `import IK_conditionalC-Arm` is a syntax error.  The file names
-        #  keep the robot's real name, which is what makes a directory listing
-        #  readable, so the loader takes the strain.
+        #  THE COMPANION MODULES ARE LOADED BY PATH, not imported by name.
+        #  ("Sibling" below = the other generated modules for this robot, which
+        #  sit in the same directory:  IK_conditional<Robot>.py and
+        #  FK_numeric<Robot>.py.)
+        #
+        #  A robot name is not always a python identifier -- 'C-Arm' and
+        #  'Raven-II' are not -- so `import IK_conditionalC-Arm` is a syntax
+        #  error.  The file names keep the robot's real name, because that is
+        #  what makes a directory listing readable, and the loader below takes
+        #  the strain instead.
         print('import os', file=f)
         print('import importlib.util', file=f)
         print('', file=f)
@@ -815,10 +819,13 @@ class TestSolver029(unittest.TestCase):
 
     #  ----------------------------------------------------------  fixtures
 
-    class mech(object):
-        '''Enough of a mechanism for nik.dof_of / joint_symbols / w_rot_for.'''
-        def __init__(self, dh, vv, pvals=None):
-            self.DH, self.vv, self.pvals = dh, vv, (pvals or {})
+    @staticmethod
+    def mech(dh, vv, pvals=None):
+        '''A REAL mechanism -- __init__ does no FK, so it is as cheap as a
+           stub and it carries .ndof.'''
+        M = kc.mechanism(dh, [], vv)
+        M.pvals = pvals or {}
+        return M
 
     def two_link(self, prismatic=False):
         """A 2-joint planar arm, padded to 6 DH rows like every real table."""

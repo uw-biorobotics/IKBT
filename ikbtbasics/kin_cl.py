@@ -90,51 +90,6 @@ class kequation:
         return tmp
 
 
-#  TODO: evalaute for deletion
-# def self_referential_solutions(unknowns):
-#     """Which solutions contain the very variable they solve for.
-#
-#        Returns [(varname, solution_name, expr), ...], empty when all is well.
-#
-#        A SOLUTION THAT CONTAINS ITS OWN UNKNOWN IS NOT A SOLUTION.  It is an
-#        IMPLICIT EQUATION, and nothing downstream can evaluate it:  the generated
-#        python comes out as
-#
-#            th_23v1 = atan2(... + a_3*sin(th_23v1 - th_2v1), ...)
-#
-#        which dies with UnboundLocalError because python evaluates the right hand
-#        side first.  Found 2026-09-05 on Arm_3 (th_23), JennyGuoSp24 (th_3) and
-#        UR5 (th_2), all three of which reported `solved` and wrote a full set of
-#        artifacts.
-#
-#        The shape is always a sum-of-angles variable or its partner:
-#        th_3 = th_23 - th_2 is substituted back into the equation being solved
-#        FOR th_23, so a_3*sin(th_3) becomes a_3*sin(th_23 - th_2) and the unknown
-#        reappears.
-#
-#        DETECTION ONLY.  Nothing here refuses the solution or changes a status --
-#        per BH the outputs are generated as usual and the LaTeX report carries a
-#        warning naming the offending equations, because a reader who knows which
-#        equations are unusable can still use the rest of the report.
-#
-#        Tolerant of a partly-built unknown: an unsolved variable is skipped, a
-#        solution sympy cannot give free_symbols for is skipped, and a solution
-#        with no name yet is reported under a placeholder rather than raising."""
-#
-#     out = []
-#     for u in unknowns:
-#         if not getattr(u, 'solved', False):
-#             continue
-#         for i, sol in enumerate(getattr(u, 'solutions', []) or []):
-#             try:
-#                 syms = sol.free_symbols
-#             except AttributeError:
-#                 continue                 # not a sympy expression: nothing to check
-#             if u.symbol in syms:
-#                 names = getattr(u, 'solutionNames', []) or []
-#                 name = names[i] if i < len(names) else '%s (unnamed)' % u.name
-#                 out.append((u.name, name, sol))
-#     return out
 
 
 class unknown(object):
@@ -338,6 +293,25 @@ class mechanism:
         self.vv = varvect
         self.params = params    # constant parameters a_4 etc
         self.pvals = {}         # dict for numerical param values
+
+        #  HOW MANY JOINTS THIS ARM REALLY HAS.  A fixed property of the DH
+        #  table, so it is computed once, here.  The table is ALWAYS 6 rows --
+        #  shorter arms are padded with [0,0,0,0] -- so count the leading rows
+        #  whose joint cell carries a symbol.  Column 3 (theta) for a rotary
+        #  joint, column 2 (d) for a prismatic one.
+        #
+        #  NEVER COUNT THE UNKNOWN LIST INSTEAD.  kinematics_pickle() EXTENDS
+        #  that list with sum-of-angle variables, and the one-variable branch
+        #  REMOVES an entry from it -- so a count taken there reads 5 on a
+        #  6-joint arm, and joint_triples() then stops at axes (3,4,5) and
+        #  silently loses the Pieper triple at (4,5,6).  Assuming a joint known
+        #  does not remove a joint.  (BH/Claude, 2026-09-27.)
+        self.ndof = 0
+        for r in range(6):
+            col = 3 if varvect[r] == 1 else 2
+            if not sp.sympify(dh[r, col]).free_symbols:
+                break                    # padding starts here
+            self.ndof = r + 1
         self.jlims = np.array([ # numerical joint limits
         [-np.pi, np.pi],
         [-np.pi, np.pi],

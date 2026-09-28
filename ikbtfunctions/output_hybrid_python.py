@@ -190,7 +190,7 @@ def write_hybrid_top(M_true, true_name, derived_name, edits_text, cost_text,
 
     ident = py_identifier(true_name)
     dident = py_identifier(derived_name)
-    ndof = nik.dof_of(M_true)
+    ndof = M_true.ndof
     jnames = [str(s) for s in nik.joint_symbols(M_true, ndof)]
 
     #  w_rot HAS NO CORRECT DEFAULT, so it is baked in per robot rather than
@@ -478,31 +478,40 @@ class TestSolver024(unittest.TestCase):
         self.test_hgB_generated_refine_matches_the_library()
         self.test_hgC_expr_py_refuses_what_it_cannot_emit()
 
-    #  TODO: fix this arcane code construction: instead, just do something like
-    #      M_puma, R, unks = kinematics_pickle('Puma ...')
-    #      and then instead of the calls (lines 511 and 548) just
-    #      do M = M_puma
-    #
-    #  Puma, because it solves exactly and its pickle is always warm.  The
-    #  generator does not care that Puma is not a hybrid robot:  what is under
-    #  test is the emitted kinematics, not which branch produced them.
-    def puma(self):
-        import io as _io
-        import contextlib as _cl
-        from ikbtfunctions.ik_robots import robot_params
-        from ikbtbasics.ik_classes import kinematics_pickle
+    _puma_M = None                 # loaded once, shared by every test below
 
-        buf = _io.StringIO()
-        with _cl.redirect_stdout(buf):
-            dh, vv, params, pvals, unks = robot_params('Puma')
-            M, R, unks = kinematics_pickle('Puma', dh, params, pvals, vv,
-                                           unks, False)
-        return M
+    def puma(self):
+        '''The Puma mechanism, loaded once and reused.
+
+           Puma because it solves exactly and its pickle is always warm.  The
+           generator does not care that Puma is not a hybrid robot:  what is
+           under test is the emitted kinematics, not which branch produced them.
+
+           stdout is redirected because robot_params() and kinematics_pickle()
+           narrate at length, and that narration is not what these tests are
+           about.'''
+        if TestSolver024._puma_M is None:
+            import io as _io
+            import contextlib as _cl
+            from ikbtfunctions.ik_robots import robot_params
+            from ikbtbasics.ik_classes import kinematics_pickle
+
+            buf = _io.StringIO()
+            with _cl.redirect_stdout(buf):
+                dh, vv, params, pvals, unks = robot_params('Puma')
+                M, R, unks = kinematics_pickle('Puma', dh, params, pvals, vv,
+                                               unks)
+            TestSolver024._puma_M = M
+        return TestSolver024._puma_M
 
     def test_hgA_generated_fk_matches_the_library(self):
-        # TODO: does this test detect a fault that is likely to occur?  or did
-        #   it address a one-off bug that is now fixed.
         '''The EMITTED fk/jacobian must agree with numeric_ik's lambdified ones.
+
+           NOT a one-off regression guard:  the two constructions are written
+           and maintained separately (one emits numpy source, the other
+           lambdifies sympy), so they drift independently and only a comparison
+           catches it.  Everything downstream uses the GENERATED FK, so nothing
+           else in the suite can notice it going wrong.
 
            Phase II refines against the generated FK, so if that FK is not the
            true arm's, the method converges confidently on the wrong pose --
@@ -541,11 +550,13 @@ class TestSolver024(unittest.TestCase):
 
     def test_hgB_generated_refine_matches_the_library(self):
         '''REFINE_CORE must solve identically to numeric_ik.solve_numeric().
-           # TODO: clarify why defined code cannont import ikbtbasics or copy code from
-           #   ikbtbasics
-           The generated module cannot import ikbtbasics -- it stands on numpy
-           alone -- so the damped-least-squares loop is emitted as a copy of
-           the library one.  A copy that drifts is worse than no copy:  the
+
+           WHY THE GENERATED MODULE CANNOT IMPORT ikbtbasics:  it is a
+           DELIVERABLE.  A user is handed CodeGen/Python/*.py to drop into
+           their own robot code, where IKBT is not installed and will not be;
+           the only dependency it may assume is numpy.  So the
+           damped-least-squares loop cannot be imported and is emitted as a
+           copy of the library one.  A copy that drifts is worse than no copy:  the
            library stays green while what ships to users quietly stops
            converging.  This runs both on the same problem from the same seed
            and requires the same answer.'''
@@ -555,7 +566,7 @@ class TestSolver024(unittest.TestCase):
         M = self.puma()
         fk = nik.fk_callable(M)
         jac = nik.jacobian_callable(M)
-        ndof = nik.dof_of(M)
+        ndof = M.ndof
         w_rot = 1.0                      # Puma is in metres
 
         #  Exec the emitted source in a bare namespace.  numpy and W_ROT are

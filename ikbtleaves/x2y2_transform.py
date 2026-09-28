@@ -111,17 +111,21 @@ class test_x2z2(b3.Action):    # tester for your ID
         pvals = pvals_Puma
 
         ################## (all robots) ######################
-        ##  make sure each unknown knows its position (index)
-        i = 0
-        for u in variables :
-            u.n = i
-            i+=1    
+        #  Chain positions, via the helper that exists for exactly this.
+        #  unknown.n == 0 means UNSET, and get_variable_index() calls quit() on
+        #  it mid sum-of-angles scan;  number_unknowns() is 1-based and is what
+        #  ik_robots documents as mandatory for any unknown list built outside
+        #  robot_params(), tests included.
+        #
+        #  This loop used to be written out here, starting at 0, which stamped
+        #  the sentinel onto th_1.  It hid for as long as the test found a warm
+        #  Puma pickle, because only the RECOMPUTE path runs the SOA scan that
+        #  reads .n.  (Found 2026-09-27 by wiping fk_eqns/.)
+        variables = number_unknowns(variables)
 
         print('Testing x2z2transform with Puma Kinematics')
-        testflag = False # deprecated but needed(!)
         # read kinematic model from pickle file / or compute it from scratch
-        [M, R, variables ] = kinematics_pickle(robot, dh, params, pvals, vv, variables, testflag)
-        #def kinematics_pickle(rname, dh, constants, pvals, vv, unks, test):
+        [M, R, variables ] = kinematics_pickle(robot, dh, params, pvals, vv, variables)
 
         ##   check the pickle in case DH params were changed in robot_params making the 
         #       pickle obsolete.

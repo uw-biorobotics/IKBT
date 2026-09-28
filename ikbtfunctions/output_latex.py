@@ -30,7 +30,7 @@ import ikbtbasics.pykinsym as pks
 import ikbtbasics.kin_cl as kc
 from   ikbtbasics.solutionGraphV3 import *
 import ikbtbasics.matching as mtch
-import ikbtbasics.numeric_ik as nik   # dof_of():  the arm's REAL joint count
+import ikbtbasics.numeric_ik as nik
 
 import b3 as b3          # behavior trees
 
@@ -479,63 +479,6 @@ def hybrid_numeric_section(hybrid, true_name):
     return sec.splitlines()
 #
 
-#  TODO: evalaute this for deletion.   Is this really something that happens?
-#
-# def self_reference_warning(variables, eol):
-#     """A prominent warning naming every equation that solves for itself, or ''.
-#
-#        WHY THIS IS A WARNING AND NOT A REFUSAL (BH, 2026-09-05).  A solution
-#        containing its own unknown cannot be evaluated -- see
-#        kin_cl.self_referential_solutions -- but the rest of the report is still
-#        correct and still worth having, and a robot whose closed form comes out
-#        this way may simply not have one.  So every output is generated exactly
-#        as usual and the reader is TOLD, at the top, which equations not to use.
-#        Silently dropping them would leave a report that looks complete and is
-#        not;  refusing to write anything would throw away the parts that are
-#        fine.
-#
-#        It goes in the Introduction rather than in its own section so that it
-#        cannot be reordered away from the top, and so it precedes the hybrid
-#        "which arm is this really" section without displacing it."""
-#
-#     bad = kc.self_referential_solutions(variables)
-#     if not bad:
-#         return ''
-#
-#     def tt(name):
-#         return r'{\tt ' + str(name).replace('_', r'\_') + '}'
-#
-#     #  Group by variable:  a variable with two bad branches is one problem, not
-#     #  two, and reads that way.
-#     byvar = {}
-#     for varname, solname, _ in bad:
-#         byvar.setdefault(varname, []).append(solname)
-#
-#     n = len(bad)
-#     w = r'\subsection*{WARNING: this solution is NOT usable}' + eol
-#     w += (r'\textbf{%d of the equations below %s for a variable in terms of '
-#           r'itself.}  An equation of the form '
-#           % (n, 'solves' if n == 1 else 'solve')) + eol
-#     w += r'$x = f(x)$ is an implicit equation, not a solution:  it cannot be ' + eol
-#     w += r'evaluated, and the generated code for it will fail at run time.  ' + eol
-#     w += r'The following equations are affected:' + eol
-#     w += r'\begin{itemize}' + eol
-#     for varname in sorted(byvar):
-#         w += (r'\item variable ' + tt(varname) + ': '
-#               + ', '.join(tt(n) for n in byvar[varname])) + eol
-#     w += r'\end{itemize}' + eol
-#     #  Name the SOLUTIONS, but say the versions go with them.  One bad solution
-#     #  becomes one bad equation per version derived from it -- Arm_3's single
-#     #  th_23s1 is th_23v1 AND th_23v2 in the generated code -- and a reader who
-#     #  checked only the names listed here would think the Versions section was
-#     #  clean.
-#     w += (r'Every \emph{version} derived from the equations named above is '
-#           r'affected in the same way, in both the Versions section and the '
-#           r'generated code.  Every other equation in this report is '
-#           r'unaffected.  ') + eol
-#     w += (r'This usually arises when a sum-of-angles variable is substituted '
-#           r'back into the equation being solved for it.') + eol
-#     return w
 
 
 def known_math(known):
@@ -740,12 +683,6 @@ def output_latex_solution(Robot, variables, groups, hybrid=None, R_true=None,
     #  form.  Dropping the `if` puts it on every report, if that is wanted.
     if hybrid:
         introstring += eol + AI_STATEMENT + eol
-
-    #  A solution that contains its own unknown cannot be evaluated.  Say so at
-    #  the top, name the equations, and generate everything else as usual.
-
-    # This seems to address an old bug.   TODO: evaluate for deletion
-    # introstring += eol + self_reference_warning(variables, eol)
 
     LF.sections.append(introstring.splitlines())
 
@@ -1109,9 +1046,9 @@ def output_latex_solution(Robot, variables, groups, hybrid=None, R_true=None,
 
     #  ONE COLUMN PER JOINT.  J66 is stored 6x6 for every robot because the DH
     #  table is always padded to 6 rows, and the surplus columns are NOT zero,
-    #  so a 5-DOF arm was shown a sixth joint it does not have.  dof_of() is the
+    #  so a 5-DOF arm was shown a sixth joint it does not have.  M.ndof is the
     #  same helper the numeric solver slices with (numeric_ik.py:243).
-    ndof = nik.dof_of(Robot.Mech)
+    ndof = Robot.Mech.ndof
     j66result = kc.notation_squeeze(Robot.Mech.J66)[:, :ndof]
     cols = j66result.shape[1]
 
@@ -1288,9 +1225,9 @@ def output_FK_equations(Robot):
 
     #  ONE COLUMN PER JOINT.  J66 is stored 6x6 for every robot because the DH
     #  table is always padded to 6 rows, and the surplus columns are NOT zero,
-    #  so a 5-DOF arm was shown a sixth joint it does not have.  dof_of() is the
+    #  so a 5-DOF arm was shown a sixth joint it does not have.  M.ndof is the
     #  same helper the numeric solver slices with (numeric_ik.py:243).
-    ndof = nik.dof_of(Robot.Mech)
+    ndof = Robot.Mech.ndof
     j66result = kc.notation_squeeze(Robot.Mech.J66)[:, :ndof]
     cols = j66result.shape[1]
 

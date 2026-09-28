@@ -15,7 +15,7 @@
 #   OFF BY DEFAULT, so that library and test callers get an inert node and do
 #   not overwrite the repo's generated artifacts.  ikSolver.py opts in --
 #
-#       bt, nodes = build_default_bt(codegen=True)
+#       bt = build_default_bt(codegen=True)
 #
 #   Copyright 2026 University of Washington
 #
@@ -89,8 +89,7 @@ class report_gen(b3.Action):
         else:
             try:
                 R.pieper_latex = da.pieper_latex(
-                    R.Mech.DH, R.Mech.pvals,
-                    da.ndof_from_unknowns(unks), R.name)
+                    R.Mech.DH, R.Mech.pvals, R.Mech.ndof, R.name)
             except Exception as e:
                 print(self.Name, ': no joint-axis geometry statement --',
                       '%s: %s' % (type(e).__name__, e))

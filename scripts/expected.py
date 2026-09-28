@@ -6,6 +6,13 @@
 #   It replaces three hand-maintained tables over overlapping sets of the same
 #   robots, which had to agree and had no mechanism to.
 #
+#   STILL LIVE (asked and answered, BH 2026-09-27).  Two importers, and they are
+#   what --gate and --full judge against:
+#
+#       scripts/numerical_closed_loop_sol_check.py   EXPECT, judge_counts
+#       scripts/robot_baseline.py                    EXPECT, artifact_paths,
+#                                                    artifacts_owed
+#
 #   Copyright 2026 University of Washington
 #
 #   Developed by Blake Hannaford

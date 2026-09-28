@@ -154,12 +154,9 @@ def solve_one(name, codegen=False):
     try:
         M, R, unknowns = load_robot(name)
 
-        bt, nodes = build_default_bt(codegen=codegen)
-
-        #  comp_det's read_pause exists so a human can read status scrolling
-        #  past.  No human is reading a sweep.  (It defaults to 0 now; set
-        #  explicitly so this does not depend on that default.)
-        nodes['compDetect'].read_pause = 0
+        #  quiet=True: no read_pause and no per-pass progress lines.  Those
+        #  exist so a human can follow a solve;  no human is reading a sweep.
+        bt = build_default_bt(codegen=codegen, quiet=True)
 
         #  create_solutions=False on purpose:  the solve and the solution-set
         #  construction are recorded SEPARATELY.  create_solution_set() (and

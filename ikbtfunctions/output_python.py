@@ -174,9 +174,12 @@ pi = np.pi
  ''', file=f)
 
 
-    Fkeqns = Robot.Mech.forward_kinematics()  # TODO: do we need to redo this????
-
-    Tfk = (Robot.Mech.T_06)
+    #  NO RECOMPUTE.  T_06 is already on the mechanism -- kinematics_pickle()
+    #  ran forward_kinematics() before this and the pickle carries the result.
+    #  This line used to call forward_kinematics() again and drop the return
+    #  value on the floor (`Fkeqns` was never read): 2.0 s of symbolic FK per
+    #  report on Puma, for nothing.  (Measured 2026-09-27.)
+    Tfk = Robot.Mech.T_06
 
     Tfks = str(Tfk)
 

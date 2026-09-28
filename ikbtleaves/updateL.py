@@ -106,13 +106,12 @@ class TestSolver007(unittest.TestCase):
             #return [dh, vv, params, pvals, variables]
             robot = 'Puma'
             [dh, vv, params, pvals, unknowns] = robot_params(robot)  # see ik_robots.py
-            #def kinematics_pickle(rname, dh, constants, pvals, vv, unks, test):
-            Test = True
-            [M, R, unk_Puma] = kinematics_pickle(robot, dh, params, pvals, vv, unknowns, Test)
+            [M, R, unk_Puma] = kinematics_pickle(robot, dh, params, pvals, vv, unknowns)
 
-            print('GOT HERE: updateL robot name: ', R.name)
-
-            R.name = 'test: '+ robot # ??? TODO: get rid of this (but fix report)
+            #  RENAMED so this self-test cannot be mistaken for a real solve
+            #  of Puma:  R.name is what every artifact is named after, and a
+            #  test that writes one wants it obviously labelled as a test.
+            R.name = 'test: ' + robot
 
             ##   check the pickle in case DH params were changed
             check_the_pickle(M.DH, dh)   # check that two mechanisms have identical DH params
@@ -184,8 +183,9 @@ class TestSolver007(unittest.TestCase):
         #############################################
         #  scan_for_equations must not report the same statement twice.
         #
-        #  TODO:  should the kequation method __eq__() be modified to
-        #  correct this directly??
+        #  NOT by changing kequation.__eq__ -- see Robot.eqn_key(), which
+        #  records why:  simu_id and the sp.Wild matchers need __eq__ to stay
+        #  exact structural equality.
         #
         #  kequation equality compares the LHS/RHS split, so "e = 0" and
         #  "-e = 0" look like distinct equations.  Sign duplicates inflate every

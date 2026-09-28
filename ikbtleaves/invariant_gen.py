@@ -289,9 +289,10 @@ class invariant_gen(b3.Action):
        it produces equations rather than solutions.  x2z2_transform is the
        precedent for a transform living in the worktools Priority.
 
-       The class default is OFF;  bt_assembly.make_leaves() switches the
-       tree's instance on.  Set nodes['invariantGen'].enabled = False to get
-       the inert behaviour back.  Costs and benefits: IKdocs/DEV_NOTES.md.'''
+       The class default is OFF;  bt_assembly.build_worktools() switches the
+       tree's instance on.  To get the inert behaviour back:
+       find(bt.root, 'Invariant Generator').enabled = False.
+       Costs and benefits: IKdocs/DEV_NOTES.md.'''
 
     enabled = False
 

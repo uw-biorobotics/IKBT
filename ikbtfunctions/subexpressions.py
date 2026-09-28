@@ -23,8 +23,12 @@
 import sympy as sp
 
 
-# TODO: replace "BH's rule" with a concise rule description.
-#  More than two previously-solved variables:  BH's rule, verbatim.
+#  WHEN AN EXPRESSION EARNS A NAME:  when it depends on MORE THAN TWO
+#  already-solved joint variables.  One or two dependencies read perfectly well
+#  inline (`a_2*cos(th_2)`);  past that the expression stops being a phrase and
+#  starts being a paragraph, and the reader loses the shape of the equation
+#  it sits in.  Three is the threshold, and it is a judgement about
+#  READABILITY, not about cost -- naming changes no arithmetic.
 MIN_DEPS = 3
 
 #  ...and big enough to be worth a name.  A sum-of-angles definition like

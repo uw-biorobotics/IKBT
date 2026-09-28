@@ -11,7 +11,7 @@
 #       from ikbtfunctions.bt_assembly import build_default_bt
 #
 #       M, R, unknowns = load_robot('Puma')
-#       bt, nodes      = build_default_bt()
+#       bt             = build_default_bt()
 #       R, unks, bb    = run_solver(R, unknowns, bt)
 #       emit_outputs(R, unks)
 #
@@ -40,7 +40,7 @@ from ikbtfunctions.ik_robots import robot_params
 from ikbtbasics.ik_classes  import kinematics_pickle, check_the_pickle
 
 
-def load_robot(name, testing=False):
+def load_robot(name):
     '''Fetch a robot definition and its forward kinematics.
 
        Returns (M, R, unknowns):  a mechanism, a Robot, and the unknown list --
@@ -54,8 +54,7 @@ def load_robot(name, testing=False):
     [dh, vv, params, pvals, unknowns] = robot_params(name)   # see ik_robots.py
     print('Solver:  unknowns:', unknowns)
 
-    [M, R, unknowns] = kinematics_pickle(name, dh, params, pvals, vv, unknowns, testing)
-    print('GOT HERE (Fk completed): robot name: ', R.name)
+    [M, R, unknowns] = kinematics_pickle(name, dh, params, pvals, vv, unknowns)
 
     R.name   = name
     R.params = params

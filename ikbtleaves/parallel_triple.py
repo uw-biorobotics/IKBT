@@ -48,7 +48,7 @@ import sympy as sp
 import b3 as b3          # behavior trees
 
 from ikbtfunctions.helperfunctions import count_unknowns
-from ikbtbasics.kin_cl import kequation
+from ikbtbasics.kin_cl import kequation, mechanism
 import ikbtbasics.dh_analysis as da
 
 #  Reused wholesale.  These are invariant_gen's, and there is no second copy.
@@ -72,7 +72,7 @@ MAX_UNKNOWNS = 1
 MAX_OPS = 220
 
 
-def parallel_axis_triples(R, unknowns):
+def parallel_axis_triples(R):
     '''The PARALLEL Pieper triples of this robot, or [] if there are none or the
        DH table cannot be read.
 
@@ -82,8 +82,11 @@ def parallel_axis_triples(R, unknowns):
 
     try:
         M = R.Mech
-        ndof = da.ndof_from_unknowns(unknowns)
-        return [t for t in da.pieper_triples(M.DH, M.pvals, ndof)
+        #  M.ndof, never a count of the unknown list -- see mechanism.__init__.
+        #  Under the one-variable branch that list is one entry short, which
+        #  would stop joint_triples() at (3,4,5) and hide a parallel triple at
+        #  (4,5,6).
+        return [t for t in da.pieper_triples(M.DH, M.pvals, M.ndof)
                 if t.get('kind') == 'parallel']
     except Exception as e:
         print('parallel_triple: cannot analyse the DH table -- %s: %s'
@@ -218,11 +221,16 @@ class parallel_triple_transform(b3.Action):
 
         #  No parallel triple, return failure.  Pure DH arithmetic, so cheap enough
         #  to re-evaluate on every tick.
-        triples = parallel_axis_triples(R, unknowns)
+        triples = parallel_axis_triples(R)
         if not triples:
             return b3.FAILURE
 
-        #  TODO: clarify this explanation: Re-run only when the solve has moved on since the last attempt.
+        #  ONCE PER STATE OF THE SOLVE, not once per tick.  This transform
+        #  emits the same law-of-cosines equation every time it runs, so firing
+        #  it again while nothing has been solved in between just re-adds an
+        #  equation the lists already carry.  The signature is the SET OF
+        #  SOLVED VARIABLES:  when that changes the transform has new knowns to
+        #  fold in and is worth re-running;  when it has not, it is not.
         sig = tuple(sorted(u.name for u in unknowns if u.solved))
         if bb.get('parallel_triple_sig') == sig:
             return b3.FAILURE
@@ -263,6 +271,7 @@ class TestSolver023(unittest.TestCase):
         self.test_ptB_gate_declines_without_a_parallel_triple()
         self.test_ptC_gate_fires_on_UR5()
         self.test_ptD_law_of_cosines_collapses()
+        self.test_ptE_joint_count_survives_a_reduced_unknown_list()
 
     def _unk(self, name, solved):
         from ikbtbasics.kin_cl import unknown
@@ -295,12 +304,11 @@ class TestSolver023(unittest.TestCase):
         with contextlib.redirect_stdout(buf):
             dh, vv, params, pvals, unks = robot_params('Puma')
 
-        class M: pass
-        class Rb: pass
-        M.DH = dh
+        M = mechanism(dh, params, vv)
         M.pvals = pvals
+        class Rb: pass
         Rb.Mech = M
-        self.assertEqual(parallel_axis_triples(Rb, unks), [],
+        self.assertEqual(parallel_axis_triples(Rb), [],
                          fs + ' (Puma has no parallel triple)')
 
     def test_ptC_gate_fires_on_UR5(self):
@@ -313,14 +321,58 @@ class TestSolver023(unittest.TestCase):
         with contextlib.redirect_stdout(buf):
             dh, vv, params, pvals, unks = robot_params('UR5')
 
-        class M: pass
-        class Rb: pass
-        M.DH = dh
+        M = mechanism(dh, params, vv)
         M.pvals = pvals
+        class Rb: pass
         Rb.Mech = M
-        tr = parallel_axis_triples(Rb, unks)
+        tr = parallel_axis_triples(Rb)
         self.assertEqual(len(tr), 1, fs + ' (UR5 has exactly one parallel triple)')
         self.assertEqual(tr[0]['axes'], (2, 3, 4), fs)
+
+    def test_ptE_joint_count_survives_a_reduced_unknown_list(self):
+        """THE JOINT COUNT IS A PROPERTY OF THE DH TABLE, NOT OF THE SOLVE.
+
+           onevar_ik.install_known() REMOVES an entry from the unknown list, so
+           a DOF count taken from that list reads 5 on a 6-joint arm.
+           joint_triples() then stops at axes (3,4,5) and the triple at (4,5,6)
+           is never tested.  Puma's wrist triple IS (4,5,6), which makes it the
+           witness:  the last assertion below reproduces the old behaviour and
+           shows the triple disappearing.
+
+           Regression test for the defect found 2026-09-27."""
+
+        fs = ' parallel_triple joint-count FAIL'
+        from ikbtfunctions.ik_robots import robot_params
+        import contextlib, io
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            dh, vv, params, pvals, unks = robot_params('Puma')
+
+        M = mechanism(dh, params, vv)
+        M.pvals = pvals
+
+        self.assertEqual(M.ndof, 6, fs + ' (Puma is a 6-joint arm)')
+        axes = [t['axes'] for t in da.pieper_triples(M.DH, M.pvals, M.ndof)]
+        self.assertIn((4, 5, 6), axes, fs + " (Puma's wrist triple)")
+
+        #  What install_known does to the unknown list.
+        reduced = [u for u in unks if str(u.symbol) != 'th_2']
+        self.assertEqual(len(reduced), len(unks) - 1, fs + ' (fixture)')
+
+        #  THE INVARIANT:  the count does not move, so neither do the triples.
+        self.assertEqual(M.ndof, 6,
+                         fs + ' (M.ndof must not depend on the unknown list)')
+        self.assertIn((4, 5, 6),
+                      [t['axes'] for t in da.pieper_triples(M.DH, M.pvals, M.ndof)],
+                      fs + ' (the triple must survive a reduced unknown list)')
+
+        #  THE BUG, reproduced:  counting from the reduced list loses it.
+        old_style = len([u for u in reduced
+                         if getattr(u, 'n', 0) and u.n <= 6])
+        self.assertEqual(old_style, 5, fs + ' (fixture: the old count)')
+        self.assertNotIn((4, 5, 6),
+                         [t['axes'] for t in da.pieper_triples(M.DH, M.pvals, old_style)],
+                         fs + ' (this is exactly the defect M.ndof prevents)')
 
     def test_ptD_law_of_cosines_collapses(self):
         '''The property the whole leaf rests on:  two link vectors turning in

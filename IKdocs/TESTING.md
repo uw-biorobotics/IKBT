@@ -238,6 +238,56 @@ python3 -m scripts.axis_triple_check      # DH joint-axis geometry vs numeric FK
 python3 -m tests.test_chair_helper        # full-solve regression, one robot
 ```
 
+## The cold FK cache — why one test is slower than the rest
+
+`kinematics_pickle()` has two branches: load a usable pickle from `fk_eqns/`,
+or compute the forward kinematics and the sum-of-angles scan from scratch. The
+suite always finds a warm cache, so **the compute branch used to be executed by
+no test at all** — and a fixture bug living on it survived until `fk_eqns/` was
+wiped by hand (2026-09-27).
+
+`TestSolver030` (in `ikbtbasics/ik_classes.py`) covers it:
+
+```bash
+python3 -m ikbtbasics.ik_classes      # just this one, ~12 s
+```
+
+* **Brad** is the robot — 3 DOF so a cold FK is ~4 s, and it has a
+  sum-of-angles variable (`th_23`) so it actually reaches the scan. Wrist and
+  Chair_Helper are cheaper and would not: neither has one.
+* It runs against a `TemporaryDirectory`, via `kinematics_pickle(...,
+  pickle_dir=)`. **It never touches the repo's `fk_eqns/`** — nothing is moved
+  aside, so there is no restore step and nothing is left displaced if the test
+  dies half way.
+* It also covers both staleness guards: a pickle with no `ndof`, and a changed
+  DH table.
+
+It is why `tests.leavestest` now takes ~37 s rather than ~21 s. Wiping
+`fk_eqns/` to test the cold path by hand is no longer necessary, and costs 6x:
+the whole suite runs in ~131 s against an empty cache.
+
+## When a robot looks hung — `--perf`
+
+```bash
+python3 ikSolver.py <RobotName> --perf
+```
+
+A solve spends most of its wall clock inside `sp.simplify()`, and nothing can
+print from inside a blocking sympy call. `--perf` turns on the sympy meter
+(`ikbtfunctions/progress.py`), which wraps `sp.simplify` and `sp.trigsimp` and
+adds two things to the normal output:
+
+* a per-pass count — `sympy: 4 simplify calls, 0s in them (11% of wall)`;
+* **the slow-call heartbeat**: any single call taking longer than 2 s is named
+  on its own line as it happens. That line is the only sign of life during a
+  long pass, and it is the reason the flag exists — a silent solver pinned at
+  100% CPU is indistinguishable from a hung one, and has been reported as
+  exactly that.
+
+Off by default, because the extra lines bury the per-pass progress report. It
+patches a third-party module, so it is opt-in and reversible
+(`disable_sympy_meter()`); only this flag turns it on.
+
 ## Where the output goes
 
 | path | what | keep? |

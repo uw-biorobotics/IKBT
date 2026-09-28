@@ -53,7 +53,7 @@ def fresh_problem(name):
          restore robot to pre-solution state.'''
 
     dh, vv, params, pvals, unks = robot_params(name)
-    M, R, unks = kinematics_pickle(name, dh, params, pvals, vv, unks, False)
+    M, R, unks = kinematics_pickle(name, dh, params, pvals, vv, unks)
     R.name   = name
     R.params = params
     return R, unks
