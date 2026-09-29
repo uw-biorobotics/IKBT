@@ -403,15 +403,27 @@ closed form give at this value" and "how wrong is it" as callbacks. All three ro
 mechanisms port across unchanged, because each finds cases the others cannot: the doubling
 ladder, the local twin hunt, and the domain-edge probe.
 
-**THE ARCSINE DOMAIN GUARD IS ONE HELPER, SHARED.** `output_python.domain_guard_args()` picks
-the guarded arguments out of the sympy tree and `output_cpp._domain_guards()` only prints them,
-so the two languages cannot drift about which poses are reachable. Writing the C++ side by
-reading the tree rather than copying python's greedy regex is what exposed the regex as a
-defect -- it tested the wrong quantity, and a generated python module *raised* on an ordinary
-reachable Panda pose instead of reporting it unreachable. @IKdocs/DEV_NOTES.md.
+**THE ARCSINE DOMAIN IS CHECKED AT THE POINT OF USE, AND THE CONTRACT IS NaN.** There is no
+hoisted `if (fabs(argument) > 1)` in either language. `output_python.dc_rewrite()` swaps every
+`acos`/`asin` for `acos_dc`/`asin_dc`, which return NaN rather than raising; the C++ needs no
+rewrite at all, because `std::acos` already returns NaN out of domain. Reachability is then
+decided ONCE, at the end, from the answer: a non-finite entry anywhere means at least one
+branch does not exist at this pose. A check at the point of use cannot be written down wrong;
+a hoisted one has to re-derive the argument, which is a separate problem that can be got
+wrong -- and was. `scripts/cpp_expr_check` asserts that the two languages agree about the
+contract, case by case, rather than assuming two different mechanisms stay in step.
+
+**AN OUT-OF-DOMAIN ARCCOSINE IS NORMAL, EVEN ON A REACHABLE POSE.** "Reachable" means at least
+one joint vector exists, not that every enumerated branch exists: IKBT does not discard
+spurious branches, a posture can fail to exist at a pose the arm reaches, and on the hybrid
+path the closed form belongs to a *displaced* arm that genuinely cannot reach everything the
+true one can (measured 39 mm apart on one Panda pose). It is data, not a fault. Full
+reasoning and the measurement: @IKdocs/DEV_NOTES.md.
 
 **One deliberate divergence**: every solution variable is initialised to NaN, because an
 uninitialised `double` is undefined behaviour where python's unbound local is an exception.
+An out-of-domain arccosine produces the same value, so both arrive at the finiteness test by
+one route.
 
 ### Latex output: Equations that fit the page (`ikbtfunctions/texwidth.py`)
 
@@ -510,7 +522,16 @@ Please keep commit messages to 5 lines or less.
 
 ## Still open
 
-1. **The five `UNCHECKABLE` robots** (Arm_3, JennyGuoSp24, UR5, KR16, DZhang) still solve
+1. **Report WHICH branches exist, instead of all-or-nothing.** Both languages now compute a
+   non-existent posture as NaN, so the information is there -- but `ikin_*()` still discards
+   every branch when any one of them is non-finite, which is what it has always done.
+   Returning only the finite rows would be strictly more useful. THE CATCH IS INDEX STABILITY:
+   the one-variable search indexes branches by POSITION (`errors[b]` must mean the same branch
+   at every sampled value), so dropping rows at some values and not others would scramble its
+   per-branch curves. The unconditional `ikin_<R>()` could drop them; `ikin_<R>_given()` must
+   keep them and mark them. Two behaviours from one emitter, which is why it is not done here.
+
+2. **The five `UNCHECKABLE` robots** (Arm_3, JennyGuoSp24, UR5, KR16, DZhang) still solve
    "completely" and produce code that cannot run. These are *solver* defects, not codegen ones:
    a solution that contains the variable it solves for, and out-of-range asin/acos. The C++ now
    catches the first kind at COMPILE time where python raises `UnboundLocalError` at run time,
