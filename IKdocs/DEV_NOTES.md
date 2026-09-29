@@ -938,6 +938,54 @@ branches exist, rather than all-or-nothing, is a real improvement and is deliber
 of this change — see "Still open" in CLAUDE.md for the index-stability catch that makes it
 less trivial than it looks.
 
+### Square root, and what it unlocked
+
+`sqrt` has the identical asymmetry and got the identical treatment: `math.sqrt(-202.2)` raises
+`ValueError`, `std::sqrt(-202.2)` returns NaN. A negative discriminant means that BRANCH has no
+solution at that pose — the same statement an out-of-range arccosine makes.
+
+It is matched as a POWER, not a function: sympy has no `sqrt` Function, `sqrt(x)` is
+`Pow(x, 1/2)`, so `.replace(sp.sqrt, ...)` matches nothing. Only the exponents ±1/2 are
+rewritten; a survey of the generated corpus (2026-09-29) found no other fractional power —
+the only exponent that appears is `**2`.
+
+**KR16 was in `expected.UNCHECKABLE` for precisely that raise** (`sqrt(): expected a
+nonnegative input, got -202.2`). Fixing it turned the crash into an honest `unreachable`
+report — and looking at *why* produced the case for per-branch reporting:
+
+    KR16 at the probe pose, as shipped : False (unreachable)
+    with the all-or-nothing rule off  : 4 branches exist, 4 do not
+       branches that exist    : [0, 3, 4, 7]
+       worst FK round-trip error over the 4 that exist: 5.55e-16
+
+Four exact postures were being discarded because four others did not exist. With per-branch
+returns KR16 checks **4 of 4 at 5.6e-16, bit-exact between the languages**, and both it and
+DZhang (1 of 2) left `UNCHECKABLE`. The list is down from five to three.
+
+**The three that remain are one solver defect, not three.** Arm_3, JennyGuoSp24 and UR5 emit a
+solution for a variable that CONTAINS that variable —
+`th_23v1 = atan2(..., ... + a_3*sin(th_23v1 - th_2v1))`. No domain check reaches that. UR5's
+recorded failure used to read "asin/acos out of range, AND the same self-reference"; the first
+half is fixed, so what is left is the self-reference alone.
+
+Worth knowing what the C++ does with them, because it is NOT what was expected: it **compiles
+and runs**, and returns no branches. Every solved variable is declared up front and initialised
+to NaN, so the self-reference reads NaN and the row is dropped. An earlier note here said C++
+would catch this at compile time as an undeclared name — that was true of the OLD generator,
+which emitted the unversioned symbol, and is not true now.
+
+### Per-branch returns, and the one place they must not happen
+
+`ikin_<R>()` returns the branches that exist; the count varies with the pose and an empty
+return means none do.
+
+`ikin_<R>_given()` is the exception and returns EVERY row in a FIXED position, NaN and all.
+`IK_onevar<R>` calls it at hundreds of values of the assumed variable and builds one error
+curve per branch, **indexed by position**. Dropping a row at some values and not others would
+stitch one branch's error onto another's curve, and would wreck the per-branch domain edges
+that `_hunt_edges` finds roots at. Verified unchanged after the switch: C-Arm still returns
+28 of 28 roots over four poses, none missing, none extra, worst FK 1.81e-14.
+
 ## One deliberate divergence from the Python generator
 
 **Every solution variable is initialised to NaN.** Python leaves a skipped branch's variable

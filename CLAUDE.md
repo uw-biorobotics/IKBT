@@ -403,15 +403,32 @@ closed form give at this value" and "how wrong is it" as callbacks. All three ro
 mechanisms port across unchanged, because each finds cases the others cannot: the doubling
 ladder, the local twin hunt, and the domain-edge probe.
 
-**THE ARCSINE DOMAIN IS CHECKED AT THE POINT OF USE, AND THE CONTRACT IS NaN.** There is no
-hoisted `if (fabs(argument) > 1)` in either language. `output_python.dc_rewrite()` swaps every
-`acos`/`asin` for `acos_dc`/`asin_dc`, which return NaN rather than raising; the C++ needs no
-rewrite at all, because `std::acos` already returns NaN out of domain. Reachability is then
-decided ONCE, at the end, from the answer: a non-finite entry anywhere means at least one
-branch does not exist at this pose. A check at the point of use cannot be written down wrong;
-a hoisted one has to re-derive the argument, which is a separate problem that can be got
-wrong -- and was. `scripts/cpp_expr_check` asserts that the two languages agree about the
-contract, case by case, rather than assuming two different mechanisms stay in step.
+**EVERY DOMAIN-RESTRICTED FUNCTION IS CHECKED AT THE POINT OF USE, AND THE CONTRACT IS NaN.**
+There are three of them -- `acos`, `asin` and `sqrt` -- and they make the same statement when
+their argument leaves the domain: *this branch has no solution at this pose*. A negative
+discriminant says exactly what an out-of-range arccosine says.
+
+Python raises on all three; C++ returns NaN on all three. So `output_python.dc_rewrite()` swaps
+them for `acos_dc`/`asin_dc`/`sqrt_dc`, and the C++ needs no rewrite at all. There is no hoisted
+`if (fabs(argument) > 1)` in either language: a check at the point of use cannot be written
+down wrong, where a hoisted one has to re-derive the argument -- a separate problem that can be
+got wrong, and was. `scripts/cpp_expr_check` asserts the two languages agree about the
+contract, case by case, rather than assuming two mechanisms stay in step.
+
+`sqrt` is matched as a POWER, not a function: sympy has no `sqrt` Function, `sqrt(x)` is
+`Pow(x, 1/2)`. Only the two exponents that print as a square root are rewritten; generated code
+contains no other fractional power.
+
+**A NON-FINITE ROW IS A POSTURE THAT DOES NOT EXIST, AND ONLY THAT ROW IS DROPPED.**
+`ikin_<R>()` returns the branches that exist, so the count varies with the pose and an empty
+return means none do. It used to discard ALL of them whenever ANY one was non-finite, which
+threw away exact answers -- KR16 at the probe pose has four postures reproducing it to 5.6e-16
+and four that do not exist, and reported "unreachable" for the lot.
+
+**`ikin_<R>_given()` IS THE EXCEPTION AND KEEPS EVERY ROW IN PLACE.** `IK_onevar<R>` calls it at
+hundreds of values and builds ONE ERROR CURVE PER BRANCH, indexing by POSITION. Dropping a row
+at some values and not others would stitch one branch's error onto another's curve and wreck
+the per-branch domain edges the search hunts roots at.
 
 **AN OUT-OF-DOMAIN ARCCOSINE IS NORMAL, EVEN ON A REACHABLE POSE.** "Reachable" means at least
 one joint vector exists, not that every enumerated branch exists: IKBT does not discard
@@ -522,20 +539,21 @@ Please keep commit messages to 5 lines or less.
 
 ## Still open
 
-1. **Report WHICH branches exist, instead of all-or-nothing.** Both languages now compute a
-   non-existent posture as NaN, so the information is there -- but `ikin_*()` still discards
-   every branch when any one of them is non-finite, which is what it has always done.
-   Returning only the finite rows would be strictly more useful. THE CATCH IS INDEX STABILITY:
-   the one-variable search indexes branches by POSITION (`errors[b]` must mean the same branch
-   at every sampled value), so dropping rows at some values and not others would scramble its
-   per-branch curves. The unconditional `ikin_<R>()` could drop them; `ikin_<R>_given()` must
-   keep them and mark them. Two behaviours from one emitter, which is why it is not done here.
+1. **Three robots solve "completely" and their generated code is still wrong**
+   (Arm_3, JennyGuoSp24, UR5). ONE defect, and it is the SOLVER's, not the code generator's:
+   the solution for a variable CONTAINS that variable --
+   `th_23v1 = atan2(..., ... + a_3*sin(th_23v1 - th_2v1))` is not a solution for `th_23v1`.
+   Python raises `UnboundLocalError`; the C++ compiles, runs, reads the self-reference as NaN
+   and returns NO branches. Quieter, and no better -- an empty answer here is a wrong answer
+   wearing "unreachable" as a disguise. Both stay out of `EXPECT`.
+   (This list was five. KR16 and DZhang left it on 2026-09-29: their failures were domain
+   errors, which are now reported rather than raised.)
 
-2. **The five `UNCHECKABLE` robots** (Arm_3, JennyGuoSp24, UR5, KR16, DZhang) still solve
-   "completely" and produce code that cannot run. These are *solver* defects, not codegen ones:
-   a solution that contains the variable it solves for, and out-of-range asin/acos. The C++ now
-   catches the first kind at COMPILE time where python raises `UnboundLocalError` at run time,
-   which makes it easier to find but no less broken. 
+2. **Division by zero is the one domain asymmetry left.** `1.0/0.0` raises `ZeroDivisionError`
+   in python and gives `inf` in C++, and it is an OPERATOR, so the `acos_dc` treatment does not
+   reach it. The one-variable search already catches it (`branches_at_*` swallows the
+   exception and reads the value as "no solution here"), so what is exposed is the
+   unconditional `ikin_*()`. Not yet seen to bite. 
 
  
 

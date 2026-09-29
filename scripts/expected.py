@@ -112,30 +112,58 @@ EXPECT = {
     'Craig417':     (2, 4),
     'MiniDD':       (1, 4),
 
+    #  OUT OF UNCHECKABLE, 2026-09-29.  Both used to raise from inside the
+    #  generated python and could not be measured at all.
+    #
+    #  KR16 died on `sqrt(): expected a nonnegative input, got -202.2`.  A
+    #  negative discriminant means that BRANCH has no solution at that pose --
+    #  data, not a fault -- so sqrt_dc() returns NaN and the four postures
+    #  that DO exist are returned.  They reproduce the pose to 5.6e-16, and
+    #  the generated C++ agrees bit for bit.  4 of 4, not 4 of 8: the other
+    #  four do not exist there, and are no longer counted as branches.
+    'KR16':         (4, 4),
+
+    #  DZhang died on an out-of-range arccosine, now NaN via acos_dc().  It is
+    #  a KNOWN INCOMPLETE like the entries above, not a clean solve.  Its `h`
+    #  is a REAL dh parameter and was never the problem.
+    'DZhang':       (1, 2),
+
     'Mackler13':    (1, 4),
 
     #  Parkman13 is mostly wrong and unexplained.
     'Parkman13':    (1, 4),
 }
 
-#  FIVE ROBOTS SOLVE COMPLETELY AND THEIR GENERATED CODE CANNOT BE RUN.  They are
-#  deliberately NOT in EXPECT:  an entry would make the gate fail forever on a
-#  defect that is already recorded.  Measured 2026-09-05, all with tex+py+cpp
-#  written and status 'solved':
+#  THREE ROBOTS SOLVE COMPLETELY AND THEIR GENERATED CODE CANNOT BE RUN.  They
+#  are deliberately NOT in EXPECT:  an entry would make the gate fail forever
+#  on a defect that is already recorded.
 #
 #      Arm_3          UnboundLocalError: th_23v1  -- the solution CONTAINS the
 #      JennyGuoSp24   UnboundLocalError: th_3v1      variable it solves for
-#      UR5            asin/acos out of range, AND the same self-reference
-#      KR16           sqrt(): expected a nonnegative input, got -202.2
-#      DZhang         asin/acos: expected a number in range -1..1
+#      UR5            UnboundLocalError: th_2v1      ... and so does this one
 #
-#  DZhang's `h` is a REAL dh parameter (declared in sp.var, in params, pvals[h]=1)
-#  and is not the problem;  its failure is the asin/acos range error alone.
-#  Mackler13 was on this list for a stray `h` of its own -- that one was a typo
-#  in the DH table, is fixed, and it now checks 1 of 4.
+#  ONE DEFECT, NOT THREE, and it is the SOLVER's, not the code generator's:
+#  an equation of the form th_23v1 = atan2(..., ... + a_3*sin(th_23v1 - th_2v1))
+#  is not a solution for th_23v1.  No amount of domain checking helps.
+#
+#  This list was five (2026-09-05).  KR16 and DZhang left it on 2026-09-29 --
+#  their failures were domain errors, which are now reported rather than
+#  raised;  see their EXPECT entries.  UR5's recorded failure was "asin/acos
+#  out of range, AND the same self-reference" -- the first half is fixed, so
+#  what is left is the self-reference alone.
+#
+#  WHAT THE GENERATED C++ DOES WITH ALL THREE:  it compiles and runs, and
+#  returns NO branches.  Every solved variable is declared up front and
+#  initialised to NaN, so a self-reference reads NaN, the row is non-finite,
+#  and it is dropped -- where python raises.  Quieter, and no better:  an
+#  empty answer here is a wrong answer wearing "unreachable" as a disguise,
+#  which is why these stay out of EXPECT in both languages.
+#
+#  Mackler13 was on this list for a stray `h` of its own -- that one was a
+#  typo in the DH table, is fixed, and it now checks 1 of 4.
 #
 #  Move a robot into EXPECT the moment its generated code runs.
-UNCHECKABLE = ['Arm_3', 'JennyGuoSp24', 'KR16', 'UR5', 'DZhang']
+UNCHECKABLE = ['Arm_3', 'JennyGuoSp24', 'UR5']
 
 
 def judge_counts(name, good, total):
