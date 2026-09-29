@@ -32,6 +32,7 @@ import b3 as b3          # behavior trees
 import ikbtfunctions.helperfunctions as hf
 import ikbtfunctions.output_latex as ol
 import ikbtfunctions.output_python as op
+import ikbtfunctions.output_cpp_common as occ
 from   ikbtfunctions.ik_robots import *   # the robot models
 
 TEST_DATA_GENERATION = False
@@ -95,6 +96,24 @@ check_the_pickle(dhp, dh)   # check that two mechanisms have identical DH params
 
 print('Generating Python code ...')
 op.output_FK_python_code(R)   # FK and Jacobian are both complete by here
+
+#  ... and the numeric C++ pair.  A DIFFERENT ARTIFACT from the line above,
+#  not a translation of it:  output_FK_python_code() writes a readable
+#  module-level dump of the symbolic T_06 with dummy joint values, and this
+#  writes CodeGen/Cpp/FK_numeric<Robot>.h -- fk_<Robot>(q) and
+#  jacobian_<Robot>(q), with the parameters baked in.  The names differ for
+#  that reason;  sharing one would mean whichever ran last replaced the other.
+#
+#  DEGRADES TO A WARNING.  It needs every parameter to have a numeric value,
+#  and a robot whose pvals are incomplete is a perfectly good subject for
+#  symbolic FK.  Losing the whole run over the bonus artifact would be wrong.
+print('Generating C++ code ...')
+try:
+    print('   wrote', occ.write_fk_module_cpp(
+        M, R.name, jacobian=True,
+        what='Forward kinematics and Jacobian for %s' % R.name))
+except Exception as e:
+    print('   no C++ FK module -- %s: %s' % (type(e).__name__, e))
 
 if TEST_DATA_GENERATION:
     # Now we're going to save some results for use in tests.

@@ -27,7 +27,7 @@ All commands must be run **from the repo root** (module imports are package-rela
 
 ```bash
 python3 ikSolver.py Wrist          # full IK solve (Wrist is the fast one; no arg -> Wrist)
-python3 fkOnly.py <RobotName>      # forward kinematics + Jacobian only
+python3 fkOnly.py <RobotName>      # forward kinematics + Jacobian only (py, LaTeX, and C++)
 
 python3 -m tests.leavestest        # main unit-test suite (basic classes + all leaves)
 python3 -m tests.leavestest html   # same, writes an HTML report via HTMLTestRunner
