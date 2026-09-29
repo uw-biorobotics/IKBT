@@ -869,32 +869,74 @@ callbacks. Same algorithm, one copy.
   none missing, none extra**, worst FK error 1.8e-14. The per-pose count varied 4/8/8/8, which
   is the arm and not the search. **9 ms per pose**, against 0.14 s for the Python.
 
-## The arcsine domain guard — a Python bug the C++ twin exposed
+## The arcsine domain: check at the point of use, and let NaN travel
 
-Writing the C++ guard by reading the sympy tree, rather than by copying Python's regex, turned
-a difference of style into a defect report.
+### Why an out-of-domain arccosine happens at all on a REACHABLE pose
 
-`output_python.py` pulled the guarded argument out of the **printed** RHS with a greedy
-`re.search(r'\((.*)\)', ...)`. For `acos(x) + atan2(y, z)` that returns `(x) + atan2(y, z)`, so
-the emitted guard tested `abs` of the wrong quantity; for a sum of two arcsines it guarded
-neither. Worse, the three emission branches were independent `if`s, so a RHS holding both an
-arcsine and an `atan2` emitted the guarded assignment **and** an unguarded one — and the
-unguarded one, being second, won. The guard was wasted even when its argument was right.
+Worth stating plainly, because the closed-loop checks build every target as `T = FK(q)` and
+it looks at first as though an out-of-range arccosine should therefore be impossible.
 
-This is not theoretical. `scripts/cpp_closed_loop_check --hybrid Panda` hit it on the second
-random reachable pose it tried (2026-09-29):
+**"The pose is reachable" means at least one joint vector exists. It does not mean every
+enumerated branch exists.** Three separate reasons, all normal:
 
-    ValueError: expected a number in range from -1 up to 1, got 1.1131148539915245
+1. **On the hybrid path the closed form belongs to a different arm.** `T` comes from the FK of
+   the TRUE arm; Phase I evaluates the SIMPLIFIED one, which is a displaced robot. Measured on
+   Panda (2026-09-29), over three random reachable poses, the two arms' end effectors sit
+   1.9 mm, **39 mm** and 11 mm apart at the same joint values. At the 39 mm pose the simplified
+   arm's closed form has a branch whose arccosine argument is **1.113** — it is simply being
+   asked for a pose outside its own workspace. That is the hybrid method working as designed;
+   correcting exactly that displacement is what Phase II is for.
+2. **IKBT does not discard spurious branches.** It enumerates combinations of each unknown's
+   solution branches without checking them against the original equations — which is why
+   Phase I has a `filter_spurious` argument at all, and why `expected.EXPECT` records robots
+   whose branches legitimately do not all reproduce the pose.
+3. **A posture can fail to exist at a pose the arm reaches.** Elbow-up may exist where
+   elbow-down does not. The arccosine leaving `[-1, 1]` is the *correct signal* that this
+   branch has no solution here. On the one-variable path this is constant and relied upon: the
+   search sweeps the assumed variable over the whole circle, most values have no solution, and
+   the domain-edge probe exists precisely to hunt roots at the finite/infinite transitions.
 
-raised from inside the generated `IK_equationsPanda_a_3_0_a_4_0.py`. The C++ returned an
-empty list, correctly, for the same pose. A generated module is supposed to *report* an
-unreachable pose, never raise.
+So the guard firing was never the bug. The bug was that the module **raised** instead of
+reporting.
 
-**Fixed by sharing one helper.** `output_python.domain_guard_args()` picks the arguments out of
-the sympy tree and `output_cpp._domain_guards()` only prints them, so the two languages cannot
-drift about which poses are reachable. Which versions get an assignment is unchanged; what
-changed is how the arcsine ones are guarded, and that there is now exactly one assignment per
-version.
+### The design, after BH's question
+
+BH, 2026-09-29: *"why not just write a domain-checked version of acos() (e.g. acos_dc()) and
+use it for all acos() invocations in the code?"* — which is right, and is what it does now.
+
+The first attempt hoisted the guard out of the expression:
+
+    if (solvable_pose and abs(<argument>) > 1):
+        solvable_pose = False
+    else:
+        th_5v1 = acos(<argument>)
+
+That makes `<argument>` a thing the generator has to re-derive, which is a separate problem
+that can be got wrong — and was. It was pulled out of the **printed** RHS with a greedy
+`re.search(r'\((.*)\)', ...)`, so for `acos(x) + atan2(y, z)` the test was on
+`(x) + atan2(y, z)`, the wrong quantity; for a sum of two arcsines it tested neither. Worse,
+three independent `if`s meant a RHS holding both an arcsine and an `atan2` emitted the guarded
+assignment **and** an unguarded one, and the unguarded one, being second, won.
+
+**A check at the point of use cannot be written down wrong.** There is no argument to extract,
+so there is no argument to extract wrongly, and every arccosine is covered however many there
+are and however deeply nested.
+
+**The contract is NaN, not an exception**, and reachability is decided once, at the end, from
+the answer itself. C++ gets this for free — `std::acos` already returns NaN out of domain,
+quietly. Python does not, so `output_python.dc_rewrite()` swaps every `acos`/`asin` for
+`acos_dc`/`asin_dc`, emitted into each generated module. Two mechanisms reaching one behaviour
+is exactly the kind of thing that drifts, so `scripts/cpp_expr_check` asserts it: eight cases,
+including the literal 1.113 that raised, required to give the same answer in both languages.
+
+**It also retired a failure mode that was not about arccosine.** A tripped guard left the
+variable UNBOUND, so the next line that read it raised `UnboundLocalError` rather than
+reporting the pose unreachable. NaN propagates instead.
+
+Behaviour is otherwise unchanged: one bad branch still discards them all. Reporting *which*
+branches exist, rather than all-or-nothing, is a real improvement and is deliberately not part
+of this change — see "Still open" in CLAUDE.md for the index-stability catch that makes it
+less trivial than it looks.
 
 ## One deliberate divergence from the Python generator
 

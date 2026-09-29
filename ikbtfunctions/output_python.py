@@ -41,34 +41,51 @@ def _say(*args):
         print(*args)
 
 
-def domain_guard_args(rhs):
-    r"""The arcsine/arccosine arguments in one RHS that need a range test.
+class acos_dc(sp.Function):
+    """Marker for a DOMAIN-CHECKED arccosine in the generated python."""
 
-       WALKS THE SYMPY TREE.  This used to be
 
-           re.search(r'\((.*)\)', str(rhs)).group(0)
+class asin_dc(sp.Function):
+    """Marker for a DOMAIN-CHECKED arcsine in the generated python."""
 
-       over the PRINTED right-hand side, which is greedy:  for
-       `acos(x) + atan2(y, z)` it returns `(x) + atan2(y, z)` and the emitted
-       guard tests `abs` of that -- the wrong quantity -- so acos was called
-       with an out-of-range argument and the generated module raised
-       ValueError instead of reporting the pose unreachable.  Panda's
-       simplified arm does exactly that on ordinary reachable poses
-       (`expected a number in range from -1 up to 1, got 1.113`, 2026-09-29).
-       For a sum of two arcsines it guarded neither.
 
-       Reading the expression gives every argument, exactly.  Shared with
-       ikbtfunctions/output_cpp.py so the two languages cannot drift about
-       which poses are reachable.
+def dc_rewrite(e):
+    r"""One expression with every acos/asin swapped for its checked twin.
 
-       Returns a list of sympy expressions, sorted by their printed form so
-       the emitted guard is stable between runs."""
+       THE GUARD GOES AT THE POINT OF USE, which is the only place it can be
+       written down wrong-proof.  What this replaced hoisted the guard out:
+       it dug the argument out of the RHS and emitted
 
-    args = []
-    for f in sp.sympify(rhs).atoms(sp.asin, sp.acos):
-        if f.args[0] not in args:
-            args.append(f.args[0])
-    return sorted(args, key=str)
+           if (solvable_pose and abs(<argument>) > 1):
+               solvable_pose = False
+           else:
+               th_5v1 = acos(<argument>)
+
+       and getting `<argument>` right is then a separate problem that can be
+       got wrong -- and was.  It was pulled out of the PRINTED RHS with a
+       greedy `re.search(r'\((.*)\)', ...)`, so for `acos(x) + atan2(y, z)`
+       the test was on `(x) + atan2(y, z)`, the wrong quantity;  for a sum of
+       two arcsines it tested neither.  acos was then called out of range
+       anyway and the generated module RAISED.  (BH, 2026-09-29: "why not just
+       write a domain-checked version of acos()".)
+
+       There is nothing to extract here, so there is nothing to extract
+       wrongly:  every arccosine is checked, however many there are and
+       however deeply nested.
+
+       THE CONTRACT IS NaN, NOT AN EXCEPTION.  An out-of-range argument means
+       the posture does not exist at this pose -- data, not a fault -- and it
+       propagates through the arithmetic that follows to the finiteness test
+       at the end.  The C++ needs no equivalent rewrite: std::acos ALREADY
+       returns NaN out of domain, where python's math.acos raises.  Two
+       spellings, one contract, and scripts/cpp_expr_check asserts it.
+
+       It also retires a whole class of failure that was not about arccosine
+       at all:  a tripped guard used to leave the variable UNBOUND, so the
+       next line that read it raised UnboundLocalError rather than reporting
+       the pose unreachable."""
+
+    return sp.sympify(e).replace(sp.acos, acos_dc).replace(sp.asin, asin_dc)
 
 
 def py_identifier(name):
@@ -95,8 +112,28 @@ from math import cos
 from math import sin
 from math import acos
 from math import asin
+from math import isfinite
 
 pi = np.pi
+
+
+#  DOMAIN-CHECKED arccosine and arcsine.
+#
+#  An argument outside [-1, 1] means the posture this branch describes does
+#  not exist at this pose.  That is DATA, not a fault:  the solver enumerates
+#  combinations of each unknown's branches without discarding the ones the
+#  arm cannot adopt, and on the hybrid path the closed form belongs to a
+#  SIMPLIFIED arm that genuinely cannot reach every pose the true one can.
+#
+#  So they return NaN and let it propagate to the finiteness test at the end,
+#  rather than raising.  math.acos raises;  C++'s std::acos already returns
+#  NaN, which is why the generated C++ needs no equivalent wrapper.
+def acos_dc(x):
+    return acos(x) if -1.0 <= x <= 1.0 else float('nan')
+
+
+def asin_dc(x):
+    return asin(x) if -1.0 <= x <= 1.0 else float('nan')
 
 '''
 #
@@ -121,8 +158,28 @@ from math import cos
 from math import sin
 from math import acos
 from math import asin
+from math import isfinite
 
 pi = np.pi
+
+
+#  DOMAIN-CHECKED arccosine and arcsine.
+#
+#  An argument outside [-1, 1] means the posture this branch describes does
+#  not exist at this pose.  That is DATA, not a fault:  the solver enumerates
+#  combinations of each unknown's branches without discarding the ones the
+#  arm cannot adopt, and on the hybrid path the closed form belongs to a
+#  SIMPLIFIED arm that genuinely cannot reach every pose the true one can.
+#
+#  So they return NaN and let it propagate to the finiteness test at the end,
+#  rather than raising.  math.acos raises;  C++'s std::acos already returns
+#  NaN, which is why the generated C++ needs no equivalent wrapper.
+def acos_dc(x):
+    return acos(x) if -1.0 <= x <= 1.0 else float('nan')
+
+
+def asin_dc(x):
+    return asin(x) if -1.0 <= x <= 1.0 else float('nan')
 
 '''
     importString = importString.replace('**Robot**', Robot.name)
@@ -250,8 +307,28 @@ from math import cos
 from math import sin
 from math import acos
 from math import asin
+from math import isfinite
 
 pi = np.pi
+
+
+#  DOMAIN-CHECKED arccosine and arcsine.
+#
+#  An argument outside [-1, 1] means the posture this branch describes does
+#  not exist at this pose.  That is DATA, not a fault:  the solver enumerates
+#  combinations of each unknown's branches without discarding the ones the
+#  arm cannot adopt, and on the hybrid path the closed form belongs to a
+#  SIMPLIFIED arm that genuinely cannot reach every pose the true one can.
+#
+#  So they return NaN and let it propagate to the finiteness test at the end,
+#  rather than raising.  math.acos raises;  C++'s std::acos already returns
+#  NaN, which is why the generated C++ needs no equivalent wrapper.
+def acos_dc(x):
+    return acos(x) if -1.0 <= x <= 1.0 else float('nan')
+
+
+def asin_dc(x):
+    return asin(x) if -1.0 <= x <= 1.0 else float('nan')
 
 '''
     fixed_name = Robot.name.replace(r'_', r'\_')  # this is for LaTex output
@@ -376,16 +453,16 @@ pi = np.pi
         print(indent + 'print ("in case of domain errors, change the test position / orientation ")', file=f)
         print(indent + 'print ( " to a pose reachable by your specific robot")', file=f)
     print(indent + '', file=f)
-    print(indent + 'solvable_pose = True', file=f)
     print(indent + '''
- 
 #############################################################
 #
-# Future reachable pose checking code (autogenerated) will go here
+#   REACHABILITY is decided at the END, from the answer itself.
 #
-#    This code will check asin / acos args etc to determine
-#
-#        solvable_pose = True/False
+#   Every arccosine and arcsine below goes through acos_dc / asin_dc, which
+#   return NaN rather than raising when their argument leaves [-1, 1].  A NaN
+#   propagates through the arithmetic that follows, so a posture this arm
+#   cannot adopt at this pose arrives at the bottom of this function as a
+#   non-finite number and is recognised there.
 #
 #############################################################
  ''', file=f) 
@@ -409,31 +486,21 @@ pi = np.pi
 
         for solEqnVer in eqnlist: # go through the versions
             _say('Python Output: Solution Equation Version: ', solEqnVer)
-            assign = str(solEqnVer.LHS) + ' = ' + str(solEqnVer.RHS)
-            guards = domain_guard_args(solEqnVer.RHS)
+            rhs = solEqnVer.RHS
 
-            #  ONE ASSIGNMENT PER VERSION, guarded by EVERY arcsine/arccosine
-            #  argument in it.  These used to be three independent `if`s, so a
-            #  RHS holding both an asin and an atan2 emitted the guarded
-            #  assignment AND an unguarded one -- and the unguarded one, being
-            #  second, won.  The guard was wasted and acos was called out of
-            #  range anyway.
-            if guards:
-                _say('  Found asin/acos solution ...', solEqnVer.LHS,
-                     ' "=" ', solEqnVer.RHS)
-                cond = ' or '.join('abs(%s) > 1' % g for g in guards)
-                print(indent + 'if (solvable_pose and (%s)):' % cond, file=f)
-                print(indent*2 + 'solvable_pose = False', file=f)
-                print(indent + 'else:', file=f)
-                print(indent*2 + assign, file=f)
-            elif (re.search('atan', str(solEqnVer.RHS))
-                    or node.solvemethod == 'algebra'):
-                #  WHICH versions get an assignment is unchanged;  only how
-                #  the arcsine ones are guarded, and that there is now one
-                #  assignment rather than sometimes two.
-                _say('  Found atan2/algebra solution ...', solEqnVer.LHS,
-                     ' = ', solEqnVer.RHS)
-                print(indent + assign, file=f)
+            #  ONE PLAIN ASSIGNMENT PER VERSION.  The arccosine domain test is
+            #  inside acos_dc(), at the point of use -- see dc_rewrite().
+            #  This used to be three independent `if`s emitting a hoisted
+            #  guard, and a RHS holding both an asin and an atan2 got the
+            #  guarded assignment AND an unguarded one, the unguarded one
+            #  winning.
+            has_dc = bool(sp.sympify(rhs).atoms(sp.asin, sp.acos))
+            if has_dc or re.search('atan', str(rhs)) \
+                    or node.solvemethod == 'algebra':
+                #  WHICH versions get an assignment is unchanged.
+                _say('  emit ', solEqnVer.LHS, ' = ', rhs)
+                print(indent + str(solEqnVer.LHS) + ' = '
+                      + str(dc_rewrite(rhs)), file=f)
 
     print('''
 ##################################
@@ -471,10 +538,15 @@ pi = np.pi
 
 
     # we are done.   Return
-    print(indent + 'if(solvable_pose):', file=f)
-    print(indent*2 + 'return(solution_list)', file=f)
-    print(indent + 'else: ', file=f)
-    print(indent*2 + 'return(False)', file=f)
+    print(indent + '#  A non-finite entry anywhere means at least one branch', file=f)
+    print(indent + '#  does not exist at this pose.  Reported as unreachable,', file=f)
+    print(indent + '#  which is what this function did before:  one bad branch', file=f)
+    print(indent + '#  has always discarded them all.', file=f)
+    print(indent + 'for _row in solution_list:', file=f)
+    print(indent*2 + 'for _v in _row:', file=f)
+    print(indent*3 + 'if not isfinite(_v):', file=f)
+    print(indent*4 + 'return(False)', file=f)
+    print(indent + 'return(solution_list)', file=f)
 
     #  A labelled view of the same answer, for callers who would rather
     #  not index by position.  The numeric list stays the fast path.

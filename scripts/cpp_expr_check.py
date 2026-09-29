@@ -260,6 +260,119 @@ def run(exprs, verbose=False, seed=7):
     return 1 if bad else 0
 
 
+###############################################################################
+#
+#    The out-of-domain contract
+#
+
+#  ONE CONTRACT, TWO SPELLINGS.  An arccosine whose argument leaves [-1, 1]
+#  must yield NaN and propagate it, in BOTH languages -- that is what lets the
+#  generated code decide reachability at the end instead of guarding at every
+#  arcsine.  C++ gets it for free (std::acos already returns NaN); python does
+#  not (math.acos raises), so output_python emits acos_dc / asin_dc.  Two
+#  different mechanisms reaching the same behaviour is exactly the kind of
+#  thing that drifts, so it is asserted here rather than assumed.
+#
+#  The PYTHON side is exercised through the helper source output_python
+#  actually emits, lifted out of its importString -- not a copy of it.
+
+DOMAIN_CASES = [
+    ('acos just outside',      'acos_dc(1.0000001)',        'std::acos(1.0000001)'),
+    ('acos far outside',       'acos_dc(1.1131148539915245)',
+                               'std::acos(1.1131148539915245)'),
+    ('asin far outside',       'asin_dc(-2.0)',             'std::asin(-2.0)'),
+    ('NaN propagates through', 'pi - asin_dc(3.0)',         'M_PI - std::asin(3.0)'),
+    ('NaN through a product',  'cos(acos_dc(2.0)) * 5.0',
+                               'std::cos(std::acos(2.0)) * 5.0'),
+    ('inside the domain',      'acos_dc(0.5)',              'std::acos(0.5)'),
+    ('exactly at the edge',    'acos_dc(1.0)',              'std::acos(1.0)'),
+    ('exactly at -1',          'asin_dc(-1.0)',             'std::asin(-1.0)'),
+]
+
+
+def _emitted_helpers():
+    """acos_dc / asin_dc exactly as output_python writes them into a module."""
+
+    import ikbtfunctions.output_python as op
+
+    src = op.importString
+    start = src.index('def acos_dc')
+    ns = {'acos': math.acos, 'asin': math.asin, 'cos': math.cos,
+          'pi': math.pi, 'float': float}
+    exec(compile(src[start:], '<emitted>', 'exec'), ns)
+    return ns
+
+
+def check_domain_contract(verbose=False):
+    """Do the two languages agree about an out-of-domain arccosine?"""
+
+    from ikbtfunctions.output_cpp_common import read_src
+
+    ns = _emitted_helpers()
+
+    lines = [read_src('ikbt_types.h'), '', '#include <cstdio>', '',
+             'using namespace ikbt;', '', 'int main()', '{']
+    for i, (_, _, csrc) in enumerate(DOMAIN_CASES):
+        lines.append('    std::printf("%d %%.17g\\n", (double)(%s));' % (i, csrc))
+    lines.append('    return 0;')
+    lines.append('}')
+
+    tmp = tempfile.mkdtemp(prefix='ikbt_dom_')
+    cpath = os.path.join(tmp, 'domain_check.cpp')
+    bpath = os.path.join(tmp, 'domain_check')
+    with open(cpath, 'w') as f:
+        f.write('\n'.join(lines))
+
+    cc = subprocess.run(['g++', '-std=c++11', '-O2', '-Wall', '-Wextra',
+                         cpath, '-o', bpath, '-lm'],
+                        capture_output=True, text=True)
+    if cc.returncode != 0:
+        print('COMPILE FAILED in the domain contract check')
+        print(cc.stderr[:1500])
+        return 1
+
+    r = subprocess.run([bpath], capture_output=True, text=True)
+    got = {}
+    for line in r.stdout.split('\n'):
+        if line.strip():
+            k, v = line.split()
+            got[int(k)] = float(v)
+
+    bad = 0
+    print('\n  out-of-domain contract  (NaN, not an exception, in both)')
+    for i, (label, psrc, csrc) in enumerate(DOMAIN_CASES):
+        try:
+            pv = float(eval(psrc, {'__builtins__': {}}, ns))
+            praised = None
+        except Exception as e:
+            pv, praised = None, '%s: %s' % (type(e).__name__, str(e)[:40])
+        cv = got.get(i)
+
+        if praised:
+            ok = False
+            note = 'python RAISED (%s)' % praised
+        elif cv is None:
+            ok = False
+            note = 'no C++ value'
+        elif math.isnan(pv) and math.isnan(cv):
+            ok = True
+            note = 'both NaN'
+        elif math.isnan(pv) != math.isnan(cv):
+            ok = False
+            note = 'python %s, C++ %s' % (pv, cv)
+        else:
+            ok = abs(pv - cv) <= 1e-15 * max(1.0, abs(pv))
+            note = 'both %.17g' % pv if ok else 'py %.17g vs cpp %.17g' % (pv, cv)
+        if not ok:
+            bad += 1
+        if verbose or not ok:
+            print('  %-5s %-24s %s' % ('ok' if ok else 'FAIL', label, note))
+
+    print('  %d case(s), %d disagreement(s)' % (len(DOMAIN_CASES), bad))
+    shutil.rmtree(tmp, ignore_errors=True)
+    return 1 if bad else 0
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--robot', help='also check this robot\'s own solution '
@@ -276,7 +389,9 @@ def main():
         print('solving %s to harvest its equations ...' % args.robot)
         exprs = exprs + robot_equations(args.robot)
 
-    return run(exprs, verbose=args.verbose)
+    rc = run(exprs, verbose=args.verbose)
+    rc |= check_domain_contract(verbose=args.verbose)
+    return rc
 
 
 if __name__ == '__main__':
