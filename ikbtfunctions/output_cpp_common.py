@@ -240,6 +240,14 @@ def pose_unpack_cpp(indent='    '):
                          % (indent, i + 1, j + 1, i, j))
     for k, nm in enumerate(('Px', 'Py', 'Pz')):
         lines.append('%sconst double %s = T[%d][3];' % (indent, nm, k))
+
+    #  Not every arm's solution mentions all twelve -- a wrist uses no
+    #  position at all -- and an unused const is a -Wunused-variable warning.
+    #  Declaring them unconditionally keeps the block identical for every
+    #  robot, which is worth more than the warnings cost to silence.
+    names = ['r_%d%d' % (i + 1, j + 1) for i in range(3) for j in range(3)]
+    names += ['Px', 'Py', 'Pz']
+    lines.append('%s(void) %s;' % (indent, '; (void) '.join(names)))
     return '\n'.join(lines)
 
 
@@ -257,3 +265,113 @@ def name_table_cpp(names, var, indent=''):
     body = ', '.join('"%s"' % n for n in names)
     return ('%sconst char* const %s[] = {%s};\n%sconst int N_%s = %d;'
             % (indent, var, body, indent, var, len(names)))
+
+
+###############################################################################
+#
+#    FK (and Jacobian) for one arm
+#
+
+def write_fk_module_cpp(M, name, jacobian=True, dirname=DIR_NAME, what=None):
+    '''Write FK_numeric<name>.h -- fk_<name>(q), and optionally jacobian_<name>(q).
+
+       The twin of output_numeric_common.write_fk_module(), argument for
+       argument, with the same guard and the same reasoning:
+
+       FK_numeric, NOT FK_equations.  output_python.output_FK_python_code()
+       owns FK_equations<name>, which is a readable dump of the symbolic T_06
+       with dummy joint values -- a different artifact.  Sharing the name would
+       mean whichever ran last silently replaced the other.
+
+       A HEADER, not a .cpp, because something else includes it.  The python
+       twin is a module the hybrid and one-variable modules import as a
+       sibling;  `#include "FK_numeric<name>.h"` searches the including file's
+       own directory first, so the two arrangements are the same arrangement.
+       Everything is `inline`, so several translation units may include it.
+
+       It still inlines ikbt_types.h, as every generated file does.  The
+       include guards make that safe however many of them end up in one
+       translation unit.
+
+       THE PARAMETERS ARE BAKED IN, not left as overridable globals -- the
+       opposite of IK_equations*, and deliberately: these functions are the
+       definition of "the true arm" that Phase II refines against.
+
+       Only the first ndof columns of J66.  It is stored 6x6 for every robot
+       and the surplus columns of a short arm are NOT zero -- a padded DH row
+       still gets a column computed for it -- so handing them to the solver
+       would let it move joints the arm does not have.
+
+       Returns the path written.'''
+
+    ident = cpp_identifier(name)
+    ndof = M.ndof
+    syms = nik.joint_symbols(M, ndof)
+    pv = nik.pvals_numeric(M)
+
+    T = sp.Matrix(M.T_06).subs(pv)
+    J = sp.Matrix(M.J66).subs(pv)[:, :ndof] if jacobian else None
+
+    for label, Mx in (('T_06', T), ('J66', J)):
+        if Mx is None:
+            continue
+        extra = sorted(Mx.free_symbols - set(syms), key=str)
+        if extra:
+            raise ValueError('%s of %s still contains %s -- pvals did not '
+                             'resolve every parameter'
+                             % (label, name, [str(s) for s in extra]))
+
+    filename = 'FK_numeric%s.h' % name
+    path = os.path.join(dirname, filename)
+    guard = 'IKBT_FK_NUMERIC_%s_H' % ident.upper()
+
+    with open(path, 'w') as f:
+        print(file_header(what or 'Forward kinematics for %s' % name,
+                          name, filename), file=f)
+        print('#ifndef %s' % guard, file=f)
+        print('#define %s' % guard, file=f)
+        print('', file=f)
+        print(read_src('ikbt_types.h'), file=f)
+        print('', file=f)
+        print('namespace ikbt {', file=f)
+        print('', file=f)
+
+        print('//  Joint order is the DH CHAIN order, which is what a q vector', file=f)
+        print('//  must be in.  It is NOT the order the solver happened to', file=f)
+        print('//  solve them in, and it excludes sum-of-angle intermediates.', file=f)
+        print(name_table_cpp([str(s) for s in syms],
+                             'FK_JOINT_NAMES_%s' % ident), file=f)
+        print('const int NDOF_%s = %d;' % (ident, ndof), file=f)
+        print('', file=f)
+
+        print('//  q -> 4x4 homogeneous transform of frame 6 in the base frame.', file=f)
+        print('inline Mat4 fk_%s(const JointVec &q)' % ident, file=f)
+        print('{', file=f)
+        print(joint_unpack_cpp(syms), file=f)
+        print('    Mat4 T;', file=f)
+        print(matrix_cpp(T, 'T'), file=f)
+        print('    return T;', file=f)
+        print('}', file=f)
+        print('', file=f)
+
+        if jacobian:
+            print('//  q -> 6 x %d Jacobian, EXPRESSED IN FRAME 6.' % ndof, file=f)
+            print('//', file=f)
+            print('//  Frame 6, not the base frame:  that is what IKBT computes', file=f)
+            print('//  and stores as J66.  Rotate it with jacobian_base() before', file=f)
+            print('//  comparing against a pose error, which lives in the base', file=f)
+            print('//  frame.', file=f)
+            print('inline Matrix jacobian_%s(const JointVec &q)' % ident, file=f)
+            print('{', file=f)
+            print(joint_unpack_cpp(syms), file=f)
+            print('    Matrix J(6, std::vector<double>(%d, 0.0));' % ndof, file=f)
+            print(matrix_cpp(J, 'J'), file=f)
+            print('    return J;', file=f)
+            print('}', file=f)
+            print('', file=f)
+
+        print('}   // namespace ikbt', file=f)
+        print('', file=f)
+        print('#endif   // %s' % guard, file=f)
+
+    return path

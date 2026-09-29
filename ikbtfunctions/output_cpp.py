@@ -1,38 +1,42 @@
 #!/usr/bin/python
 #
-#   Generate C++ output code of the IK solution
+#   output_cpp.py --  generate C++ code for the IK solution
 #
-
+#   THE TWIN OF output_python.output_python_code(), derived from it line by
+#   line.  Same walk of Robot.FinalEqnMatrix, same first-seen dedup on the LHS,
+#   same joint/aux column split, same return contract, same two file names:
 #
-# Copyright 2017 University of Washington
+#       known=None    CodeGen/Cpp/IK_equations<Robot>.cpp,  ikin_<Robot>(T)
+#                     -- an unconditional closed form
+#       known='th_2'  CodeGen/Cpp/IK_conditional<Robot>.cpp,
+#                     ikin_<Robot>_given(T, th_2) -- the ONE-VARIABLE branch's
+#                     closed form, valid only where th_2 is right
+#
+#   This file was rewritten from nothing in Sept 2026.  The version it replaced
+#   predated solListMatrix, pvals-in-generated-code and sp.pycode, and had
+#   never been compiled by any test:  1 of the 26 .cpp files it had produced
+#   compiled as shipped, and 11 of 26 still failed once parameters were
+#   supplied by hand.  IKdocs/DEV_NOTES.md records the six divergences and the
+#   measurement.  Keeping the old file would have meant repairing six
+#   independent departures from a python generator that is already right;
+#   deriving a new one from that generator is less work and asserts more.
+#
+#   Copyright 2017-2026 University of Washington
+#
+#   Developed by Dianmu Zhang and Blake Hannaford
+#   BioRobotics Lab, University of Washington
 
-# Developed by Dianmu Zhang and Blake Hannaford
-# BioRobotics Lab, University of Washington
-
-# Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
-
-# 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
-
-# 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
-
-# 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
-
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import sympy as sp
-from sympy.printing.tree import  pprint_nodes, print_tree
-#import numpy as np
-from ikbtbasics.kin_cl import *
-from ikbtfunctions.helperfunctions import *
-import ikbtbasics.numeric_ik as nik   # joint_symbols(): chain order
-from ikbtbasics.ik_classes import *     # special classes for Inverse kinematics in sympy
-#
-import pickle     # for storing pre-computed FK eqns
+
+import ikbtbasics.numeric_ik as nik
+from ikbtfunctions.output_cpp_common import (DIR_NAME, cpp_identifier,
+                                             expr_cpp, file_header,
+                                             name_table_cpp, param_decls,
+                                             pose_unpack_cpp, read_src)
 
 
-#  Console chatter from the generator:  the node and solution equation it is
-#  about to emit.  Off by default -- it is several lines per version per
-#  variable, which buries the solve's own output.  Set True to get it back.
-#  (ikbtfunctions/output_python.py carries the same flag.)
+#  Console chatter from the generator.  Off by default, for the same reason
+#  output_python.py's copy is:  it is a line per version per variable.
 VERBOSE = False
 
 
@@ -41,375 +45,370 @@ def _say(*args):
         print(*args)
 
 
-class cpp_output:
-    def init(self):
-        self.f = None     #file ptr
-        self.level = 0
-        self.indent = '    '
+def _versions(Robot, node):
+    '''The DISTINCT solution equations for one variable, in first-seen order.
 
-    def line(self,str):
-        lines = str.split('\n')
-        for l in lines:
-            # correct exponential operators for squaring:   x**2 --> x*x
-            #     (** is not valid C++)
-            if re.search(r'\*\*', l):
-                _say('fixing exponential ** notation')
-                r = re.compile(r'(\w+)\*\*2')
-                s2 = r.sub(r'\1*\1',l)
-                r = re.compile(r'([a-z]{3}\([^\)]+?\))\*\*2')  #  sin(x)**2 or cos(x)**2
-                l = r.sub(r'\1*\1', s2)  # substitute --> x*x
-            print(self.indent*self.level + l, file=self.f)
+       Straight from output_python.py.  A variable solved early shares its
+       versions between matrix rows (Puma's th_1: 2 versions, 8 rows), so
+       walking the rows emits the same statement several times.'''
 
-    def push(self):
-        self.level += 1
-        print(self.indent*self.level + '{', file=self.f)
-    def pop(self):
-        print(self.indent*self.level + '}', file=self.f)
-        self.level -= 1
+    eqnlist = []
+    seen = set()
+    col = node.unknown.solveorder - 1
+    for row in range(Robot.nversions):
+        e = Robot.FinalEqnMatrix[row][col]
+        if str(e.LHS) in seen:
+            continue
+        seen.add(str(e.LHS))
+        eqnlist.append(e)
+    return eqnlist
 
-def output_cpp_code(Robot, solution_groups):
 
-    fixed_name = Robot.name.replace(r'_', r'\_')  # this is for LaTex output
-    fixed_name = fixed_name.replace('test: ','')
-    orig_name  = Robot.name.replace('test: ', '')
+def _domain_guards(rhs):
+    '''The arcsine/arccosine arguments in one RHS that need a range test.
 
-    #  THE RETURN CONTRACT -- see the long note in output_python.py.  Joints
-    #  only, in DH chain order;  the sum-of-angle variables are computed but
-    #  not returned.  Two C-specific reasons this matters more here than in
-    #  Python:  solution_list was declared [64][6] while a 6-DOF arm with one
-    #  SOA variable wrote SEVEN columns, which is a buffer overrun, and C has
-    #  no way to hand back a name with a value, so the order IS the contract.
+       WALKS THE EXPRESSION, where python regexes the printed string.  This is
+       the one place the C++ deliberately does better than its twin rather
+       than the same: output_python.py pulls the argument out with
+       re.search(r'\\((.*)\\)', ...), which is greedy, so for
+       `acos(x) + atan2(y, z)` it tests `abs(x) + atan2(y, z) > 1` -- the
+       wrong quantity -- and for a sum of two arcsines it tests neither of
+       them.  Reading the sympy tree gives every argument, exactly.
+
+       The two agree on every REACHABLE pose, which is what the closed-loop
+       and agreement checks exercise;  they can differ about which
+       unreachable poses are reported as unreachable.  Worth folding back into
+       the python generator, and deliberately not done in the same change.'''
+
+    args = []
+    for f in sp.sympify(rhs).atoms(sp.asin, sp.acos):
+        a = f.args[0]
+        src = expr_cpp(a)
+        if src not in args:
+            args.append(src)
+    return sorted(args)
+
+
+def output_cpp_code(Robot, solution_groups, known=None):
+    '''Write the generated C++ IK for `Robot`.
+
+       Robot            solved, with create_solution_set() already run
+       solution_groups  R.solutionSet, used only as a fallback for the rows
+       known            the one-variable branch's assumed variable, or None
+
+       Returns the path written.'''
+
+    print('\n\n\n                       Starting IK C++ Output work \n\n\n')
+
+    orig_name = Robot.name.replace('test: ', '')
+    ident = cpp_identifier(orig_name)
+    funcname = 'ikin_' + ident + ('_given' if known else '')
+
+    #
+    #   THE RETURN CONTRACT.  Identical to python's, and it matters more here:
+    #   C has no way to hand back a name with a value, so the ORDER IS THE
+    #   CONTRACT.  Joints only, in DH CHAIN order.  The sum-of-angle variables
+    #   are computed -- later solutions depend on them -- but not returned.
+    #
+    #   The sizes used to be hardcoded [64][6], and a 6-DOF arm with one
+    #   sum-of-angles variable wrote SEVEN columns into a row of six.
+    #
     jnames = [str(s) for s in nik.joint_symbols(Robot.Mech)]
-    order  = [nd.unknown.name for nd in Robot.solution_nodes]
-    joint_cols = [j for j in jnames if j in order]
-    unsolved   = [j for j in jnames if j not in order]
-    aux_cols   = [nm for nm in order if nm not in jnames]
+    order = [nd.unknown.name for nd in Robot.solution_nodes]
+    #  The assumed-known joint was never solved, so it is not in `order` -- but
+    #  it IS known, by assumption, and leaving it out would return a joint
+    #  vector with a hole in it.  Its value is the argument.
+    joint_cols = [j for j in jnames if j in order or j == known]
+    unsolved = [j for j in jnames if j not in order and j != known]
+    aux_cols = [nm for nm in order if nm not in jnames]
 
     rows = getattr(Robot, 'solListMatrix', None)
     if not rows:
         rows = [list(g) for g in sorted(solution_groups)]
 
-    n_joints   = max(1, len(joint_cols))
-    n_branches = max(1, len(rows))
+    n_joints = len(joint_cols)
+    n_branches = len(rows)
 
-    c = cpp_output()
+    #
+    #   EVERY NAME THE BODY ASSIGNS, declared up front.
+    #
+    #   From FinalEqnMatrix, not from solution_groups:  the old generator took
+    #   them from the groups and missed some, so DZhang, UR5 and JennyGuoSp24
+    #   referred to undeclared variables.
+    #
+    #   INITIALISED TO NaN.  Python leaves a skipped branch's variable unbound
+    #   and raises UnboundLocalError if anything reads it;  an uninitialised
+    #   double is undefined behaviour and reads as plausible garbage, which is
+    #   strictly worse.  NaN makes the same mistake loud.  Nothing should ever
+    #   observe one: a pose that skipped an assignment has solvable_pose false
+    #   and returns no rows at all.
+    #
+    sol_vars = []
+    for node in Robot.solution_nodes:
+        for e in _versions(Robot, node):
+            nm = str(e.LHS)
+            if nm not in sol_vars:
+                sol_vars.append(nm)
 
-    DirName = 'CodeGen/Cpp/'
-    fname = DirName + 'IK_equations'+orig_name+'.cpp'
-    f = open(fname, 'w')
-    c.f = f
-    c.level = 0
-    c.indent = '    '
+    par_text, missing = param_decls(Robot.Mech,
+                                    getattr(Robot.Mech, 'params', None)
+                                    or Robot.params)
 
-    c.line('''//
-//  C++ inverse kinematic equations for ''' + fixed_name + '''
+    filename = ('IK_conditional' if known else 'IK_equations') + orig_name + '.cpp'
+    path = DIR_NAME + '/' + filename
+    f = open(path, 'w')
 
+    what = ('CONDITIONAL inverse kinematics for %s (%s assumed known)'
+            % (orig_name, known)) if known else \
+           ('C++ inverse kinematic equations for %s' % orig_name)
+    print(file_header(what, orig_name, filename), file=f)
 
-#include <math.h>
-#include <stdio.h>
-#include <iostream>
+    #  Cpp_src/ inlined, so this translation unit stands alone -- the same
+    #  bargain output_latex.py strikes with LaTex_src/IK_preamble.tex.
+    print(read_src('ikbt_types.h'), file=f)
+    print('', file=f)
+    print('#include <cstdio>', file=f)
+    print('', file=f)
+    print('using namespace ikbt;', file=f)
+    print('', file=f)
 
-double pi = 3.1415926;
+    if known:
+        print('//  CONDITIONAL.  %s is an INPUT, not an output:  these' % known,
+              file=f)
+        print('//  equations hold only where its value is right.', file=f)
+        print('//  IK_onevar%s.cpp searches for the values that are, and is'
+              % orig_name, file=f)
+        print('//  what you should normally call.', file=f)
+        print('const char* const KNOWN_VARIABLE = "%s";' % known, file=f)
+        print('', file=f)
 
-//  Sizes of the answer.  These were hardcoded [64][6];  an arm whose solution
-//  used a sum-of-angles variable wrote a seventh column into a row of six.
-#define IK_NJOINTS   ''' + str(n_joints) + '''
-#define IK_NBRANCHES ''' + str(n_branches) + '''
+    print('//\n//      Robot Parameters\n//', file=f)
+    print(par_text, file=f)
+    if missing:
+        print('//  %d parameter(s) above have no value in this robot\'s pvals.'
+              % len(missing), file=f)
+        print('//  XXXXX is a DELIBERATE COMPILE STOP -- g++ names the line so a', file=f)
+        print('//  missing link length cannot be silently defaulted.', file=f)
+    print('', file=f)
 
-//  Column order of every solution row (joints only, DH chain order):
-//      ''' + ', '.join(joint_cols) + '''
-//  Computed but NOT returned (sum-of-angle intermediates):
-//      ''' + (', '.join(aux_cols) if aux_cols else '(none)') + '''
-
-// ikin() modifies solution_list in-place and
-// returns 1 for valid solutions and 0 for no solutions
-int ikin(double T[4][4], double solution_list[IK_NBRANCHES][IK_NJOINTS]);
-
-''')
+    print('//  Joint values returned by %s(), in this order.' % funcname, file=f)
+    print('//  C has no way to hand back a name with a value, so this order IS', file=f)
+    print('//  the contract.', file=f)
+    print(name_table_cpp(joint_cols, 'JOINT_NAMES'), file=f)
+    print('//  Sum-of-angle intermediates:  computed, but NOT returned.', file=f)
+    print(name_table_cpp(aux_cols, 'AUX_NAMES'), file=f)
     if unsolved:
-        c.line('//  WARNING: these joints were NOT solved and are absent from')
-        c.line('//           every row:  ' + ', '.join(unsolved))
+        print('//  WARNING:  these joints were NOT solved, so they are absent', file=f)
+        print('//            from every returned branch:  %s'
+              % ', '.join(unsolved), file=f)
+    print('const int IK_NJOINTS   = %d;' % n_joints, file=f)
+    print('const int IK_NBRANCHES = %d;' % n_branches, file=f)
+    print('', file=f)
 
-    ###################
-    #   Variable and parameter declarations
-
-    sol_vars = set() #all variables used in solutions
-    # now handled outside, in ikSolver
-    #solution_groups = mtch.matching_func(Robot.notation_collections, Robot.solution_nodes)
-    for s in solution_groups:
-        sol_vars.update(s)
-
-    #  Variable Declarations
-    tmp = 'double'
+    #
+    #   The solver itself.
+    #
+    arglist = 'const Mat4 &T' + (', double %s' % known if known else '')
+    print('//', file=f)
+    print('//   Auto generated code to solve the unknowns.', file=f)
+    print('//       T   4x4 numerical target for T06, row major', file=f)
+    print('//   Returns one JointVec per solution branch, or an EMPTY list if', file=f)
+    print('//   the pose is not reachable  (python returns False for that).', file=f)
+    print('//', file=f)
+    print('SolutionList %s(%s)' % (funcname, arglist), file=f)
+    print('{', file=f)
+    print('    //  define the input vars', file=f)
+    print(pose_unpack_cpp(), file=f)
+    print('', file=f)
+    print('    bool solvable_pose = true;', file=f)
+    print('', file=f)
+    print('    //  every solved variable, NaN until its branch assigns it', file=f)
     for v in sol_vars:
-        tmp += ' ' + str(v) + ','
+        print('    double %s = std::numeric_limits<double>::quiet_NaN();' % v,
+              file=f)
+    print('', file=f)
+    print('''    /////////////////////////////////////////////////////////////
+    //
+    //  Future reachable pose checking code (autogenerated) will go here.
+    //  For now the only test is the arcsine/arccosine domain, below.
+    //
+    /////////////////////////////////////////////////////////////
+''', file=f)
 
-    var_decl_str = tmp[:-1] + ';'   # drop trailing comma and end the line
-
-    # parameter Declarations
-    tmp = '\n'
-    #  Mech.params, not Robot.params -- same reason as output_python.py:  it
-    #  also carries the ca_i / sa_i that forward_kinematics() invented for a
-    #  twist angle that is not a multiple of 90 degrees, and those appear in the
-    #  equations.  Here the omission is a COMPILE error rather than a runtime
-    #  one, since C++ needs every name declared.
-    for p in (getattr(Robot.Mech, 'params', None) or Robot.params):
-        #  '//', not '\'.  A backslash here made g++ report "stray '\' in
-        #  program" instead of the intended, informative
-        #  "'XXXXX' was not declared in this scope".
-        tmp += 'double '+str(p) + ' = XXXXX ;  // USER MUST supply a numerical value here\n'
-    par_decl_str = tmp
-
-    nlist = Robot.solution_nodes
-
-    indent = '    ' # 4 spaces
-
-    funcname = 'ikin'
-    c.line('int main()')
-    c.push()
-    c.line('double T[4][4] = { {1,0,0,0},{0,1,0,0},{0,0,1,0},{0,0,0,1}, };' )
-    c.line('double sol_list[IK_NBRANCHES][IK_NJOINTS] = {0};  // list of solutions')
-    c.line('if('+funcname+'(T, sol_list))')
-    c.push()
-    c.line('std::cout << sol_list;')
-    c.pop()
-    c.line('else')
-    c.push()
-    c.line('std::cout <<  "No valid solution" ;')
-    c.pop()
-    c.pop()
-    # end of main
-
-    # ik function
-    c.line('\n// Code to solve the unknowns ')
-    c.line('\n\n// Declarations')
-    c.line('int ' + funcname
-           + '(double T[4][4], double solution_list[IK_NBRANCHES][IK_NJOINTS] )')  # no indent
-    c.push()
-    c.line('''\n//define the input vars
-double r_11 = T[0][0];
-double r_12 = T[0][1];
-double r_13 = T[0][2];
-double r_21 = T[1][0];
-double r_22 = T[1][1];
-double r_23 = T[1][2];
-double r_31 = T[2][0];
-double r_32 = T[2][1];
-double r_33 = T[2][2];
-double Px = T[0][3];
-double Py = T[1][3];
-double Pz = T[2][3];
-
-double argument;
-
-//
-// Caution:    Generated code is not yet validated
-//
-
-int True = 1;
-int False = 0;
-''')
-    c.line('int solvable_pose = True;')
-    c.line('// declare variables in solutions')
-    c.line(var_decl_str)
-    c.line('')
-    c.line('// declare constant parameters (note they will need values!)')
-    c.line(par_decl_str)
-    for node in nlist:  # for each solved var
-        c.line('\n\n')
-
-        c.line('//Variable: '+str(node.symbol))
-        solno = 0
-        nsolns = node.unknown.nsolutions
-        nvers  = Robot.nversions
-        _say('Cpp Output Gen: ', node, ' has ', nsolns, ' solutions and ',nvers, ' versions')
-        # go through the final matrix of equation versions
-        colindex = node.unknown.solveorder-1  # select the unknown
-        #  ONE assignment per DISTINCT version:  a variable solved early shares
-        #  its versions between rows, so walking the rows emitted the same
-        #  statement several times.  First-seen order, not set() order.
-        eqnlist = []
-        seen = set()
-        for rowindex in range(nvers):
-            e = Robot.FinalEqnMatrix[rowindex][colindex]
-            if str(e.LHS) in seen:
+    for node in Robot.solution_nodes:
+        print('', file=f)
+        print('    //  Variable: %s   (solvemethod: %s)'
+              % (str(node.symbol), node.solvemethod), file=f)
+        for solEqnVer in _versions(Robot, node):
+            lhs = str(solEqnVer.LHS)
+            rhs = solEqnVer.RHS
+            _say('Cpp Output: ', lhs, ' = ', rhs)
+            try:
+                rhs_src = expr_cpp(rhs)
+            except ValueError as e:
+                print('    //  NOT EMITTED: %s' % e, file=f)
+                print('output_cpp: could not emit %s -- %s' % (lhs, e))
                 continue
-            seen.add(str(e.LHS))
-            eqnlist.append(e)
 
-        for solEqnVer in eqnlist: # go through the versions
-            _say('Cpp Output Gen: Solution Equation Version: ', solEqnVer)
-            c.line('\n// solution '+str(solno))
-            solno += 1
-            solrhs = str(solEqnVer.RHS)
-            # detect arcsin() or arccos()
-            #
-            #  BH   21-Sept
-            #  This code needs a serious refactor.  When solution is for example:
-            #    th5_ijk = arcsin(x) + atan2(y1,x1)
-            #       (here 'x' is a complicated expression)
-            #  then it is important that the generated code will test  -1 < x < +1
-            #  if this test fails the pose is unreachable and arcsin fails.
-            #
-            #
-            trig = False
-            _say('\n\nCpp Output Gen: Studying node: ', node.symbol, ' solution ', solno)
-            _say('solvemethod: ', node.solvemethod)
-            _say(' LHS: ', str(solEqnVer.LHS))
-            _say(' RHS: ', solrhs)
-            _say('argument: ', node.argument)
-            _say('\n\n')
+            guards = _domain_guards(rhs)
+            if guards:
+                #  ONE assignment, guarded by EVERY arcsine/arccosine argument
+                #  in it.  Python emits a separate if/else per version and can
+                #  emit two assignments for one version when the RHS holds both
+                #  an asin and an atan2;  the second wins and the guard is
+                #  wasted.  Here the guard and the assignment are one thing.
+                cond = ' || '.join('std::fabs(%s) > 1.0' % g for g in guards)
+                print('    if (solvable_pose && (%s))' % cond, file=f)
+                print('    {', file=f)
+                print('        solvable_pose = false;', file=f)
+                print('    }', file=f)
+                print('    else if (solvable_pose)', file=f)
+                print('    {', file=f)
+                print('        %s = %s;' % (lhs, rhs_src), file=f)
+                print('    }', file=f)
+            else:
+                print('    %s = %s;' % (lhs, rhs_src), file=f)
 
-            c.line('// solvemethod: ' + node.solvemethod )
-            c.line('//    argument: ' + str(node.argument )  )
-
-            if(node.solvemethod == 'arcsin' or node.solvemethod == 'arccos'):
-               trig = True
-
-            if(trig):
-               _say('  Found asin/acos solution ...', solEqnVer.LHS , ' "=" ',solEqnVer.RHS)
-               c.line('// Arcsin() or Arccos() based solution:')
-               c.line('argument = ' + str(node.argument))
-               c.line('if (solvable_pose && fabs(argument) > 1)')
-               c.push()
-               c.line('solvable_pose = False; ')
-               c.pop()
-               c.line('else if (solvable_pose)')
-               c.push()        #  bugus    (here)
-               c.line(str(solEqnVer.LHS) + ' = '+node.solvemethod+'(argument);' )
-               c.pop()
-
-            if ((not trig) and 'atan2(y,x)' in node.solvemethod):
-                c.line(str(solEqnVer.LHS) + ' = ' + solrhs + ';')
-
-            if 'algebra' in node.solvemethod:
-                c.line(str(solEqnVer.LHS) + ' = ' + solrhs + ';')
-
-            if 'x2z2' in node.solvemethod:
-                _say('x2z2 output: ', node.argument)
-                c.line(str(solEqnVer.LHS) + ' = ' + solrhs + ';')
-
-
-
-            if 'simultaneous eqn' in node.solvemethod:
-                _say('x2z2 output: ', node.argument)
-                c.line(str(solEqnVer.LHS) + ' = ' + solrhs + ';')
-
-
-
-
-    c.line('''
-//##################################
-//#
-//#package the solutions into a list for each set
-//#
-//###################################
-''')
-
-
-    ###########################################################
     #
-    #   Output of solution sets
+    #   Package the solutions.
     #
-    ###########################################################
+    print('''
+    /////////////////////////////////////////////////////////////
+    //
+    //  Package the solutions:  one row per solution branch,
+    //  columns in JOINT_NAMES order.
+    //
+    /////////////////////////////////////////////////////////////
+''', file=f)
+    print('    SolutionList solution_list;', file=f)
+    print('    if (!solvable_pose)', file=f)
+    print('        return solution_list;      //  empty == python\'s False',
+          file=f)
+    print('', file=f)
+    print('    solution_list.reserve(%d);' % max(1, n_branches), file=f)
+    for row in rows:
+        #  `known` has no column in the solution matrix -- nothing solved it --
+        #  so its cell is the argument's own name.
+        vals = [known if j == known else row[order.index(j)] for j in joint_cols]
+        print('    {', file=f)
+        print('        JointVec s;', file=f)
+        print('        s.reserve(%d);' % max(1, n_joints), file=f)
+        for j, v in zip(joint_cols, vals):
+            print('        s.push_back(%s);   // %s' % (v, j), file=f)
+        print('        solution_list.push_back(s);', file=f)
+        print('    }', file=f)
+    print('', file=f)
+    print('    return solution_list;', file=f)
+    print('}', file=f)
 
+    #
+    #   The legacy C-array entry point.
+    #
+    print('''
 
-    c.line('//  one row per solution branch;  columns in IK_JOINT order:')
-    c.line('//      ' + ', '.join(joint_cols))
+/////////////////////////////////////////////////////////////
+//
+//  The original fixed-array interface, kept so that callers holding a
+//  double[4][4] do not have to be rewritten.  Fills solution_list in place
+//  and returns 1 for a solved pose, 0 for none.
+//
+/////////////////////////////////////////////////////////////
+''', file=f)
+    legacy_args = 'double T[4][4], double solution_list[IK_NBRANCHES][IK_NJOINTS]'
+    if known:
+        legacy_args += ', double %s' % known
+    print('int ikin(%s)' % legacy_args, file=f)
+    print('{', file=f)
+    print('    SolutionList sols = %s(from_array(T)%s);'
+          % (funcname, (', %s' % known) if known else ''), file=f)
+    print('    if (sols.empty())', file=f)
+    print('        return 0;', file=f)
+    print('    for (size_t i = 0; i < sols.size() && i < (size_t) IK_NBRANCHES; ++i)',
+          file=f)
+    print('        for (size_t j = 0; j < sols[i].size() && j < (size_t) IK_NJOINTS; ++j)',
+          file=f)
+    print('            solution_list[i][j] = sols[i][j];', file=f)
+    print('    return 1;', file=f)
+    print('}', file=f)
 
-    for i, row in enumerate(rows):
-        for j, jname in enumerate(joint_cols):
-            v = row[order.index(jname)]
-            c.line('solution_list['+ str(i) + '][' + str(j) + '] = ' + v
-                   + ';   // ' + jname)
-
-    # we are done.   Return
-    c.line('\n\n')
-    c.line('// return 1 for solved, 0 for no solution')
-    c.line('return(solvable_pose);')
-    c.pop()
+    #
+    #   The self-test.  The twin of python's `if __name__ == "__main__":`,
+    #   and behind an #ifdef for the same reason it is behind an if:  so that
+    #   this file can be linked into a program, or alongside another robot,
+    #   without two main()s.  The old generator emitted an unconditional
+    #   main() -- and printed `std::cout << sol_list`, which prints a pointer.
+    #
+    print(_MAIN_BLOCK
+          .replace('**FUNC**', funcname)
+          .replace('**ROBOT**', orig_name)
+          .replace('**EXTRA_ARG**', ', 0.3' if known else '')
+          .replace('**KNOWN_NOTE**',
+                   ('\n    std::printf("    (%s assumed = 0.3)\\n");' % known)
+                   if known else ''),
+          file=f)
 
     f.close()
-    print('\n\n\n                       End of Cpp Output work \n\n\n')
-
-###################################################################
-#
-#    Test Code
-#
+    print('\n\n\n                       End of C++ Output work \n\n\n')
+    return path
 
 
-#####################################################################################
-# Test code below.  See sincos_solver.py for example
-#
-class TestSolver010(unittest.TestCase):    # change TEMPLATE to unique name (2 places)
-    # def setUp(self):
-        # self.DB = False  # debug flag
-        #print '===============  Test updateL.py  ====================='
-        # return
+#  Kept out of the function body so the emitted text reads as C++.
+_MAIN_BLOCK = '''
 
-    def runTest(self):
-        self.test_output_cpp()
+/////////////////////////////////////////////////////////////
+//
+//   TEST CODE.  Build it with
+//       g++ -std=c++11 -O2 -DIKBT_MAIN <this file> -o ik_test -lm
+//
+/////////////////////////////////////////////////////////////
 
-    def test_output_cpp(self):
-        #
-        #     Set up robot equations for further solution by BT
-        #
-        #   Check for a pickle file of pre-computed Mech object. If the pickle
-        #       file is not there, compute the kinematic equations
-        ####  Using PUMA 560 also tests scan_for_equations() and sum_of_angles_transform()  in ik_classes.py
-        #
-        #   The famous Puma 560  (solved in Craig)
-        #
+#ifdef IKBT_MAIN
 
-        # 1)   Read the test pickle for PUMA equations
-        test_pickle_dir = 'Test_pickles/'
-        name = test_pickle_dir + 'Puma' + 'test_pickle.p'
-        try:
-            with open(name, 'r') as pick:
-                print('\nReading pre-computed forward kinematics TEST info\n')
-                [R, unks]  = pickle.load(pick)
-        except:
-            print('\n\n\n        Testing:  Failed to find data pickle file ... quitting()    \n\n\n')
-            # if the test pickle is missing: edit ikSolver.py
-            #    line 32: TEST_DATA_GENERATION = True
-            #    > python ikSolver.py Puma
-            #    (change line 32 back to False)
+static Mat4 RotX4(double t)
+{
+    Mat4 R = identity4();
+    R[1][1] =  std::cos(t);  R[1][2] = -std::sin(t);
+    R[2][1] =  std::sin(t);  R[2][2] =  std::cos(t);
+    return R;
+}
 
-            quit()
-        # 2)   call the function output_cpp_code(R)
+static Mat4 RotY4(double t)
+{
+    Mat4 R = identity4();
+    R[0][0] =  std::cos(t);  R[0][2] =  std::sin(t);
+    R[2][0] = -std::sin(t);  R[2][2] =  std::cos(t);
+    return R;
+}
 
-        #output_latex_solution(R,unks)
+int main()
+{
+    //  The same sample pose the generated python tries.
+    Mat4 T = mat_mul(RotX4(M_PI / 7.0), RotY4(2.0 * M_PI / 7.0));
+    T[0][3] = 0.2;
+    T[1][3] = 0.3;
+    T[2][3] = 0.6;
 
-        output_cpp_code(R)
+    std::printf("**ROBOT**:  inverse kinematics of a sample pose\\n");**KNOWN_NOTE**
 
-        # 3)   assertions
+    SolutionList sols = **FUNC**(T**EXTRA_ARG**);
+    if (sols.empty()) {
+        std::printf("  no solution:  that pose is not reachable by this arm\\n");
+        return 0;
+    }
 
-        print('cpp output file completed')
+    std::printf("  joint order: ");
+    for (int j = 0; j < IK_NJOINTS; ++j)
+        std::printf("%s%s", j ? ", " : "", JOINT_NAMES[j]);
+    std::printf("\\n");
 
-        #    3.1)   Open CPP output file
-        #    3.2)   use assertions to check some lines.
+    for (size_t i = 0; i < sols.size(); ++i) {
+        std::printf("Solution %d:", (int) i);
+        for (size_t j = 0; j < sols[i].size(); ++j)
+            std::printf("  %s = %+.9f", JOINT_NAMES[j], sols[i][j]);
+        std::printf("\\n");
+    }
+    return 0;
+}
 
-
-#
-#    Can run your test from command line by invoking this file
-#
-#      - or - call your TestSolverTEMPLATE()  from elsewhere
-#
-
-#def run_test():
-    #print '\n\n===============  Test output_cpp_code() ====================='
-    #testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver010)  # replace TEMPLATE
-    #unittest.TextTestRunner(verbosity=2).run(testsuite)
-
-if __name__ == "__main__":
-
-    print('\n\n===============  Test output_cpp_code() =====================')
-    testsuite = unittest.TestLoader().loadTestsFromTestCase(TestSolver010)  # replace TEMPLATE
-    unittest.TextTestRunner(verbosity=2).run(testsuite)
-    #unittest.main()
-
-
-
-
-
-
+#endif   // IKBT_MAIN
+'''

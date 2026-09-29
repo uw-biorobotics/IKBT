@@ -59,6 +59,11 @@ typedef std::vector<double> JointVec;
 //  which is the same information without a second return type.
 typedef std::vector<JointVec> SolutionList;
 
+//  A dense matrix of any shape, row major -- what a Jacobian comes back as.
+//  Spelled separately from SolutionList although it is the same type: the two
+//  mean different things and a function signature should say which.
+typedef std::vector<std::vector<double> > Matrix;
+
 const double INF = std::numeric_limits<double>::infinity();
 
 
