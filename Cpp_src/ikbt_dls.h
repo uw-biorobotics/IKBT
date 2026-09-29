@@ -24,6 +24,11 @@
 #ifndef IKBT_DLS_H
 #define IKBT_DLS_H
 
+//  <algorithm> for std::min/std::max.  Named explicitly rather than picked up
+//  transitively from <vector>:  libstdc++ happens to supply it, and a
+//  generated artifact should not depend on which standard library the user
+//  has.
+#include <algorithm>
 #include <functional>
 
 #include "ikbt_types.h"

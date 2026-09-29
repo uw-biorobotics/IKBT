@@ -55,6 +55,24 @@ Both perform the full *closed-loop* solution validation:
 For detailed usage, see `tests/TESTING_HOWTO.md`. 
 
 
+* Native C++ code generation, for **every** solution path.  Each Python emitter now has one
+C++ twin derived from it, so a symbolic, one-variable or hybrid solve writes the same set of
+artifacts in both languages.  The generated C++ is **C++11 and standard library only** -- no
+Eigen, no Boost, no build system:
+
+```
+> g++ -std=c++11 -O2 -DIKBT_MAIN CodeGen/Cpp/IK_equationsPuma.cpp -o ik && ./ik
+```
+
+The two languages are checked against each other rather than assumed to agree --
+`scripts/cpp_closed_loop_check.py` runs the same robot at the same pose through both and
+requires the same solution branches, in the same order.  Across the robot set they usually
+agree bit for bit.  `scripts/cpp_expr_check.py` does the same one expression at a time.
+
+The one-variable path's 1-D search runs about 15x faster in C++ (9 ms per pose on C-Arm,
+against 0.14 s), finding the same root set.
+
+
 * New Solution set visualization: London Tube Map output
 
 The solutions to  a robot arm can be viewed as a London Tube Map!   After solving the robot, go 

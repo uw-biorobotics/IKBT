@@ -26,6 +26,10 @@
 #ifndef IKBT_LINALG_H
 #define IKBT_LINALG_H
 
+//  <utility> for std::swap, which moved there in C++11 and is not guaranteed
+//  to arrive with anything else this header includes.
+#include <utility>
+
 #include "ikbt_types.h"
 
 namespace ikbt {
