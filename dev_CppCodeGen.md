@@ -15,24 +15,54 @@ All seven steps landed. What is on the branch:
 | `scripts/cpp_closed_loop_check.py` | six modes: symbolic, `--compile-only`, `--fk`, `--dls`, `--onevar`, `--hybrid` |
 | `TestSolver031` | in `tests.leavestest`, where the old generator's test never ran |
 
-Measured:
+Measured, after a full 32-robot sweep (2455 s) with the gate passing:
 
-- expression printer: 19 expressions, 222 evaluations, **0 disagreements, worst relative 0**
-- Puma symbolic: **8 of 8** branches reproduce the pose, worst FK 4.4e-16, python agreement **bit-exact**
-- FK and Jacobian: elementwise **0.00e+00** against the python modules
-- damped least squares vs `numeric_ik`: 1e-13, **identical iteration counts**
-- C-Arm one-variable: **28 of 28 roots matched**, none missing, none extra, worst FK 1.8e-14, **9 ms/pose** (python: 0.14 s)
-- Panda hybrid: **8 of 8** seeds converge, 1e-10..1e-16, the probe joints recovered exactly
+- expression printer: 19 expressions, 222 evaluations, **0 disagreements, worst relative 0**,
+  plus 12 out-of-domain contract cases, 0 disagreements
+- **worst python/C++ disagreement across every robot and every path: 0.00e+00** (bit-exact)
+- symbolic, 23 robots: every branch count meets its recorded expectation; Puma, Stanford,
+  Khat6DOF, KawasakiRS007L all 8 of 8 at 1e-13 or better
+- one-variable, 4 robots: **98 roots matched, none missing, none extra** (ArmRobo 16, C-Arm 28,
+  KawasakiRS05L 14, KinovaLite 40), worst FK 1.2e-10
+- hybrid, Panda: **12 refined postures matched**, none missing, none extra, worst FK 4.0e-11
+- FK and Jacobian, all 32 robots: **0.00e+00** elementwise except Craig417 6.7e-15 and
+  Raven-II 4.6e-13
+- damped least squares vs `numeric_ik`, all 32: 1e-13, **identical iteration counts**
+- C-Arm one-variable search: **9 ms/pose** against the python's 0.14 s
+- every generated file compiles under `-Wall -Wextra` with no warnings
+- `tests.leavestest`: 23 tests OK
 
-Two bugs in the **python** generator were found by building its twin and fixing neither by
-copying it:
+Artifacts, from the sweep's own exact-set comparison:
+
+| path | robots | emits |
+|---|---|---|
+| symbolic | 26 | `cpp, py, tex` |
+| one variable | 4 | `cond, cpp_cond, cpp_fk, cpp_onevar, fk, onevar, tex` |
+| hybrid | 1 | `cpp_fk, cpp_hybrid, fk, hybrid, tex` + derived `cpp, cpp_fk, fk, py` |
+
+### Three python bugs found by building the twin
+
+Fixing none of them by copying what python did:
 
 1. `ALLOWED_FUNCS` held `'abs'` where sympy's class is `Abs`, so `expr_py()` refused every
    expression containing an absolute value.
 2. The arcsine domain guard used a greedy regex over the printed RHS, tested the wrong
    quantity, and emitted a second unguarded assignment that overrode it. A generated module
-   **raised** `ValueError: expected a number in range from -1 up to 1, got 1.113` on an
-   ordinary reachable Panda pose. Now one helper, shared by both generators.
+   **raised** `ValueError: ... got 1.113` on an ordinary reachable Panda pose. BH's answer --
+   check at the point of use -- removed the extraction entirely.
+3. `sqrt` had the identical asymmetry (`math.sqrt` raises, `std::sqrt` gives NaN).
+
+### And two robots out of UNCHECKABLE
+
+Fixing (2) and (3) and returning the branches that EXIST rather than discarding all of them:
+
+| robot | was | now |
+|---|---|---|
+| KR16 | `sqrt(): expected a nonnegative input, got -202.2` | **4 of 4**, worst 5.6e-16 |
+| DZhang | `asin/acos: expected a number in range -1..1` | **1 of 2** (known-incomplete) |
+
+The three that remain -- Arm_3, JennyGuoSp24, UR5 -- are ONE solver defect, not three: the
+solution for a variable contains that variable. No domain check reaches it.
 
 The open question below was resolved as recommended: `std::vector<JointVec>` everywhere, with
 the fixed-array `ikin()` kept as a wrapper.
