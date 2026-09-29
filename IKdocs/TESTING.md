@@ -28,9 +28,13 @@ There are four questions worth asking of a change, and one command for each.
 | 2 | Is the tree still well-formed? | `python3 -m tests.bt_assembly_test` | ~5 s |
 | 3 | Did any path through the tree stop delivering? | `python3 -m scripts.robot_baseline --gate` | ~5 min |
 | 4 | Did anything move, anywhere, on any robot? | `python3 -m scripts.robot_baseline --full --diff` | hours |
+| 5 | Does the generated C++ still say what the generated Python says? | `python3 -m scripts.cpp_closed_loop_check --gate --keep` | ~2 min |
 
 Run 1–3 after any edit. Run 4 before a commit that touches the tree, a solver
-leaf, or the code generators.
+leaf, or the code generators. Run 5 after touching a code generator — it needs
+artifacts on disk, so run it after 3 or 4, or drop `--keep` and let it solve.
+Every C++ check **skips cleanly with no `g++`**, the way the report-fitting
+pass degrades with no `pdflatex`.
 
 Why a particular threshold, timeout or expected count is what it is:
 [DEV_NOTES.md](DEV_NOTES.md).
@@ -139,6 +143,8 @@ hand-checked, and a failure is the solver's, never the target's.
 |---|---|---|
 | `scripts/check_solution_sets.py` | the **symbolic** solution set, in process (`R.FinalEqnMatrix`) | earlier |
 | `scripts/numerical_closed_loop_sol_check.py` | the **generated Python**, imported and called | later |
+| `scripts/cpp_closed_loop_check.py` | the **generated C++**, compiled and run | later |
+| `scripts/cpp_expr_check.py` | one sympy expression through both printers | earliest |
 
 ```bash
 python3 -m scripts.check_solution_sets Puma              # one robot, 10 random poses
@@ -203,6 +209,49 @@ What it **cannot** see is a solution that is *missing*: every count it has
 descends from the same leaves that built the solution set, so there is nothing
 to disagree with.
 
+## The C++ checkers — `scripts/cpp_closed_loop_check.py`
+
+The C++ generator is **derived from** the Python generator, and these turn that
+phrase into an assertion. One script, several questions, the way its Python
+twin covers all three paths from one command:
+
+```bash
+python3 -m scripts.cpp_closed_loop_check --keep          # symbolic: sound AND faithful
+python3 -m scripts.cpp_closed_loop_check --all --compile-only   # the compile gate
+python3 -m scripts.cpp_closed_loop_check --fk  Puma      # FK/Jacobian, elementwise
+python3 -m scripts.cpp_closed_loop_check --dls Puma      # ikbt_dls.h vs numeric_ik
+python3 -m scripts.cpp_closed_loop_check --onevar C-Arm  # same root set?
+python3 -m scripts.cpp_closed_loop_check --hybrid Panda  # same refined postures?
+python3 -m scripts.cpp_expr_check                        # the expression printer
+```
+
+**Soundness and fidelity are different questions, and both are asked.**
+Soundness is the same closed loop as everywhere else: `q → T = FK(q) → compiled
+ikin → FK(each branch) == T`. Fidelity is that the *same* pose through the
+generated Python gives the *same* rows in the *same* order to 1e-12. Fidelity
+is the one that earns its keep — every permutation of a correct answer is still
+a correct answer, so a round trip through FK cannot see a wrong column order, a
+dropped branch or two versions swapped. Agreement can see all three. Measured
+across the robot set, the two languages usually agree **bit for bit**.
+
+On the one-variable path the distinction matters most: completeness is the
+question that path exists to answer, and a search that quietly finds six of
+eight roots round-trips perfectly. `--onevar` compares the whole root set.
+
+**Three kinds of compile failure, and only one is a regression.** `XXXXX` is
+the deliberate compile stop for a parameter the robot has no `pvals` entry for.
+`undeclared` is a solution referencing the variable it solves for — an
+*upstream* solver defect, the same one Python reports as `UnboundLocalError`,
+which is why those robots are in `expected.UNCHECKABLE`; C++ catches it at
+compile time, which is the better of the two. Anything else is this
+generator's fault.
+
+`--dls` is a **pin**, not a check of an answer: `Cpp_src/ikbt_dls.h` is a copy
+of `numeric_ik.solve_numeric()` two languages removed, so the refined joint
+vector, the metric *and the iteration count* all have to match. The iteration
+count is the sharp one — it catches a damping schedule that drifted, which a
+converged answer would hide.
+
 ## The one expectation table — `scripts/expected.py`
 
 `EXPECT` maps robot → `(good, total)`: how many returned branches must reproduce
@@ -220,9 +269,13 @@ by path:
 | path | under the true name | under the derived name |
 |---|---|---|
 | symbolic, complete | `tex`, `py`, `cpp` | — |
-| one variable, complete | `tex`, `onevar`, `cond`, `fk` | — |
-| hybrid, derived arm complete | `tex`, `hybrid`, `fk` | `py`, `fk` |
+| one variable, complete | `tex`, `onevar`, `cond`, `fk`, `cpp_onevar`, `cpp_cond`, `cpp_fk` | — |
+| hybrid, derived arm complete | `tex`, `hybrid`, `fk`, `cpp_hybrid`, `cpp_fk` | `py`, `fk`, `cpp`, `cpp_fk` |
 | anything incomplete | nothing | nothing |
+
+**Every Python artifact is owed with its C++ twin.** Before Sept 2026 the two
+fallback paths emitted no C++ and this table said so; pairing them is what
+keeps a half-emitted path from passing.
 
 Sets are compared **exactly**: an unexpected artifact is a failure, not just a
 missing one. The characteristic hybrid defect is an *extra* file — a simplified

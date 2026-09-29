@@ -797,3 +797,101 @@ all with tex+py+cpp written and status `solved`). They are deliberately not in `
 
 DZhang's `h` is a real DH parameter (declared in `sp.var`, in `params`, `pvals[h]=1`) and is not
 the problem; its failure is the asin/acos range error alone.
+
+---
+
+# Native C++ code generation (2026-09-29)
+
+## What the old generator actually produced
+
+`output_cpp.py` was rewritten from nothing rather than repaired. The case for that is a
+measurement, not an opinion. Every `.cpp` in `CodeGen/Cpp/` at the time, through
+`g++ -fsyntax-only`:
+
+| | count |
+|---|---|
+| clean as shipped | **1 of 26** — Wrist, the only arm with no parameters |
+| clean after substituting `XXXXX` → `1.0` | 15 of 26 |
+| still broken with parameters supplied | **11 of 26** |
+
+Six divergences from the Python generator, each independent, none a typo:
+
+1. **Missing semicolon.** `c.line('argument = ' + str(node.argument))` emitted no `;`. 7 robots.
+2. **`arccos` / `arcsin` emitted as C++ function names.** `node.solvemethod` was printed
+   verbatim; `<math.h>` spells them `acos` / `asin`.
+3. **The arcsine argument used the UNVERSIONED symbol.** C++ emitted
+   `argument = r_13*sin(th_1) - r_23*cos(th_1)` where Python emitted
+   `th_5v1 = acos(r_13*sin(th_1v1) - r_23*cos(th_1v1))`. `th_1` does not exist, so it did not
+   compile — and had it compiled, all four versions of `th_5` would have shared one argument and
+   the `-acos(...)` branches would have lost their sign. **A wrong answer, not just a broken
+   build.** Python avoids it by reading `solEqnVer.RHS`, which is versioned, rather than
+   `node.argument`, which is not.
+4. **`**` survived** on compound bases. The hand-rolled regex handled `x**2` and `sin(x)**2` but
+   not `(Px - a_1)**2`. Arm_3 and UR5 shipped invalid C++.
+5. **`double pi = 3.1415926`** — eight digits, injecting ~3.6e-8 into any solution containing
+   `pi/2`.
+6. **Parameters were never given their values**, even for the 28 robots whose `pvals` are
+   complete. This one is why none of the other five had ever been noticed: no generated file
+   could be compiled, so no automated check of the C++ was possible at all.
+
+Defects 2, 4 and 5 are retired by using `sp.cxxcode` instead of a regex over printed Python —
+the direct counterpart of the `sp.pycode` the Python generator already uses.
+
+## `Cpp_src/` is source
+
+The shared numerics (types, pose error, a 6x6 solve, damped least squares, the 1-D search) are
+hand-written C++ headers that the generator **reads and inlines**, so a generated `.cpp` stays
+self-contained. This is the `LaTex_src/IK_preamble.tex` arrangement, adopted for the same
+reason and one more: a header is independently compilable, so the numerics can be unit-tested
+as C++ rather than only through a generated file. The alternative — a `POSE_ERROR_CORE`-style
+Python string literal, which is the literal Python precedent — cannot be.
+
+**The search is generic in C++ where Python emits it per robot.** `output_onevar_python`
+emits ~470 lines with the robot's name in every function because a generated Python module
+stands on numpy alone and has no library to call. In C++, `Cpp_src/` *is* that library, so
+`ikbt_search.h` is written once and takes the two robot-specific pieces as `std::function`
+callbacks. Same algorithm, one copy.
+
+## Measurements
+
+- **Expression printer** (`scripts/cpp_expr_check`): 19 expressions, 222 evaluations,
+  **0 disagreements, worst relative difference exactly 0**. The two printers are fed the same
+  sympy expression and the same substitutions.
+- **Symbolic path**: Puma, 8 of 8 branches reproduce the pose, worst FK error 4.4e-16, and the
+  C++ and Python solution lists agree **bit for bit**.
+- **FK and Jacobian**: elementwise agreement with the Python modules, **0.00e+00** on every
+  robot tried.
+- **Damped least squares** pinned against `numeric_ik.solve_numeric()`: refined `q` within
+  1e-13, metric within 1e-13, and **identical iteration counts** on every trial. The iteration
+  count is the sharp part of that pin — it catches a damping schedule that drifted, which a
+  converged answer would hide.
+- **One-variable search**, C-Arm over 4 random reachable poses: **28 of 28 roots matched,
+  none missing, none extra**, worst FK error 1.8e-14. The per-pose count varied 4/8/8/8, which
+  is the arm and not the search. **9 ms per pose**, against 0.14 s for the Python.
+
+## Two deliberate divergences from the Python generator
+
+Both are cases where the C++ does better, and both are recorded rather than quietly matched.
+
+**The arcsine domain guard walks the expression tree.** `output_python.py` pulls the argument
+out of the printed RHS with a greedy `re.search(r'\((.*)\)', ...)`, so for `acos(x) + atan2(y, z)`
+it tests `abs(x) + atan2(y, z) > 1` — the wrong quantity — and for a sum of two arcsines it
+tests neither. `output_cpp._domain_guards()` reads the sympy tree and guards every argument,
+exactly. The two agree on every REACHABLE pose, which is what the checkers exercise; they can
+differ about which *unreachable* poses are reported as unreachable. Worth folding back into
+the Python generator, deliberately not done in the same change.
+
+**Every solution variable is initialised to NaN.** Python leaves a skipped branch's variable
+unbound and raises `UnboundLocalError` if anything reads it; an uninitialised `double` is
+undefined behaviour and reads as plausible garbage, which is strictly worse. Nothing should
+ever observe one — a pose that skipped an assignment has `solvable_pose` false and returns no
+rows — but if the discipline ever slips, NaN makes it loud.
+
+## A latent Python bug this turned up
+
+`output_numeric_common.ALLOWED_FUNCS` held `'abs'`, but the check compares
+`type(f).__name__` for each sympy `Function` atom and sympy's absolute value is the class
+`Abs`. No function is ever named lowercase `abs`, so that entry matched nothing and `expr_py()`
+**refused every expression containing an absolute value** — although `sp.pycode` emits a
+perfectly good `abs(x)` for it. Found by `cpp_expr_check`, which prints the same expression
+through both languages and so notices when one of them declines. Fixed.

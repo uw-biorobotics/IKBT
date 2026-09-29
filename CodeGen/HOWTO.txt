@@ -35,19 +35,92 @@ refines one of them numerically against the TRUE arm.  The module's own
 docstrings carry the details, and the LaTeX report names every file.
 
 
-C++  --  Cpp/IK_equations<Robot>.cpp
--------------------------------------
+C++  --  Cpp/
+--------------
 
-    g++ -c IK_equations<Robot>.cpp
+Every Python artifact above has a C++ twin, written at the same time, from the
+same solution, by a generator derived from the Python one.  The two are checked
+against each other branch for branch by
 
-DOES NOT COMPILE AS SHIPPED, deliberately.  Any parameter with no numerical
-value in the robot's pvals is emitted as
+    python3 -m scripts.cpp_closed_loop_check --gate
 
-    double d_1 = XXXXX ;  // USER MUST supply a numerical value here
+STANDARD LIBRARY ONLY.  C++11, no Eigen, no Boost, no build system, no include
+path:
 
-so the compiler stops with "'XXXXX' was not declared in this scope" and names
-the line.  Supply your values and it compiles.  A robot whose pvals cover every
-parameter (Wrist, for one) compiles as it stands.
+    g++ -std=c++11 -O2 -c Cpp/IK_equations<Robot>.cpp
 
-Unlike the Python, this is a fragment: it is the solution equations, not a
-finished program.  There is no C++ output on the hybrid path.
+Each file is a complete translation unit: the shared material in Cpp_src/ is
+INLINED into it when it is generated, so a file can be copied out of this
+directory on its own.  The exceptions are the two fallback paths' entry points,
+which include their siblings by name and so want the whole directory -- exactly
+as the Python modules import theirs.
+
+Every file carries a self-test behind #ifdef IKBT_MAIN, which is the C++
+spelling of `if __name__ == "__main__":`:
+
+    g++ -std=c++11 -O2 -DIKBT_MAIN Cpp/IK_equations<Robot>.cpp -o ik && ./ik
+
+It is behind an #ifdef and not unconditional so that a generated file can be
+linked into a program, or alongside another robot, without two main()s.
+
+
+C++, SYMBOLIC path  --  Cpp/IK_equations<Robot>.cpp
+-----------------------------------------------------
+
+    SolutionList ikin_<Robot>(const Mat4 &T);
+
+T is row major, T[0][3] is x.  The return is one JointVec per solution branch;
+an EMPTY list means the pose is unreachable, which is what the Python module
+says with False.  JOINT_NAMES gives the column order -- C has no way to hand
+back a name with a value, so that ORDER IS THE CONTRACT.
+
+    int ikin(double T[4][4], double solution_list[IK_NBRANCHES][IK_NJOINTS]);
+
+is still there, for callers holding a plain C array.
+
+A PARAMETER WITH NO VALUE STOPS THE COMPILE, deliberately.  If the robot's
+pvals has no entry for a link length, it is emitted as
+
+    const double d_1 = XXXXX;   // USER MUST supply a numerical value here
+
+so g++ stops with "'XXXXX' was not declared in this scope" and names the line,
+and a missing dimension cannot be silently defaulted to something wrong.
+Supply your values and it compiles.  Parameters the robot DOES have values for
+are baked in, exactly as in the Python -- so most robots compile as they stand.
+
+
+C++, HYBRID robots  --  Cpp/IK_hybrid_<Robot>.cpp
+---------------------------------------------------
+
+    SolutionList  ikin_<Robot>_approx(const Mat4 &T);    // PHASE I:  seeds
+    SolveResult   refine_seed_<Robot>(const Mat4 &T, const JointVec &q_seed);
+    std::vector<RefineRecord> refine_all_<Robot>(const Mat4 &T);
+
+Phase I enumerates postures of a SIMPLIFIED arm; Phase IIa refines ONE of them
+numerically against the TRUE arm.  Phase IIa takes a seed and not an index
+because the seed is the choice of posture.  The file includes
+IK_equations<Derived>.cpp and both FK_numeric headers from this directory.
+
+
+C++, ONE-VARIABLE robots  --  Cpp/IK_onevar<Robot>.cpp
+--------------------------------------------------------
+
+    std::vector<OneVarSolution> solve_<Robot>(const Mat4 &T);
+
+The entry point.  IK_conditional<Robot>.cpp beside it holds the closed form
+with the assumed variable as an ARGUMENT -- valid only where that value is
+right, which is why it is never called IK_equations.  FK_numeric<Robot>.h is
+what the search measures against.
+
+Each returned solution carries the resolution the search settled at in its
+n_samples field;  reaching MAX_SAMPLES means the answer was still changing.
+
+
+Cpp_src/  --  where the shared C++ comes from
+-----------------------------------------------
+
+Cpp_src/ is SOURCE, not a generated artifact, on the same footing as
+LaTex_src/: hand-written headers (types, pose error, a 6x6 solve, damped least
+squares, the 1-D search) that the generator reads and inlines.  They are also
+independently compilable, which is why they are files and not strings in the
+generator -- the numerics can be unit-tested as C++.

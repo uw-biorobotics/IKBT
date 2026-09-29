@@ -47,6 +47,14 @@ python3 -m scripts.check_solution_sets Puma                   # is the SYMBOLIC 
 python3 -m scripts.check_solution_sets Puma --poses 20 --gate # ... exit 1 unless EVERY version reproduces EVERY pose
 python3 -m scripts.numerical_closed_loop_sol_check Puma       # is the GENERATED python IK correct?
 python3 -m scripts.numerical_closed_loop_sol_check KinovaLite # ... same command for a HYBRID robot
+
+python3 -m scripts.cpp_expr_check                             # do the two expression printers agree?
+python3 -m scripts.cpp_closed_loop_check --keep               # is the GENERATED C++ correct, and does it match the python?
+python3 -m scripts.cpp_closed_loop_check --all --compile-only # the compile gate
+python3 -m scripts.cpp_closed_loop_check --fk Puma            # FK/Jacobian, elementwise vs python
+python3 -m scripts.cpp_closed_loop_check --dls Puma           # pin ikbt_dls.h against numeric_ik
+python3 -m scripts.cpp_closed_loop_check --onevar C-Arm       # same root set as the python search?
+python3 -m scripts.cpp_closed_loop_check --hybrid Panda       # same refined postures?
 ```
 
 How to compile the report: `cd LaTex && pdflatex ik_solution_<RobotName>.tex`  
@@ -61,6 +69,13 @@ This package produces generated code artifacts, which are not source code for th
 `output_latex.py`, so a generated report is self-contained. They live apart from `LaTex/`
  so that wiping the reports cannot take the templates with them
 (`LaTex_src/cleanLaTexFolder` does that wipe, from the repo root).
+
+`Cpp_src/` **is** source too, on exactly that precedent: hand-written C++ headers
+(`ikbt_types.h`, `ikbt_pose_error.h`, `ikbt_linalg.h`, `ikbt_dls.h`, `ikbt_search.h`) that the
+C++ generators read and inline, so a generated `.cpp` is self-contained. They live apart from
+`CodeGen/Cpp/` so that `CodeGen/cleanCodeGenOutput` cannot take them with it. Being real files
+rather than python string literals, they are **independently compilable and therefore
+testable**, which a `POSE_ERROR_CORE`-style literal is not.
 
 FK pickle cache directory (fk_eqns) or individual pickle files within it can be deleted at any time without penalty (except some added 
 execution time). 
@@ -344,6 +359,56 @@ domain had always been wrapped; a finite one is now extended by one grid step pa
 real sample has two neighbours under both. Golden section also stops at float resolution now instead
 of always walking 80 iterations, which the ladder calls for many times per pose.
 
+### C++ code generation (`ikbtfunctions/output_cpp*.py`, `Cpp_src/`)
+
+**EVERY PYTHON EMITTER HAS ONE C++ TWIN, DERIVED FROM IT.** The python generator is the
+specification, and the checks turn "derived from" into an assertion rather than a description.
+
+| python | C++ | emits |
+|---|---|---|
+| `output_python.output_python_code()` | `output_cpp.output_cpp_code()` | `IK_equations<R>.cpp` / `IK_conditional<R>.cpp` |
+| `output_numeric_common.write_fk_module()` | `output_cpp_common.write_fk_module_cpp()` | `FK_numeric<R>.h` |
+| `output_hybrid_python.write_hybrid_top()` | `output_cpp_hybrid.write_hybrid_top_cpp()` | `IK_hybrid_<R>.cpp` |
+| `output_onevar_python.write_onevar_top()` | `output_cpp_onevar.write_onevar_top_cpp()` | `IK_onevar<R>.cpp` |
+| `output_numeric_common.expr_py()` (`sp.pycode`) | `output_cpp_common.expr_cpp()` (`sp.cxxcode`) | one expression |
+
+**C++11, STANDARD LIBRARY ONLY** — no Eigen, no Boost, no build system, no `-I`:
+`g++ -std=c++11 -O2 file.cpp -o x -lm`. Same rule as "a generated python module stands on
+numpy alone", and the reason the AI-translation route was rejected: a generated artifact must
+not make the user install anything. The only linear algebra needed is a 6x6 solve, which is
+40 lines of Gaussian elimination in `Cpp_src/ikbt_linalg.h`.
+
+**`sp.cxxcode`, NOT A REGEX OVER PRINTED PYTHON.** The generator this replaced post-processed
+`x**2` into `x*x` with two regexes, which handled `x**2` and `sin(x)**2` and silently left
+`(Px - a_1)**2` as invalid C++. `sp.cxxcode` is a real C++ printer: `std::pow`, `std::fabs`,
+`M_PI` at full precision, and `(1.0/3.0)` for every Rational so there is no integer-division
+hazard. Measurements of what the old one actually produced: @IKdocs/DEV_NOTES.md.
+
+**`#ifdef IKBT_MAIN` is the C++ spelling of `if __name__ == "__main__":`** — behind an ifdef and
+not unconditional so a generated file can be linked into a program, or alongside another robot,
+without two `main()`s. The fallback paths' entry points `#include` their siblings, which is the
+same arrangement as the python modules importing theirs; the suppression dance around
+`IKBT_MAIN` is there so the included file's self-test does not become a second `main()`.
+
+**A parameter with no `pvals` entry is emitted as `XXXXX`** — a deliberate compile stop, so
+`g++` names the line and a missing link length cannot be silently defaulted. Parameters the
+robot *does* have values for are baked in, exactly as python does. That distinction is new: the
+old generator wrote `XXXXX` for every parameter, which is why 25 of 26 files could not compile
+and no automated check of the C++ had ever been possible.
+
+**The one-variable search is GENERIC C++** (`Cpp_src/ikbt_search.h`), where python emits ~470
+lines per robot. Python has no choice — a generated module there has no library to call — but
+here `Cpp_src/` is that library, so the algorithm is written once and takes "what does the
+closed form give at this value" and "how wrong is it" as callbacks. All three root-finding
+mechanisms port across unchanged, because each finds cases the others cannot: the doubling
+ladder, the local twin hunt, and the domain-edge probe.
+
+**Two deliberate divergences**, both recorded in @IKdocs/DEV_NOTES.md: the arcsine domain guard
+walks the sympy tree instead of regexing the printed RHS (the python version tests the wrong
+quantity when a RHS holds both an arcsine and an `atan2`), and every solution variable is
+initialised to NaN, because an uninitialised `double` is undefined behaviour where python's
+unbound local is an exception.
+
 ### Latex output: Equations that fit the page (`ikbtfunctions/texwidth.py`)
 
 Long equations used to run off the right margin. They no longer do: the report is written, **measured**,
@@ -441,12 +506,19 @@ Please keep commit messages to 5 lines or less.
 
 ## Still open
 
-1. **Hybrid C++.** The Python path is done; C++ is not. It needs the FK, the Jacobian and the
-   damped-least-squares loop emitted in C++, which is a bigger job than the Python one because there
-   is no `sp.pycode()` equivalent already in use here and no numpy to lean on. Deliberately NOT done
-   by emitting the derived arm's C++ under the true robot's name — that ships exactly the misleading
-   artifact the naming rules exist to prevent.   An alternative to consider is a new script which could 
-   generate C++ code by *translating* the python code to C++. 
+1. **Fold the C++ arcsine domain guard back into the python generator.** `output_cpp._domain_guards()`
+   reads the sympy tree and guards every arcsine/arccosine argument exactly;
+   `output_python.output_python_code()` still pulls the argument out of the printed RHS with a
+   greedy regex, which tests the wrong quantity when a RHS holds both an arcsine and an `atan2`,
+   and tests neither when it holds two arcsines. The two agree on every reachable pose — which is
+   why nothing has caught it — and can differ about which *unreachable* poses are reported as
+   unreachable. The C++ version is the one to keep.
+
+2. **The five `UNCHECKABLE` robots** (Arm_3, JennyGuoSp24, UR5, KR16, DZhang) still solve
+   "completely" and produce code that cannot run. These are *solver* defects, not codegen ones:
+   a solution that contains the variable it solves for, and out-of-range asin/acos. The C++ now
+   catches the first kind at COMPILE time where python raises `UnboundLocalError` at run time,
+   which makes it easier to find but no less broken. 
 
  
 
