@@ -30,7 +30,15 @@ DIR_NAME = os.path.join('CodeGen', 'Cpp')
 #  Cpp_src/ IS SOURCE, on the LaTex_src/ precedent:  hand-written C++ that the
 #  generator reads and inlines, so a generated .cpp is self-contained.  It is
 #  deliberately not under CodeGen/, which cleanCodeGenOutput wipes.
-SRC_DIR = 'Cpp_src'
+#
+#  RESOLVED AGAINST THIS MODULE, not the working directory -- unlike DIR_NAME
+#  above, and for the opposite reason.  Output belongs wherever the user ran
+#  IKBT from;  this is material shipped with the package and is in one place
+#  whatever the caller's cwd happens to be.  A test in tests.leavestest
+#  chdir's, and a relative path here made the C++ generator fail inside the
+#  suite while working perfectly from the repo root.
+SRC_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                       'Cpp_src')
 
 #  Everything a generated module may call.  The SAME SET as
 #  output_numeric_common.ALLOWED_FUNCS -- the point of the whitelist is that
