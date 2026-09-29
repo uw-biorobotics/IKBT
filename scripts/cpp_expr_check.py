@@ -284,7 +284,11 @@ DOMAIN_CASES = [
     ('NaN propagates through', 'pi - asin_dc(3.0)',         'M_PI - std::asin(3.0)'),
     ('NaN through a product',  'cos(acos_dc(2.0)) * 5.0',
                                'std::cos(std::acos(2.0)) * 5.0'),
+    ('sqrt of a negative',     'sqrt_dc(-202.2)',           'std::sqrt(-202.2)'),
+    ('sqrt NaN propagates',    '1.0 + sqrt_dc(-1.0)',       '1.0 + std::sqrt(-1.0)'),
+    ('sqrt of zero',           'sqrt_dc(0.0)',              'std::sqrt(0.0)'),
     ('inside the domain',      'acos_dc(0.5)',              'std::acos(0.5)'),
+    ('sqrt inside the domain', 'sqrt_dc(2.0)',              'std::sqrt(2.0)'),
     ('exactly at the edge',    'acos_dc(1.0)',              'std::acos(1.0)'),
     ('exactly at -1',          'asin_dc(-1.0)',             'std::asin(-1.0)'),
 ]
@@ -298,7 +302,7 @@ def _emitted_helpers():
     src = op.importString
     start = src.index('def acos_dc')
     ns = {'acos': math.acos, 'asin': math.asin, 'cos': math.cos,
-          'pi': math.pi, 'float': float}
+          'sqrt': math.sqrt, 'pi': math.pi, 'float': float}
     exec(compile(src[start:], '<emitted>', 'exec'), ns)
     return ns
 

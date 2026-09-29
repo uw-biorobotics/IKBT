@@ -49,6 +49,10 @@ class asin_dc(sp.Function):
     """Marker for a DOMAIN-CHECKED arcsine in the generated python."""
 
 
+class sqrt_dc(sp.Function):
+    """Marker for a DOMAIN-CHECKED square root in the generated python."""
+
+
 def dc_rewrite(e):
     r"""One expression with every acos/asin swapped for its checked twin.
 
@@ -85,7 +89,22 @@ def dc_rewrite(e):
        next line that read it raised UnboundLocalError rather than reporting
        the pose unreachable."""
 
-    return sp.sympify(e).replace(sp.acos, acos_dc).replace(sp.asin, asin_dc)
+    e = sp.sympify(e).replace(sp.acos, acos_dc).replace(sp.asin, asin_dc)
+
+    #  SQUARE ROOTS TOO, and they need matching differently:  sympy has no
+    #  sqrt Function -- sqrt(x) is Pow(x, 1/2) -- so .replace(sp.sqrt, ...)
+    #  matches nothing.  Only the two exponents that PRINT as a square root
+    #  are rewritten;  generated code contains no other fractional power
+    #  (checked across the robot set, 2026-09-29: only **2).
+    half = sp.Rational(1, 2)
+
+    def _is_root(p):
+        return isinstance(p, sp.Pow) and p.exp in (half, -half)
+
+    def _root_dc(p):
+        return sqrt_dc(p.base) if p.exp == half else 1 / sqrt_dc(p.base)
+
+    return e.replace(_is_root, _root_dc)
 
 
 def py_identifier(name):
@@ -135,6 +154,12 @@ def acos_dc(x):
 def asin_dc(x):
     return asin(x) if -1.0 <= x <= 1.0 else float('nan')
 
+
+#  Same story:  math.sqrt raises on a negative, C++'s std::sqrt returns NaN.
+#  A negative discriminant means this branch has no solution here.
+def sqrt_dc(x):
+    return sqrt(x) if x >= 0.0 else float('nan')
+
 '''
 #
 #   Output python code to simplify and numerically evaluate the forward kinematic equations
@@ -180,6 +205,12 @@ def acos_dc(x):
 
 def asin_dc(x):
     return asin(x) if -1.0 <= x <= 1.0 else float('nan')
+
+
+#  Same story:  math.sqrt raises on a negative, C++'s std::sqrt returns NaN.
+#  A negative discriminant means this branch has no solution here.
+def sqrt_dc(x):
+    return sqrt(x) if x >= 0.0 else float('nan')
 
 '''
     importString = importString.replace('**Robot**', Robot.name)
@@ -330,6 +361,12 @@ def acos_dc(x):
 def asin_dc(x):
     return asin(x) if -1.0 <= x <= 1.0 else float('nan')
 
+
+#  Same story:  math.sqrt raises on a negative, C++'s std::sqrt returns NaN.
+#  A negative discriminant means this branch has no solution here.
+def sqrt_dc(x):
+    return sqrt(x) if x >= 0.0 else float('nan')
+
 '''
     fixed_name = Robot.name.replace(r'_', r'\_')  # this is for LaTex output
     fixed_name = fixed_name.replace('test: ','')
@@ -393,6 +430,14 @@ def asin_dc(x):
     unsolved   = [j for j in jnames if j not in order and j != known]
     aux_cols   = [nm for nm in order if nm not in jnames]
 
+    if known:
+        print('#  EVERY branch is returned, in a FIXED position, whether or', file=f)
+        print('#  not it exists at this pose -- a branch that does not comes', file=f)
+        print('#  back with NaN in it.  IK_onevar%s.py indexes branches by' % orig_name, file=f)
+        print('#  position, so row i must be the same branch at every value.', file=f)
+    else:
+        print('#  Only the branches that EXIST at the goal pose are returned,', file=f)
+        print('#  so the count varies with the pose.  False means none do.', file=f)
     print('#  Joint values returned by %s(), in this order:' % funcname, file=f)
     print('JOINT_NAMES = %r' % joint_cols, file=f)
     print('#  Sum-of-angle intermediates:  computed, but NOT returned', file=f)
@@ -538,15 +583,44 @@ def asin_dc(x):
 
 
     # we are done.   Return
-    print(indent + '#  A non-finite entry anywhere means at least one branch', file=f)
-    print(indent + '#  does not exist at this pose.  Reported as unreachable,', file=f)
-    print(indent + '#  which is what this function did before:  one bad branch', file=f)
-    print(indent + '#  has always discarded them all.', file=f)
-    print(indent + 'for _row in solution_list:', file=f)
-    print(indent*2 + 'for _v in _row:', file=f)
-    print(indent*3 + 'if not isfinite(_v):', file=f)
-    print(indent*4 + 'return(False)', file=f)
-    print(indent + 'return(solution_list)', file=f)
+    #
+    #   THE TWO ENTRY POINTS DIFFER HERE, DELIBERATELY.
+    #
+    #   A row holding a non-finite value is a posture that does not exist at
+    #   this pose -- an arccosine out of range, a negative discriminant.  What
+    #   to do with it depends on who is asking.
+    #
+    if not known:
+        #   THE UNCONDITIONAL FORM DROPS THEM.  A caller wants the postures
+        #   the arm can actually adopt, and the count legitimately varies with
+        #   the pose.  This used to discard ALL branches whenever ANY one of
+        #   them was non-finite, which threw away exact answers: KR16 at the
+        #   probe pose has four postures that reproduce it to 5.6e-16 and four
+        #   that do not exist, and reported "unreachable" for the lot.
+        print(indent + '#  Keep the postures that exist.  A row with a', file=f)
+        print(indent + '#  non-finite value is one that does not exist at this', file=f)
+        print(indent + '#  pose -- an arccosine out of range, or a negative', file=f)
+        print(indent + '#  discriminant -- and the count varies with the pose.', file=f)
+        print(indent + 'reachable = [r for r in solution_list', file=f)
+        print(indent + '             if all(isfinite(v) for v in r)]', file=f)
+        print(indent + 'if not reachable:', file=f)
+        print(indent*2 + 'return(False)     #  no posture at all reaches T', file=f)
+        print(indent + 'return(reachable)', file=f)
+    else:
+        #   THE CONDITIONAL FORM KEEPS THEM, IN PLACE.  IK_onevar<Robot>.py
+        #   calls this at hundreds of values of the assumed variable and
+        #   builds ONE ERROR CURVE PER BRANCH, indexing by POSITION -- so
+        #   row i must be the same branch at every value.  Dropping a row at
+        #   some values and not others would stitch one branch's error onto
+        #   another's curve and wreck the per-branch domain edges the search
+        #   hunts roots at.  The caller sees the NaN and reads it as "this
+        #   branch is undefined here", which is exactly what errors_*() does.
+        print(indent + '#  EVERY row, in a FIXED position, NaN and all.  The', file=f)
+        print(indent + '#  1-D search indexes branches by position and needs', file=f)
+        print(indent + '#  row i to be the same branch at every value of', file=f)
+        print(indent + '#  %s;  it reads a non-finite row as "this branch' % known, file=f)
+        print(indent + '#  is undefined here".', file=f)
+        print(indent + 'return(solution_list)', file=f)
 
     #  A labelled view of the same answer, for callers who would rather
     #  not index by position.  The numeric list stays the fast path.

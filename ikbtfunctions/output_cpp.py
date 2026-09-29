@@ -189,6 +189,15 @@ def output_cpp_code(Robot, solution_groups, known=None):
         print('//  missing link length cannot be silently defaulted.', file=f)
     print('', file=f)
 
+    if known:
+        print('//  EVERY branch is returned, in a FIXED position, whether or', file=f)
+        print('//  not it exists at this pose -- one that does not comes back', file=f)
+        print('//  with NaN in it.  IK_onevar%s.cpp indexes branches by'
+              % orig_name, file=f)
+        print('//  position, so row i must be the same branch at every value.', file=f)
+    else:
+        print('//  Only the branches that EXIST at the goal pose are returned,', file=f)
+        print('//  so the count varies with the pose.  Empty means none do.', file=f)
     print('//  Joint values returned by %s(), in this order.' % funcname, file=f)
     print('//  C has no way to hand back a name with a value, so this order IS', file=f)
     print('//  the contract.', file=f)
@@ -280,15 +289,31 @@ def output_cpp_code(Robot, solution_groups, known=None):
         print('        solution_list.push_back(s);', file=f)
         print('    }', file=f)
     print('', file=f)
-    print('    //  A non-finite entry anywhere means at least one branch does', file=f)
-    print('    //  not exist at this pose.  Reported as unreachable -- an', file=f)
-    print('    //  EMPTY list, which is what python says with False -- and one', file=f)
-    print('    //  bad branch has always discarded them all.', file=f)
-    print('    for (size_t i = 0; i < solution_list.size(); ++i)', file=f)
-    print('        if (!all_finite(solution_list[i]))', file=f)
-    print('            return SolutionList();', file=f)
-    print('', file=f)
-    print('    return solution_list;', file=f)
+    #
+    #   THE TWO ENTRY POINTS DIFFER HERE, exactly as they do in python -- see
+    #   output_python.output_python_code() for the reasoning, which is the
+    #   same reasoning and must stay the same.
+    #
+    if not known:
+        print('    //  Keep the postures that EXIST.  A row holding a', file=f)
+        print('    //  non-finite value is one that does not exist at this', file=f)
+        print('    //  pose -- an arccosine out of range, or a negative', file=f)
+        print('    //  discriminant -- and the count varies with the pose.', file=f)
+        print('    //  An EMPTY list means none of them do, which is what', file=f)
+        print('    //  python says with False.', file=f)
+        print('    SolutionList reachable;', file=f)
+        print('    for (size_t i = 0; i < solution_list.size(); ++i)', file=f)
+        print('        if (all_finite(solution_list[i]))', file=f)
+        print('            reachable.push_back(solution_list[i]);', file=f)
+        print('', file=f)
+        print('    return reachable;', file=f)
+    else:
+        print('    //  EVERY row, in a FIXED position, NaN and all.  The 1-D', file=f)
+        print('    //  search indexes branches by position and needs row i to', file=f)
+        print('    //  be the same branch at every value of %s;  it reads a'
+              % known, file=f)
+        print('    //  non-finite row as "this branch is undefined here".', file=f)
+        print('    return solution_list;', file=f)
     print('}', file=f)
 
     #
