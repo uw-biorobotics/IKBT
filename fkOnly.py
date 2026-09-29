@@ -32,7 +32,6 @@ import b3 as b3          # behavior trees
 import ikbtfunctions.helperfunctions as hf
 import ikbtfunctions.output_latex as ol
 import ikbtfunctions.output_python as op
-import ikbtfunctions.output_cpp as oc
 from   ikbtfunctions.ik_robots import *   # the robot models
 
 TEST_DATA_GENERATION = False

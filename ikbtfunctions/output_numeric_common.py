@@ -22,10 +22,17 @@ from ikbtfunctions.output_python import py_identifier
 
 DIR_NAME = os.path.join('CodeGen', 'Python')
 
-#  Everything the generated modules may call.  `abs` is a builtin;  the rest
-#  come from math, exactly as the existing IK modules import them.
+#  Everything the generated modules may call.  `Abs` becomes the builtin abs();
+#  the rest come from math, exactly as the existing IK modules import them.
+#
+#  'Abs', NOT 'abs'.  The check below compares type(f).__name__ for each sympy
+#  Function atom, and sympy's absolute value is the class Abs -- no function is
+#  named lowercase 'abs', so that entry matched nothing and expr_py() REFUSED
+#  every expression containing an absolute value, although sp.pycode emits a
+#  perfectly good `abs(x)` for it.  Found 2026-09-29 by scripts/cpp_expr_check,
+#  which prints the same expression through both languages.
 ALLOWED_FUNCS = {'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'atan2',
-                 'sqrt', 'abs', 'exp', 'log'}
+                 'sqrt', 'Abs', 'exp', 'log'}
 
 MODULE_HEADER = '''#!/usr/bin/python
 #  **WHAT**
