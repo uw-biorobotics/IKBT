@@ -216,14 +216,19 @@ phrase into an assertion. One script, several questions, the way its Python
 twin covers all three paths from one command:
 
 ```bash
-python3 -m scripts.cpp_closed_loop_check --keep          # symbolic: sound AND faithful
+python3 -m scripts.cpp_closed_loop_check --keep          # ALL THREE PATHS, one command
 python3 -m scripts.cpp_closed_loop_check --all --compile-only   # the compile gate
 python3 -m scripts.cpp_closed_loop_check --fk  Puma      # FK/Jacobian, elementwise
 python3 -m scripts.cpp_closed_loop_check --dls Puma      # ikbt_dls.h vs numeric_ik
-python3 -m scripts.cpp_closed_loop_check --onevar C-Arm  # same root set?
-python3 -m scripts.cpp_closed_loop_check --hybrid Panda  # same refined postures?
+python3 -m scripts.cpp_closed_loop_check --onevar C-Arm  # that check on purpose
+python3 -m scripts.cpp_closed_loop_check --hybrid Panda  # ... and this one
 python3 -m scripts.cpp_expr_check                        # the expression printer
 ```
+
+Like its python twin it covers **all three paths from one command**:
+`detect_path()` reads which artifacts exist, so a caller with a robot name needs
+no idea which branch answered it. The three entry points are distinguishable by
+file name, which is what the naming discipline is for.
 
 **Soundness and fidelity are different questions, and both are asked.**
 Soundness is the same closed loop as everywhere else: `q → T = FK(q) → compiled

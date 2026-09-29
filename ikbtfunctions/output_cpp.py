@@ -267,6 +267,15 @@ def output_cpp_code(Robot, solution_groups, known=None):
     #
     #   Package the solutions.
     #
+    #   A (void) sweep first.  A sum-of-angles intermediate can be computed
+    #   and then read by nothing -- th_34 on Axtman13, th_34 and th_45 on
+    #   JennyGuoSp24 -- which is -Wunused-but-set-variable.  Python emits the
+    #   same dead assignment and says nothing about it.  Emitting every
+    #   version for every variable keeps the body identical in shape for
+    #   every robot, which is worth more than the warnings cost to silence.
+    if sol_vars:
+        print('    ' + '; '.join('(void) %s' % v for v in sol_vars) + ';',
+              file=f)
     print('''
     /////////////////////////////////////////////////////////////
     //

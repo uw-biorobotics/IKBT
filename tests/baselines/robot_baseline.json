@@ -2,44 +2,50 @@
  "closed_loop": true,
  "codegen": true,
  "complaints": {},
- "n_robots": 31,
+ "n_robots": 32,
  "record_version": 2,
  "robots": {
   "ArmRobo": {
-   "branch": "hybrid",
+   "branch": "onevar",
+   "closed_loop": {
+    "good": 4,
+    "note": "probe recovered",
+    "path": "onevar",
+    "total": 4
+   },
    "codegen_run": true,
    "error": null,
-   "hybrid": {
-    "axes": [
-     3,
-     4,
-     5
-    ],
-    "derived_robot": "ArmRobo_d_4_0",
-    "edits": [
-     "d_4: 0.145423000000000 -> 0"
-    ],
-    "kind": "intersect",
-    "route": "zero_offsets"
-   },
+   "hybrid": null,
    "methods": {
     "d_6": "algebra",
     "th_1": "simultaneous eqn",
-    "th_12": "",
-    "th_2": "",
-    "th_3": "",
-    "th_4": "",
-    "th_5": ""
+    "th_12": "simultaneous eqn",
+    "th_2": "algebra",
+    "th_4": "arcsin",
+    "th_5": "simultaneous eqn"
    },
-   "n_solutions": null,
-   "n_solved": 2,
-   "n_unknowns": 7,
+   "n_solutions": 2,
+   "n_solved": 6,
+   "n_unknowns": 6,
    "name": "ArmRobo",
    "no_progress": false,
+   "onevar": {
+    "attempt": 1,
+    "known": "th_3",
+    "of": 3
+   },
    "solution_set_error": null,
-   "status": "partial (hybrid)",
-   "wall_s": 189.74,
-   "written": [],
+   "status": "solved (onevar)",
+   "wall_s": 116.28,
+   "written": [
+    "cond",
+    "cpp_cond",
+    "cpp_fk",
+    "cpp_onevar",
+    "fk",
+    "onevar",
+    "tex"
+   ],
    "written_derived": []
   },
   "Arm_3": {
@@ -66,9 +72,10 @@
    "n_unknowns": 6,
    "name": "Arm_3",
    "no_progress": false,
+   "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 52.8,
+   "wall_s": 30.62,
    "written": [
     "cpp",
     "py",
@@ -99,9 +106,10 @@
    "n_unknowns": 5,
    "name": "Axtman13",
    "no_progress": false,
+   "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 26.14,
+   "wall_s": 15.24,
    "written": [
     "cpp",
     "py",
@@ -132,9 +140,10 @@
    "n_unknowns": 5,
    "name": "Bartell",
    "no_progress": false,
+   "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 2.66,
+   "wall_s": 1.52,
    "written": [
     "cpp",
     "py",
@@ -164,12 +173,56 @@
    "n_unknowns": 4,
    "name": "Brad",
    "no_progress": false,
+   "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 3.0,
+   "wall_s": 1.7,
    "written": [
     "cpp",
     "py",
+    "tex"
+   ],
+   "written_derived": []
+  },
+  "C-Arm": {
+   "branch": "onevar",
+   "closed_loop": {
+    "good": 8,
+    "note": "probe recovered",
+    "path": "onevar",
+    "total": 8
+   },
+   "codegen_run": true,
+   "error": null,
+   "hybrid": null,
+   "methods": {
+    "d_1": "algebra",
+    "th_3": "algebra",
+    "th_34": "simultaneous eqn",
+    "th_4": "arcsin",
+    "th_5": "atan2(y,x), arccos, best ranked, atan2(y,x)",
+    "th_6": "simultaneous eqn"
+   },
+   "n_solutions": 2,
+   "n_solved": 6,
+   "n_unknowns": 6,
+   "name": "C-Arm",
+   "no_progress": false,
+   "onevar": {
+    "attempt": 1,
+    "known": "th_2",
+    "of": 3
+   },
+   "solution_set_error": null,
+   "status": "solved (onevar)",
+   "wall_s": 61.8,
+   "written": [
+    "cond",
+    "cpp_cond",
+    "cpp_fk",
+    "cpp_onevar",
+    "fk",
+    "onevar",
     "tex"
    ],
    "written_derived": []
@@ -197,9 +250,10 @@
    "n_unknowns": 5,
    "name": "Chair_Helper",
    "no_progress": false,
+   "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 3.9,
+   "wall_s": 2.24,
    "written": [
     "cpp",
     "py",
@@ -230,9 +284,10 @@
    "n_unknowns": 5,
    "name": "Craig417",
    "no_progress": false,
+   "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 7.33,
+   "wall_s": 3.1,
    "written": [
     "cpp",
     "py",
@@ -243,10 +298,10 @@
   "DZhang": {
    "branch": "symbolic",
    "closed_loop": {
-    "good": 0,
-    "note": "ValueError: expected a number in range from -1 up to 1, got 1.2901077724570822",
-    "path": null,
-    "total": 0
+    "good": 1,
+    "note": "",
+    "path": "symbolic",
+    "total": 2
    },
    "codegen_run": true,
    "error": null,
@@ -264,9 +319,10 @@
    "n_unknowns": 6,
    "name": "DZhang",
    "no_progress": false,
+   "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 97.16,
+   "wall_s": 55.53,
    "written": [
     "cpp",
     "py",
@@ -297,9 +353,10 @@
    "n_unknowns": 5,
    "name": "Frei13",
    "no_progress": false,
+   "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 76.78,
+   "wall_s": 42.34,
    "written": [
     "cpp",
     "py",
@@ -329,9 +386,10 @@
    "n_unknowns": 4,
    "name": "ICP5p5_A21",
    "no_progress": false,
+   "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 36.39,
+   "wall_s": 24.69,
    "written": [
     "cpp",
     "py",
@@ -365,9 +423,10 @@
    "n_unknowns": 8,
    "name": "JennyGuoSp24",
    "no_progress": false,
+   "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 86.45,
+   "wall_s": 49.41,
    "written": [
     "cpp",
     "py",
@@ -378,10 +437,10 @@
   "KR16": {
    "branch": "symbolic",
    "closed_loop": {
-    "good": 0,
-    "note": "ValueError: expected a nonnegative input, got -202.2155649651621",
-    "path": null,
-    "total": 0
+    "good": 4,
+    "note": "",
+    "path": "symbolic",
+    "total": 4
    },
    "codegen_run": true,
    "error": null,
@@ -400,9 +459,10 @@
    "n_unknowns": 7,
    "name": "KR16",
    "no_progress": false,
+   "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 137.21,
+   "wall_s": 89.05,
    "written": [
     "cpp",
     "py",
@@ -435,9 +495,10 @@
    "n_unknowns": 7,
    "name": "KawasakiRS007L",
    "no_progress": false,
+   "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 108.93,
+   "wall_s": 63.74,
    "written": [
     "cpp",
     "py",
@@ -446,40 +507,46 @@
    "written_derived": []
   },
   "KawasakiRS05L": {
-   "branch": "hybrid",
+   "branch": "onevar",
+   "closed_loop": {
+    "good": 2,
+    "note": "probe recovered",
+    "path": "onevar",
+    "total": 2
+   },
    "codegen_run": true,
    "error": null,
-   "hybrid": {
-    "axes": [
-     3,
-     4,
-     5
-    ],
-    "derived_robot": "KawasakiRS05L_a_3_0",
-    "edits": [
-     "a_3: 80 -> 0"
-    ],
-    "kind": "intersect",
-    "route": "zero_offsets"
-   },
+   "hybrid": null,
    "methods": {
-    "th_1": "",
-    "th_2": "",
-    "th_23": "",
-    "th_3": "",
-    "th_4": "",
-    "th_5": "",
-    "th_6": ""
+    "th_2": "simultaneous eqn",
+    "th_23": "simultaneous eqn",
+    "th_3": "algebra",
+    "th_4": "arccos",
+    "th_5": "arcsin",
+    "th_6": "simultaneous eqn"
    },
-   "n_solutions": null,
-   "n_solved": 0,
-   "n_unknowns": 7,
+   "n_solutions": 4,
+   "n_solved": 6,
+   "n_unknowns": 6,
    "name": "KawasakiRS05L",
-   "no_progress": true,
+   "no_progress": false,
+   "onevar": {
+    "attempt": 1,
+    "known": "th_1",
+    "of": 3
+   },
    "solution_set_error": null,
-   "status": "unsolved",
-   "wall_s": 258.03,
-   "written": [],
+   "status": "solved (onevar)",
+   "wall_s": 157.85,
+   "written": [
+    "cond",
+    "cpp_cond",
+    "cpp_fk",
+    "cpp_onevar",
+    "fk",
+    "onevar",
+    "tex"
+   ],
    "written_derived": []
   },
   "Khat6DOF": {
@@ -507,9 +574,10 @@
    "n_unknowns": 7,
    "name": "Khat6DOF",
    "no_progress": false,
+   "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 138.7,
+   "wall_s": 81.67,
    "written": [
     "cpp",
     "py",
@@ -518,54 +586,47 @@
    "written_derived": []
   },
   "KinovaLite": {
-   "branch": "hybrid",
+   "branch": "onevar",
    "closed_loop": {
     "good": 8,
-    "note": "seed err 4.3e+01 -> 1.2e-12",
-    "path": "hybrid",
+    "note": "probe recovered",
+    "path": "onevar",
     "total": 8
    },
    "codegen_run": true,
    "error": null,
-   "hybrid": {
-    "axes": [
-     4,
-     5,
-     6
-    ],
-    "derived_robot": "KinovaLite_d_5_0",
-    "edits": [
-     "d_5: 57 -> 0"
-    ],
-    "kind": "intersect",
-    "route": "zero_offsets"
-   },
+   "hybrid": null,
    "methods": {
-    "th_1": "sinANDcos",
     "th_2": "simultaneous eqn",
-    "th_23": "algebra",
-    "th_3": "arcsin",
-    "th_4": "atan2(y,x)",
-    "th_5": "simultaneous eqn",
+    "th_23": "simultaneous eqn",
+    "th_3": "algebra",
+    "th_4": "arccos",
+    "th_5": "arcsin",
     "th_6": "simultaneous eqn"
    },
-   "n_solutions": 8,
-   "n_solved": 7,
-   "n_unknowns": 7,
+   "n_solutions": 4,
+   "n_solved": 6,
+   "n_unknowns": 6,
    "name": "KinovaLite",
    "no_progress": false,
+   "onevar": {
+    "attempt": 1,
+    "known": "th_1",
+    "of": 3
+   },
    "solution_set_error": null,
-   "status": "solved (hybrid)",
-   "wall_s": 298.21,
+   "status": "solved (onevar)",
+   "wall_s": 208.81,
    "written": [
+    "cond",
+    "cpp_cond",
+    "cpp_fk",
+    "cpp_onevar",
     "fk",
-    "hybrid",
+    "onevar",
     "tex"
    ],
-   "written_derived": [
-    "fk",
-    "py"
-   ]
+   "written_derived": []
   },
   "Mackler13": {
    "branch": "symbolic",
@@ -590,9 +651,10 @@
    "n_unknowns": 5,
    "name": "Mackler13",
    "no_progress": false,
+   "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 94.83,
+   "wall_s": 55.31,
    "written": [
     "cpp",
     "py",
@@ -622,9 +684,10 @@
    "n_unknowns": 4,
    "name": "Minder13",
    "no_progress": false,
+   "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 2.6,
+   "wall_s": 1.5,
    "written": [
     "cpp",
     "py",
@@ -655,9 +718,10 @@
    "n_unknowns": 5,
    "name": "MiniDD",
    "no_progress": false,
+   "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 70.43,
+   "wall_s": 40.64,
    "written": [
     "cpp",
     "py",
@@ -690,9 +754,10 @@
    "n_unknowns": 7,
    "name": "Olson13",
    "no_progress": false,
+   "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 33.33,
+   "wall_s": 19.64,
    "written": [
     "cpp",
     "py",
@@ -722,9 +787,10 @@
    "n_unknowns": 4,
    "name": "Palm13",
    "no_progress": false,
+   "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 2.63,
+   "wall_s": 1.5,
    "written": [
     "cpp",
     "py",
@@ -736,7 +802,7 @@
    "branch": "hybrid",
    "closed_loop": {
     "good": 8,
-    "note": "seed err 6.0e-02 -> 1.7e-16",
+    "note": "seed err 6.0e-02 -> 2.2e-16",
     "path": "hybrid",
     "total": 8
    },
@@ -769,15 +835,20 @@
    "n_unknowns": 6,
    "name": "Panda",
    "no_progress": false,
+   "onevar": null,
    "solution_set_error": null,
    "status": "solved (hybrid)",
-   "wall_s": 2129.69,
+   "wall_s": 422.85,
    "written": [
+    "cpp_fk",
+    "cpp_hybrid",
     "fk",
     "hybrid",
     "tex"
    ],
    "written_derived": [
+    "cpp",
+    "cpp_fk",
     "fk",
     "py"
    ]
@@ -806,9 +877,10 @@
    "n_unknowns": 6,
    "name": "Parkman13",
    "no_progress": false,
+   "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 66.06,
+   "wall_s": 38.07,
    "written": [
     "cpp",
     "py",
@@ -841,9 +913,10 @@
    "n_unknowns": 7,
    "name": "Puma",
    "no_progress": false,
+   "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 126.94,
+   "wall_s": 75.11,
    "written": [
     "cpp",
     "py",
@@ -881,9 +954,10 @@
    "n_unknowns": 6,
    "name": "Raven-II",
    "no_progress": true,
+   "onevar": null,
    "solution_set_error": null,
    "status": "unsolved",
-   "wall_s": 981.82,
+   "wall_s": 576.31,
    "written": [],
    "written_derived": []
   },
@@ -910,9 +984,10 @@
    "n_unknowns": 5,
    "name": "Sims11",
    "no_progress": false,
+   "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 29.7,
+   "wall_s": 17.63,
    "written": [
     "cpp",
     "py",
@@ -944,9 +1019,10 @@
    "n_unknowns": 6,
    "name": "Srisuan11",
    "no_progress": false,
+   "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 29.37,
+   "wall_s": 16.99,
    "written": [
     "cpp",
     "py",
@@ -978,9 +1054,10 @@
    "n_unknowns": 6,
    "name": "Stanford",
    "no_progress": false,
+   "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 5.44,
+   "wall_s": 3.03,
    "written": [
     "cpp",
     "py",
@@ -992,7 +1069,7 @@
    "branch": "symbolic",
    "closed_loop": {
     "good": 0,
-    "note": "ValueError: expected a number in range from -1 up to 1, got 1.647794556727048",
+    "note": "UnboundLocalError: cannot access local variable 'th_2v1' where it is not associated with a value",
     "path": null,
     "total": 0
    },
@@ -1015,9 +1092,10 @@
    "n_unknowns": 9,
    "name": "UR5",
    "no_progress": false,
+   "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 231.44,
+   "wall_s": 153.31,
    "written": [
     "cpp",
     "py",
@@ -1049,9 +1127,10 @@
    "n_unknowns": 6,
    "name": "Wachtveitl",
    "no_progress": false,
+   "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 43.91,
+   "wall_s": 24.39,
    "written": [
     "cpp",
     "py",
@@ -1080,9 +1159,10 @@
    "n_unknowns": 3,
    "name": "Wrist",
    "no_progress": false,
+   "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 2.3,
+   "wall_s": 1.36,
    "written": [
     "cpp",
     "py",

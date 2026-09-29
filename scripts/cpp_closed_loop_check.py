@@ -9,8 +9,13 @@
 #       python3 -m scripts.cpp_closed_loop_check --compile-only --all
 #       python3 -m scripts.cpp_closed_loop_check --gate         # exit 1 on a regression
 #
-#   The C++ twin of numerical_closed_loop_sol_check.py, and it asks TWO
-#   questions where that one asks one:
+#   The C++ twin of numerical_closed_loop_sol_check.py.  Like that one it
+#   covers ALL THREE PATHS FROM ONE COMMAND -- detect_path() reads which
+#   artifacts exist, so a caller with a robot name needs no idea which branch
+#   answered it.  The explicit --onevar / --hybrid flags remain for running
+#   one kind of check on purpose.
+#
+#   It asks TWO questions where the python twin asks one:
 #
 #     SOUNDNESS   pick q -> T = FK(q) -> compiled ikin_*(T) -> every returned
 #                 branch must satisfy FK(branch) == T.  T comes from the
@@ -748,6 +753,26 @@ def check_hybrid(name, n_poses=3, seed=19, verbose=False):
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def detect_path(name):
+    """Which branch answered for this robot, from the artifacts on disk.
+
+       The python twin does the same thing, for the same reason:  a caller
+       with a robot name should not need to know which branch answered it.
+       The three entry points are distinguishable by FILE NAME, which is the
+       whole point of the naming discipline -- IK_equations<R> means an
+       unconditional closed form and appears only on the symbolic path.
+
+       Returns 'symbolic', 'onevar', 'hybrid' or None."""
+
+    if os.path.exists(os.path.join(CPP_DIR, 'IK_onevar%s.cpp' % name)):
+        return 'onevar'
+    if os.path.exists(os.path.join(CPP_DIR, 'IK_hybrid_%s.cpp' % name)):
+        return 'hybrid'
+    if os.path.exists(os.path.join(CPP_DIR, 'IK_equations%s.cpp' % name)):
+        return 'symbolic'
+    return None
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('robots', nargs='*', help='robot names (default: the '
@@ -885,8 +910,8 @@ def main():
                 print('   %s' % msg, flush=True)
 
     print('')
-    print('%-18s %-11s %-22s %s'
-          % ('robot', 'compile', 'branches reproducing T', 'python agreement'))
+    print('%-18s %-9s %-26s %s'
+          % ('robot', 'path', 'result', 'python agreement'))
     print('-' * 86)
 
     failures = []
@@ -894,7 +919,7 @@ def main():
     for n in names:
         if args.compile_only:
             _, kind, msg = build(n)
-            print('%-18s %-11s %s' % (n, kind, msg), flush=True)
+            print('%-18s %-9s %s' % (n, kind, msg), flush=True)
             if kind == 'other':
                 failures.append('%s: compile failed -- %s' % (n, msg))
             elif kind == 'undeclared' and n not in UNCHECKABLE:
@@ -902,9 +927,38 @@ def main():
                                 'UNCHECKABLE robot -- %s' % (n, msg))
             continue
 
+        #  ALL THREE PATHS FROM ONE COMMAND, dispatched on what is on disk.
+        path = detect_path(n)
+        if path in ('onevar', 'hybrid'):
+            fn = check_onevar if path == 'onevar' else check_hybrid
+            m, miss, ex, worst, note = fn(n, verbose=args.verbose)
+            res = ('%d matched, %d missing, %d extra' % (m, miss, ex)
+                   if not note else '')
+            if worst is not None:
+                res += '  (worst %.1e)' % worst
+            print('%-18s %-9s %-26s %s' % (n, path, res, note), flush=True)
+            if note:
+                failures.append('%s: %s' % (n, note))
+                continue
+            if miss:
+                failures.append('%s: the C++ %s search missed %d solution(s) '
+                                'the python found' % (n, path, miss))
+            if ex:
+                failures.append('%s: the C++ %s search returned %d solution(s) '
+                                'the python did not' % (n, path, ex))
+            if worst is not None and worst > TOL:
+                failures.append('%s: a returned branch is %.2e from the goal '
+                                'pose' % (n, worst))
+            continue
+
+        if path is None:
+            print('%-18s %-9s %s' % (n, '-', 'no generated C++ for this robot'),
+                  flush=True)
+            continue
+
         r = check_one(n, verbose=args.verbose)
         if r['kind'] != 'ok':
-            print('%-18s %-11s %s' % (n, r['kind'], r['note']), flush=True)
+            print('%-18s %-9s %s' % (n, r['kind'], r['note']), flush=True)
             if r['kind'] == 'other':
                 failures.append('%s: compile failed -- %s' % (n, r['note']))
             elif r['kind'] == 'undeclared' and n not in UNCHECKABLE:
@@ -924,10 +978,10 @@ def main():
                 failures.append('%s: could not compare with python -- %s'
                                 % (n, agree))
 
-        cnt = '%d of %d' % (r['good'], r['total'])
+        cnt = '%d of %d branches' % (r['good'], r['total'])
         if r['worst_fk'] is not None:
             cnt += '  (worst %.1e)' % r['worst_fk']
-        print('%-18s %-11s %-22s %s' % (n, 'ok', cnt, atxt), flush=True)
+        print('%-18s %-9s %-26s %s' % (n, 'symbolic', cnt, atxt), flush=True)
 
         for complaint in judge_counts(n, r['good'], r['total']):
             failures.append('%s: %s' % (n, complaint))

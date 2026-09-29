@@ -1,30 +1,31 @@
 IKBT robot baseline
-31 robots, codegen on, closed loop on
+32 robots, codegen on, closed loop on
 
 robot              status            solved   solns closed loop    artifacts
 ------------------------------------------------------------------------------
-ArmRobo            partial (hybrid)   2/7         -                -
+ArmRobo            solved (onevar)    6/6         2 4/4 onevar     cond, cpp_cond, cpp_fk, cpp_onevar, fk, onevar, tex
 Arm_3              solved             6/6         2 -              cpp, py, tex
 Axtman13           solved             5/5         2 1/2 symbolic   cpp, py, tex
 Bartell            solved             5/5         2 2/2 symbolic   cpp, py, tex
 Brad               solved             4/4         1 1/1 symbolic   cpp, py, tex
+C-Arm              solved (onevar)    6/6         2 8/8 onevar     cond, cpp_cond, cpp_fk, cpp_onevar, fk, onevar, tex
 Chair_Helper       solved             5/5         2 2/2 symbolic   cpp, py, tex
 Craig417           solved             5/5         4 2/4 symbolic   cpp, py, tex
-DZhang             solved             6/6         4 -              cpp, py, tex
+DZhang             solved             6/6         4 1/2 symbolic   cpp, py, tex
 Frei13             solved             5/5         4 4/4 symbolic   cpp, py, tex
 ICP5p5_A21         solved             4/4         1 1/1 symbolic   cpp, py, tex
 JennyGuoSp24       solved             8/8         2 -              cpp, py, tex
-KR16               solved             7/7         8 -              cpp, py, tex
+KR16               solved             7/7         8 4/4 symbolic   cpp, py, tex
 KawasakiRS007L     solved             7/7         8 8/8 symbolic   cpp, py, tex
-KawasakiRS05L      unsolved           0/7         -                -
+KawasakiRS05L      solved (onevar)    6/6         4 2/2 onevar     cond, cpp_cond, cpp_fk, cpp_onevar, fk, onevar, tex
 Khat6DOF           solved             7/7         8 8/8 symbolic   cpp, py, tex
-KinovaLite         solved (hybrid)    7/7         8 8/8 hybrid     fk, hybrid, tex  [KinovaLite_d_5_0: fk, py]
+KinovaLite         solved (onevar)    6/6         4 8/8 onevar     cond, cpp_cond, cpp_fk, cpp_onevar, fk, onevar, tex
 Mackler13          solved             5/5         4 1/4 symbolic   cpp, py, tex
 Minder13           solved             4/4         2 2/2 symbolic   cpp, py, tex
 MiniDD             solved             5/5         4 1/4 symbolic   cpp, py, tex
 Olson13            solved             7/7         4 4/4 symbolic   cpp, py, tex
 Palm13             solved             4/4         2 1/2 symbolic   cpp, py, tex
-Panda              solved (hybrid)    6/6        16 8/8 hybrid     fk, hybrid, tex  [Panda_a_3_0_a_4_0: fk, py]
+Panda              solved (hybrid)    6/6        16 8/8 hybrid     cpp_fk, cpp_hybrid, fk, hybrid, tex  [Panda_a_3_0_a_4_0: cpp, cpp_fk, fk, py]
 Parkman13          solved             6/6         4 1/4 symbolic   cpp, py, tex
 Puma               solved             7/7         8 8/8 symbolic   cpp, py, tex
 Raven-II           unsolved           0/6         -                -
@@ -35,14 +36,14 @@ UR5                solved             9/9         8 -              cpp, py, tex
 Wachtveitl         solved             6/6         2 1/2 symbolic   cpp, py, tex
 Wrist              solved             3/3         2 2/2 symbolic   cpp, py, tex
 ------------------------------------------------------------------------------
-  partial (hybrid): 1,  solved: 26,  solved (hybrid): 2,  unsolved: 2
+  solved: 26,  solved (hybrid): 1,  solved (onevar): 4,  unsolved: 1
 
 Notes
 --------------------------------------------------------------
-ArmRobo            SIMPLIFIED to ArmRobo_d_4_0 -- d_4: 0.145423000000000 -> 0 (axes [3, 4, 5], intersect)
-ArmRobo            unsolved: th_12, th_2, th_3, th_4, th_5
-KawasakiRS05L      SIMPLIFIED to KawasakiRS05L_a_3_0 -- a_3: 80 -> 0 (axes [3, 4, 5], intersect)
-KinovaLite         SIMPLIFIED to KinovaLite_d_5_0 -- d_5: 57 -> 0 (axes [4, 5, 6], intersect)
+ArmRobo            th_3 ASSUMED KNOWN (candidate 1 of 3) -- solved counts exclude it
+C-Arm              th_2 ASSUMED KNOWN (candidate 1 of 3) -- solved counts exclude it
+KawasakiRS05L      th_1 ASSUMED KNOWN (candidate 1 of 3) -- solved counts exclude it
+KinovaLite         th_1 ASSUMED KNOWN (candidate 1 of 3) -- solved counts exclude it
 Panda              SIMPLIFIED to Panda_a_3_0_a_4_0 -- a_3: 0.0825000000000000 -> 0; a_4: -0.0825000000000000 -> 0 (axes [3, 4, 5], intersect)
 Raven-II           SIMPLIFIED to Raven-II_a_5_0 -- a_5: 13.0000000000000 -> 0 (axes [4, 5, 6], intersect)
 
@@ -51,11 +52,10 @@ Solution methods  (recorded, not compared)
 ArmRobo
     d_6      algebra
     th_1     simultaneous eqn
-    th_12    (unsolved)
-    th_2     (unsolved)
-    th_3     (unsolved)
-    th_4     (unsolved)
-    th_5     (unsolved)
+    th_12    simultaneous eqn
+    th_2     algebra
+    th_4     arcsin
+    th_5     simultaneous eqn
 Arm_3
     th_1     algebra
     th_12    algebra
@@ -80,6 +80,13 @@ Brad
     th_2     simultaneous eqn
     th_23    algebra
     th_3     simultaneous eqn
+C-Arm
+    d_1      algebra
+    th_3     algebra
+    th_34    simultaneous eqn
+    th_4     arcsin
+    th_5     atan2(y,x), arccos, best ranked, atan2(y,x)
+    th_6     simultaneous eqn
 Chair_Helper
     d_1      algebra
     th_2     simultaneous eqn
@@ -136,13 +143,12 @@ KawasakiRS007L
     th_5     simultaneous eqn
     th_6     simultaneous eqn
 KawasakiRS05L
-    th_1     (unsolved)
-    th_2     (unsolved)
-    th_23    (unsolved)
-    th_3     (unsolved)
-    th_4     (unsolved)
-    th_5     (unsolved)
-    th_6     (unsolved)
+    th_2     simultaneous eqn
+    th_23    simultaneous eqn
+    th_3     algebra
+    th_4     arccos
+    th_5     arcsin
+    th_6     simultaneous eqn
 Khat6DOF
     th_1     sinANDcos
     th_2     algebra
@@ -152,12 +158,11 @@ Khat6DOF
     th_5     simultaneous eqn
     th_6     simultaneous eqn
 KinovaLite
-    th_1     sinANDcos
     th_2     simultaneous eqn
-    th_23    algebra
-    th_3     arcsin
-    th_4     atan2(y,x)
-    th_5     simultaneous eqn
+    th_23    simultaneous eqn
+    th_3     algebra
+    th_4     arccos
+    th_5     arcsin
     th_6     simultaneous eqn
 Mackler13
     d_1      algebra

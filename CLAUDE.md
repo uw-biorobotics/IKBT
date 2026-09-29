@@ -49,11 +49,11 @@ python3 -m scripts.numerical_closed_loop_sol_check Puma       # is the GENERATED
 python3 -m scripts.numerical_closed_loop_sol_check KinovaLite # ... same command for a HYBRID robot
 
 python3 -m scripts.cpp_expr_check                             # do the two expression printers agree?
-python3 -m scripts.cpp_closed_loop_check --keep               # is the GENERATED C++ correct, and does it match the python?
+python3 -m scripts.cpp_closed_loop_check --keep               # is the GENERATED C++ correct, and does it match the python?  (all 3 paths)
 python3 -m scripts.cpp_closed_loop_check --all --compile-only # the compile gate
 python3 -m scripts.cpp_closed_loop_check --fk Puma            # FK/Jacobian, elementwise vs python
 python3 -m scripts.cpp_closed_loop_check --dls Puma           # pin ikbt_dls.h against numeric_ik
-python3 -m scripts.cpp_closed_loop_check --onevar C-Arm       # same root set as the python search?
+python3 -m scripts.cpp_closed_loop_check --onevar C-Arm       # same root set as the python search?  (on purpose)
 python3 -m scripts.cpp_closed_loop_check --hybrid Panda       # same refined postures?
 ```
 
