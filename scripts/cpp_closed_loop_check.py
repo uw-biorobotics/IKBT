@@ -403,7 +403,21 @@ def check_dls(name, n_trials=6, seed=13, verbose=False):
        VALIDATED ON ROBOTS THAT ALREADY SOLVE EXACTLY, with no dependence on
        the hybrid branch: perturb a known-good pose and confirm it comes back.
        That is how numeric_ik itself is tested, and it is why this check runs
-       for any robot with a usable FK rather than only the hybrid ones.'''
+       for any robot with a usable FK rather than only the hybrid ones.
+
+       CONVERGED TRIALS ONLY are compared joint for joint.  A DLS run that
+       STALLS has no answer to compare:  it sits in a flat region making no
+       progress, and where in that region it stops after fifty identical
+       steps is float noise, not behaviour.  DZhang has such a seed -- both
+       languages stall at metric 9.927e-04, and they then grind 45 and 65
+       wasted iterations before giving up, ending 1.1e-08 apart.  Judging
+       that as a disagreement measures the flatness of the region, not the
+       fidelity of the copy.
+
+       A STALLED TRIAL IS STILL COMPARED, on the thing that does mean
+       something: both sides must stall, and at the same metric.  One side
+       converging where the other does not IS a real divergence and is
+       reported as one.'''
 
     import random
 
@@ -446,6 +460,7 @@ def check_dls(name, n_trials=6, seed=13, verbose=False):
     worst_q = 0.0
     worst_m = 0.0
     iter_bad = 0
+    disagreed = []
     for _ in range(n_trials):
         q_true = [rng.uniform(-2.0, 2.0) for _ in range(ndof)]
         Td = np.asarray(py_fk(q_true), dtype=float)
@@ -465,7 +480,24 @@ def check_dls(name, n_trials=6, seed=13, verbose=False):
         cm = float(out[ndof])
         cit = int(out[ndof + 1])
 
+        cconv = bool(int(out[ndof + 2]))
+
         pr = nik.solve_numeric(py_fk, py_jac, q0, Td, w_rot=w_rot)
+        pconv = bool(pr['converged'])
+
+        if cconv != pconv:
+            disagreed.append('one converged and the other did not '
+                             '(C++ %s, python %s)' % (cconv, pconv))
+            continue
+        if not cconv:
+            #  Both stalled.  Compare the metric they stalled AT, which is a
+            #  property of the problem, and nothing else.
+            worst_m = max(worst_m, abs(cm - float(pr['metric'])))
+            if verbose:
+                print('      both stalled at %.3e / %.3e (not compared)'
+                      % (cm, pr['metric']))
+            continue
+
         worst_q = max(worst_q, float(np.max(np.abs(np.array(cq)
                                                    - np.array(pr['q'])))))
         worst_m = max(worst_m, abs(cm - float(pr['metric'])))
@@ -476,7 +508,7 @@ def check_dls(name, n_trials=6, seed=13, verbose=False):
                       % (cit, pr['iterations']))
 
     shutil.rmtree(tmp, ignore_errors=True)
-    return worst_q, worst_m, iter_bad, ''
+    return worst_q, worst_m, iter_bad, '; '.join(disagreed)
 
 
 ###############################################################################

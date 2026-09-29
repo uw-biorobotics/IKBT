@@ -114,8 +114,14 @@ def output_cpp_code(Robot, solution_groups, known=None):
     if not rows:
         rows = [list(g) for g in sorted(solution_groups)]
 
-    n_joints = len(joint_cols)
-    n_branches = len(rows)
+    #  max(1, ...):  the legacy entry point declares
+    #  `double solution_list[IK_NBRANCHES][IK_NJOINTS]`, and a zero-length
+    #  array is ill-formed in C++.  A solve with no joints or no branches
+    #  should never reach here -- report_gen only ticks on a complete solve --
+    #  but an ill-formed declaration would fail the whole file rather than
+    #  say so.
+    n_joints = max(1, len(joint_cols))
+    n_branches = max(1, len(rows))
 
     #
     #   EVERY NAME THE BODY ASSIGNS, declared up front.
@@ -278,14 +284,14 @@ def output_cpp_code(Robot, solution_groups, known=None):
     print('        return solution_list;      //  empty == python\'s False',
           file=f)
     print('', file=f)
-    print('    solution_list.reserve(%d);' % max(1, n_branches), file=f)
+    print('    solution_list.reserve(%d);' % n_branches, file=f)
     for row in rows:
         #  `known` has no column in the solution matrix -- nothing solved it --
         #  so its cell is the argument's own name.
         vals = [known if j == known else row[order.index(j)] for j in joint_cols]
         print('    {', file=f)
         print('        JointVec s;', file=f)
-        print('        s.reserve(%d);' % max(1, n_joints), file=f)
+        print('        s.reserve(%d);' % n_joints, file=f)
         for j, v in zip(joint_cols, vals):
             print('        s.push_back(%s);   // %s' % (v, j), file=f)
         print('        solution_list.push_back(s);', file=f)
