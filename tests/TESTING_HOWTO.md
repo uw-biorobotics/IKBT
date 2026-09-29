@@ -29,11 +29,28 @@ Only use this if IKBT produced a fully symbolic solution.
 A separate script,
 `scripts/numerical_closed_loop_sol_check.py`, 
 tests the **generated Python code** and covers
-both the symbolic and the hybrid path from one command:
+all three paths from one command:
 
 ```bash
 python3 -m scripts.numerical_closed_loop_sol_check Puma
 ``` 
+
+And a third, `scripts/cpp_closed_loop_check.py`, tests the **generated C++**. It compiles
+it and runs it, and asks two questions where the others ask one: does every returned branch
+reproduce the pose (soundness), and does the generated Python give the *same* branches in
+the *same* order (fidelity):
+
+```bash
+python3 -m scripts.cpp_closed_loop_check --keep          # symbolic path
+python3 -m scripts.cpp_closed_loop_check --onevar C-Arm  # same root set as the python?
+python3 -m scripts.cpp_closed_loop_check --hybrid Panda  # same refined postures?
+python3 -m scripts.cpp_closed_loop_check --all --compile-only   # just build everything
+```
+
+Fidelity is the one worth having: every permutation of a correct answer is still a correct
+answer, so a round trip through FK cannot see a wrong column order or a dropped branch.
+It needs artifacts on disk, so run it after a solve, or drop `--keep` and let it solve.
+With no `g++` on the machine it skips cleanly and reports nothing.
 
 
 # Unit testing IKBT software
