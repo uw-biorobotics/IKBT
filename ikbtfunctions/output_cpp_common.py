@@ -246,10 +246,20 @@ def matrix_cpp(Mx, var, indent='    '):
 
 
 def joint_unpack_cpp(syms, indent='    '):
-    '''`const double th_1 = q[0];` ... -- the twin of python's tuple unpack.'''
+    '''`const double th_1 = q[0];` ... -- the twin of python's tuple unpack.
 
-    return '\n'.join('%sconst double %s = q[%d];' % (indent, str(s), i)
-                     for i, s in enumerate(syms))
+       With a (void) sweep after it.  Not every matrix mentions every joint --
+       a wrist's J66 does not depend on its own first angle -- and an unused
+       const is a -Wunused-variable warning.  Unpacking all of them keeps the
+       block identical for every robot and every matrix, which is worth more
+       than the warnings cost to silence.'''
+
+    lines = ['%sconst double %s = q[%d];' % (indent, str(s), i)
+             for i, s in enumerate(syms)]
+    if syms:
+        lines.append('%s(void) %s;'
+                     % (indent, '; (void) '.join(str(s) for s in syms)))
+    return '\n'.join(lines)
 
 
 def pose_unpack_cpp(indent='    '):
@@ -400,3 +410,158 @@ def write_fk_module_cpp(M, name, jacobian=True, dirname=DIR_NAME, what=None):
         print('#endif   // %s' % guard, file=f)
 
     return path
+
+
+#####################################################################
+#
+#   Test code
+#
+#  TestSolver031, and the number matters:  the generator this replaced
+#  carried a `TestSolver010`, which is x2y2_transform's number.  leavestest
+#  does `from ikbtleaves.x2y2_transform import *` and then imports nothing
+#  from output_cpp, so the C++ generator's one test class was shadowed and
+#  had never run -- which is the mechanical reason six defects sat in it for
+#  years.
+#
+#  FAST AND OFFLINE.  Everything here is string-level or one small robot from
+#  the FK cache;  the checks that need a solve or a long compile live in
+#  scripts/cpp_closed_loop_check.py, which is not part of this suite.
+
+import os as _os
+import shutil as _shutil
+import subprocess as _subprocess
+import tempfile as _tempfile
+import unittest
+
+
+class TestSolver031(unittest.TestCase):
+    '''The C++ generator's bottom layer:  identifiers, the expression printer,
+       parameter declarations, header inlining, and one real FK header.'''
+
+    def runTest(self):
+        self.test_cpp_common()
+
+    def _have_gpp(self):
+        return _shutil.which('g++') is not None
+
+    def _compiles(self, source, extra=()):
+        '''Does this C++ compile with -Wall -Wextra and no warnings?'''
+
+        tmp = _tempfile.mkdtemp(prefix='ikbt_t031_')
+        try:
+            p = _os.path.join(tmp, 'probe.cpp')
+            with open(p, 'w') as f:
+                f.write(source)
+            cc = _subprocess.run(['g++', '-std=c++11', '-Wall', '-Wextra',
+                                  '-fsyntax-only'] + list(extra) + [p],
+                                 capture_output=True, text=True)
+            return cc.returncode == 0, cc.stderr
+        finally:
+            _shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_cpp_common(self):
+        print('\n\n==========  Test C++ code generator (common layer)  ============')
+
+        #  1.  Identifiers.  'C-Arm' is a legal robot name and 'ikin_C-Arm' is
+        #      a subtraction.
+        self.assertEqual(cpp_identifier('C-Arm'), 'C_Arm')
+        self.assertEqual(cpp_identifier('Puma'), 'Puma')
+        self.assertTrue(cpp_identifier('3Dof')[0] == '_')
+
+        #  2.  THE REGRESSIONS.  Each of these was mis-emitted by the `**`
+        #      regex the old generator used instead of a C++ printer.
+        Px, a_1, th_1, x = sp.symbols('Px a_1 th_1 x')
+
+        src = expr_cpp((Px - a_1) ** 2)
+        self.assertNotIn('**', src)
+        self.assertIn('std::pow', src)
+
+        src = expr_cpp(sp.sin(th_1) ** 2)
+        self.assertNotIn('**', src)
+
+        #  pi at FULL precision, not the eight digits the old one hardcoded.
+        src = expr_cpp(sp.pi + x)
+        self.assertIn('M_PI', src)
+        self.assertNotIn('3.1415926 ', src)
+
+        #  A Rational must not become integer division.
+        src = expr_cpp(x / 3)
+        self.assertIn('1.0/3.0', src)
+
+        #  Abs -> std::fabs, which the python whitelist used to refuse.
+        self.assertIn('fabs', expr_cpp(sp.Abs(x)))
+
+        #  ... and something outside the shared whitelist is REFUSED rather
+        #  than emitted as something that will not compile.
+        with self.assertRaises(ValueError):
+            expr_cpp(sp.gamma(x))
+
+        #  3.  Parameters:  a value is baked in, a missing one stops the
+        #      compile on purpose.
+        class _FakeMech(object):
+            params = list(sp.symbols('a_2 d_4'))
+            pvals = {sp.Symbol('a_2'): 0.432}
+
+        text, missing = param_decls(_FakeMech())
+        self.assertIn('const double a_2 = 0.432', text)
+        self.assertIn('const double d_4 = XXXXX', text)
+        self.assertEqual(missing, ['d_4'])
+
+        #  4.  Inlining strips the local includes, which have nothing to find
+        #      once the header is pasted into a generated file.
+        bundle = inline_src(['ikbt_types.h', 'ikbt_linalg.h',
+                             'ikbt_pose_error.h', 'ikbt_dls.h'])
+        self.assertNotIn('#include "ikbt_', bundle)
+        self.assertIn('#include <cmath>', bundle)     # system includes stay
+        self.assertIn('IKBT_TYPES_H', bundle)         # guards stay
+
+        if not self._have_gpp():
+            print('  no g++ -- skipping the compile checks')
+            return
+
+        #  5.  Every Cpp_src/ header compiles ON ITS OWN.  That is the whole
+        #      reason they are files rather than strings in this module.
+        for h in ('ikbt_types.h', 'ikbt_linalg.h', 'ikbt_pose_error.h',
+                  'ikbt_dls.h', 'ikbt_search.h'):
+            ok, err = self._compiles(read_src(h), extra=('-I', SRC_DIR))
+            self.assertTrue(ok, '%s does not compile:\n%s' % (h, err[:600]))
+            print('  %-22s compiles standalone' % h)
+
+        #  ... and so does the inlined bundle, guards and all.
+        ok, err = self._compiles(bundle + '\nint main(){return 0;}\n')
+        self.assertTrue(ok, 'the inlined bundle does not compile:\n%s'
+                        % err[:600])
+        print('  inlined bundle         compiles')
+
+        #  6.  ONE REAL FK HEADER, end to end.  Wrist is the fast robot and it
+        #      comes out of the FK cache in milliseconds.
+        import io
+        import contextlib
+
+        from ikbtfunctions.ik_driver import load_robot
+
+        tmp = _tempfile.mkdtemp(prefix='ikbt_t031fk_')
+        try:
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                M, R, unks = load_robot('Wrist')
+                path = write_fk_module_cpp(M, 'Wrist', jacobian=True,
+                                           dirname=tmp)
+            self.assertTrue(_os.path.exists(path))
+            probe = ('#include "FK_numericWrist.h"\n'
+                     'int main(){ ikbt::JointVec q(ikbt::NDOF_Wrist, 0.1);\n'
+                     '  ikbt::Mat4 T = ikbt::fk_Wrist(q);\n'
+                     '  ikbt::Matrix J = ikbt::jacobian_Wrist(q);\n'
+                     '  return (T[3][3] == 1.0 && J.size() == 6) ? 0 : 1; }\n')
+            ok, err = self._compiles(probe, extra=('-I', tmp))
+            self.assertTrue(ok, 'the generated FK header does not compile:\n%s'
+                            % err[:600])
+            print('  FK_numericWrist.h      generated and compiles')
+        finally:
+            _shutil.rmtree(tmp, ignore_errors=True)
+
+
+if __name__ == '__main__':
+    print('\n\n===============  Test output_cpp_common ====================')
+    suite = unittest.TestLoader().loadTestsFromTestCase(TestSolver031)
+    unittest.TextTestRunner(verbosity=2).run(suite)

@@ -29,6 +29,7 @@
 import sympy as sp
 
 import ikbtbasics.numeric_ik as nik
+from ikbtfunctions.output_python import domain_guard_args
 from ikbtfunctions.output_cpp_common import (DIR_NAME, cpp_identifier,
                                              expr_cpp, file_header,
                                              name_table_cpp, param_decls,
@@ -65,28 +66,15 @@ def _versions(Robot, node):
 
 
 def _domain_guards(rhs):
-    '''The arcsine/arccosine arguments in one RHS that need a range test.
+    '''The arcsine/arccosine arguments in one RHS, as C++ source.
 
-       WALKS THE EXPRESSION, where python regexes the printed string.  This is
-       the one place the C++ deliberately does better than its twin rather
-       than the same: output_python.py pulls the argument out with
-       re.search(r'\\((.*)\\)', ...), which is greedy, so for
-       `acos(x) + atan2(y, z)` it tests `abs(x) + atan2(y, z) > 1` -- the
-       wrong quantity -- and for a sum of two arcsines it tests neither of
-       them.  Reading the sympy tree gives every argument, exactly.
+       ONE HELPER, SHARED.  output_python.domain_guard_args() picks the
+       arguments out of the sympy tree;  this only prints them.  The two
+       languages therefore cannot drift about which poses are reachable,
+       which they did until 2026-09-29 -- see that function for what the
+       regex it replaced actually tested.'''
 
-       The two agree on every REACHABLE pose, which is what the closed-loop
-       and agreement checks exercise;  they can differ about which
-       unreachable poses are reported as unreachable.  Worth folding back into
-       the python generator, and deliberately not done in the same change.'''
-
-    args = []
-    for f in sp.sympify(rhs).atoms(sp.asin, sp.acos):
-        a = f.args[0]
-        src = expr_cpp(a)
-        if src not in args:
-            args.append(src)
-    return sorted(args)
+    return [expr_cpp(a) for a in domain_guard_args(rhs)]
 
 
 def output_cpp_code(Robot, solution_groups, known=None):

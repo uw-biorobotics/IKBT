@@ -403,11 +403,15 @@ closed form give at this value" and "how wrong is it" as callbacks. All three ro
 mechanisms port across unchanged, because each finds cases the others cannot: the doubling
 ladder, the local twin hunt, and the domain-edge probe.
 
-**Two deliberate divergences**, both recorded in @IKdocs/DEV_NOTES.md: the arcsine domain guard
-walks the sympy tree instead of regexing the printed RHS (the python version tests the wrong
-quantity when a RHS holds both an arcsine and an `atan2`), and every solution variable is
-initialised to NaN, because an uninitialised `double` is undefined behaviour where python's
-unbound local is an exception.
+**THE ARCSINE DOMAIN GUARD IS ONE HELPER, SHARED.** `output_python.domain_guard_args()` picks
+the guarded arguments out of the sympy tree and `output_cpp._domain_guards()` only prints them,
+so the two languages cannot drift about which poses are reachable. Writing the C++ side by
+reading the tree rather than copying python's greedy regex is what exposed the regex as a
+defect -- it tested the wrong quantity, and a generated python module *raised* on an ordinary
+reachable Panda pose instead of reporting it unreachable. @IKdocs/DEV_NOTES.md.
+
+**One deliberate divergence**: every solution variable is initialised to NaN, because an
+uninitialised `double` is undefined behaviour where python's unbound local is an exception.
 
 ### Latex output: Equations that fit the page (`ikbtfunctions/texwidth.py`)
 
@@ -506,15 +510,7 @@ Please keep commit messages to 5 lines or less.
 
 ## Still open
 
-1. **Fold the C++ arcsine domain guard back into the python generator.** `output_cpp._domain_guards()`
-   reads the sympy tree and guards every arcsine/arccosine argument exactly;
-   `output_python.output_python_code()` still pulls the argument out of the printed RHS with a
-   greedy regex, which tests the wrong quantity when a RHS holds both an arcsine and an `atan2`,
-   and tests neither when it holds two arcsines. The two agree on every reachable pose — which is
-   why nothing has caught it — and can differ about which *unreachable* poses are reported as
-   unreachable. The C++ version is the one to keep.
-
-2. **The five `UNCHECKABLE` robots** (Arm_3, JennyGuoSp24, UR5, KR16, DZhang) still solve
+1. **The five `UNCHECKABLE` robots** (Arm_3, JennyGuoSp24, UR5, KR16, DZhang) still solve
    "completely" and produce code that cannot run. These are *solver* defects, not codegen ones:
    a solution that contains the variable it solves for, and out-of-range asin/acos. The C++ now
    catches the first kind at COMPILE time where python raises `UnboundLocalError` at run time,

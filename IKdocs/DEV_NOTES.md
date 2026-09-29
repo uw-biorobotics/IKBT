@@ -869,17 +869,34 @@ callbacks. Same algorithm, one copy.
   none missing, none extra**, worst FK error 1.8e-14. The per-pose count varied 4/8/8/8, which
   is the arm and not the search. **9 ms per pose**, against 0.14 s for the Python.
 
-## Two deliberate divergences from the Python generator
+## The arcsine domain guard — a Python bug the C++ twin exposed
 
-Both are cases where the C++ does better, and both are recorded rather than quietly matched.
+Writing the C++ guard by reading the sympy tree, rather than by copying Python's regex, turned
+a difference of style into a defect report.
 
-**The arcsine domain guard walks the expression tree.** `output_python.py` pulls the argument
-out of the printed RHS with a greedy `re.search(r'\((.*)\)', ...)`, so for `acos(x) + atan2(y, z)`
-it tests `abs(x) + atan2(y, z) > 1` — the wrong quantity — and for a sum of two arcsines it
-tests neither. `output_cpp._domain_guards()` reads the sympy tree and guards every argument,
-exactly. The two agree on every REACHABLE pose, which is what the checkers exercise; they can
-differ about which *unreachable* poses are reported as unreachable. Worth folding back into
-the Python generator, deliberately not done in the same change.
+`output_python.py` pulled the guarded argument out of the **printed** RHS with a greedy
+`re.search(r'\((.*)\)', ...)`. For `acos(x) + atan2(y, z)` that returns `(x) + atan2(y, z)`, so
+the emitted guard tested `abs` of the wrong quantity; for a sum of two arcsines it guarded
+neither. Worse, the three emission branches were independent `if`s, so a RHS holding both an
+arcsine and an `atan2` emitted the guarded assignment **and** an unguarded one — and the
+unguarded one, being second, won. The guard was wasted even when its argument was right.
+
+This is not theoretical. `scripts/cpp_closed_loop_check --hybrid Panda` hit it on the second
+random reachable pose it tried (2026-09-29):
+
+    ValueError: expected a number in range from -1 up to 1, got 1.1131148539915245
+
+raised from inside the generated `IK_equationsPanda_a_3_0_a_4_0.py`. The C++ returned an
+empty list, correctly, for the same pose. A generated module is supposed to *report* an
+unreachable pose, never raise.
+
+**Fixed by sharing one helper.** `output_python.domain_guard_args()` picks the arguments out of
+the sympy tree and `output_cpp._domain_guards()` only prints them, so the two languages cannot
+drift about which poses are reachable. Which versions get an assignment is unchanged; what
+changed is how the arcsine ones are guarded, and that there is now exactly one assignment per
+version.
+
+## One deliberate divergence from the Python generator
 
 **Every solution variable is initialised to NaN.** Python leaves a skipped branch's variable
 unbound and raises `UnboundLocalError` if anything reads it; an uninitialised `double` is

@@ -1,5 +1,44 @@
 # New Branch dev_CppCodeGen
 
+## Outcome (2026-09-29) — done
+
+All seven steps landed. What is on the branch:
+
+| new | what |
+|---|---|
+| `Cpp_src/` | source: `ikbt_types.h`, `ikbt_pose_error.h`, `ikbt_linalg.h`, `ikbt_dls.h`, `ikbt_search.h` |
+| `ikbtfunctions/output_cpp.py` | rewritten — symbolic and conditional closed forms |
+| `ikbtfunctions/output_cpp_common.py` | the expression layer, parameters, FK/Jacobian headers |
+| `ikbtfunctions/output_cpp_hybrid.py` | the two phases |
+| `ikbtfunctions/output_cpp_onevar.py` | the 1-D search's robot-specific half |
+| `scripts/cpp_expr_check.py` | the two printers, on one expression |
+| `scripts/cpp_closed_loop_check.py` | six modes: symbolic, `--compile-only`, `--fk`, `--dls`, `--onevar`, `--hybrid` |
+| `TestSolver031` | in `tests.leavestest`, where the old generator's test never ran |
+
+Measured:
+
+- expression printer: 19 expressions, 222 evaluations, **0 disagreements, worst relative 0**
+- Puma symbolic: **8 of 8** branches reproduce the pose, worst FK 4.4e-16, python agreement **bit-exact**
+- FK and Jacobian: elementwise **0.00e+00** against the python modules
+- damped least squares vs `numeric_ik`: 1e-13, **identical iteration counts**
+- C-Arm one-variable: **28 of 28 roots matched**, none missing, none extra, worst FK 1.8e-14, **9 ms/pose** (python: 0.14 s)
+- Panda hybrid: **8 of 8** seeds converge, 1e-10..1e-16, the probe joints recovered exactly
+
+Two bugs in the **python** generator were found by building its twin and fixing neither by
+copying it:
+
+1. `ALLOWED_FUNCS` held `'abs'` where sympy's class is `Abs`, so `expr_py()` refused every
+   expression containing an absolute value.
+2. The arcsine domain guard used a greedy regex over the printed RHS, tested the wrong
+   quantity, and emitted a second unguarded assignment that overrode it. A generated module
+   **raised** `ValueError: expected a number in range from -1 up to 1, got 1.113` on an
+   ordinary reachable Panda pose. Now one helper, shared by both generators.
+
+The open question below was resolved as recommended: `std::vector<JointVec>` everywhere, with
+the fixed-array `ikin()` kept as a wrapper.
+
+---
+
 ## Goal
 
 Finish C++ code generation: every path the Python generator serves (symbolic,

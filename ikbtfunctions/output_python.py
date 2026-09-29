@@ -41,6 +41,36 @@ def _say(*args):
         print(*args)
 
 
+def domain_guard_args(rhs):
+    r"""The arcsine/arccosine arguments in one RHS that need a range test.
+
+       WALKS THE SYMPY TREE.  This used to be
+
+           re.search(r'\((.*)\)', str(rhs)).group(0)
+
+       over the PRINTED right-hand side, which is greedy:  for
+       `acos(x) + atan2(y, z)` it returns `(x) + atan2(y, z)` and the emitted
+       guard tests `abs` of that -- the wrong quantity -- so acos was called
+       with an out-of-range argument and the generated module raised
+       ValueError instead of reporting the pose unreachable.  Panda's
+       simplified arm does exactly that on ordinary reachable poses
+       (`expected a number in range from -1 up to 1, got 1.113`, 2026-09-29).
+       For a sum of two arcsines it guarded neither.
+
+       Reading the expression gives every argument, exactly.  Shared with
+       ikbtfunctions/output_cpp.py so the two languages cannot drift about
+       which poses are reachable.
+
+       Returns a list of sympy expressions, sorted by their printed form so
+       the emitted guard is stable between runs."""
+
+    args = []
+    for f in sp.sympify(rhs).atoms(sp.asin, sp.acos):
+        if f.args[0] not in args:
+            args.append(f.args[0])
+    return sorted(args, key=str)
+
+
 def py_identifier(name):
     """A robot name turned into a valid Python identifier.
 
@@ -379,22 +409,31 @@ pi = np.pi
 
         for solEqnVer in eqnlist: # go through the versions
             _say('Python Output: Solution Equation Version: ', solEqnVer)
-            if re.search('asin', str(solEqnVer.RHS)) or re.search('acos', str(solEqnVer.RHS)):
-                _say('  Found asin/acos solution ...', solEqnVer.LHS , ' "=" ',solEqnVer.RHS)
-                tmp = re.search('\((.*)\)',str(solEqnVer.RHS))
-                print(indent + 'if (solvable_pose and abs', tmp.group(0), ' > 1):', file=f)
+            assign = str(solEqnVer.LHS) + ' = ' + str(solEqnVer.RHS)
+            guards = domain_guard_args(solEqnVer.RHS)
+
+            #  ONE ASSIGNMENT PER VERSION, guarded by EVERY arcsine/arccosine
+            #  argument in it.  These used to be three independent `if`s, so a
+            #  RHS holding both an asin and an atan2 emitted the guarded
+            #  assignment AND an unguarded one -- and the unguarded one, being
+            #  second, won.  The guard was wasted and acos was called out of
+            #  range anyway.
+            if guards:
+                _say('  Found asin/acos solution ...', solEqnVer.LHS,
+                     ' "=" ', solEqnVer.RHS)
+                cond = ' or '.join('abs(%s) > 1' % g for g in guards)
+                print(indent + 'if (solvable_pose and (%s)):' % cond, file=f)
                 print(indent*2 + 'solvable_pose = False', file=f)
                 print(indent + 'else:', file=f)
-                tmp = str(solEqnVer.LHS) + ' = ' + str(solEqnVer.RHS)
-                print(indent*2 + tmp, file=f)
-            if re.search('atan', str(solEqnVer.RHS)):
-                _say('  Found atan2 solution ...', solEqnVer.LHS , ' "=" ',solEqnVer.RHS)
-                tmp = re.search('\((.*)\)',str(solEqnVer.RHS))
-                tmp = str(solEqnVer.LHS) + ' = ' + str(solEqnVer.RHS)
-                print(indent + tmp, file=f)
-            if node.solvemethod == 'algebra':
-                _say('  Found algebra solution ... ' , solEqnVer.LHS , ' = ', solEqnVer.RHS)
-                print(indent + str(solEqnVer.LHS) + ' = ' + str(solEqnVer.RHS), file=f)
+                print(indent*2 + assign, file=f)
+            elif (re.search('atan', str(solEqnVer.RHS))
+                    or node.solvemethod == 'algebra'):
+                #  WHICH versions get an assignment is unchanged;  only how
+                #  the arcsine ones are guarded, and that there is now one
+                #  assignment rather than sometimes two.
+                _say('  Found atan2/algebra solution ...', solEqnVer.LHS,
+                     ' = ', solEqnVer.RHS)
+                print(indent + assign, file=f)
 
     print('''
 ##################################
