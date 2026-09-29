@@ -179,7 +179,12 @@ def output_cpp_code(Robot, solution_groups, known=None):
         print('//  IK_onevar%s.cpp searches for the values that are, and is'
               % orig_name, file=f)
         print('//  what you should normally call.', file=f)
-        print('const char* const KNOWN_VARIABLE = "%s";' % known, file=f)
+        #  COND_KNOWN_VARIABLE, not KNOWN_VARIABLE.  The python twin can call
+        #  it the plain name because modules have namespaces;  here
+        #  IK_onevar<Robot>.cpp INCLUDES this file, and the entry point a user
+        #  reads should own the unqualified name.  The included dependency
+        #  yields.
+        print('const char* const COND_KNOWN_VARIABLE = "%s";' % known, file=f)
         print('', file=f)
 
     print('//\n//      Robot Parameters\n//', file=f)

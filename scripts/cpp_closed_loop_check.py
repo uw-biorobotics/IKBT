@@ -61,7 +61,7 @@ import tempfile
 
 import numpy as np
 
-from ikbtfunctions.output_cpp_common import cpp_identifier
+from ikbtfunctions.output_cpp_common import cpp_identifier, inline_src
 from scripts.expected import EXPECT, UNCHECKABLE, judge_counts
 from scripts.numerical_closed_loop_sol_check import (Q_PROBE, TOL, robot_fk,
                                                      import_generated_ik,
@@ -354,6 +354,368 @@ def check_fk(name, n_trials=8, seed=11, verbose=False):
     return worst_T, worst_J, ''
 
 
+###############################################################################
+#
+#    The damped-least-squares core, pinned against python
+#
+#  Cpp_src/ikbt_dls.h is a COPY of ikbtbasics/numeric_ik.solve_numeric(), two
+#  languages removed from it (python source -> DLS_CORE string -> C++ header).
+#  A copy is a liability, so it is pinned: the same robot, the same seed, the
+#  same target, and the refined joint vector, the metric and the ITERATION
+#  COUNT all have to match.  The iteration count is the sharp one -- it catches
+#  a damping schedule that drifted, which a converged answer would hide.
+#
+
+DLS_DRIVER = """
+#include <cstdio>
+#include "**HEADER**"
+using namespace ikbt;
+int main(void)
+{
+    const int n = NDOF_**IDENT**;
+    JointVec q0(n, 0.0);
+    for (int i = 0; i < n; ++i)
+        if (std::scanf("%lf", &q0[i]) != 1) return 2;
+    Mat4 Td;
+    for (int i = 0; i < 4; ++i)
+        for (int j = 0; j < 4; ++j)
+            if (std::scanf("%lf", &Td[i][j]) != 1) return 2;
+    double w_rot;
+    if (std::scanf("%lf", &w_rot) != 1) return 2;
+
+    SolveResult r = solve_numeric(fk_**IDENT**, jacobian_**IDENT**,
+                                  q0, Td, w_rot);
+    for (int i = 0; i < n; ++i)
+        std::printf("%.17g\\n", r.q[i]);
+    std::printf("%.17g\\n%d\\n%d\\n", r.metric, r.iterations,
+                r.converged ? 1 : 0);
+    std::printf("%s\\n", r.reason);
+    return 0;
+}
+"""
+
+
+def check_dls(name, n_trials=6, seed=13, verbose=False):
+    '''Does Cpp_src/ikbt_dls.h agree with numeric_ik.solve_numeric()?
+
+       Returns (worst_dq, worst_dmetric, iteration mismatches, note).
+
+       VALIDATED ON ROBOTS THAT ALREADY SOLVE EXACTLY, with no dependence on
+       the hybrid branch: perturb a known-good pose and confirm it comes back.
+       That is how numeric_ik itself is tested, and it is why this check runs
+       for any robot with a usable FK rather than only the hybrid ones.'''
+
+    import random
+
+    import ikbtbasics.numeric_ik as nik
+    from ikbtfunctions.ik_driver import load_robot
+    from ikbtfunctions.output_cpp_common import write_fk_module_cpp
+
+    tmp = tempfile.mkdtemp(prefix='ikbt_dls_')
+    try:
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            M, R, unks = load_robot(name)
+            hpath = write_fk_module_cpp(M, name, jacobian=True, dirname=tmp)
+    except Exception as e:
+        return None, None, None, '%s: %s' % (type(e).__name__, str(e)[:70])
+
+    ident = cpp_identifier(name)
+    ndof = M.ndof
+    w_rot = float(nik.w_rot_for(M, ndof))
+    py_fk = nik.fk_callable(M, ndof)
+    py_jac = nik.jacobian_callable(M, ndof)
+
+    src = (DLS_DRIVER.replace('**HEADER**', os.path.basename(hpath))
+                     .replace('**IDENT**', ident))
+    cpath = os.path.join(tmp, 'dls_check.cpp')
+    bpath = os.path.join(tmp, 'dls_check')
+    with open(cpath, 'w') as f:
+        f.write(inline_src(['ikbt_types.h', 'ikbt_linalg.h',
+                            'ikbt_pose_error.h', 'ikbt_dls.h']))
+        f.write(src)
+
+    cc = subprocess.run(['g++', '-std=c++11', '-O2', '-Wall', '-Wextra',
+                         '-I', tmp, cpath, '-o', bpath, '-lm'],
+                        capture_output=True, text=True)
+    if cc.returncode != 0:
+        first = next((l for l in cc.stderr.split('\n') if 'error:' in l), '')
+        return None, None, None, 'compile: %s' % first.split('error: ')[-1][:70]
+
+    rng = random.Random(seed)
+    worst_q = 0.0
+    worst_m = 0.0
+    iter_bad = 0
+    for _ in range(n_trials):
+        q_true = [rng.uniform(-2.0, 2.0) for _ in range(ndof)]
+        Td = np.asarray(py_fk(q_true), dtype=float)
+        #  Perturb: a seed near, but not at, the answer -- the situation
+        #  Phase II is actually in.
+        q0 = [v + rng.uniform(-0.25, 0.25) for v in q_true]
+
+        stdin = ('\n'.join('%.17g' % v for v in q0) + '\n'
+                 + '\n'.join(' '.join('%.17g' % Td[i][j] for j in range(4))
+                              for i in range(4)) + '\n'
+                 + '%.17g\n' % w_rot)
+        r = subprocess.run([bpath], input=stdin, capture_output=True, text=True)
+        if r.returncode != 0:
+            return None, None, None, 'the compiled DLS exited %d' % r.returncode
+        out = r.stdout.split()
+        cq = [float(x) for x in out[:ndof]]
+        cm = float(out[ndof])
+        cit = int(out[ndof + 1])
+
+        pr = nik.solve_numeric(py_fk, py_jac, q0, Td, w_rot=w_rot)
+        worst_q = max(worst_q, float(np.max(np.abs(np.array(cq)
+                                                   - np.array(pr['q'])))))
+        worst_m = max(worst_m, abs(cm - float(pr['metric'])))
+        if cit != int(pr['iterations']):
+            iter_bad += 1
+            if verbose:
+                print('      iterations differ: C++ %d, python %d'
+                      % (cit, pr['iterations']))
+
+    shutil.rmtree(tmp, ignore_errors=True)
+    return worst_q, worst_m, iter_bad, ''
+
+
+###############################################################################
+#
+#    The two fallback paths:  does the C++ answer what the python answers?
+#
+#  Both are checked the same way and for the same reason as the symbolic
+#  path's fidelity test:  a round trip through FK proves an answer is SOUND,
+#  and only agreement with the python proves the SET is the same one.  On the
+#  one-variable path that distinction is the whole point -- completeness is
+#  the question that path exists to answer, and a search that quietly finds
+#  six of eight roots round-trips perfectly.
+#
+
+ONEVAR_DRIVER = """
+#ifdef IKBT_CHECK_DRIVER
+#include <cstdio>
+int main(void)
+{
+    Mat4 T;
+    for (int i = 0; i < 4; ++i)
+        for (int j = 0; j < 4; ++j)
+            if (std::scanf("%lf", &T[i][j]) != 1) return 2;
+    std::vector<OneVarSolution> sols = solve_**IDENT**(T);
+    std::printf("%d %d\\n", (int) sols.size(), ONEVAR_NDOF);
+    for (size_t i = 0; i < sols.size(); ++i) {
+        std::printf("%.17g %.17g %d", sols[i].known_value, sols[i].error,
+                    sols[i].n_samples);
+        for (int j = 0; j < ONEVAR_NDOF; ++j)
+            std::printf(" %.17g", sols[i].q[j]);
+        std::printf("\\n");
+    }
+    return 0;
+}
+#endif
+"""
+
+HYBRID_DRIVER = """
+#ifdef IKBT_CHECK_DRIVER
+#include <cstdio>
+int main(void)
+{
+    Mat4 T;
+    for (int i = 0; i < 4; ++i)
+        for (int j = 0; j < 4; ++j)
+            if (std::scanf("%lf", &T[i][j]) != 1) return 2;
+    std::vector<RefineRecord> all = refine_all_**IDENT**(T);
+    std::printf("%d %d\\n", (int) all.size(), NDOF);
+    for (size_t i = 0; i < all.size(); ++i) {
+        std::printf("%.17g %d %d", all[i].result.metric,
+                    all[i].result.iterations, all[i].result.converged ? 1 : 0);
+        for (int j = 0; j < NDOF; ++j)
+            std::printf(" %.17g", all[i].result.q[j]);
+        std::printf("\\n");
+    }
+    return 0;
+}
+#endif
+"""
+
+
+def _build_appended(src_path, driver, tmp, tag):
+    """Copy a generated .cpp, append a driver, compile it.
+
+       APPENDED rather than a separate file, for the same reason as build():
+       the generated file's siblings are found relative to ITSELF, so the copy
+       has to live beside them -- which it does, because the copy goes into
+       CodeGen/Cpp/ under a temporary name and only the binary goes to tmp."""
+
+    if not os.path.exists(src_path):
+        return None, 'not generated: %s' % src_path
+
+    cpath = os.path.join(os.path.dirname(src_path), '_check_%s.cpp' % tag)
+    bpath = os.path.join(tmp, 'check_%s' % tag)
+    try:
+        with open(cpath, 'w') as f:
+            f.write(open(src_path).read())
+            f.write(driver)
+        cc = subprocess.run(['g++', '-std=c++11', '-O2', '-Wall', '-Wextra',
+                             '-DIKBT_CHECK_DRIVER', cpath, '-o', bpath, '-lm'],
+                            capture_output=True, text=True)
+    finally:
+        if os.path.exists(cpath):
+            os.remove(cpath)
+
+    if cc.returncode != 0:
+        first = next((l for l in cc.stderr.split('\n') if 'error:' in l), '')
+        return None, 'compile: %s' % first.split('error: ')[-1][:80]
+    return bpath, ''
+
+
+def _feed(bpath, T):
+    stdin = '\n'.join(' '.join('%.17g' % T[i][j] for j in range(4))
+                       for i in range(4))
+    r = subprocess.run([bpath], input=stdin, capture_output=True, text=True)
+    if r.returncode != 0:
+        raise RuntimeError('the compiled module exited %d' % r.returncode)
+    lines = [l for l in r.stdout.split('\n') if l.strip()]
+    n, ndof = (int(x) for x in lines[0].split())
+    return [[float(x) for x in l.split()] for l in lines[1:1 + n]], ndof
+
+
+def _match_sets(a, b, tol=1e-6):
+    """(matched, only_in_a, only_in_b) between two lists of joint vectors."""
+    used = set()
+    matched = 0
+    only_a = []
+    for qa in a:
+        hit = None
+        for k, qb in enumerate(b):
+            if k in used:
+                continue
+            if len(qa) == len(qb) and \
+                    max(abs(x - y) for x, y in zip(qa, qb)) < tol:
+                hit = k
+                break
+        if hit is None:
+            only_a.append(qa)
+        else:
+            used.add(hit)
+            matched += 1
+    only_b = [q for k, q in enumerate(b) if k not in used]
+    return matched, only_a, only_b
+
+
+def check_onevar(name, n_poses=4, seed=17, verbose=False):
+    """Same poses, same root set?  Returns (matched, missing, extra, worst, note)."""
+
+    import importlib.util
+    import random
+
+    tmp = tempfile.mkdtemp(prefix='ikbt_ov_')
+    ident = cpp_identifier(name)
+    try:
+        bpath, note = _build_appended(
+            os.path.join(CPP_DIR, 'IK_onevar%s.cpp' % name),
+            ONEVAR_DRIVER.replace('**IDENT**', ident), tmp, ident)
+        if bpath is None:
+            return 0, 0, 0, None, note
+
+        ppath = os.path.join('CodeGen', 'Python', 'IK_onevar%s.py' % name)
+        if not os.path.exists(ppath):
+            return 0, 0, 0, None, 'no python twin at %s' % ppath
+        spec = importlib.util.spec_from_file_location('ov_' + ident, ppath)
+        mod = importlib.util.module_from_spec(spec)
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            spec.loader.exec_module(mod)
+        py_solve = getattr(mod, 'solve_' + ident)
+        py_fk = mod.true_fk.__dict__['fk_' + ident]
+        ndof = mod.NDOF
+
+        rng = random.Random(seed)
+        matched = missing = extra = 0
+        worst = 0.0
+        for _ in range(n_poses):
+            q = [rng.uniform(-1.0, 1.0) for _ in range(ndof)]
+            T = np.asarray(py_fk(q), dtype=float)
+            crows, _ = _feed(bpath, T)
+            cqs = [r[3:] for r in crows]
+            with contextlib.redirect_stdout(io.StringIO()):
+                pqs = [list(s['q']) for s in py_solve(T)]
+            m, only_c, only_p = _match_sets(cqs, pqs)
+            matched += m
+            missing += len(only_p)          # python found it, C++ did not
+            extra += len(only_c)
+            #  soundness of what C++ returned, independent of python
+            for qq in cqs:
+                worst = max(worst, float(np.max(np.abs(
+                    np.asarray(py_fk(qq), dtype=float) - T))))
+            if verbose:
+                print('      pose: C++ %d, python %d, matched %d'
+                      % (len(cqs), len(pqs), m))
+        return matched, missing, extra, worst, ''
+    except Exception as e:
+        return 0, 0, 0, None, '%s: %s' % (type(e).__name__, str(e)[:70])
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def check_hybrid(name, n_poses=3, seed=19, verbose=False):
+    """Same poses, same refined postures?  Returns (matched, missing, extra,
+       worst, note) -- worst is the TRUE arm's pose error at the C++ answers."""
+
+    import importlib.util
+    import random
+
+    tmp = tempfile.mkdtemp(prefix='ikbt_hy_')
+    ident = cpp_identifier(name)
+    try:
+        bpath, note = _build_appended(
+            os.path.join(CPP_DIR, 'IK_hybrid_%s.cpp' % name),
+            HYBRID_DRIVER.replace('**IDENT**', ident), tmp, ident)
+        if bpath is None:
+            return 0, 0, 0, None, note
+
+        ppath = os.path.join('CodeGen', 'Python', 'IK_hybrid_%s.py' % name)
+        if not os.path.exists(ppath):
+            return 0, 0, 0, None, 'no python twin at %s' % ppath
+        spec = importlib.util.spec_from_file_location('hy_' + ident, ppath)
+        mod = importlib.util.module_from_spec(spec)
+        with contextlib.redirect_stdout(io.StringIO()):
+            spec.loader.exec_module(mod)
+        py_refine_all = getattr(mod, 'refine_all_' + ident)
+        py_fk = mod.true_fk.__dict__['fk_' + ident]
+        ndof = mod.NDOF
+
+        rng = random.Random(seed)
+        matched = missing = extra = 0
+        worst = 0.0
+        for _ in range(n_poses):
+            q = [rng.uniform(-1.0, 1.0) for _ in range(ndof)]
+            T = np.asarray(py_fk(q), dtype=float)
+            crows, _ = _feed(bpath, T)
+            #  CONVERGED BRANCHES ONLY, both sides.  A branch that did not
+            #  converge is not an answer, and the true arm genuinely fails to
+            #  reach some poses in some postures -- comparing those would be
+            #  comparing two records of the same non-answer.
+            cqs = [r[3:] for r in crows if r[2] > 0.5]
+            with contextlib.redirect_stdout(io.StringIO()):
+                pres = py_refine_all(T)
+            pqs = [list(r['q']) for r in pres if r['converged']]
+            m, only_c, only_p = _match_sets(cqs, pqs)
+            matched += m
+            missing += len(only_p)
+            extra += len(only_c)
+            for qq in cqs:
+                worst = max(worst, float(np.max(np.abs(
+                    np.asarray(py_fk(qq), dtype=float) - T))))
+            if verbose:
+                print('      pose: C++ %d converged, python %d, matched %d'
+                      % (len(cqs), len(pqs), m))
+        return matched, missing, extra, worst, ''
+    except Exception as e:
+        return 0, 0, 0, None, '%s: %s' % (type(e).__name__, str(e)[:70])
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('robots', nargs='*', help='robot names (default: the '
@@ -364,6 +726,12 @@ def main():
                     help='the compile gate:  build, do not run')
     ap.add_argument('--fk', action='store_true',
                     help='check the FK/Jacobian emitter elementwise instead')
+    ap.add_argument('--dls', action='store_true',
+                    help='pin Cpp_src/ikbt_dls.h against numeric_ik instead')
+    ap.add_argument('--onevar', action='store_true',
+                    help='one-variable path:  same root set as the python?')
+    ap.add_argument('--hybrid', action='store_true',
+                    help='hybrid path:  same refined postures as the python?')
     ap.add_argument('--gate', action='store_true',
                     help='exit 1 on any unexpected result')
     ap.add_argument('-v', '--verbose', action='store_true')
@@ -380,6 +748,72 @@ def main():
         names = list(ROBOT_LIST)
     else:
         names = DEFAULT_ROBOTS
+
+    if args.onevar or args.hybrid:
+        which = 'one-variable' if args.onevar else 'hybrid'
+        fn = check_onevar if args.onevar else check_hybrid
+        print('%-18s %-9s %-9s %-9s %-12s %s'
+              % ('robot', 'matched', 'missing', 'extra', 'worst FK', 'note'),
+              flush=True)
+        print('-' * 78, flush=True)
+        bad = []
+        for n in names:
+            m, miss, ex, worst, note = fn(n, verbose=args.verbose)
+            print('%-18s %-9d %-9d %-9d %-12s %s'
+                  % (n, m, miss, ex,
+                     'n/a' if worst is None else '%.2e' % worst, note),
+                  flush=True)
+            if note:
+                bad.append('%s: %s' % (n, note))
+                continue
+            if miss:
+                bad.append('%s: the C++ %s search missed %d solution(s) the '
+                           'python found' % (n, which, miss))
+            if ex:
+                bad.append('%s: the C++ %s search returned %d solution(s) the '
+                           'python did not' % (n, which, ex))
+            if worst is not None and worst > TOL:
+                bad.append('%s: a returned branch is %.2e from the goal pose'
+                           % (n, worst))
+        print('-' * 78, flush=True)
+        if bad:
+            print('\n%d problem(s):' % len(bad))
+            for x in bad:
+                print('   ', x)
+        else:
+            print('\nno problems')
+        return 1 if (bad and args.gate) else 0
+
+    if args.dls:
+        print('%-18s %-12s %-12s %-10s %s'
+              % ('robot', 'max |dq|', 'max |dmetric|', 'iter diff', 'note'),
+              flush=True)
+        print('-' * 74, flush=True)
+        bad = []
+        for n in names:
+            wq, wm, ib, note = check_dls(n, verbose=args.verbose)
+            print('%-18s %-12s %-12s %-10s %s'
+                  % (n,
+                     'n/a' if wq is None else '%.2e' % wq,
+                     'n/a' if wm is None else '%.2e' % wm,
+                     'n/a' if ib is None else str(ib),
+                     note), flush=True)
+            if note:
+                bad.append('%s: %s' % (n, note))
+            else:
+                if wq > 1e-9:
+                    bad.append('%s: refined q differs by %.2e' % (n, wq))
+                if ib:
+                    bad.append('%s: %d of the trials took a different number '
+                               'of iterations' % (n, ib))
+        print('-' * 74, flush=True)
+        if bad:
+            print('\n%d problem(s):' % len(bad))
+            for x in bad:
+                print('   ', x)
+        else:
+            print('\nno problems')
+        return 1 if (bad and args.gate) else 0
 
     if args.fk:
         #  Generates its own artifacts into a temp dir, so it never needs a

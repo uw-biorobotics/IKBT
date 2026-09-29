@@ -126,6 +126,31 @@ def read_src(basename):
         return f.read()
 
 
+def inline_src(names):
+    """Several Cpp_src/ headers, concatenated in dependency order, ready to be
+       pasted into a generated file.
+
+       The `#include "ikbt_*.h"` lines are STRIPPED.  Once inlined there is no
+       ikbt_types.h next to the generated file for them to find, and the whole
+       point of inlining is that there does not have to be.  The classic
+       include guards in each header make the concatenation safe however often
+       a header appears -- so a generated .cpp may inline these AND include a
+       generated FK header that inlines some of them again.
+
+       Caller supplies the order;  these are four small files and a dependency
+       solver for them would be more machinery than the problem.  The order
+       that works is types, linalg, pose_error, dls.
+    """
+
+    out = []
+    for nm in names:
+        text = read_src(nm)
+        kept = [ln for ln in text.split('\n')
+                if not re.match(r'\s*#include\s+"ikbt_', ln)]
+        out.append('\n'.join(kept))
+    return '\n'.join(out)
+
+
 def file_header(what, robot, filename):
     '''The comment banner at the top of a generated .cpp.'''
 

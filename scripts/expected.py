@@ -167,17 +167,24 @@ def judge_counts(name, good, total):
 #    What a finished solve owes the user, and where it lands
 #
 
-#  Seven kinds, because the three paths write different sets and WHICH set
-#  appeared is the thing worth asserting.
+#  Eleven kinds, because the three paths write different sets and WHICH set
+#  appeared is the thing worth asserting.  Each python artifact now has a C++
+#  twin, and the two are owed together:  a path that emits one and not the
+#  other is a half-finished path, which is exactly the state C++ generation
+#  was in before Sept 2026.
 #
-#      tex     the report                    every path
-#      py      closed-form IK                symbolic path, and the DERIVED arm
-#                                            on the hybrid one
-#      cpp     closed-form IK, C++           symbolic path only
-#      hybrid  the two-phase top level       hybrid path, TRUE name only
-#      onevar  the 1-D search                one-variable path
-#      cond    closed form given one value   one-variable path
-#      fk      FK (+ Jacobian) callables     hybrid and one-variable paths
+#      tex          the report                    every path
+#      py           closed-form IK                symbolic path, and the
+#                                                 DERIVED arm on the hybrid one
+#      cpp          ... the same, in C++          ditto
+#      hybrid       the two-phase top level       hybrid path, TRUE name only
+#      cpp_hybrid   ... the same, in C++          ditto
+#      onevar       the 1-D search                one-variable path
+#      cpp_onevar   ... the same, in C++          ditto
+#      cond         closed form given one value   one-variable path
+#      cpp_cond     ... the same, in C++          ditto
+#      fk           FK (+ Jacobian) callables     hybrid and one-variable paths
+#      cpp_fk       ... the same, in C++          ditto
 #
 #  A name here is an ARM, not a robot:  on the hybrid path the true robot and
 #  the derived arm each own some of these, and both are checked.
@@ -190,6 +197,14 @@ def artifact_paths(name):
         'onevar': os.path.join('CodeGen', 'Python', 'IK_onevar%s.py' % name),
         'cond':   os.path.join('CodeGen', 'Python', 'IK_conditional%s.py' % name),
         'fk':     os.path.join('CodeGen', 'Python', 'FK_numeric%s.py' % name),
+
+        #  The C++ twins.  FK is a HEADER, not a .cpp:  something else
+        #  includes it, exactly as the python FK module is imported as a
+        #  sibling.  See ikbtfunctions/output_cpp_common.write_fk_module_cpp.
+        'cpp_hybrid': os.path.join('CodeGen', 'Cpp', 'IK_hybrid_%s.cpp' % name),
+        'cpp_onevar': os.path.join('CodeGen', 'Cpp', 'IK_onevar%s.cpp' % name),
+        'cpp_cond':   os.path.join('CodeGen', 'Cpp', 'IK_conditional%s.cpp' % name),
+        'cpp_fk':     os.path.join('CodeGen', 'Cpp', 'FK_numeric%s.h' % name),
     }
 
 
@@ -226,16 +241,25 @@ def artifacts_owed(branch, complete):
        THE SAME ON THE ONE-VARIABLE PATH, for a different reason.  There the
        equations ARE this robot's -- nothing was approximated -- but they hold
        only where the assumed value is right, so they ship as 'cond'
-       (IK_conditional<name>.py), never as 'py'.  'onevar' is the search that
+       (IK_conditional<name>), never as 'py'.  'onevar' is the search that
        makes them usable and is the entry point;  'fk' is what the search
-       measures against.  No C++ yet on either fallback path."""
+       measures against.
+
+       EVERY PYTHON ARTIFACT IS OWED WITH ITS C++ TWIN.  Before Sept 2026 the
+       two fallback paths emitted no C++ at all and this rule said so;  now
+       they do, and pairing them here is what keeps a half-emitted path from
+       passing.  The naming discipline carries over unchanged -- 'cpp' means
+       an unconditional closed form in C++ and appears in exactly the places
+       'py' does."""
 
     if not complete:
         return NOTHING, NOTHING
     if branch == 'hybrid':
-        return frozenset({'tex', 'hybrid', 'fk'}), frozenset({'py', 'fk'})
+        return (frozenset({'tex', 'hybrid', 'fk', 'cpp_hybrid', 'cpp_fk'}),
+                frozenset({'py', 'fk', 'cpp', 'cpp_fk'}))
     if branch == 'onevar':
-        return frozenset({'tex', 'onevar', 'cond', 'fk'}), NOTHING
+        return (frozenset({'tex', 'onevar', 'cond', 'fk',
+                           'cpp_onevar', 'cpp_cond', 'cpp_fk'}), NOTHING)
     return frozenset({'tex', 'py', 'cpp'}), NOTHING
 
 

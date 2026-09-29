@@ -30,6 +30,9 @@ import ikbtfunctions.output_cpp    as oc
 import ikbtfunctions.output_hybrid_python as ohp
 import ikbtfunctions.output_onevar_python as oop
 import ikbtfunctions.output_numeric_common as onc
+import ikbtfunctions.output_cpp_common as occ
+import ikbtfunctions.output_cpp_hybrid as och
+import ikbtfunctions.output_cpp_onevar as oco
 import ikbtfunctions.texwidth as texwidth
 
 #  Messages from the report-fitting pass ("2 equations too wide, shortening:").
@@ -201,11 +204,21 @@ def emit_hybrid_outputs(R, unks, hybrid, R_true=None):
            CodeGen/Python/FK_numeric<Derived>.py   DERIVED arm
            CodeGen/Python/FK_numeric<True>.py      TRUE robot
 
+       ... and the same four in C++, under CodeGen/Cpp/:
+
+           IK_hybrid_<True>.cpp        TRUE robot   <- the entry point
+           IK_equations<Derived>.cpp   DERIVED arm
+           FK_numeric<Derived>.h       DERIVED arm
+           FK_numeric<True>.h          TRUE robot
+
        The report and the module a user imports carry the name they asked
        about;  the pieces they are built from carry the name of the arm they
        actually describe, so opening any one file tells you which robot it is.
 
-       No C++ on this path yet -- see "Still open" in CLAUDE.md.'''
+       NO IK_equations<True> IN EITHER LANGUAGE.  There is no closed form for
+       that robot -- that is why this path was taken -- so a file claiming to
+       be one would be a simplified arm's equations shipped under the real
+       robot's name.  That is the one thing this method must never do.'''
 
     true_name = hybrid.get('true_robot') or R.name
     derived_name = hybrid.get('derived_robot') or R.name
@@ -217,23 +230,32 @@ def emit_hybrid_outputs(R, unks, hybrid, R_true=None):
 
     #  Phase I's closed form, under the DERIVED arm's name.
     op.output_python_code(R, R.solutionSet)
+    oc.output_cpp_code(R, R.solutionSet)
 
     #  FK of the approximate arm (Phase I uses it to drop spurious branches)
     #  and FK + Jacobian of the true arm (Phase II refines against it).
-    ohp.write_fk_module(R.Mech, derived_name, jacobian=False,
-                        what='Forward kinematics for %s (the APPROXIMATE arm)'
-                             % derived_name)
+    what_approx = ('Forward kinematics for %s (the APPROXIMATE arm)'
+                   % derived_name)
+    ohp.write_fk_module(R.Mech, derived_name, jacobian=False, what=what_approx)
+    occ.write_fk_module_cpp(R.Mech, derived_name, jacobian=False,
+                            what=what_approx)
     if R_true is not None:
+        what_true = ('Forward kinematics and Jacobian for %s (the TRUE arm)'
+                     % true_name)
         ohp.write_fk_module(R_true.Mech, true_name, jacobian=True,
-                            what='Forward kinematics and Jacobian for %s '
-                                 '(the TRUE arm)' % true_name)
+                            what=what_true)
+        occ.write_fk_module_cpp(R_true.Mech, true_name, jacobian=True,
+                                what=what_true)
 
         edits = '; '.join('%s: %s -> %s' % (e['symbol'], e['from'], e['to'])
                           for e in (hybrid.get('edits') or []))
         cost = hybrid.get('cost')
+        cost_text = ('' if cost is None
+                     else 'task-space cost %.4g' % float(cost))
         ohp.write_hybrid_top(R_true.Mech, true_name, derived_name, edits,
-                             '' if cost is None else
-                             'task-space cost %.4g' % float(cost))
+                             cost_text)
+        och.write_hybrid_top_cpp(R_true.Mech, true_name, derived_name, edits,
+                                 cost_text)
 
 
 def emit_onevar_outputs(R, unks, onevar):
@@ -251,12 +273,14 @@ def emit_onevar_outputs(R, unks, onevar):
            CodeGen/Python/IK_conditional<Robot>.py  closed form, assumed value in
            CodeGen/Python/FK_numeric<Robot>.py  this arm's FK
 
-       NOT IK_equations<Robot>.py.  That name means the inverse kinematics of
-       this robot, and a solution conditional on an assumed value is not that.
+       ... and the same three in C++:  IK_onevar<Robot>.cpp,
+       IK_conditional<Robot>.cpp and FK_numeric<Robot>.h under CodeGen/Cpp/.
 
-       No Jacobian:  the search is 1-D and golden section needs no derivative.
+       NOT IK_equations<Robot> IN EITHER LANGUAGE.  That name means the
+       inverse kinematics of this robot, and a solution conditional on an
+       assumed value is not that.
 
-       No C++ on this path yet, for the same reason as the hybrid one.'''
+       No Jacobian:  the search is 1-D and golden section needs no derivative.'''
 
     known = onevar.get('known')
 
@@ -264,13 +288,16 @@ def emit_onevar_outputs(R, unks, onevar):
 
     #  The closed form, with the assumed variable as a function ARGUMENT.
     op.output_python_code(R, R.solutionSet, known=known)
+    oc.output_cpp_code(R, R.solutionSet, known=known)
 
     #  The true arm's FK -- what the search measures the closed form against.
-    onc.write_fk_module(R.Mech, R.name, jacobian=False,
-                        what='Forward kinematics for %s (the TRUE arm)' % R.name)
+    what_fk = 'Forward kinematics for %s (the TRUE arm)' % R.name
+    onc.write_fk_module(R.Mech, R.name, jacobian=False, what=what_fk)
+    occ.write_fk_module_cpp(R.Mech, R.name, jacobian=False, what=what_fk)
 
     #  The search itself:  the module a user actually calls.
     oop.write_onevar_top(R.Mech, R.name, known)
+    oco.write_onevar_top_cpp(R.Mech, R.name, known)
 
 
 def print_solved_equations(unks):
