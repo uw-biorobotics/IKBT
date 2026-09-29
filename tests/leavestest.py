@@ -25,7 +25,6 @@ from io import StringIO   # new way to import for Python recent vintage
 import unittest
 import sys
 from tests import HTMLTestRunner
-import os as os
 
 import sympy as sp
 import numpy as np
@@ -76,7 +75,18 @@ from ikbtfunctions.output_cpp_common import TestSolver031
 
 import b3 as b3          # behavior trees
 
-os.chdir('../')            # change to project dir.
+#  NO chdir HERE.  This used to be `os.chdir('../')  # change to project dir`,
+#  which was right when the suite was run as `python3 leavestest.py` from
+#  inside tests/ and wrong for the documented invocation:
+#
+#      python3 -m tests.leavestest      (from the repo root)
+#
+#  starts in the repo root, so '../' landed ABOVE it.  Every relative path the
+#  suite then used pointed outside the project -- which is why a second FK
+#  cache had grown at ../fk_eqns/, holding pickles the suite wrote and reread
+#  while the repo's own fk_eqns/ sat unused.  That was accidental, not the
+#  cold-cache test:  TestSolver030 points kinematics_pickle() at a
+#  TemporaryDirectory of its own and never touches either one.
 
 
 ((th_1, th_2, th_3, th_4, th_5, th_6)) = sp.symbols(('th_1', 'th_2', 'th_3', 'th_4', 'th_5', 'th_6'))
