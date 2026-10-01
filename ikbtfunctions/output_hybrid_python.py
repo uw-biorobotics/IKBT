@@ -201,6 +201,9 @@ def write_hybrid_top(M_true, true_name, derived_name, edits_text, cost_text,
     #  characteristic arm length per radian, which behaves the same on both.
     w_rot = nik.w_rot_for(M_true, ndof)
 
+    if not os.path.isdir(dirname):      #  generated dir, not in a fresh clone
+        os.makedirs(dirname)
+
     path = os.path.join(dirname, 'IK_hybrid_%s.py' % true_name)
     with open(path, 'w') as f:
         hdr = MODULE_HEADER.replace('**ROBOT**', true_name)

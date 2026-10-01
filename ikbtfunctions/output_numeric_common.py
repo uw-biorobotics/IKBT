@@ -131,6 +131,12 @@ def write_fk_module(M, name, jacobian=True, dirname=DIR_NAME, what=None):
                              'resolve every parameter'
                              % (label, name, [str(s) for s in extra]))
 
+    #  CodeGen/Python/ is a GENERATED directory and is not in a fresh clone
+    #  (.gitignore has CodeGen/*).  Make it, the way the fk_eqns/ cache and
+    #  graphs/ and logs/ already make themselves.
+    if not os.path.isdir(dirname):
+        os.makedirs(dirname)
+
     path = os.path.join(dirname, 'FK_numeric%s.py' % name)
     with open(path, 'w') as f:
         hdr = MODULE_HEADER.replace('**ROBOT**', name)

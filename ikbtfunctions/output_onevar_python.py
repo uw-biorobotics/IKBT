@@ -661,6 +661,9 @@ def write_onevar_top(M, name, known, dirname=DIR_NAME, n_samples=128,
     w_rot = float(nik.w_rot_for(M, ndof)) or 1.0
     lo, hi, periodic = search_domain(M, known, ndof)
 
+    if not os.path.isdir(dirname):      #  generated dir, not in a fresh clone
+        os.makedirs(dirname)
+
     path = os.path.join(dirname, 'IK_onevar%s.py' % name)
     with open(path, 'w') as f:
         hdr = MODULE_HEADER.replace('**ROBOT**', name)

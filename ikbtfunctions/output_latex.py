@@ -68,6 +68,12 @@ class LatexFile():
 
     #  output the final latex file
     def output(self):
+        #  LaTex/ is generated output and NOT in a fresh clone -- unlike
+        #  LaTex_src/ above, nothing in it is tracked.  Make it here, the way
+        #  the fk_eqns/ cache and graphs/ and logs/ already make themselves.
+        d = os.path.dirname(self.filename)
+        if d and not os.path.isdir(d):
+            os.makedirs(d)
         f = open(self.filename,'w')
         plines(self.preamble,f)
         for s in self.sections:

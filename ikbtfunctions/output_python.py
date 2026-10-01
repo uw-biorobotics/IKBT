@@ -26,6 +26,7 @@ import ikbtbasics.numeric_ik as nik   # joint_symbols():  joints in chain order
 from ikbtbasics.ik_classes import *     # special classes for Inverse kinematics in sympy
 #
 
+import os
 import re
 
 
@@ -169,6 +170,11 @@ def output_FK_python_code(Robot):
     print('\n\n\n                       Starting FK Python Output work \n\n\n')
 
     DirName = 'CodeGen/Python/'
+    #  CodeGen/Python/ is a GENERATED directory and is not in a fresh clone
+    #  (.gitignore has CodeGen/*).  Make it, the way the fk_eqns/ cache and
+    #  graphs/ and logs/ already make themselves.
+    if not os.path.isdir(DirName):
+        os.makedirs(DirName)
     orig_name  = Robot.name.replace('test: ', '')
     fname = DirName + 'FK_equations'+orig_name+'.py'
     f = open(fname, 'w')
@@ -373,6 +379,8 @@ def sqrt_dc(x):
     orig_name  = Robot.name.replace('test: ', '')
 
     DirName = 'CodeGen/Python/'
+    if not os.path.isdir(DirName):      #  generated dir, not in a fresh clone
+        os.makedirs(DirName)
     fname = DirName + ('IK_conditional' if known else 'IK_equations') + orig_name + '.py'
     f = open(fname, 'w')
 
