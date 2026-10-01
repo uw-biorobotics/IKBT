@@ -2,11 +2,15 @@
 #  Delete the GENERATED code in CodeGen/.  Run from the repo root.
 #  Everything removed here is rebuilt by the next solve.
 #
-#  *.h as well as *.cpp:  the C++ FK modules are HEADERS (something else
-#  includes them), so a wipe that took only the .cpp files left the generated
-#  FK of a robot behind to be included by the next robot's build.
+#  The C++ is one directory per robot, CodeGen/Cpp/<Robot>CppCode/, and the
+#  whole directory goes:  it holds generated headers as well as generated
+#  .cpp files, and leaving a robot's FK header behind would let it be
+#  included by the next robot's build.
 #
 #  Cpp_src/ IS NOT TOUCHED and must not be -- it is source, on the same
 #  footing as LaTex_src/, and it lives outside CodeGen/ precisely so that
-#  this line cannot reach it.
-rm -f CodeGen/Python/*.py CodeGen/Cpp/*.cpp CodeGen/Cpp/*.h
+#  these lines cannot reach it.  The generated directories reach it by a
+#  relative #include.
+rm -f  CodeGen/Python/*.py
+rm -rf CodeGen/Cpp/*CppCode
+rm -f  CodeGen/Cpp/*.cpp CodeGen/Cpp/*.h

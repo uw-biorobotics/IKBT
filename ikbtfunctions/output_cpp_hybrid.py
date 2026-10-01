@@ -6,10 +6,14 @@
 #   point.  What a hybrid solve delivers in C++, for a true arm X simplified
 #   to a derived arm X_d:
 #
-#       CodeGen/Cpp/IK_hybrid_X.cpp          the two phases   <- the entry point
-#       CodeGen/Cpp/FK_numericX.h            true arm, FK AND Jacobian
-#       CodeGen/Cpp/IK_equationsX_d.cpp      derived arm, closed form
-#       CodeGen/Cpp/FK_numericX_d.h          derived arm, FK
+#       XCppCode/IK_hybrid_X.cpp             the two phases   <- the entry point
+#       XCppCode/FK_numericX.h               true arm, FK AND Jacobian
+#       XCppCode/IK_equationsX_d.cpp         derived arm, closed form
+#       XCppCode/FK_numericX_d.h             derived arm, FK
+#
+#   ALL FOUR IN THE TRUE ROBOT'S DIRECTORY, derived arm included:  the entry
+#   point includes the other three as siblings, so they have to sit together.
+#   Which arm a file describes is in its NAME, not in its directory.
 #
 #   The same four files the python path writes, with the same names for the
 #   same reasons:  the module a user calls carries the name they asked about,
@@ -31,9 +35,9 @@
 import os
 
 import ikbtbasics.numeric_ik as nik
-from ikbtfunctions.output_cpp_common import (DIR_NAME, cpp_identifier,
-                                             file_header, inline_src,
-                                             name_table_cpp,
+from ikbtfunctions.output_cpp_common import (cpp_identifier, file_header,
+                                             name_table_cpp, robot_dir,
+                                             src_includes,
                                              write_fk_module_cpp)
 
 
@@ -45,7 +49,7 @@ CORE_HEADERS = ['ikbt_types.h', 'ikbt_linalg.h', 'ikbt_pose_error.h',
 
 
 def write_hybrid_top_cpp(M_true, true_name, derived_name, edits_text,
-                         cost_text, dirname=DIR_NAME):
+                         cost_text, dirname=None):
     '''Write IK_hybrid_<true_name>.cpp -- the two-phase top level.
 
        M_true        the TRUE arm's mechanism, for w_rot and the joint names
@@ -56,6 +60,7 @@ def write_hybrid_top_cpp(M_true, true_name, derived_name, edits_text,
 
        Returns the path written.'''
 
+    dirname = robot_dir(true_name, dirname)
     ident = cpp_identifier(true_name)
     dident = cpp_identifier(derived_name)
     ndof = M_true.ndof
@@ -75,7 +80,7 @@ def write_hybrid_top_cpp(M_true, true_name, derived_name, edits_text,
     with open(path, 'w') as f:
         print(file_header('HYBRID inverse kinematics for %s' % true_name,
                           true_name, filename), file=f)
-        print(inline_src(CORE_HEADERS), file=f)
+        print(src_includes(CORE_HEADERS, dirname), file=f)
         print('', file=f)
         print('#include <cstdio>', file=f)
         print('', file=f)

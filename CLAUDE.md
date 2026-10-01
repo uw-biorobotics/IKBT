@@ -71,11 +71,23 @@ This package produces generated code artifacts, which are not source code for th
 (`LaTex_src/cleanLaTexFolder` does that wipe, from the repo root).
 
 `Cpp_src/` **is** source too, on exactly that precedent: hand-written C++ headers
-(`ikbt_types.h`, `ikbt_pose_error.h`, `ikbt_linalg.h`, `ikbt_dls.h`, `ikbt_search.h`) that the
-C++ generators read and inline, so a generated `.cpp` is self-contained. They live apart from
-`CodeGen/Cpp/` so that `CodeGen/cleanCodeGenOutput` cannot take them with it. Being real files
-rather than python string literals, they are **independently compilable and therefore
-testable**, which a `POSE_ERROR_CORE`-style literal is not.
+(`ikbt_types.h`, `ikbt_pose_error.h`, `ikbt_linalg.h`, `ikbt_dls.h`, `ikbt_search.h`) that a
+generated `.cpp` reaches by a **relative `#include`** -- `../../../Cpp_src/ikbt_types.h` from a
+robot's directory. They live apart from `CodeGen/Cpp/` so that `CodeGen/cleanCodeGenOutput`
+cannot take them with it. Being real files rather than python string literals, they are
+**independently compilable and therefore testable**, which a `POSE_ERROR_CORE`-style literal is
+not.
+
+**ONE COPY OF THE SHARED NUMERICS** for the whole package, so a fix to `ikbt_search.h` reaches
+every robot already generated without regenerating anything. The path is computed with
+`os.path.relpath` (`output_cpp_common.src_includes()`), not spelled out, because
+`cpp_closed_loop_check` stages generated files into a temporary directory at no fixed depth.
+
+Nothing here needs `-I`: `#include "..."` resolves against the **including file's own
+directory**. The headers' own `#include "ikbt_*.h"` lines need no handling either — they are
+siblings inside `Cpp_src/` and find each other there. A robot's directory must keep its
+position relative to `Cpp_src/`; to build it elsewhere, carry `Cpp_src/` along at the same
+depth.
 
 FK pickle cache directory (fk_eqns) or individual pickle files within it can be deleted at any time without penalty (except some added 
 execution time). 
@@ -371,6 +383,14 @@ specification, and the checks turn "derived from" into an assertion rather than 
 | `output_hybrid_python.write_hybrid_top()` | `output_cpp_hybrid.write_hybrid_top_cpp()` | `IK_hybrid_<R>.cpp` |
 | `output_onevar_python.write_onevar_top()` | `output_cpp_onevar.write_onevar_top_cpp()` | `IK_onevar<R>.cpp` |
 | `output_numeric_common.expr_py()` (`sp.pycode`) | `output_cpp_common.expr_cpp()` (`sp.cxxcode`) | one expression |
+
+**ONE DIRECTORY PER ROBOT: `CodeGen/Cpp/<Robot>CppCode/`.** The BT produces one solve per
+robot, so the directory is named for the robot asked about and nothing more. A hybrid solve
+emits files under **two** names -- `IK_hybrid_Panda.cpp` and `IK_equationsPanda_a_3_0_a_4_0.cpp`
+-- and all of them land in `PandaCppCode/`, because the entry point includes the derived arm's
+closed form and both FK headers as **siblings**. Which arm a file describes is in its *name*;
+a derived arm never gets a directory of its own. `output_cpp_common.robot_dir()` is the one
+place that decides this, and `ik_driver` passes the true robot's directory down the hybrid path.
 
 **C++11, STANDARD LIBRARY ONLY** — no Eigen, no Boost, no build system, no `-I`:
 `g++ -std=c++11 -O2 file.cpp -o x -lm`. Same rule as "a generated python module stands on

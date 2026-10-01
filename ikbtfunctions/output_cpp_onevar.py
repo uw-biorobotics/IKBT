@@ -5,9 +5,9 @@
 #   The twin of output_onevar_python.write_onevar_top().  What a one-variable
 #   solve delivers in C++, for e.g. C-Arm with th_2 assumed known:
 #
-#       CodeGen/Cpp/IK_onevarC-Arm.cpp       the 1-D search  <- the entry point
-#       CodeGen/Cpp/IK_conditionalC-Arm.cpp  the closed form, th_2 an argument
-#       CodeGen/Cpp/FK_numericC-Arm.h        this arm's FK (no Jacobian needed)
+#       C-ArmCppCode/IK_onevarC-Arm.cpp      the 1-D search  <- the entry point
+#       C-ArmCppCode/IK_conditionalC-Arm.cpp the closed form, th_2 an argument
+#       C-ArmCppCode/FK_numericC-Arm.h       this arm's FK (no Jacobian needed)
 #
 #   IK_conditional, NEVER IK_equations:  that name means an unconditional
 #   inverse kinematics for the robot, and these equations hold only where the
@@ -21,8 +21,8 @@
 #   THE SEARCH ITSELF IS IN Cpp_src/ikbt_search.h, not emitted here.  The
 #   python twin emits ~470 lines per robot because a generated python module
 #   stands on numpy alone and has no library to call;  in C++ Cpp_src/ IS that
-#   library, inlined, so the algorithm is written once and this file supplies
-#   only the two robot-specific callbacks it takes.
+#   library, reached by a relative #include, so the algorithm is written once
+#   and this file supplies only the two robot-specific callbacks it takes.
 #
 #   Copyright 2026 University of Washington
 #
@@ -32,16 +32,16 @@
 import os
 
 import ikbtbasics.numeric_ik as nik
-from ikbtfunctions.output_cpp_common import (DIR_NAME, cpp_identifier,
-                                             file_header, inline_src,
-                                             name_table_cpp)
+from ikbtfunctions.output_cpp_common import (cpp_identifier, file_header,
+                                             name_table_cpp, robot_dir,
+                                             src_includes)
 from ikbtfunctions.output_onevar_python import search_domain
 
 
 CORE_HEADERS = ['ikbt_types.h', 'ikbt_pose_error.h', 'ikbt_search.h']
 
 
-def write_onevar_top_cpp(M, name, known, dirname=DIR_NAME, n_samples=128,
+def write_onevar_top_cpp(M, name, known, dirname=None, n_samples=128,
                          max_samples=4096):
     '''Write IK_onevar<name>.cpp -- the 1-D search over the assumed variable.
 
@@ -53,6 +53,7 @@ def write_onevar_top_cpp(M, name, known, dirname=DIR_NAME, n_samples=128,
 
        Returns the path written.'''
 
+    dirname = robot_dir(name, dirname)
     ident = cpp_identifier(name)
     #  BOTH ROUNDED UP TO A POWER OF TWO, for the same reason as the python
     #  twin:  the ladder only re-uses the coarse grid's cached errors when
@@ -75,7 +76,7 @@ def write_onevar_top_cpp(M, name, known, dirname=DIR_NAME, n_samples=128,
     with open(path, 'w') as f:
         print(file_header('ONE-VARIABLE inverse kinematics for %s' % name,
                           name, filename), file=f)
-        print(inline_src(CORE_HEADERS), file=f)
+        print(src_includes(CORE_HEADERS, dirname), file=f)
         print('', file=f)
         print('#include <cstdio>', file=f)
         print('#include <cstdlib>', file=f)

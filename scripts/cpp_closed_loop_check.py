@@ -66,7 +66,7 @@ import tempfile
 
 import numpy as np
 
-from ikbtfunctions.output_cpp_common import cpp_identifier, inline_src
+from ikbtfunctions.output_cpp_common import SRC_DIR, cpp_identifier
 from scripts.expected import EXPECT, UNCHECKABLE, judge_counts
 from scripts.numerical_closed_loop_sol_check import (Q_PROBE, TOL, robot_fk,
                                                      import_generated_ik,
@@ -74,6 +74,16 @@ from scripts.numerical_closed_loop_sol_check import (Q_PROBE, TOL, robot_fk,
 
 
 CPP_DIR = os.path.join('CodeGen', 'Cpp')
+
+
+def cpp_dir(robot):
+    """Where a robot's generated C++ lives:  CodeGen/Cpp/<robot>CppCode/.
+
+       ONE DIRECTORY PER ROBOT, including the hybrid path's derived arm --
+       IK_equations<derived>.cpp sits in the TRUE robot's directory, because
+       IK_hybrid_<true>.cpp includes it as a sibling."""
+
+    return os.path.join(CPP_DIR, '%sCppCode' % robot)
 
 #  Python and C++ do the same IEEE operations in the same order, so they agree
 #  far better than this;  the slack is for the two printers rounding a literal
@@ -131,7 +141,7 @@ def build(name, extra_arg=None, keep_dir=None):
        Returns (binary path or None, kind, message).  kind is 'ok', 'missing',
        'XXXXX', 'undeclared' or 'other'.'''
 
-    src = os.path.join(CPP_DIR, 'IK_equations%s.cpp' % name)
+    src = os.path.join(cpp_dir(name), 'IK_equations%s.cpp' % name)
     if not os.path.exists(src):
         return None, 'missing', 'no generated C++ at %s' % src
 
@@ -139,15 +149,24 @@ def build(name, extra_arg=None, keep_dir=None):
     call = 'ikin_%s(T%s)' % (ident, ', %s' % extra_arg if extra_arg else '')
 
     tmp = keep_dir or tempfile.mkdtemp(prefix='ikbt_cpp_')
-    cpath = os.path.join(tmp, 'check_%s.cpp' % ident)
+    #  THE COPY GOES BESIDE THE ORIGINAL, as in _build_appended():  the
+    #  generated file reaches Cpp_src/ and its own siblings by paths relative
+    #  to its own directory.  Only the binary goes to tmp.
+    cpath = os.path.join(os.path.dirname(src), '_check_%s.cpp' % ident)
     bpath = os.path.join(tmp, 'check_%s' % ident)
     with open(cpath, 'w') as f:
         f.write(open(src).read())
         f.write(DRIVER.replace('**CALL**', call))
 
-    cc = subprocess.run(['g++', '-std=c++11', '-O2', '-Wall', '-Wextra',
-                         '-DIKBT_DRIVER', cpath, '-o', bpath, '-lm'],
-                        capture_output=True, text=True)
+    try:
+        cc = subprocess.run(['g++', '-std=c++11', '-O2', '-Wall', '-Wextra',
+                             '-DIKBT_DRIVER', cpath, '-o', bpath, '-lm'],
+                            capture_output=True, text=True)
+    finally:
+        #  The binary is built by now, so the staged source has done its job.
+        #  It sits in a generated directory and must not be left there.
+        if os.path.exists(cpath):
+            os.remove(cpath)
     if cc.returncode != 0:
         kind = classify(cc.stderr)
         first = next((l for l in cc.stderr.split('\n') if 'error:' in l), '')
@@ -449,13 +468,17 @@ def check_dls(name, n_trials=6, seed=13, verbose=False):
                      .replace('**IDENT**', ident))
     cpath = os.path.join(tmp, 'dls_check.cpp')
     bpath = os.path.join(tmp, 'dls_check')
+    #  THIS HARNESS IS NOT A GENERATED ARTIFACT, so it may use -I where a
+    #  generated file may not:  it includes Cpp_src/ directly by name, which
+    #  is also the arrangement the headers themselves assume internally.
     with open(cpath, 'w') as f:
-        f.write(inline_src(['ikbt_types.h', 'ikbt_linalg.h',
-                            'ikbt_pose_error.h', 'ikbt_dls.h']))
+        for h in ('ikbt_types.h', 'ikbt_linalg.h', 'ikbt_pose_error.h',
+                  'ikbt_dls.h'):
+            f.write('#include "%s"\n' % h)
         f.write(src)
 
     cc = subprocess.run(['g++', '-std=c++11', '-O2', '-Wall', '-Wextra',
-                         '-I', tmp, cpath, '-o', bpath, '-lm'],
+                         '-I', tmp, '-I', SRC_DIR, cpath, '-o', bpath, '-lm'],
                         capture_output=True, text=True)
     if cc.returncode != 0:
         first = next((l for l in cc.stderr.split('\n') if 'error:' in l), '')
@@ -649,7 +672,7 @@ def check_onevar(name, n_poses=4, seed=17, verbose=False):
     ident = cpp_identifier(name)
     try:
         bpath, note = _build_appended(
-            os.path.join(CPP_DIR, 'IK_onevar%s.cpp' % name),
+            os.path.join(cpp_dir(name), 'IK_onevar%s.cpp' % name),
             ONEVAR_DRIVER.replace('**IDENT**', ident), tmp, ident)
         if bpath is None:
             return 0, 0, 0, None, note
@@ -705,7 +728,7 @@ def check_hybrid(name, n_poses=3, seed=19, verbose=False):
     ident = cpp_identifier(name)
     try:
         bpath, note = _build_appended(
-            os.path.join(CPP_DIR, 'IK_hybrid_%s.cpp' % name),
+            os.path.join(cpp_dir(name), 'IK_hybrid_%s.cpp' % name),
             HYBRID_DRIVER.replace('**IDENT**', ident), tmp, ident)
         if bpath is None:
             return 0, 0, 0, None, note
@@ -764,11 +787,11 @@ def detect_path(name):
 
        Returns 'symbolic', 'onevar', 'hybrid' or None."""
 
-    if os.path.exists(os.path.join(CPP_DIR, 'IK_onevar%s.cpp' % name)):
+    if os.path.exists(os.path.join(cpp_dir(name), 'IK_onevar%s.cpp' % name)):
         return 'onevar'
-    if os.path.exists(os.path.join(CPP_DIR, 'IK_hybrid_%s.cpp' % name)):
+    if os.path.exists(os.path.join(cpp_dir(name), 'IK_hybrid_%s.cpp' % name)):
         return 'hybrid'
-    if os.path.exists(os.path.join(CPP_DIR, 'IK_equations%s.cpp' % name)):
+    if os.path.exists(os.path.join(cpp_dir(name), 'IK_equations%s.cpp' % name)):
         return 'symbolic'
     return None
 

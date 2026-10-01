@@ -6,9 +6,9 @@
 #   line.  Same walk of Robot.FinalEqnMatrix, same first-seen dedup on the LHS,
 #   same joint/aux column split, same return contract, same two file names:
 #
-#       known=None    CodeGen/Cpp/IK_equations<Robot>.cpp,  ikin_<Robot>(T)
+#       known=None    <Robot>CppCode/IK_equations<Robot>.cpp,  ikin_<Robot>(T)
 #                     -- an unconditional closed form
-#       known='th_2'  CodeGen/Cpp/IK_conditional<Robot>.cpp,
+#       known='th_2'  <Robot>CppCode/IK_conditional<Robot>.cpp,
 #                     ikin_<Robot>_given(T, th_2) -- the ONE-VARIABLE branch's
 #                     closed form, valid only where th_2 is right
 #
@@ -26,13 +26,16 @@
 #   Developed by Dianmu Zhang and Blake Hannaford
 #   BioRobotics Lab, University of Washington
 
+import os
+
 import sympy as sp
 
 import ikbtbasics.numeric_ik as nik
-from ikbtfunctions.output_cpp_common import (DIR_NAME, cpp_identifier,
+from ikbtfunctions.output_cpp_common import (cpp_identifier,
                                              expr_cpp, file_header,
                                              name_table_cpp, param_decls,
-                                             pose_unpack_cpp, read_src)
+                                             pose_unpack_cpp, robot_dir,
+                                             src_includes)
 
 
 #  Console chatter from the generator.  Off by default, for the same reason
@@ -78,7 +81,7 @@ def _versions(Robot, node):
 #  problem that can be got wrong -- and was.
 
 
-def output_cpp_code(Robot, solution_groups, known=None):
+def output_cpp_code(Robot, solution_groups, known=None, dirname=None):
     '''Write the generated C++ IK for `Robot`.
 
        Robot            solved, with create_solution_set() already run
@@ -148,7 +151,11 @@ def output_cpp_code(Robot, solution_groups, known=None):
                                     or Robot.params)
 
     filename = ('IK_conditional' if known else 'IK_equations') + orig_name + '.cpp'
-    path = DIR_NAME + '/' + filename
+    #  dirname is THE ROBOT THE USER ASKED ABOUT, which on the hybrid path
+    #  is not orig_name:  this is then the DERIVED arm's closed form, and it
+    #  belongs beside the IK_hybrid_<true>.cpp that includes it.
+    dirname = robot_dir(orig_name, dirname)
+    path = os.path.join(dirname, filename)
     f = open(path, 'w')
 
     what = ('CONDITIONAL inverse kinematics for %s (%s assumed known)'
@@ -156,9 +163,9 @@ def output_cpp_code(Robot, solution_groups, known=None):
            ('C++ inverse kinematic equations for %s' % orig_name)
     print(file_header(what, orig_name, filename), file=f)
 
-    #  Cpp_src/ inlined, so this translation unit stands alone -- the same
-    #  bargain output_latex.py strikes with LaTex_src/IK_preamble.tex.
-    print(read_src('ikbt_types.h'), file=f)
+    #  Cpp_src/ by relative #include:  ONE copy of the shared numerics for
+    #  the whole package.
+    print(src_includes(['ikbt_types.h'], dirname), file=f)
     print('', file=f)
     print('#include <cstdio>', file=f)
     print('', file=f)

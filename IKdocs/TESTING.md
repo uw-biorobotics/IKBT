@@ -360,7 +360,7 @@ patches a third-party module, so it is opt-in and reversible
 | `CodeGen/Python/IK_onevar<robot>.py` | one-variable 1-D search (the entry point) | generated |
 | `CodeGen/Python/IK_conditional<robot>.py` | closed form given one assumed value | generated |
 | `CodeGen/Python/FK_numeric<robot>.py` | FK (+ Jacobian) callables | generated |
-| `CodeGen/Cpp/IK_equations<robot>.cpp` | closed-form IK, C++ | generated |
+| `CodeGen/Cpp/<robot>CppCode/` | all C++ for one robot | generated |
 | `fk_eqns/<robot>_pickle.p` | FK cache | generated, safe to delete |
 
 Artifacts are judged by **freshness, not existence** — `LaTex/` and `CodeGen/`

@@ -216,11 +216,18 @@ def judge_counts(name, good, total):
 #
 #  A name here is an ARM, not a robot:  on the hybrid path the true robot and
 #  the derived arm each own some of these, and both are checked.
-def artifact_paths(name):
+def artifact_paths(name, robot=None):
+    #  robot is the ROBOT THE USER ASKED ABOUT;  name is the arm the file
+    #  describes.  They differ only on the hybrid path, and only the C++
+    #  cares:  python files are flat in CodeGen/Python/, but the C++ is one
+    #  directory per robot and the derived arm's files live in the TRUE
+    #  robot's directory, beside the entry point that includes them.
+    robot = robot or name
+    cppdir = os.path.join('CodeGen', 'Cpp', '%sCppCode' % robot)
     return {
         'tex':    os.path.join('LaTex', 'ik_solution_%s.tex' % name),
         'py':     os.path.join('CodeGen', 'Python', 'IK_equations%s.py' % name),
-        'cpp':    os.path.join('CodeGen', 'Cpp', 'IK_equations%s.cpp' % name),
+        'cpp':    os.path.join(cppdir, 'IK_equations%s.cpp' % name),
         'hybrid': os.path.join('CodeGen', 'Python', 'IK_hybrid_%s.py' % name),
         'onevar': os.path.join('CodeGen', 'Python', 'IK_onevar%s.py' % name),
         'cond':   os.path.join('CodeGen', 'Python', 'IK_conditional%s.py' % name),
@@ -229,10 +236,10 @@ def artifact_paths(name):
         #  The C++ twins.  FK is a HEADER, not a .cpp:  something else
         #  includes it, exactly as the python FK module is imported as a
         #  sibling.  See ikbtfunctions/output_cpp_common.write_fk_module_cpp.
-        'cpp_hybrid': os.path.join('CodeGen', 'Cpp', 'IK_hybrid_%s.cpp' % name),
-        'cpp_onevar': os.path.join('CodeGen', 'Cpp', 'IK_onevar%s.cpp' % name),
-        'cpp_cond':   os.path.join('CodeGen', 'Cpp', 'IK_conditional%s.cpp' % name),
-        'cpp_fk':     os.path.join('CodeGen', 'Cpp', 'FK_numeric%s.h' % name),
+        'cpp_hybrid': os.path.join(cppdir, 'IK_hybrid_%s.cpp' % name),
+        'cpp_onevar': os.path.join(cppdir, 'IK_onevar%s.cpp' % name),
+        'cpp_cond':   os.path.join(cppdir, 'IK_conditional%s.cpp' % name),
+        'cpp_fk':     os.path.join(cppdir, 'FK_numeric%s.h' % name),
     }
 
 

@@ -204,12 +204,15 @@ def emit_hybrid_outputs(R, unks, hybrid, R_true=None):
            CodeGen/Python/FK_numeric<Derived>.py   DERIVED arm
            CodeGen/Python/FK_numeric<True>.py      TRUE robot
 
-       ... and the same four in C++, under CodeGen/Cpp/:
+       ... and the same four in C++, all four in CodeGen/Cpp/<True>CppCode/:
 
            IK_hybrid_<True>.cpp        TRUE robot   <- the entry point
            IK_equations<Derived>.cpp   DERIVED arm
            FK_numeric<Derived>.h       DERIVED arm
            FK_numeric<True>.h          TRUE robot
+
+       The derived arm's two files are in the TRUE robot's directory because
+       the entry point includes them as siblings.  One solve, one directory.
 
        The report and the module a user imports carry the name they asked
        about;  the pieces they are built from carry the name of the arm they
@@ -228,9 +231,15 @@ def emit_hybrid_outputs(R, unks, hybrid, R_true=None):
     #  documents it in its own section.
     write_latex_fitted(R, unks, R.solutionSet, hybrid=hybrid, R_true=R_true)
 
+    #  ONE C++ DIRECTORY FOR THE WHOLE SOLVE, named for the TRUE robot.
+    #  The derived arm's files go in it too:  IK_hybrid_<true>.cpp includes
+    #  IK_equations<derived>.cpp and both FK headers as SIBLINGS, so they
+    #  have to sit together.  Which arm a file describes is in its name.
+    cppdir = occ.robot_dir(true_name)
+
     #  Phase I's closed form, under the DERIVED arm's name.
     op.output_python_code(R, R.solutionSet)
-    oc.output_cpp_code(R, R.solutionSet)
+    oc.output_cpp_code(R, R.solutionSet, dirname=cppdir)
 
     #  FK of the approximate arm (Phase I uses it to drop spurious branches)
     #  and FK + Jacobian of the true arm (Phase II refines against it).
@@ -238,14 +247,14 @@ def emit_hybrid_outputs(R, unks, hybrid, R_true=None):
                    % derived_name)
     ohp.write_fk_module(R.Mech, derived_name, jacobian=False, what=what_approx)
     occ.write_fk_module_cpp(R.Mech, derived_name, jacobian=False,
-                            what=what_approx)
+                            dirname=cppdir, what=what_approx)
     if R_true is not None:
         what_true = ('Forward kinematics and Jacobian for %s (the TRUE arm)'
                      % true_name)
         ohp.write_fk_module(R_true.Mech, true_name, jacobian=True,
                             what=what_true)
         occ.write_fk_module_cpp(R_true.Mech, true_name, jacobian=True,
-                                what=what_true)
+                                dirname=cppdir, what=what_true)
 
         edits = '; '.join('%s: %s -> %s' % (e['symbol'], e['from'], e['to'])
                           for e in (hybrid.get('edits') or []))
@@ -255,7 +264,7 @@ def emit_hybrid_outputs(R, unks, hybrid, R_true=None):
         ohp.write_hybrid_top(R_true.Mech, true_name, derived_name, edits,
                              cost_text)
         och.write_hybrid_top_cpp(R_true.Mech, true_name, derived_name, edits,
-                                 cost_text)
+                                 cost_text, dirname=cppdir)
 
 
 def emit_onevar_outputs(R, unks, onevar):
@@ -274,7 +283,8 @@ def emit_onevar_outputs(R, unks, onevar):
            CodeGen/Python/FK_numeric<Robot>.py  this arm's FK
 
        ... and the same three in C++:  IK_onevar<Robot>.cpp,
-       IK_conditional<Robot>.cpp and FK_numeric<Robot>.h under CodeGen/Cpp/.
+       IK_conditional<Robot>.cpp and FK_numeric<Robot>.h, under
+       CodeGen/Cpp/<Robot>CppCode/.
 
        NOT IK_equations<Robot> IN EITHER LANGUAGE.  That name means the
        inverse kinematics of this robot, and a solution conditional on an
@@ -286,18 +296,21 @@ def emit_onevar_outputs(R, unks, onevar):
 
     write_latex_fitted(R, unks, R.solutionSet, onevar=onevar)
 
+    cppdir = occ.robot_dir(R.name)
+
     #  The closed form, with the assumed variable as a function ARGUMENT.
     op.output_python_code(R, R.solutionSet, known=known)
-    oc.output_cpp_code(R, R.solutionSet, known=known)
+    oc.output_cpp_code(R, R.solutionSet, known=known, dirname=cppdir)
 
     #  The true arm's FK -- what the search measures the closed form against.
     what_fk = 'Forward kinematics for %s (the TRUE arm)' % R.name
     onc.write_fk_module(R.Mech, R.name, jacobian=False, what=what_fk)
-    occ.write_fk_module_cpp(R.Mech, R.name, jacobian=False, what=what_fk)
+    occ.write_fk_module_cpp(R.Mech, R.name, jacobian=False, dirname=cppdir,
+                            what=what_fk)
 
     #  The search itself:  the module a user actually calls.
     oop.write_onevar_top(R.Mech, R.name, known)
-    oco.write_onevar_top_cpp(R.Mech, R.name, known)
+    oco.write_onevar_top_cpp(R.Mech, R.name, known, dirname=cppdir)
 
 
 def print_solved_equations(unks):

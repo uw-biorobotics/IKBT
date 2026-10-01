@@ -100,7 +100,7 @@ op.output_FK_python_code(R)   # FK and Jacobian are both complete by here
 #  ... and the numeric C++ pair.  A DIFFERENT ARTIFACT from the line above,
 #  not a translation of it:  output_FK_python_code() writes a readable
 #  module-level dump of the symbolic T_06 with dummy joint values, and this
-#  writes CodeGen/Cpp/FK_numeric<Robot>.h -- fk_<Robot>(q) and
+#  writes CodeGen/Cpp/<Robot>CppCode/FK_numeric<Robot>.h -- fk_<Robot>(q) and
 #  jacobian_<Robot>(q), with the parameters baked in.  The names differ for
 #  that reason;  sharing one would mean whichever ran last replaced the other.
 #

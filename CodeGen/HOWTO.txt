@@ -44,27 +44,42 @@ against each other branch for branch by
 
     python3 -m scripts.cpp_closed_loop_check --gate
 
+ONE DIRECTORY PER ROBOT.  Everything a solve emits for <Robot> is in
+
+    Cpp/<Robot>CppCode/
+
+named for the robot you asked about.  A hybrid solve puts the derived arm's
+files in there too -- which arm a file describes is in its NAME.
+
 STANDARD LIBRARY ONLY.  C++11, no Eigen, no Boost, no build system, no include
 path:
 
-    g++ -std=c++11 -O2 -c Cpp/IK_equations<Robot>.cpp
+    g++ -std=c++11 -O2 -c Cpp/<Robot>CppCode/IK_equations<Robot>.cpp
 
-Each file is a complete translation unit: the shared material in Cpp_src/ is
-INLINED into it when it is generated, so a file can be copied out of this
-directory on its own.  The exceptions are the two fallback paths' entry points,
-which include their siblings by name and so want the whole directory -- exactly
-as the Python modules import theirs.
+The shared material in Cpp_src/ is reached by a relative #include,
+
+    #include "../../../Cpp_src/ikbt_types.h"
+
+so there is ONE copy of it for the whole package and a fix to it needs no
+regeneration.  `#include "..."` resolves against the including file's own
+directory, which is why no -I is needed.  Files within a robot's directory
+include each other by plain name, exactly as the Python modules import theirs.
+
+KEEP THE DIRECTORY TOGETHER, and keep it where it is relative to Cpp_src/.
+To build somewhere else, copy Cpp_src/ along with it and keep the same three
+levels between them, or edit the relative path.
 
 Every file carries a self-test behind #ifdef IKBT_MAIN, which is the C++
 spelling of `if __name__ == "__main__":`:
 
-    g++ -std=c++11 -O2 -DIKBT_MAIN Cpp/IK_equations<Robot>.cpp -o ik && ./ik
+    g++ -std=c++11 -O2 -DIKBT_MAIN Cpp/<Robot>CppCode/IK_equations<Robot>.cpp \
+        -o ik && ./ik
 
 It is behind an #ifdef and not unconditional so that a generated file can be
 linked into a program, or alongside another robot, without two main()s.
 
 
-C++, SYMBOLIC path  --  Cpp/IK_equations<Robot>.cpp
+C++, SYMBOLIC path  --  Cpp/<Robot>CppCode/IK_equations<Robot>.cpp
 -----------------------------------------------------
 
     SolutionList ikin_<Robot>(const Mat4 &T);
@@ -89,7 +104,7 @@ Supply your values and it compiles.  Parameters the robot DOES have values for
 are baked in, exactly as in the Python -- so most robots compile as they stand.
 
 
-C++, HYBRID robots  --  Cpp/IK_hybrid_<Robot>.cpp
+C++, HYBRID robots  --  Cpp/<Robot>CppCode/IK_hybrid_<Robot>.cpp
 ---------------------------------------------------
 
     SolutionList  ikin_<Robot>_approx(const Mat4 &T);    // PHASE I:  seeds
@@ -102,7 +117,7 @@ because the seed is the choice of posture.  The file includes
 IK_equations<Derived>.cpp and both FK_numeric headers from this directory.
 
 
-C++, ONE-VARIABLE robots  --  Cpp/IK_onevar<Robot>.cpp
+C++, ONE-VARIABLE robots  --  Cpp/<Robot>CppCode/IK_onevar<Robot>.cpp
 --------------------------------------------------------
 
     std::vector<OneVarSolution> solve_<Robot>(const Mat4 &T);

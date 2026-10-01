@@ -172,6 +172,13 @@ called.
   `Cpp_src/` sits apart from `CodeGen/Cpp/` so that wiping the artifacts
   (`CodeGen/cleanCodeGenOutput`) cannot take the sources with them.
 
+  A generated file reaches them by a relative `#include`
+  (`../../../Cpp_src/ikbt_types.h`) from its own per-robot directory,
+  `CodeGen/Cpp/<Robot>CppCode/`.  `#include "..."` resolves against the
+  including file's directory, so there is no `-I`, no build system and
+  nothing to install -- and one copy of the shared numerics serves every
+  robot.
+
 ## The derivation table
 
 This is the whole method: each row is a Python mechanism and the C++ twin it

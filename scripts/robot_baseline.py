@@ -237,7 +237,8 @@ def solve_one(name, codegen=False):
             #  name-spaces are never allowed to blur together.
             derived = (rec['hybrid'] or {}).get('derived_robot')
             if derived:
-                rec['written_derived'] = fresh_since(artifact_paths(derived), t0)
+                rec['written_derived'] = fresh_since(
+                    artifact_paths(derived, robot=name), t0)
 
         suffix = ' (onevar)' if os_ else (' (hybrid)' if hs else '')
         if rec['n_unknowns'] and nsolved == rec['n_unknowns']:
