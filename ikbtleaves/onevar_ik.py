@@ -30,10 +30,11 @@
 #   this branch needs no derived robot and no second FK (contrast
 #   hybrid_ik.install_simplified, which must build both).
 #
-#   WHAT COMES OUT IS A CONDITIONAL CLOSED FORM, exact only on the 1-D variety
-#   where the assumed value is right.  It must never be written out under the
-#   name of an unconditional solution -- the same rule the hybrid branch's
-#   artifact naming exists to enforce.
+#   WHAT COMES OUT IS A CONDITIONAL CLOSED FORM:  a one-parameter family of
+#   joint vectors, exact only at those values of the assumed variable that
+#   really do reach the goal pose.  It must never be written out under the
+#   name of an unconditional solution -- the same rule the hybrid branch
+#   follows when it names its files.
 #
 #   Copyright 2026 University of Washington
 #

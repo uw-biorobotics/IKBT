@@ -334,10 +334,10 @@ class TestSolver023(unittest.TestCase):
 
            onevar_ik.install_known() REMOVES an entry from the unknown list, so
            a DOF count taken from that list reads 5 on a 6-joint arm.
-           joint_triples() then stops at axes (3,4,5) and the triple at (4,5,6)
-           is never tested.  Puma's wrist triple IS (4,5,6), which makes it the
-           witness:  the last assertion below reproduces the old behaviour and
-           shows the triple disappearing.
+           joint_triples() would then stop at axes (3,4,5) and never test
+           the triple at (4,5,6).  Puma's wrist triple IS (4,5,6), which makes
+           it the case to test with:  the last assertion below counts triples
+           the wrong way on purpose and shows the wrist triple disappearing.
 
            Pins the defect found 2026-09-27."""
 
@@ -366,12 +366,13 @@ class TestSolver023(unittest.TestCase):
                       [t['axes'] for t in da.pieper_triples(M.DH, M.pvals, M.ndof)],
                       fs + ' (the triple must survive a reduced unknown list)')
 
-        #  THE BUG, reproduced:  counting from the reduced list loses it.
-        old_style = len([u for u in reduced
+        #  THE DEFECT, reproduced:  counting from the reduced list loses it.
+        wrong_way = len([u for u in reduced
                          if getattr(u, 'n', 0) and u.n <= 6])
-        self.assertEqual(old_style, 5, fs + ' (test set-up: the old count)')
+        self.assertEqual(wrong_way, 5,
+                         fs + ' (test set-up: counting from the unknown list)')
         self.assertNotIn((4, 5, 6),
-                         [t['axes'] for t in da.pieper_triples(M.DH, M.pvals, old_style)],
+                         [t['axes'] for t in da.pieper_triples(M.DH, M.pvals, wrong_way)],
                          fs + ' (this is exactly the defect M.ndof prevents)')
 
     def test_ptD_law_of_cosines_collapses(self):

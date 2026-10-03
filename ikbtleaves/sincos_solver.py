@@ -331,12 +331,13 @@ class TestSolver001(unittest.TestCase):
     def test_scA_roundtrip_both_signs(self):
         '''Flipping the sign of the coefficient must not change the answer.
 
-           It used to: an unconstrained Wild made 'Aw*sin(u)+Bw' ambiguous,
-           and for a negative coefficient sympy returned
+           It can.  An UNCONSTRAINED Wild makes 'Aw*sin(u)+Bw' ambiguous:
+           for a negative coefficient sympy will return
                {Aw: 0.5/sin(th_1), Bw: -3*sin(th_1)}
-           so targument = (LHS-B)/A came out as 6*sin(th_1)**2 and the leaf
-           emitted asin(6*sin(th_1)**2) -- not a solution at all, but a
-           plausible-looking expression that would flow into codegen.'''
+           so targument = (LHS-B)/A comes out as 6*sin(th_1)**2 and the leaf
+           would emit asin(6*sin(th_1)**2) -- not a solution at all, but a
+           plausible-looking expression that would flow into the generated
+           code.  The exclude= guards on the Wilds are what prevent it.'''
         sp.var('th_1')
         fs = ' sincos both-signs FAIL'
         half = sp.Rational(1, 2)
@@ -387,13 +388,14 @@ class TestSolver001(unittest.TestCase):
            Priority can offer the variable to another leaf.
 
            sin(u)**2 needs Aw = sin(u), which exclude=terms refuses, so the
-           match returns None.  The arcsin branch used to assert() on that,
-           aborting the entire solve, while the arccos branch printed and
-           returned FAILURE -- so sin(u)**2 crashed and cos(u)**2 did not.
+           match returns None.  Both branches must report that and decline;
+           an assert() here would abort the entire solve over a shape another
+           leaf may well be able to handle.
 
-           NB the exclude= hardening made this MORE reachable, not less: the
-           Wilds now correctly refuse shapes they previously matched
-           degenerately, so d is None arises where it once did not.'''
+           The exclude= guards make this case MORE common, not less:  the
+           Wilds correctly refuse shapes they would otherwise match
+           degenerately, so a None match arises more often than it would
+           without them.'''
         sp.var('th_1 l_1')
         fs = ' sincos unsolvable-shape FAIL'
 

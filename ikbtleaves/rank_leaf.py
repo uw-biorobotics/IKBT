@@ -167,8 +167,8 @@ class TestSolver011(unittest.TestCase):
         return status, bb.get('curr_unk')
 
     def test_rankA_arccos_plus_tan_does_not_crash(self):
-        '''Regression: variable solvable by BOTH arccos and tan, with rank
-           preferring sincos, used to raise IndexError and abort the solve.
+        '''A variable solvable by BOTH arccos and tan, with rank preferring
+           sincos, must not raise IndexError and abort the solve.
 
            sincos_solve appended to u.sincos_eqnlist in its arcsin branch but
            NOT in its arccos branch, and rank does

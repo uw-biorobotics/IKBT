@@ -55,8 +55,8 @@ def _partner_of(u, e1, e2):
        spellings, and only one of them is the spelling simu_solver reads
        coefficients from;  handed the other it would extract -A and -B and
        produce nonsense.  Hence: return whichever spelling fits, not merely a
-       yes/no.  (That is what "canonical form" meant in this function's former
-       name -- the one agreed spelling out of the two.)
+       yes/no:  "canonical form" here means the one agreed spelling out of
+       the two.
 
        A == B == 0 means u appears in e1 with no sin or cos of it at all;  both
        atan2 arguments would vanish and the "solution" would be nan.  Reject.
@@ -369,8 +369,8 @@ class TestSolver005(unittest.TestCase):
            atan2, so BOTH orders solve to the same angle.  That equivalence,
            not a particular ordering, is what is asserted here.
 
-           This is the path the old code covered with a second, open-coded
-           call to the partner test;  nothing tested it."""
+           Both orders reach the same place through solvable_pair, which is
+           why one call covers them."""
         sp.var('AA BB CC DD th_23')
         fs = ' solvable_pair role-assignment FAIL'
         u = th_23
@@ -442,9 +442,10 @@ class TestSolver005(unittest.TestCase):
     #  negative cases -- these are the two bugs
 
     def test_m7_rejects_algebraic_pair(self):
-        '''Equations mentioning u with no sin/cos of it give A == B == 0, so
-           both atan2 arguments vanish and the "solution" is nan.  The screen
-           used to be `has(u) and has(u)`, which let these through.'''
+        '''Equations mentioning u with no sin or cos of it give A == B == 0,
+           so both atan2 arguments vanish and the "solution" is nan.  The
+           screen has to test for sin(u) and cos(u) specifically;  testing
+           twice that u appears at all would let these through.'''
         sp.var('th_23 l_1 l_2')
         fs = ' simultaneous eqn algebraic-pair FAIL'
         eq1 = th_23 - l_1

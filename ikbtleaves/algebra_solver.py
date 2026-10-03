@@ -372,8 +372,8 @@ class TestSolver002(unittest.TestCase):
         self.assert_declined(status, u, ' algebra zero-coefficient reject FAIL')
 
     def test_algB_scans_past_an_unusable_equation(self):
-        '''The ID loop now `continue`s past a shape it cannot use instead of
-           breaking, so an unusable equation early in the list no longer hides
+        '''The ID loop `continue`s past a shape it cannot use rather than
+           breaking out, so an unusable equation early in the list cannot hide
            a usable one behind it.'''
         sp.var('d_1 l_1 l_3 r_13')
         fs = ' algebra scan-past FAIL'

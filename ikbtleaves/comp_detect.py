@@ -323,12 +323,12 @@ class TestSolver014(unittest.TestCase):
     def test_compE_stalled_partial_stops_but_keeps_its_result(self):
         """A PARTIAL solve that stalls must stop -- but keep what it solved.
 
-           This is the Issue4 defect.  The stop used to be conditional on
-           `ns == 0`, so a solve that got one variable and then stalled could
-           never trigger it, and the node went on re-deriving a state it had
-           already proven static -- then blamed the pass budget for the stop.
-           Issue4's derived arm solved th_1 in pass 1 and then repeated an
-           identical signature for nine further passes.
+           The stop must NOT be conditional on nothing having been solved.
+           A solve that gets one variable and then stalls would never trigger
+           such a test, and the node would go on re-deriving a state it has
+           already shown to be static, then blame the pass budget when it
+           finally stops.  Issue4's derived arm solves th_1 in pass 1 and then
+           repeats an identical signature for nine further passes.
 
            But `no_progress` must NOT be set here.  It does not mean "stop
            ticking";  ik_driver.run_solver() skips create_solution_set() when it

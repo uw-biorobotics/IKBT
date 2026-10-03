@@ -258,11 +258,12 @@ class x2z2_transform(b3.Action):
         # find the current unknown
         #   temp_r was accepted above because count_unknowns() == 1, i.e. it
         #   holds exactly one UNSOLVED unknown -- that is the one we want.
-        #   This loop used to assign on every match and keep the LAST one,
-        #   which could be an already-solved unknown also present in temp_r;
-        #   'if not unknown.solved' then silently skipped appending the new
-        #   equation while the leaf still returned SUCCESS.  It also shadowed
-        #   the imported unknown class with a local of the same name.
+        #   Take the FIRST unsolved match and stop.  Assigning on every
+        #   match and keeping the last one can land on an already-solved
+        #   unknown that also appears in temp_r, after which the new equation
+        #   is never appended although the leaf reports SUCCESS.  The loop
+        #   variable is `uu`, not `unknown`, so it cannot hide the imported
+        #   class of that name.
         target = None
         for uu in unknowns:
             if temp_r.has(uu.symbol) and not uu.solved:
@@ -276,8 +277,8 @@ class x2z2_transform(b3.Action):
         ######################################### NEW ###############
         ##  NEW  instead of solving it here, we just put it in the list
         # of one-unknown equations so that some other leaf can solve it
-        #   (the 'if not solved' test that used to wrap this is now part of
-        #    the search above, so it is unconditional here)
+        #   (the search above has already required an unsolved unknown, so
+        #    no further test is needed here)
         target.solvemethod += 'x2z2 transform and ' # only part of soln.
         R.kequation_aux_list.append(kc.kequation(temp_l,temp_r))
         #############################################################

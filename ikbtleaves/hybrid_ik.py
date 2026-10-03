@@ -354,8 +354,8 @@ class TestSolver018(unittest.TestCase):
         """A 6R table where EVERY triple qualifies:  all a and all d zero, so
            every set of three consecutive axes is concurrent.
 
-           This is the arm the dropped Pieper gate used to turn away, and the
-           one that proves simplified_arm closes the branch on its own."""
+           Such an arm needs no simplification at all, and it is the case
+           that shows simplified_arm closes the hybrid branch on its own."""
         import sympy as sp
         return sp.Matrix([[sp.pi/2, sp.Integer(0), sp.Integer(0),
                            sp.Symbol('th_%d' % (r+1))] for r in range(6)])
@@ -389,9 +389,9 @@ class TestSolver018(unittest.TestCase):
     def test_hybE_dof_count_ignores_the_unknown_list_entirely(self):
         """THE JOINT COUNT COMES FROM THE DH TABLE, NOT FROM THE UNKNOWNS.
 
-           M.ndof is set once in mechanism.__init__ from the DH table, so the
-           unknown list cannot influence it however it is mangled.  Two ways it
-           used to:
+           M.ndof is set once in mechanism.__init__ from the DH table, so
+           the unknown list cannot influence it however it is mangled.  Two
+           ways a count taken from the unknowns instead would go wrong:
 
              - kinematics_pickle() EXTENDS the list with sum-of-angle variables
                (th_23 has n = 23), which would inflate the count past 6 and
@@ -510,9 +510,9 @@ class TestSolver018(unittest.TestCase):
            the leaf FAILs rather than returning an empty choice.
 
            THIS IS THE HYBRID BRANCH'S GATE, as of 2026-08-31.  TODO:  this logic indicates this is a junk test as of 27-Sept.
-           pieper_geom_report no longer decides admission -- it cannot FAIL --
-           so every arm that failed symbolically
-           reaches this leaf -- including arms that have a qualifying triple.
+           pieper_geom_report does not decide admission -- it cannot FAIL --
+           so every arm that failed symbolically reaches this leaf, including
+           arms that do have a qualifying triple.
            candidate_simplifications() skips triples that already qualify, so an
            arm satisfying the condition on every triple yields nothing usable
            and the branch closes here, which is what makes dropping the Pieper
@@ -540,10 +540,9 @@ class TestSolver018(unittest.TestCase):
         """THE PROPERTY THAT MAKES DROPPING THE PIEPER GATE SAFE.   TODO:  this logic indicates this is a junk test as of 27-Sept.
 
            An arm whose every triple already satisfies Pieper's condition is
-           exactly the population the old `Sequence[no_pieper_id, ...]` gate
-           (now pieper_geom_report, verdict dropped)
-           existed to keep out of the hybrid branch.  With the gate gone, the
-           branch must still close on that arm -- and it does, one node later,
+           exactly the kind that has nothing to gain from the hybrid branch.
+           Nothing at the head of the branch turns such an arm away, so the
+           branch must close on it by itself -- and it does, one node later,
            because candidate_simplifications() skips triples that already
            qualify, leaving nothing to buy.  Unconditional, unlike hybI: this
            table has NO triple with a candidate, so FAILURE is the only correct

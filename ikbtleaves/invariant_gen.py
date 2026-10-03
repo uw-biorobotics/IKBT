@@ -200,8 +200,9 @@ def is_redundant(flat, known):
          identity, and scan_for_equations() already put that on the blackboard.
          Re-emitting it in the aux list is worse than useless:  updateL files aux
          equations as kequation(0, LHS-RHS), a different SHAPE from the
-         kequation(Td, Ts) the scanner produces, so the existing "if e1 not in
-         self.l1" dedup does not catch it and the duplicate survives.
+         kequation(Td, Ts) the scanner produces, so the existing
+         "if e1 not in self.l1" test does not recognise it as the same
+         equation and the duplicate survives.
 
        - Different matrix equations produce the SAME relation, often with every
          sign flipped.  Measured on Puma:  two of nine generated equations were
@@ -290,7 +291,7 @@ class invariant_gen(b3.Action):
        precedent for a transform living in the worktools Priority.
 
        The class default is OFF;  bt_assembly.build_worktools() switches the
-       tree's instance on.  To get the inert behaviour back:
+       tree's instance on.  To switch it off again:
        find(bt.root, 'Invariant Generator').enabled = False.
        Costs and benefits: IKdocs/DEV_NOTES.md.'''
 
@@ -374,7 +375,7 @@ class TestSolver012(unittest.TestCase):
         self.test_invG_rejects_restatement_of_an_element_eqn()
         self.test_invH_rejects_negated_duplicate()
         self.test_invI_skips_when_everything_is_solved()
-        self.test_invJ_dedups_candidates_within_one_run()
+        self.test_invJ_drops_duplicate_candidates_within_one_run()
         self.test_invK_is_off_by_default()
 
     #################################################################
@@ -544,8 +545,8 @@ class TestSolver012(unittest.TestCase):
         '''P . col_k degenerates to the bare element equation for P_k when the
            rotation block is the identity.  Those are already on the blackboard
            via scan_for_equations(), and updateL files aux equations in a
-           different shape so the existing dedup would not catch them.  The
-           generator must not emit them.'''
+           different shape, so the existing duplicate test would not
+           recognise them.  The generator must not emit them.'''
         sp.var('Px Py Pz th_2 th_3 th_23 a_2 a_3 d_3 d_4')
         fs = ' invariant_gen redundancy screen FAIL'
 
@@ -621,14 +622,14 @@ class TestSolver012(unittest.TestCase):
         self.assertEqual(status, b3.FAILURE, fs + ' (did not decline)')
         self.assertEqual(len(R.kequation_aux_list), 0, fs + ' (appended equations)')
 
-    def test_invJ_dedups_candidates_within_one_run(self):
+    def test_invJ_drops_duplicate_candidates_within_one_run(self):
         '''Two matrix equations sharing a position column give the SAME ||P||^2,
            and swapping Td/Ts gives its exact negation.  Neither duplicate is an
            element equation, so the only thing that can catch them is feeding
            each keeper back into the screen as it is accepted.  Real robots hit
            this:  Puma emitted an exact negated pair across matrix equations.'''
         sp.var('th_2 th_3 th_23')
-        fs = ' invariant_gen within-run dedup FAIL'
+        fs = ' invariant_gen within-run duplicate FAIL'
 
         same    = self.puma_like_meqn()            # identical relation
         flipped = self.puma_like_meqn()
@@ -646,7 +647,7 @@ class TestSolver012(unittest.TestCase):
                                           for e in R.kequation_aux_list)))
 
     def test_invK_is_off_by_default(self):
-        '''A freshly constructed leaf must be inert.
+        '''A freshly constructed leaf must do nothing.
 
            MEASURED, with it live in the fallback position:  Puma 28s -> 159s and
            Kawasaki 27s -> 126s, both for byte-identical output, and KinovaLite

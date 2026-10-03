@@ -12,8 +12,9 @@
 #   inside each branch.  b3.Sequence aborts on FAILURE, so a solve that got
 #   nowhere never reaches this leaf and no empty report is written.
 #
-#   OFF BY DEFAULT, so that library and test callers get an inert node and do
-#   not overwrite the repo's generated artifacts.  ikSolver.py opts in --
+#   OFF BY DEFAULT, so that other code and the tests get a node that does
+#   nothing and cannot overwrite the repo's generated files.  ikSolver.py is
+#   what switches it on --
 #
 #       bt = build_default_bt(codegen=True)
 #
@@ -49,8 +50,8 @@ class report_gen(b3.Action):
         self.Name = 'Report Generator'
         self.BHdebug = False
 
-        #  Follows the invariant_gen precedent:  a documented, default-off node
-        #  that is present in the tree and inert until switched on.
+        #  Follows the invariant_gen pattern:  a node that is in the tree,
+        #  documented, and does nothing until switched on.
         self.enabled = False
 
     def tick(self, tick):
@@ -135,11 +136,11 @@ class report_gen(b3.Action):
             if stashed:
                 R_true.pieper_latex = stashed
         except Exception as e:
-            #  DEGRADE, do not fail.  Without the true arm there is no Phase II
-            #  and no numeric correction -- but the closed form for the
-            #  simplified arm is real work and the report still says, in its own
-            #  section, which arm it describes.  Losing the whole solve here
-            #  would be the worse trade.
+            #  WARN, do not fail.  Without the true arm there is no Phase II
+            #  and no numerical correction -- but the closed form for the
+            #  simplified arm is real work, and the report still says, in its
+            #  own section, which arm it describes.  Throwing the whole solve
+            #  away here would be the worse trade.
             print(self.Name, ': could not load the true robot %r -- %s: %s'
                   % (true_name, type(e).__name__, e))
             print(self.Name, ': writing the report WITHOUT the numeric'
@@ -158,7 +159,7 @@ import unittest
 
 
 class TestSolver017(unittest.TestCase):
-    '''The codegen leaf -- specifically, that it stays inert until asked.
+    '''The codegen leaf -- specifically, that it does nothing until asked.
 
        No solve here, and no files:  the disabled path is checked by observing
        that it touches NOTHING, which is the property the rest of the test
@@ -169,7 +170,7 @@ class TestSolver017(unittest.TestCase):
         return
 
     def runTest(self):
-        self.test_outA_disabled_is_inert()
+        self.test_outA_disabled_writes_nothing()
         self.test_outB_disabled_needs_no_blackboard()
         self.test_outC_enabled_reports_a_bad_solution_set()
 
@@ -178,7 +179,7 @@ class TestSolver017(unittest.TestCase):
         t.root = node
         return t.tick('testing output_gen', bb)
 
-    def test_outA_disabled_is_inert(self):
+    def test_outA_disabled_writes_nothing(self):
         '''Disabled: SUCCESS, and create_solution_set() is NOT called.
 
            Double-calling create_solution_set() corrupts the solution set --

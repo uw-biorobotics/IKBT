@@ -468,12 +468,12 @@ class TestSolver004(unittest.TestCase):
            The Kawasaki equations below are the real ones.  cos(th_2) sits
            inside an unexpanded product, and match() is structural, so
                Cwx*cos(th_2) + Dwx   (Cwx, Dwx excluding sin/cos of th_2)
-           returns None.  tan_id used to assert on that and abort the whole
-           solve -- KawasakiRS007L stopped solving, having worked for years.
+           returns None.  An assert() on that would abort the whole solve
+           and cost KawasakiRS007L its solution.
 
-           The assert was safe only while the Wilds were unconstrained: an
+           An assert would be safe only while the Wilds are unconstrained: an
            unconstrained Wild never fails, returning {Cw: 0, Dw: <whole expr>},
-           which the count_unknowns() screen below then rejected.  Adding
+           which the count_unknowns() screen below then rejects.  Adding
            exclude= made match() correctly return None and converted that
            graceful rejection into a crash.
 
@@ -632,13 +632,14 @@ class TestSolver004(unittest.TestCase):
         subs = {d_3: d3_val}
         sin_expr  =  2*d_3*sp.sin(th_1) - 2*d3_val*float(sp.sin(th_true))
 
-        # the degenerate match that used to defeat the leaf
+        # the degenerate match an unconstrained Wild produces
         cos_neg = -3*d_3*sp.cos(th_1) + 3*d3_val*float(sp.cos(th_true))
         Cw, Dw = sp.Wild('Cw'), sp.Wild('Dw')
         self.assertTrue(cos_neg.match(Cw*sp.cos(th_1) + Dw)[Dw].has(sp.cos(th_1)),
-                        fs + ' (unconstrained Wild no longer degenerates -'
-                             ' the exclude= guards may now be redundant)')
-        # ... and the constrained form the leaf now uses, which does not
+                        fs + ' (the unconstrained Wild did NOT produce the'
+                             ' degenerate match -- the exclude= guards may be'
+                             ' unnecessary)')
+        # ... and the constrained form the leaf uses, which does not
         Cx = sp.Wild('Cx', exclude=[sp.sin(th_1), sp.cos(th_1)])
         Dx = sp.Wild('Dx', exclude=[sp.sin(th_1), sp.cos(th_1)])
         self.assertFalse(cos_neg.match(Cx*sp.cos(th_1) + Dx)[Dx].has(sp.cos(th_1)), fs)

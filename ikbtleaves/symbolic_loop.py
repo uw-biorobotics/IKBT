@@ -171,10 +171,10 @@ class TestSolver016(unittest.TestCase):
         self.test_loopF_no_unknowns_is_failure()
 
     def run_loop(self, child, nunk=3, max_loop=10, require_complete=None):
-        #  require_complete=None means "leave the node's own default alone".
-        #  It used to default to False and assign unconditionally, which
-        #  silently overrode the default in EVERY test -- so no test could
-        #  detect a change to it.
+        #  require_complete=None means "leave the node's own default alone",
+        #  and it must stay that way.  A helper that always assigned would
+        #  override the node's default in every test, so no test could see a
+        #  change to it.
         node = symbolic_loop(child, max_loop=max_loop)
         if require_complete is not None:
             node.require_complete = require_complete
