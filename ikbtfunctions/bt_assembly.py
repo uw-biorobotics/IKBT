@@ -312,7 +312,7 @@ def build_symbolic_branch(tag='', leaf_debug=False, solver_debug=False,
     #  on a robot that solves nothing, that is every pass, leaving the tree with
     #  no termination logic in exactly the case that needs it.
     #
-    #  Priority([x, Succeeder()]) swallows x's failure, so the pass always
+    #  Priority([x, Succeeder()]) hides x's failure, so the pass always
     #  reaches updateL and the completion detector.  Both are safe on a pass
     #  that achieved nothing:  updateL re-scans, comp_det only decides whether
     #  to stop.
@@ -380,7 +380,7 @@ def build_default_bt(leaf_debug=False, solver_debug=False, codegen=False,
        The solver reports whether it got anywhere, so a SECOND strategy can be
        tried when it did not, and each branch can emit its own artifacts.
 
-       codegen=False (the default) leaves report_gen inert, so building a tree
+       codegen=False (the default) makes report_gen do nothing, so building a tree
        writes no files and run_solver() still owns create_solution_set().
        codegen=True hands the whole tail end to the tree, and the caller must
        then pass run_solver(..., create_solutions=False):  create_solution_set()

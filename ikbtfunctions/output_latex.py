@@ -855,9 +855,10 @@ def output_latex_solution(Robot, variables, groups, hybrid=None, R_true=None,
             #  ONE equation per DISTINCT version.  A variable solved early has
             #  fewer versions than the matrix has rows and SHARES them between
             #  rows -- Puma's th_1 has 2 versions over 8 rows -- so walking the
-            #  rows printed each of its equations four times.  Dedup on the
-            #  version name (the LHS), keeping first-seen order:  list(set(..))
-            #  would work but reorders the output, differently from run to run.
+            #  rows printed each of its equations four times.  Keep one per
+            #  version name, in the order first seen:  list(set(..)) would
+            #  also remove the repeats, but it reorders the report, and
+            #  differently from run to run.
             eqnlist = []
             seen = set()
             for rowindex in range(Robot.nversions):

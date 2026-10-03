@@ -506,8 +506,8 @@ def sqrt_dc(x):
         colindex = node.unknown.solveorder-1  # select the unknown
         #  ONE assignment per DISTINCT version.  A variable solved early shares
         #  its versions between matrix rows (Puma's th_1:  2 versions, 8 rows),
-        #  so walking the rows emitted the same line four times.  Dedup on the
-        #  LHS in first-seen order.
+        #  so walking the rows blindly would write the same line four times.
+        #  Keep one per left-hand side, in the order first seen.
         eqnlist = []
         seen = set()
         for rowindex in range(Robot.nversions):

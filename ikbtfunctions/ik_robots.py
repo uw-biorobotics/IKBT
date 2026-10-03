@@ -467,7 +467,7 @@ def robot_params(name):
         #  reads self.vv[5] unconditionally when it builds the angular velocity
         #  chain (kin_cl.py:409), so a 5-DOF arm whose vv was not padded died
         #  with IndexError before the BT ever ticked.  The padding row is a
-        #  fixed joint, so 0 or 1 is equally inert -- but it must be present.
+        #  fixed joint, so 0 or 1 makes no difference -- but it must be there.
         vv = [0,1,1,1,1,0]
 
         variables = [unknown(d_1), unknown(th_2), unknown(th_3), unknown(th_4), unknown(th_5) ]

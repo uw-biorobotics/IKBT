@@ -863,8 +863,9 @@ def fk_**IDENT**(q):
 '''
 
     #  branch 0:  sin(3t), zero at every multiple of pi/3  -> 6 roots in [-pi, pi)
-    #  branch 1:  t/2,     zero at 0                       -> the same posture,
-    #                                                          so it dedups away
+    #  branch 1:  t/2,     zero at 0                       -> the same posture
+    #                                                          as one of those,
+    #                                                          so it is dropped
     #  branch 2:  1 + cos(t)/2, never below 0.5             -> dips, never a root
     IK_TOY = '''
 import numpy as np
@@ -1017,7 +1018,7 @@ def ikin_**IDENT**_given(T, d_1):
         #  branch 1 has its own root at t = 0, which is the same posture as
         #  branch 0's root there -- one solution, not two
         self.assertEqual(len([t for t in got if abs(t) < 1e-9]), 1,
-                         fs + ' (the duplicate posture was not deduplicated)')
+                         fs + ' (the duplicate posture was not removed)')
 
     def test_ovgD_a_dip_that_is_not_a_root_is_rejected(self):
         '''Branch 2 is 1 + cos(t)/2:  a clean local minimum of 0.5 at t = +/-pi,

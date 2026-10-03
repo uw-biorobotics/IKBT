@@ -3,9 +3,9 @@
 #   output_cpp.py --  the closed-form IK, in C++
 #
 #   The twin of output_python.output_python_code(), derived from it line by
-#   line:  the same walk of Robot.FinalEqnMatrix, the same first-seen dedup on
-#   the left-hand sides, the same joint/aux column split, and the same two
-#   entry points:
+#   line:  the same walk of Robot.FinalEqnMatrix, the same rule of keeping
+#   one equation per left-hand side in the order first seen, the same
+#   joint/aux column split, and the same two entry points:
 #
 #       known=None     ikin(T)             -- an unconditional closed form
 #       known='th_2'   ikin_given(T, th_2) -- the one-variable branch's closed

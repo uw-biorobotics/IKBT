@@ -2,13 +2,13 @@
 #
 #   texwidth.py --  which equations actually run off the page?
 #
-#   THE MEASUREMENT PROBLEM.  An equation is too wide when TeX cannot fit it in
-#   \textwidth -- which depends on the font, the margins, the environment it
-#   sits in (align does not wrap, dmath does), and how much of the line the LHS
-#   already used.  None of that is visible from the expression, so every cheap
-#   proxy tried here failed on measured data:  character count and count_ops are
-#   properties of the EXPRESSION, and overflow is a property of the TYPESET
-#   LINE.  See IKdocs/DEV_NOTES.md.
+#   THE MEASUREMENT PROBLEM.  An equation is too wide when TeX cannot fit it
+#   in \textwidth, which depends on the font, the margins, the environment it
+#   sits in (align does not wrap, dmath does), and how much of the line the
+#   left-hand side already used.  None of that can be seen in the expression
+#   itself, which is why every cheap estimate tried here failed when measured:
+#   character count and count_ops describe the EXPRESSION, while running off
+#   the page is a property of the TYPESET LINE.  See IKdocs/DEV_NOTES.md.
 #
 #   SO ASK TeX.  pdflatex already reports exactly this, in points, with source
 #   line numbers:
@@ -33,16 +33,18 @@ _OVERFULL = re.compile(
     r'Overfull \\hbox \(([0-9.]+)pt too wide\)'
     r'(?:[^\n]*?)(?:detected at line|in paragraph at lines)\s+(\d+)')
 
-#  Marker the generator writes on its own source line, immediately above each
-#  equation, so a reported line number can be attributed to an equation.
-#  marker for a LaTeX comment, so it never reaches the page.
+#  The generator writes this marker on its own source line immediately above
+#  each equation, which is what lets a line number in pdflatex's report be
+#  traced back to the equation on it.  It is a LaTeX comment, so it never
+#  reaches the printed page.
 MARKER = '%%IKBT-EQ '
 
 DEFAULT_TIMEOUT = 180
 
 
 def pdflatex_available():
-    '''Is there a pdflatex to ask?  The whole module degrades to [] without one.'''
+    '''Is there a pdflatex to ask?  Without one, every function here returns
+       an empty result rather than failing.'''
     return shutil.which('pdflatex') is not None
 
 
@@ -104,9 +106,9 @@ def ids_by_line(texpath):
 def overfull_ids(texpath, slack_pt=0.0, timeout=DEFAULT_TIMEOUT):
     '''{equation id: points too wide} -- the equations that need shortening.
 
-       slack_pt ignores overflows smaller than that.  TeX reports a box 3.7pt
-       over, which is about one character and not worth restructuring an
-       equation for;  the caller decides where the line is. '''
+       slack_pt ignores overflows smaller than that.  TeX will report a box
+       3.7pt over, which is about one character and not worth rewriting an
+       equation for;  the caller decides where to draw the line.'''
 
     by_line = overfull_by_line(texpath, timeout=timeout)
     if not by_line:
@@ -199,8 +201,9 @@ class TestSolver026(unittest.TestCase):
             os.unlink(path)
 
     def test_twD_missing_measurement_is_empty(self):
-        '''A file that cannot be read yields {}, not an exception.  This runs on
-           the report path, and a formatting step must never cost the report.'''
+        '''A file that cannot be read gives {}, not an exception.  This runs
+           while the report is being written, and a step that only improves
+           the layout must never destroy the report.'''
         fs = ' texwidth degradation FAIL'
         self.assertEqual(ids_by_line('/nonexistent/nope.tex'), {}, fs)
         self.assertEqual(overfull_by_line('/nonexistent/nope.tex'), {}, fs)

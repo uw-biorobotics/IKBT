@@ -16,29 +16,36 @@
 #         imports FK_numericKinovaLite_d_5_0.py      approximate arm, FK
 #         imports FK_numericKinovaLite.py            TRUE arm, FK *and Jacobian*
 #
-#   FOUR FILES, NOT ONE.  The hazard of this method is confusing the two arms,
-#   and separate files named for the arm they describe make that confusion
-#   visible instead of burying both arms in one namespace.  The top level is
-#   then small enough to read in one sitting.
+#   FOUR FILES, NOT ONE.  The thing that goes wrong with this method is
+#   confusing the two arms.  A file per arm, named for the arm it describes,
+#   makes that mistake visible, and leaves the top level short enough to read
+#   in one sitting.
 #
-#   THE TWO ENTRY POINTS, and why it is two and not one:
+#   THE ENTRY POINTS:
 #
-#       ikin_<Robot>_approx(T)      PHASE I.  Every closed-form solution of the
-#                                   APPROXIMATE arm for the goal pose T.
-#       refine_<Robot>(T, index)    PHASE II.  Damped least squares against the
-#                                   TRUE arm's FK, seeded from branch `index`.
+#       ikin_<Robot>_approx(T)              PHASE I.  Every closed-form
+#                                           solution of the APPROXIMATE arm
+#                                           for the goal pose T.
+#       refine_seed_<Robot>(T, q_seed)      PHASE IIa.  Damped least squares
+#                                           against the TRUE arm's forward
+#                                           kinematics, starting from q_seed.
+#       refine_all_<Robot>(T)               PHASE II.  Phase IIa applied to
+#                                           every seed Phase I returned.
 #
-#   A serial arm's IK branches -- elbow up and down, wrist flipped -- are
-#   genuinely different postures, and which one is wanted depends on obstacles,
-#   joint limits and where the arm is now, none of which this code knows.  So
-#   Phase I enumerates and Phase II commits, with a human or a planner choosing
-#   in between.  One call would pick a posture on the user's behalf.
+#   WHY PHASE IIa TAKES A JOINT VECTOR AND NOT AN INDEX.  A serial arm's IK
+#   branches -- elbow up and down, wrist flipped -- are genuinely different
+#   postures, and which one is wanted depends on obstacles, joint limits and
+#   where the arm is now, none of which this code knows.  Damped least squares
+#   stays near the posture it starts from, so the seed IS the choice of
+#   posture, and it is the caller's to make.  Normally the seed is the branch
+#   nearest where the arm is now, which need not be any of Phase I's.
 #
-#   PHASE I FILTERS.  IKBT enumerates combinations of each unknown's solution
-#   branches without discarding the spurious ones, so a returned branch is a
-#   candidate, not a solution.  Phase I evaluates the approximate arm's own FK
-#   on each branch and keeps those that reproduce T -- which is why the
-#   approximate arm's FK is imported and not merely its IK.
+#   PHASE I FILTERS ITS OWN ANSWERS.  IKBT enumerates every combination of the
+#   unknowns' solution branches without checking which ones survive the
+#   original equations, so what comes back is a list of candidates.  Phase I
+#   runs each through the approximate arm's own forward kinematics and keeps
+#   the ones that reach T -- which is why the approximate arm's FK is imported
+#   and not just its IK.
 #
 #   Copyright 2026 University of Washington
 #
@@ -52,9 +59,9 @@ import sympy as sp
 import ikbtbasics.numeric_ik as nik
 from ikbtfunctions.output_python import py_identifier
 
-#  RE-EXPORTED, not re-implemented.  These moved to output_numeric_common when
-#  the one-variable method started needing them too;  every existing caller
-#  spells them ohp.<name> and still works.
+#  These live in output_numeric_common, because the one-variable method needs
+#  them too.  Imported here so that a caller spelling them ohp.<name> still
+#  finds them.
 from ikbtfunctions.output_numeric_common import (DIR_NAME, ALLOWED_FUNCS,
                                                  MODULE_HEADER, POSE_ERROR_CORE,
                                                  expr_py, _matrix_py,
@@ -66,25 +73,18 @@ from ikbtfunctions.output_numeric_common import (DIR_NAME, ALLOWED_FUNCS,
 #    The hybrid top level
 #
 
-#  The numeric core, emitted verbatim:  damped least squares, and a COPY of
-#  ikbtbasics.numeric_ik, because the generated module has to stand on numpy
-#  alone and cannot import IKBT.
+#  The numerics, written straight into the generated module:  damped least
+#  squares, copied from ikbtbasics/numeric_ik.py.  It has to be a copy,
+#  because a generated module runs on numpy alone and cannot import IKBT.
 #
-#  A copy is a liability, so it is pinned:  TestSolver024 runs this generated
-#  refine() and numeric_ik.solve_numeric() on the same robot from the same seed
-#  and requires the same answer.
-#  The numeric core, emitted verbatim:  damped least squares, and a COPY of
-#  ikbtbasics.numeric_ik, because the generated module has to stand on numpy
-#  alone and cannot import IKBT.
+#  Keeping a copy in step by hand would not work, so it is checked instead:
+#  TestSolver024 runs this generated refinement and numeric_ik.solve_numeric()
+#  on the same robot from the same starting point and requires the same
+#  answer.
 #
-#  A copy is a liability, so it is pinned:  TestSolver024 runs this generated
-#  refine() and numeric_ik.solve_numeric() on the same robot from the same seed
-#  and requires the same answer.
-#
-#  POSE_ERROR_CORE is the half the one-variable method needs too -- how far one
-#  pose is from another -- so it lives in output_numeric_common and is prepended
-#  here.  The emitted CODE is unchanged;  only the comment banners moved, the
-#  DLS one down to sit over the DLS functions it describes.
+#  How far one pose is from another is needed by the one-variable method too,
+#  so that half lives in output_numeric_common as POSE_ERROR_CORE and is
+#  written out ahead of this.
 DLS_CORE = '''
 
 #############################################################
@@ -111,12 +111,14 @@ def jacobian_base(T, J66):
 
 def solve_numeric(fk, jac, q0, T_d, w_rot=W_ROT, tol=1e-9, max_iter=100,
                   lam0=1e-3, lam_min=1e-12, lam_max=1e12):
-    """Refine seed q0 until fk(q) matches T_d.  Returns a dict.
+    """Refine the starting joint vector q0 until fk(q) matches T_d.
+       Returns a dict.
 
-       Never raises on a bad step:  a singular solve or a non-finite FK is a
-       REJECTED step, which raises lam and tries again.  That is the whole
-       point of damping -- at a singularity an undamped Newton step does not
-       exist, and this must degrade rather than fail."""
+       A bad step never raises.  If the linear solve is singular, or the
+       forward kinematics comes back non-finite, the step is REJECTED:  the
+       damping lam goes up and it tries again.  That is what the damping is
+       for -- at a singular arm posture an undamped Newton step does not
+       exist at all, and this routine has to keep working there."""
     q = np.array(q0, dtype=float).flatten()
     lam = float(lam0)
     I6 = np.eye(6)
@@ -251,16 +253,17 @@ def write_hybrid_top(M_true, true_name, derived_name, edits_text, cost_text,
         print('JOINT_NAMES     = %r' % jnames, file=f)
         print('NDOF            = %d' % ndof, file=f)
         print('', file=f)
-        print('#  One characteristic arm length per radian:  the weight that puts', file=f)
-        print('#  position error and orientation error in comparable units.  It is', file=f)
-        print('#  baked in because nothing records a model\'s units and they are', file=f)
-        print('#  not consistent across the robot set:  some arms are in metres,', file=f)
-        print('#  some in millimetres.  This value is in the DH table\'s units.', file=f)
+        print('#  The weight that puts position error and orientation error', file=f)
+        print('#  into comparable units:  one characteristic arm length per', file=f)
+        print('#  radian.  It is written in here rather than defaulted because', file=f)
+        print('#  nothing records a model\'s units and they differ across the', file=f)
+        print('#  robot set -- some arms are in metres, some in millimetres.', file=f)
+        print('#  The value is in whatever length unit the DH table uses.', file=f)
         print('W_ROT           = %r' % float(w_rot), file=f)
         print('', file=f)
-        print('#  A Phase I branch is kept when its own arm reproduces the goal', file=f)
-        print('#  pose this closely.  Loose enough to survive float noise, tight', file=f)
-        print('#  enough that a spurious branch cannot pass.', file=f)
+        print('#  A Phase I branch is kept if the approximate arm reaches the', file=f)
+        print('#  goal pose at least this closely:  loose enough to survive', file=f)
+        print('#  rounding, tight enough to reject a branch that is not real.', file=f)
         print('APPROX_TOL      = 1e-6', file=f)
 
         print(REFINE_CORE, file=f)
@@ -282,14 +285,15 @@ def ikin_**IDENT**_approx(T, filter_spurious=True):
        Each entry is NDOF floats in JOINT_NAMES order.  Returns [] when the
        closed form reports the pose unreachable.
 
-       filter_spurious=True drops branches that do not actually reach T.  IKBT
-       enumerates combinations of each unknown's solution branches and does not
-       discard the ones that do not satisfy the original equations, so a
-       returned branch is a CANDIDATE.  Checking each against the approximate
-       arm's own FK is cheap and removes them;  pass False to see the raw list.
+       filter_spurious=True drops branches that do not actually reach T.
+       IKBT enumerates every combination of the unknowns' solution branches
+       without checking which ones satisfy the original equations, so what
+       comes back is a list of CANDIDATES.  Running each through the
+       approximate arm's own forward kinematics is cheap and weeds them out;
+       pass False to see the unfiltered list.
 
-       These are seeds, not answers.  Feed the index you want to
-       refine_**IDENT**()."""
+       THESE ARE SEEDS, NOT ANSWERS.  Pass the one you want to
+       refine_seed_**IDENT**()."""
 
     sols = approx_ik.ikin_**DIDENT**(np.matrix(np.asarray(T, dtype=float)))
     if sols is False:
@@ -361,11 +365,11 @@ def refine_seed_**IDENT**(T, q_seed, tol=1e-9, max_iter=100):
 
 #############################################################
 #
-#   PHASE II -- refine EVERY seed, so you can see which postures survive
+#   PHASE II -- refine EVERY seed, to see which postures survive
 #
-#   A wrapper over Phase IIa.  Diagnostic:  run it once to learn which
-#   branches the true arm can actually reach, then call refine_seed_**IDENT**
-#   on the one you want from then on.
+#   A wrapper around Phase IIa, for finding out which branches the true arm
+#   can actually reach.  Run it once, then call refine_seed_**IDENT** on the
+#   posture you want from then on.
 #
 #############################################################
 

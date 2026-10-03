@@ -164,10 +164,10 @@ def _levels(names, deps):
        points DOWNWARD and the drawing reads top to bottom in the order the
        solver could have discovered them.
 
-       The `seen` guard is for a cycle.  There should never be one -- a
-       variable cannot depend on something solved after it -- but a drawing
-       routine is the wrong place to discover that, so a cycle degrades to a
-       finite (if ugly) layout instead of infinite recursion."""
+       The `seen` set guards against a loop in the dependencies.  There
+       should never be one -- a variable cannot depend on something solved
+       after it -- but a drawing routine is the wrong place to find that out,
+       so a loop produces an ugly layout rather than endless recursion."""
 
     level = {}
 
@@ -196,11 +196,12 @@ def solution_graph_tikz(order, edges, eol='\n', caption=None, label=None):
        edges    iterable with .StartNode and .dependsOn (ikbtbasics Edge)
 
        AN ARROW MEANS "UNLOCKS":  it runs from a variable to one that becomes
-       solvable once it is known -- the reverse of the edge listing's wording
-       ('th_4 depends on: th_23').  Both conventions are in use:  software
-       dependency graphs (UML, package managers, make) point from the dependent
-       to what it needs, while scheduling and dataflow networks (PERT/CPM, task
-       graphs) point along topological order.
+       solvable once that variable is known.  That is the reverse of how the
+       edge listing words it ('th_4 depends on: th_23'), and both directions
+       are in common use -- a dependency diagram points from the dependent
+       thing to what it needs, while a schedule network (PERT/CPM) points the
+       way the work proceeds.  This figure follows the schedule convention,
+       so it reads downward in the order the solver could have worked.
 
        Rows come from the dependency depth rather than from solve order.
     """
@@ -225,9 +226,10 @@ def solution_graph_tikz(order, edges, eol='\n', caption=None, label=None):
     DX, DY = 2.3, 1.7
 
     out = r'\begin{figure}[htb]' + eol + r'\centering' + eol
-    #  SHRINK ONLY IF NEEDED.  A row is as wide as the number of variables that
-    #  share a dependency depth. This idiom scales the picture down to \textwidth when it would
-    #  overflow and leaves it alone when it fits, so a small graph is not blown
+    #  SHRINK ONLY IF NEEDED.  A row is as wide as the number of variables
+    #  that share a dependency depth, so a wide graph can overrun the page.
+    #  This \resizebox scales the picture down to \textwidth when it is too
+    #  wide and leaves it alone when it fits, so a small graph is not blown
     #  up to fill the page.
     out += (r'\resizebox{\ifdim\width>\textwidth \textwidth\else\width\fi}{!}{%'
             + eol)

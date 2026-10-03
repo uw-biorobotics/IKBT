@@ -10,10 +10,9 @@
 #   descends into FUNCTION ARGUMENTS (atan2's two arguments are exactly the
 #   pieces a person would name) and into the factors of a product.
 #
-#   ONE NAME PER DISTINCT SUBEXPRESSION.  A pool contains all subexpressions
-#   for all equations
-#   so a piece appearing in eight versions of a variable is defined once and
-#   referenced eight times.
+#   ONE NAME PER DISTINCT SUBEXPRESSION.  One pool holds the pieces of every
+#   equation, so a piece that appears in eight versions of a variable is
+#   defined once and referred to eight times.
 #
 #   Copyright 2026 University of Washington
 #
@@ -24,18 +23,18 @@ import sympy as sp
 
 
 #  WHEN AN EXPRESSION EARNS A NAME:  when it depends on MORE THAN TWO
-#  already-solved joint variables.  One or two dependencies read perfectly well
-#  inline (`a_2*cos(th_2)`);  past that the expression stops being a phrase and
-#  starts being a paragraph, and the reader loses the shape of the equation
-#  it sits in.  Three is the threshold, and it is a judgement about
-#  READABILITY, not about cost -- naming changes no arithmetic.
+#  already-solved joint variables.  One or two read perfectly well where they
+#  stand (`a_2*cos(th_2)`);  past that the expression stops being a phrase and
+#  becomes a paragraph, and the reader loses the shape of the equation around
+#  it.  Three is the threshold.  This is a judgement about READABILITY and not
+#  about arithmetic -- naming a piece changes no computation.
 MIN_DEPS = 3
 
 #  ...and big enough to be worth a name.  A sum-of-angles definition like
 #  th_2 + th_3 + th_4 has three dependencies and two operations;  naming it
-#  would replace something already short and perfectly readable with an
-#  indirection.  This guard is the only thing added to BH's rule, and it only
-#  ever suppresses a naming, never causes one.
+#  would replace something short and perfectly readable with a symbol the
+#  reader has to look up.  This second test only ever prevents a naming,
+#  never causes one.
 MIN_OPS = 6
 
 #  Tried in order.  The first whose names are all unused by the robot wins.
@@ -45,12 +44,12 @@ PREFIXES = ['K', 'C', 'G', 'W', 'Z']
 def dependency_names(Robot):
     """Every symbol name that refers to a previously-solved variable.
 
-       Three enumerations of the same variable appear in the report and all of them
-       count:  the bare unknown (th_1) in the generic solutions, its per-
-       solution name (th_1s2), and its per-version name (th_1v5).  Counting
-       only the bare form would score every equation in the "all versions"
-       section as having zero dependencies -- which is exactly the section with
-       the longest equations in it."""
+       The same variable is written three ways in the report, and all three
+       count:  the bare unknown (th_1) in the generic solutions, its
+       per-solution name (th_1s2), and its per-version name (th_1v5).
+       Counting only the bare form would score every equation in the "all
+       versions" section as depending on nothing -- and that is the section
+       with the longest equations in it."""
 
     names = set()
     for nd in getattr(Robot, 'solution_nodes', []) or []:

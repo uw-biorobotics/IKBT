@@ -1,11 +1,13 @@
 #!/usr/bin/python
 #
-#   output_numeric_common.py --  generated-python pieces more than one method needs
+#   output_numeric_common.py --  the generated-python pieces both numerical
+#                                methods need
 #
-#   The hybrid method and the one-variable method both emit standalone numeric
-#   modules, and they agree about the parts that are not specific to either:
-#   how a sympy expression becomes python, what a generated module may import,
-#   the FK callable for an arm, and how far one pose is from another.
+#   The hybrid method and the one-variable method each write python modules
+#   that run on their own.  The parts neither method owns live here:  printing
+#   a sympy expression as python, what such a module may import, the forward
+#   kinematics of an arm as a callable, and the measure of how far one pose is
+#   from another.
 #
 #   Copyright 2026 University of Washington
 #
@@ -22,15 +24,14 @@ from ikbtfunctions.output_python import py_identifier
 
 DIR_NAME = os.path.join('CodeGen', 'Python')
 
-#  Everything the generated modules may call.  `Abs` becomes the builtin abs();
-#  the rest come from math, exactly as the existing IK modules import them.
+#  Everything a generated module may call.  `Abs` is printed as the builtin
+#  abs();  the rest come from math, the way the IK modules already import
+#  them.
 #
-#  'Abs', NOT 'abs'.  The check below compares type(f).__name__ for each sympy
-#  Function atom, and sympy's absolute value is the class Abs -- no function is
-#  named lowercase 'abs', so that entry matched nothing and expr_py() REFUSED
-#  every expression containing an absolute value, although sp.pycode emits a
-#  perfectly good `abs(x)` for it.  Found 2026-09-29 by scripts/cpp_expr_check,
-#  which prints the same expression through both languages.
+#  'Abs' with a capital A, because the check below compares the CLASS NAME of
+#  each sympy function in the expression, and sympy's absolute value is the
+#  class Abs.  Nothing is named lowercase 'abs', so that spelling would match
+#  no expression and quietly refuse every one containing an absolute value.
 ALLOWED_FUNCS = {'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'atan2',
                  'sqrt', 'Abs', 'exp', 'log'}
 
@@ -55,9 +56,9 @@ pi = np.pi
 def expr_py(e):
     '''Python source for one sympy expression, or a raised ValueError.
 
-       sp.pycode() with fully_qualified_modules=False emits exactly the dialect
-       the generated modules already support -- bare sin/cos/sqrt/atan2 and a
-       bare pi -- so nothing has to be post-processed into shape.'''
+       sp.pycode() with fully_qualified_modules=False writes exactly what a
+       generated module already understands -- plain sin/cos/sqrt/atan2 and a
+       plain pi -- so nothing has to be patched up afterwards.'''
 
     src = sp.pycode(e, fully_qualified_modules=False)
     if 'ImmutableDenseMatrix' in src or 'Not supported' in src:
@@ -89,12 +90,12 @@ def _matrix_py(Mx, indent):
 def write_fk_module(M, name, jacobian=True, dirname=DIR_NAME, what=None):
     '''Write FK_numeric<name>.py:  fk_<name>(q), and optionally jacobian_<name>(q).
 
-       FK_numeric, NOT FK_equations.  output_python.output_FK_python_code()
-       already owns FK_equations<name>.py -- that is what fkOnly.py writes,
-       and it is a different artifact: a module-level dump of the symbolic
-       T_06 for reading, with dummy joint values.  This one is a pair of
-       numeric callables with the parameters baked in.  Sharing a filename
-       would mean whichever ran last silently replaced the other.
+       FK_numeric, never FK_equations.  output_python.output_FK_python_code()
+       already owns the name FK_equations<name>.py -- that is what fkOnly.py
+       writes, and it is a different thing:  the symbolic T_06 written out to
+       be read, with dummy joint values.  This one is a pair of functions you
+       call, with the link lengths already substituted in.  One name for both
+       would mean whichever ran last quietly replaced the other.
 
        M         a mechanism (Robot.Mech) -- T_06 and J66 come from it
        name      the robot name this arm is;  also the file name
@@ -103,12 +104,13 @@ def write_fk_module(M, name, jacobian=True, dirname=DIR_NAME, what=None):
 
        Returns the path written.
 
-       THE PARAMETERS ARE BAKED IN, not left as module globals to be overridden.
-       That is the opposite of what IK_equations*.py does, and deliberately:
-       these two functions are the definition of "the true arm" that Phase II
-       refines against.
+       THE LINK LENGTHS ARE SUBSTITUTED IN, not left as module variables a
+       caller could change.  IK_equations*.py does the opposite, on purpose:
+       these two functions ARE the definition of "the true arm" that the
+       hybrid method's correction step measures against, so they must not be
+       quietly pointed at a different robot.
 
-       pvals is resolved through numeric_ik.pvals_numeric()'''
+       The numerical values come from numeric_ik.pvals_numeric().'''
 
     ident = py_identifier(name)
     ndof = M.ndof
@@ -183,11 +185,12 @@ def write_fk_module(M, name, jacobian=True, dirname=DIR_NAME, what=None):
 #    How far one pose is from another
 #
 
-#  Emitted verbatim into every generated numeric module.  ONE definition of
-#  "closer" across the methods:  the residual [dp ; w_rot*theta*axis] and the
-#  scalar metric ||dp|| + w_rot*theta share one rotation parameterisation and
-#  one weight, so a hybrid refinement and a one-variable search cannot disagree
-#  about which of two joint vectors is nearer the goal.
+#  Copied verbatim into every generated numerical module, so that both
+#  methods measure "closer" the same way.  The residual [dp ; w_rot*theta*axis]
+#  and the single number ||dp|| + w_rot*theta describe the rotation the same
+#  way and use the same weight, so a hybrid refinement and a one-variable
+#  search cannot disagree about which of two joint vectors is nearer the
+#  goal.
 
 POSE_ERROR_CORE = '''
 
@@ -202,12 +205,13 @@ def rotation_angle_axis(Rerr):
     """(theta, axis) of a rotation matrix, theta in [0, pi].
 
        THETA COMES FROM atan2 OF THE SKEW NORM, NOT arccos((tr-1)/2).  arccos
-       has an infinite derivative at R = I, so the O(1e-16) rounding in the
-       trace comes back out as O(1e-8) radians, and w_rot scales that to
-       O(1e-6) in the metric -- a floor no search can see past, and one that
-       is quantised, so the curve near a root is a staircase rather than a V.
-       atan2 is linear in the perturbation and gives exactly 0.0 at R = I.
-       Same reasoning, and the same fix, as dh_analysis.py."""
+       has an infinite slope at R = I, so rounding of order 1e-16 in the trace
+       comes back out as an angle of order 1e-8 radians, which w_rot turns
+       into 1e-6 in the metric.  That is an error floor no search can see
+       past, and it comes in steps, so the error curve near a solution is a
+       staircase rather than a clean V.  atan2 of the skew norm grows linearly
+       with the perturbation and gives exactly 0.0 at R = I.  dh_analysis.py
+       computes its angles the same way, for the same reason."""
     Rerr = np.asarray(Rerr, dtype=float)
     skew = np.array([Rerr[2, 1] - Rerr[1, 2],
                      Rerr[0, 2] - Rerr[2, 0],
