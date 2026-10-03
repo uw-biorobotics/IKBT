@@ -59,6 +59,7 @@ import argparse
 import io
 import contextlib
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -105,6 +106,11 @@ DRIVER = '''
 
 #ifdef IKBT_DRIVER
 #include <cstdio>
+
+//  The robot's code is in namespace ikbt::**IDENT** now, and this driver is
+//  appended after it, outside both namespaces.
+using namespace ikbt;
+using namespace ikbt::**IDENT**;
 int main(void)
 {
     Mat4 T;
@@ -135,18 +141,36 @@ def classify(stderr):
     return 'other'
 
 
+#  Which entry point returns a SolutionList, on each path.  The DRIVER below
+#  calls exactly one function and prints what it returns, so the compile gate
+#  has to ask each robot for the one it HAS.
+_COMPILE_CALL = {
+    'symbolic': 'ikin(T)',
+    'onevar':   'ikin_given(T, 0.3)',
+    'hybrid':   'ikin_approx(T)',
+}
+
+
 def build(name, extra_arg=None, keep_dir=None):
-    '''Compile IK_equations<name>.cpp plus the driver.
+    '''Compile <name>.cpp plus the driver.
 
        Returns (binary path or None, kind, message).  kind is 'ok', 'missing',
        'XXXXX', 'undeclared' or 'other'.'''
 
-    src = os.path.join(cpp_dir(name), 'IK_equations%s.cpp' % name)
+    src = os.path.join(cpp_dir(name), '%s.cpp' % name)
     if not os.path.exists(src):
         return None, 'missing', 'no generated C++ at %s' % src
 
     ident = cpp_identifier(name)
-    call = 'ikin_%s(T%s)' % (ident, ', %s' % extra_arg if extra_arg else '')
+    #  Unqualified:  the driver carries `using namespace ikbt::<Ident>;`.
+    #  The entry point differs by path and the file says which path it is.
+    if extra_arg is not None:
+        call = 'ikin_given(T, %s)' % extra_arg
+    else:
+        path = detect_path(name)
+        if path is None:
+            return None, 'missing', 'no SOLUTION_PATH in %s' % src
+        call = _COMPILE_CALL[path]
 
     tmp = keep_dir or tempfile.mkdtemp(prefix='ikbt_cpp_')
     #  THE COPY GOES BESIDE THE ORIGINAL, as in _build_appended():  the
@@ -156,7 +180,7 @@ def build(name, extra_arg=None, keep_dir=None):
     bpath = os.path.join(tmp, 'check_%s' % ident)
     with open(cpath, 'w') as f:
         f.write(open(src).read())
-        f.write(DRIVER.replace('**CALL**', call))
+        f.write(DRIVER.replace('**CALL**', call).replace('**IDENT**', ident))
 
     try:
         cc = subprocess.run(['g++', '-std=c++11', '-O2', '-Wall', '-Wextra',
@@ -554,13 +578,18 @@ def check_dls(name, n_trials=6, seed=13, verbose=False):
 ONEVAR_DRIVER = """
 #ifdef IKBT_CHECK_DRIVER
 #include <cstdio>
+
+//  The robot's code is in namespace ikbt::**IDENT** now, and this driver is
+//  appended after it, outside both namespaces.
+using namespace ikbt;
+using namespace ikbt::**IDENT**;
 int main(void)
 {
     Mat4 T;
     for (int i = 0; i < 4; ++i)
         for (int j = 0; j < 4; ++j)
             if (std::scanf("%lf", &T[i][j]) != 1) return 2;
-    std::vector<OneVarSolution> sols = solve_**IDENT**(T);
+    std::vector<OneVarSolution> sols = solve(T);
     std::printf("%d %d\\n", (int) sols.size(), ONEVAR_NDOF);
     for (size_t i = 0; i < sols.size(); ++i) {
         std::printf("%.17g %.17g %d", sols[i].known_value, sols[i].error,
@@ -577,13 +606,18 @@ int main(void)
 HYBRID_DRIVER = """
 #ifdef IKBT_CHECK_DRIVER
 #include <cstdio>
+
+//  The robot's code is in namespace ikbt::**IDENT** now, and this driver is
+//  appended after it, outside both namespaces.
+using namespace ikbt;
+using namespace ikbt::**IDENT**;
 int main(void)
 {
     Mat4 T;
     for (int i = 0; i < 4; ++i)
         for (int j = 0; j < 4; ++j)
             if (std::scanf("%lf", &T[i][j]) != 1) return 2;
-    std::vector<RefineRecord> all = refine_all_**IDENT**(T);
+    std::vector<RefineRecord> all = refine_all(T);
     std::printf("%d %d\\n", (int) all.size(), NDOF);
     for (size_t i = 0; i < all.size(); ++i) {
         std::printf("%.17g %d %d", all[i].result.metric,
@@ -672,7 +706,7 @@ def check_onevar(name, n_poses=4, seed=17, verbose=False):
     ident = cpp_identifier(name)
     try:
         bpath, note = _build_appended(
-            os.path.join(cpp_dir(name), 'IK_onevar%s.cpp' % name),
+            os.path.join(cpp_dir(name), '%s.cpp' % name),
             ONEVAR_DRIVER.replace('**IDENT**', ident), tmp, ident)
         if bpath is None:
             return 0, 0, 0, None, note
@@ -728,7 +762,7 @@ def check_hybrid(name, n_poses=3, seed=19, verbose=False):
     ident = cpp_identifier(name)
     try:
         bpath, note = _build_appended(
-            os.path.join(cpp_dir(name), 'IK_hybrid_%s.cpp' % name),
+            os.path.join(cpp_dir(name), '%s.cpp' % name),
             HYBRID_DRIVER.replace('**IDENT**', ident), tmp, ident)
         if bpath is None:
             return 0, 0, 0, None, note
@@ -777,23 +811,23 @@ def check_hybrid(name, n_poses=3, seed=19, verbose=False):
 
 
 def detect_path(name):
-    """Which branch answered for this robot, from the artifacts on disk.
+    """Which branch answered for this robot, from the artifact on disk.
 
        The python twin does the same thing, for the same reason:  a caller
        with a robot name should not need to know which branch answered it.
-       The three entry points are distinguishable by FILE NAME, which is the
-       whole point of the naming discipline -- IK_equations<R> means an
-       unconditional closed form and appears only on the symbolic path.
+
+       The generator stamps the answer into the file as SOLUTION_PATH, and
+       this reads it back.  A file that says what it is cannot disagree with
+       itself.
 
        Returns 'symbolic', 'onevar', 'hybrid' or None."""
 
-    if os.path.exists(os.path.join(cpp_dir(name), 'IK_onevar%s.cpp' % name)):
-        return 'onevar'
-    if os.path.exists(os.path.join(cpp_dir(name), 'IK_hybrid_%s.cpp' % name)):
-        return 'hybrid'
-    if os.path.exists(os.path.join(cpp_dir(name), 'IK_equations%s.cpp' % name)):
-        return 'symbolic'
-    return None
+    path = os.path.join(cpp_dir(name), '%s.cpp' % name)
+    if not os.path.exists(path):
+        return None
+    with open(path) as f:
+        m = re.search(r'SOLUTION_PATH\s*=\s*"(\w+)"', f.read())
+    return m.group(1) if m else None
 
 
 def main():

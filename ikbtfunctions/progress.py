@@ -2,10 +2,9 @@
 #
 #   progress.py --  tell the user what a long solve is doing
 #
-#   A full IK solve runs from a second to many minutes, and for most of that
-#   time the old output was silent -- so the one question a user could ask,
-#   "is this working or is it stuck?", had no answer.  One compact line per
-#   pass answers it.
+#   A full IK solve runs from a second to many minutes, most of it inside
+#   sympy with nothing to show.  One compact line per pass answers the only
+#   question a user has while waiting:  is this working, or is it stuck?
 #
 #   WHAT MAKES THIS TRUSTWORTHY:  the solved count is MONOTONIC.  set_solved()
 #   never un-solves a variable, so the count can only rise.  Rising means the
@@ -54,9 +53,9 @@ def _say(msg):
 
 #####################################################################
 #
-#   The sympy meter.  IN USE, opt-in:  `ikSolver.py <Robot> --perf` is the only
-#   thing that turns it on (it was a module constant, so it used to need a
-#   source edit).  See IKdocs/TESTING.md, "When a robot looks hung".
+#   The sympy meter.  IN USE, opt-in:  `ikSolver.py <Robot> --perf` is the
+#   only thing that turns it on.  See IKdocs/TESTING.md, "When a robot looks
+#   hung".
 #
 #   sp.simplify() dominates a solve's wall clock, and the calls are scattered
 #   over a dozen leaves so the meter wraps sp.simplify and sp.trigsimp once,
@@ -79,17 +78,16 @@ def enable_sympy_meter(slow_call_s=2.0):
        without it the solver goes silent for however long the call takes.
 
        WHAT IT PATCHES, AND WHY IT IS NOT Basic.simplify (BH, 2026-09-04).
-       This used to wrap the METHOD, Basic.simplify -- and the solver leaves
-       almost never call it that way:
+       The solver leaves almost always call the FUNCTION, not the method:
 
            sp.simplify(...)     26 call sites        <- the function
            sp.trigsimp(...)     12
            .simplify(...)        6 call sites        <- the method
 
-       so the meter counted a fraction of the work and, worse, the heartbeat
-       stayed silent through the long calls.  Puma would print its pass-1 line
-       and then say nothing for minutes while pinned at 100% CPU, which is
-       indistinguishable from being hung -- and was reported as exactly that.
+       Wrapping the method would therefore meter a fraction of the work and
+       leave the heartbeat silent through the long calls -- Puma printing its
+       pass-1 line and then nothing for minutes while pinned at 100% CPU,
+       which is indistinguishable from being hung.
 
        Basic.simplify does `from sympy.simplify.simplify import simplify` and
        calls it, so patching the FUNCTION catches the method too;  the method
@@ -187,7 +185,7 @@ def meter_stats():
 class SolveProgress(object):
     '''One of these per symbolic solve.  symbolic_loop owns it.
 
-       The contract is one banner at the start and one (or two) lines per pass.
+       It prints one banner at the start and one (or two) lines per pass.
        Nothing here decides anything -- it only reports -- so it is always safe
        to leave on, and `enabled = False` silences it completely for tests.'''
 
@@ -452,14 +450,12 @@ class TestSolver021(unittest.TestCase):
     def test_progress_line_states_what_is_left(self):
         '''The progress line reports a COUNT, and never a time estimate.
 
-           There used to be an ETA here -- "about 5s more, at most 16s" -- and
-           three tests pinning its arithmetic.  It was removed because the
-           passes are nowhere near uniform:  on Puma, passes 1 and 5-8 run about
-           a second each while 2-4 take 2.7 minutes together, so an estimate
-           formed after pass 1 announced "about 6s more" for a solve that ran
-           2.8 minutes.  What is tested now is that no such projection comes
-           back -- a wrong estimate is worse than no estimate, because a reader
-           acts on it.'''
+           NO ETA, deliberately, and this test is what keeps one from
+           appearing.  The passes are nowhere near uniform:  on Puma, passes 1
+           and 5-8 run about a second each while 2-4 take 2.7 minutes
+           together, so an estimate formed after pass 1 would announce "about
+           6s more" for a solve that runs 2.8 minutes.  A wrong estimate is
+           worse than no estimate, because a reader acts on it.'''
 
         import io as _io
         import contextlib as _cl
@@ -582,11 +578,10 @@ class TestSolver021(unittest.TestCase):
     def test_meter_is_reversible(self):
         """enable/disable must leave every patched name exactly as found.
 
-           THE NAME THAT MATTERS IS THE FUNCTION, not Basic.simplify.  This test
-           used to assert the METHOD was wrapped, which pinned the very defect
-           it was meant to guard:  the leaves call sp.simplify() 26 times and
-           the method 6, so metering the method missed most of the work and the
-           slow-call heartbeat never fired.  Basic.simplify delegates to the
+           THE NAME THAT MATTERS IS THE FUNCTION, not Basic.simplify.  The
+           leaves call sp.simplify() 26 times and the method 6, so metering
+           the method alone would miss most of the work and the slow-call
+           heartbeat would never fire.  Basic.simplify delegates to the
            function, so patching the function catches both paths -- and the
            method is deliberately left alone, or every call would be counted
            twice.

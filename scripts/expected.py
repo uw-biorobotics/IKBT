@@ -65,16 +65,13 @@ EXPECT = {
 
     #  --------------------------------------------------------------------
     #  Added 2026-09-05, from the first full 32-robot closed-loop sweep.
-    #  Nothing had ever measured these:  the old table covered 8 robots and
-    #  was written by hand.
     'Bartell':      (2, 2),
     'Minder13':     (2, 2),
     'Frei13':       (4, 4),
     'Srisuan11':    (4, 4),
     'KawasakiRS007L': (8, 8),
 
-    #  HYBRID, and new.  Panda is one of the three arms the old Pieper gate
-    #  turned away;  it now solves 6/6 on the derived arm and all eight refined
+    #  HYBRID.  Panda solves 6/6 on the derived arm, and all eight refined
     #  poses reach the true arm.
     'Panda':        (8, 8),
 
@@ -112,20 +109,20 @@ EXPECT = {
     'Craig417':     (2, 4),
     'MiniDD':       (1, 4),
 
-    #  OUT OF UNCHECKABLE, 2026-09-29.  Both used to raise from inside the
-    #  generated python and could not be measured at all.
+    #  A DOMAIN ERROR IS DATA, NOT A FAULT.  A negative discriminant or an
+    #  out-of-range arccosine means that BRANCH has no solution at that pose,
+    #  so sqrt_dc() and acos_dc() give NaN and only the postures that exist
+    #  come back.
     #
-    #  KR16 died on `sqrt(): expected a nonnegative input, got -202.2`.  A
-    #  negative discriminant means that BRANCH has no solution at that pose --
-    #  data, not a fault -- so sqrt_dc() returns NaN and the four postures
-    #  that DO exist are returned.  They reproduce the pose to 5.6e-16, and
-    #  the generated C++ agrees bit for bit.  4 of 4, not 4 of 8: the other
-    #  four do not exist there, and are no longer counted as branches.
+    #  KR16's discriminant goes negative at the probe pose (-202.2).  The four
+    #  postures that do exist reproduce it to 5.6e-16, and the generated C++
+    #  agrees bit for bit.  4 of 4, not 4 of 8:  the other four do not exist
+    #  there, so they are not branches.
     'KR16':         (4, 4),
 
-    #  DZhang died on an out-of-range arccosine, now NaN via acos_dc().  It is
-    #  a KNOWN INCOMPLETE like the entries above, not a clean solve.  Its `h`
-    #  is a REAL dh parameter and was never the problem.
+    #  DZhang hits an out-of-range arccosine, which acos_dc() gives as NaN.
+    #  A KNOWN INCOMPLETE like the entries above, not a clean solve.  Its `h`
+    #  is a REAL dh parameter and is not the problem.
     'DZhang':       (1, 2),
 
     'Mackler13':    (1, 4),
@@ -195,24 +192,25 @@ def judge_counts(name, good, total):
 #    What a finished solve owes the user, and where it lands
 #
 
-#  Eleven kinds, because the three paths write different sets and WHICH set
-#  appeared is the thing worth asserting.  Each python artifact now has a C++
-#  twin, and the two are owed together:  a path that emits one and not the
-#  other is a half-finished path, which is exactly the state C++ generation
-#  was in before Sept 2026.
+#  Seven kinds.  The three paths write different sets, and WHICH set appeared
+#  is the thing worth asserting:  a path that emits some of what it owes and
+#  not the rest is a half-finished path.
 #
 #      tex          the report                    every path
 #      py           closed-form IK                symbolic path, and the
 #                                                 DERIVED arm on the hybrid one
-#      cpp          ... the same, in C++          ditto
 #      hybrid       the two-phase top level       hybrid path, TRUE name only
-#      cpp_hybrid   ... the same, in C++          ditto
 #      onevar       the 1-D search                one-variable path
-#      cpp_onevar   ... the same, in C++          ditto
 #      cond         closed form given one value   one-variable path
-#      cpp_cond     ... the same, in C++          ditto
-#      fk           FK (+ Jacobian) callables     hybrid and one-variable paths
-#      cpp_fk       ... the same, in C++          ditto
+#      fk           FK (+ Jacobian) callables     every path
+#      cpp_robot    ALL of the above, in C++      every path, TRUE name only
+#
+#  ONE C++ KEY, WHERE PYTHON HAS FIVE.  The C++ is one translation unit per
+#  robot -- <Robot>.cpp, holding FK, Jacobian and whichever IK was found -- so
+#  there is one artifact to owe however the robot was solved.  The python side
+#  keeps a module per artifact because a python module is the unit of import.
+#  A DERIVED arm owes no C++ of its own:  its sections live inside the true
+#  robot's file.
 #
 #  A name here is an ARM, not a robot:  on the hybrid path the true robot and
 #  the derived arm each own some of these, and both are checked.
@@ -220,26 +218,21 @@ def artifact_paths(name, robot=None):
     #  robot is the ROBOT THE USER ASKED ABOUT;  name is the arm the file
     #  describes.  They differ only on the hybrid path, and only the C++
     #  cares:  python files are flat in CodeGen/Python/, but the C++ is one
-    #  directory per robot and the derived arm's files live in the TRUE
-    #  robot's directory, beside the entry point that includes them.
+    #  directory per robot, and the derived arm has no C++ file of its own.
     robot = robot or name
     cppdir = os.path.join('CodeGen', 'Cpp', '%sCppCode' % robot)
     return {
         'tex':    os.path.join('LaTex', 'ik_solution_%s.tex' % name),
         'py':     os.path.join('CodeGen', 'Python', 'IK_equations%s.py' % name),
-        'cpp':    os.path.join(cppdir, 'IK_equations%s.cpp' % name),
         'hybrid': os.path.join('CodeGen', 'Python', 'IK_hybrid_%s.py' % name),
         'onevar': os.path.join('CodeGen', 'Python', 'IK_onevar%s.py' % name),
         'cond':   os.path.join('CodeGen', 'Python', 'IK_conditional%s.py' % name),
         'fk':     os.path.join('CodeGen', 'Python', 'FK_numeric%s.py' % name),
 
-        #  The C++ twins.  FK is a HEADER, not a .cpp:  something else
-        #  includes it, exactly as the python FK module is imported as a
-        #  sibling.  See ikbtfunctions/output_cpp_common.write_fk_module_cpp.
-        'cpp_hybrid': os.path.join(cppdir, 'IK_hybrid_%s.cpp' % name),
-        'cpp_onevar': os.path.join(cppdir, 'IK_onevar%s.cpp' % name),
-        'cpp_cond':   os.path.join(cppdir, 'IK_conditional%s.cpp' % name),
-        'cpp_fk':     os.path.join(cppdir, 'FK_numeric%s.h' % name),
+        #  The C++, all of it.  Named for the ROBOT, not for this arm:  on the
+        #  hybrid path the derived arm has no file of its own, it is sections
+        #  inside the true robot's.  See ikbtfunctions/output_cpp_robot.py.
+        'cpp_robot': os.path.join(cppdir, '%s.cpp' % robot),
     }
 
 
@@ -255,21 +248,21 @@ def artifacts_owed(branch, complete):
                  themselves.
        complete  did the arm that was actually solved solve every unknown?
 
-       A RULE, NOT A PER-ROBOT TABLE.  This used to be five hand-written entries
-       in bt_path_gate.EXPECTED, so it asserted nothing about the other 27
-       robots.  The contract is not per-robot -- it follows from the path and
-       from whether the solve finished -- so writing it once applies it to
-       every robot in the sweep.
+       A RULE, NOT A PER-ROBOT TABLE.  What to expect is not per-robot -- it
+       follows from the path and from whether the solve finished -- so
+       writing it once applies it to every robot in the sweep.
 
        NOTHING when the solve did not complete.  symbolic_loop carries
        require_complete = True on both instances:  a closed form for SOME of the
        joints is not inverse kinematics, so the branch FAILs, the outer Sequence
        aborts, and report_gen never ticks.
 
-       NO 'py' AND NO 'cpp' UNDER THE TRUE NAME ON THE HYBRID PATH.  There is no
-       closed form for that robot -- that is why the path was taken -- so a file
-       claiming to be one would be a simplified arm's equations shipped under
-       the real robot's name.  That is the one thing this method must never do,
+       NO 'py' UNDER THE TRUE NAME ON THE HYBRID PATH.  There is no closed form
+       for that robot -- that is why the path was taken -- so a file claiming to
+       be one would be a simplified arm's equations shipped under the real
+       robot's name.  C++ says the same thing with a FUNCTION name: inside
+       <True>.cpp the derived arm's closed form is ikin_<Derived>(), and there
+       is no plain ikin().  That is the one thing this method must never do,
        and it is why the sets are compared EXACTLY: an unexpected artifact is a
        failure, not just a missing one.
 
@@ -280,22 +273,24 @@ def artifacts_owed(branch, complete):
        makes them usable and is the entry point;  'fk' is what the search
        measures against.
 
-       EVERY PYTHON ARTIFACT IS OWED WITH ITS C++ TWIN.  Before Sept 2026 the
-       two fallback paths emitted no C++ at all and this rule said so;  now
-       they do, and pairing them here is what keeps a half-emitted path from
-       passing.  The naming discipline carries over unchanged -- 'cpp' means
-       an unconditional closed form in C++ and appears in exactly the places
-       'py' does."""
+       'fk' AND 'cpp_robot' ARE OWED ON EVERY PATH.  The report has a Forward
+       Kinematics section and a Jacobian section whichever path wrote it, so
+       the generated code has them on every path too.
+
+       'cpp_robot' IS THE WHOLE C++ DELIVERABLE:  one file per robot, holding
+       FK, Jacobian and whichever IK was found.  Which path produced it is in
+       the file's own SOLUTION_PATH constant, which detect_path() reads."""
 
     if not complete:
         return NOTHING, NOTHING
     if branch == 'hybrid':
-        return (frozenset({'tex', 'hybrid', 'fk', 'cpp_hybrid', 'cpp_fk'}),
-                frozenset({'py', 'fk', 'cpp', 'cpp_fk'}))
+        #  The derived arm owes python only:  its C++ is inside cpp_robot.
+        return (frozenset({'tex', 'hybrid', 'fk', 'cpp_robot'}),
+                frozenset({'py', 'fk'}))
     if branch == 'onevar':
-        return (frozenset({'tex', 'onevar', 'cond', 'fk',
-                           'cpp_onevar', 'cpp_cond', 'cpp_fk'}), NOTHING)
-    return frozenset({'tex', 'py', 'cpp'}), NOTHING
+        return (frozenset({'tex', 'onevar', 'cond', 'fk', 'cpp_robot'}),
+                NOTHING)
+    return frozenset({'tex', 'py', 'fk', 'cpp_robot'}), NOTHING
 
 
 def fresh_since(paths, t0):

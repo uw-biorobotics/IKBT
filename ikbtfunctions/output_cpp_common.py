@@ -1,16 +1,14 @@
 #!/usr/bin/python
 #
-#   output_cpp_common.py --  generated-C++ pieces more than one method needs
+#   output_cpp_common.py --  the C++ generation pieces all three methods share
 #
-#   The twin of output_numeric_common.py, and derived from it row by row:  how
-#   a sympy expression becomes C++, what a generated translation unit may
-#   include, how a robot's parameters are declared, and how the hand-written
-#   numerics in Cpp_src/ get into the file.
+#   Printing a sympy expression as C++, the #include lines a generated file
+#   needs, declaring a robot's parameters, and writing out FK and the Jacobian.
 #
-#   THE PYTHON GENERATOR IS THE SPECIFICATION.  Every function here has a named
-#   counterpart in output_python.py or output_numeric_common.py and is expected
-#   to produce the same numbers;  scripts/cpp_expr_check.py and
-#   scripts/cpp_closed_loop_check.py assert that rather than assume it.
+#   Every function here mirrors one in output_python.py or
+#   output_numeric_common.py and must produce the same numbers.  The python
+#   generator is the specification;  scripts/cpp_expr_check.py and
+#   scripts/cpp_closed_loop_check.py check that the two really do agree.
 #
 #   Copyright 2026 University of Washington
 #
@@ -19,6 +17,7 @@
 
 import os
 import re
+from io import StringIO as _StringIO
 
 import sympy as sp
 
@@ -29,29 +28,25 @@ import ikbtbasics.numeric_ik as nik
 #  subdirectory under this one -- see robot_dir().
 DIR_NAME = os.path.join('CodeGen', 'Cpp')
 
-#  Cpp_src/ IS SOURCE, on the LaTex_src/ precedent:  hand-written C++ that the
-#  generator reads and inlines, so a generated .cpp is self-contained.  It is
-#  deliberately not under CodeGen/, which cleanCodeGenOutput wipes.
+#  Cpp_src/ holds hand-written C++ shipped with IKBT, so it sits outside
+#  CodeGen/, which cleanCodeGenOutput wipes.
 #
-#  RESOLVED AGAINST THIS MODULE, not the working directory -- unlike DIR_NAME
-#  above, and for the opposite reason.  Output belongs wherever the user ran
-#  IKBT from;  this is material shipped with the package and is in one place
-#  whatever the caller's cwd happens to be.  A test in tests.leavestest
-#  chdir's, and a relative path here made the C++ generator fail inside the
-#  suite while working perfectly from the repo root.
+#  Absolute, and resolved against THIS MODULE rather than the working
+#  directory.  Generated output belongs wherever the user ran IKBT from, but
+#  Cpp_src/ is always in the same place;  a test that chdir's would not find
+#  it by a relative path.
 SRC_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                        'Cpp_src')
 
-#  Everything a generated module may call.  The SAME SET as
-#  output_numeric_common.ALLOWED_FUNCS -- the point of the whitelist is that
-#  the two languages accept exactly the same expressions, so that an equation
-#  IKBT can emit as python it can also emit as C++.  sympy's C++ printer maps
-#  each of these into <cmath>.
+#  Everything a generated file may call.  The same set as
+#  output_numeric_common.ALLOWED_FUNCS, so that any equation IKBT can write as
+#  python it can also write as C++.  sympy's C++ printer maps each into
+#  <cmath>.
 ALLOWED_FUNCS = {'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'atan2',
                  'sqrt', 'Abs', 'exp', 'log'}
 
-#  The banner.  MODULE_HEADER's twin;  **WHAT** and **ROBOT** substitute the
-#  same way.
+#  The banner at the top of a generated file.  file_header() substitutes
+#  **WHAT**, **ROBOT** and **FILE**.
 FILE_HEADER = '''//
 //  **WHAT**
 //
@@ -67,24 +62,18 @@ FILE_HEADER = '''//
 //
 '''
 
-#  What a parameter with no numerical value is emitted as.  A DELIBERATE
-#  COMPILE STOP:  g++ says "'XXXXX' was not declared in this scope" and names
-#  the line, so a missing link length cannot be silently defaulted to
-#  something wrong.  Documented in CodeGen/HOWTO.txt.
-#
-#  It used to fire for EVERY parameter, including the robots whose pvals are
-#  complete -- 25 of 26 generated files could not be compiled, which is why
-#  none of them had ever been checked.  Now it fires only where python would
-#  also have written XXXXX.
+#  What a parameter with no numerical value is emitted as.  A deliberate
+#  compile stop:  g++ says "'XXXXX' was not declared in this scope" and names
+#  the line, so a missing link length cannot be quietly defaulted to something
+#  wrong.  Documented in CodeGen/HOWTO.txt.
 NO_VALUE = 'XXXXX'
 
 
 def cpp_identifier(name):
     """A robot name turned into a valid C++ identifier.
 
-       py_identifier()'s twin, and the same rules apply for the same reason:
-       'C-Arm' is a legal robot name, a legal file name and a legal LaTeX
-       label, but 'ikin_C-Arm' is a subtraction."""
+       The twin of py_identifier().  'C-Arm' is a legal robot name and a legal
+       file name, but 'ikin_C-Arm' would compile as a subtraction."""
 
     ident = re.sub(r'\W', '_', str(name))
     if ident and ident[0].isdigit():
@@ -95,21 +84,16 @@ def cpp_identifier(name):
 def expr_cpp(e):
     '''C++ source for one sympy expression, or a raised ValueError.
 
-       expr_py()'s twin, and the reason the old generator's defects are gone
-       rather than fixed:  sp.cxxcode is a real C++ printer, so
+       expr_py()'s twin.  sp.cxxcode is a real C++ printer, so
 
            (Px - a_1)**2   ->  std::pow(Px - a_1, 2)
            sin(x)**2       ->  std::pow(std::sin(x), 2)
            atan2(y,x)+pi/2 ->  std::atan2(y, x) + M_PI_2
            Abs(x)          ->  std::fabs(x)
 
-       all come out right.  What it replaced was a two-line regex over the
-       printed python that handled `x**2` and `sin(x)**2` and silently left
-       `(Px - a_1)**2` as invalid C++ -- which is what Arm_3 and UR5 shipped.
-
-       It also prints every Rational as `(1.0/3.0)`, so there is no integer
-       division hazard, and every Float at 17 significant digits, so a baked
-       parameter keeps the value python had.'''
+       It prints every Rational as `(1.0/3.0)`, so 1/3 cannot become integer
+       division, and every Float at 17 significant digits, so a baked-in
+       parameter keeps exactly the value python had.'''
 
     src = sp.cxxcode(sp.sympify(e), standard='c++11')
     if 'Not supported' in src or '// Not supported' in src:
@@ -125,10 +109,10 @@ def expr_cpp(e):
 def read_src(basename):
     '''One Cpp_src/ header, verbatim.
 
-       For reading a header to CHECK it:  the tests compile each one on its
-       own, which is the whole reason Cpp_src/ holds files rather than string
-       literals in this module.  Generated files reach these headers by a
-       relative #include, which src_includes() emits.'''
+       For reading a header in order to check it:  the tests compile each one
+       on its own, which is why Cpp_src/ holds real files rather than string
+       literals in this module.  Generated files reach the headers by the
+       relative #include that src_includes() writes.'''
 
     path = os.path.join(SRC_DIR, basename)
     with open(path) as f:
@@ -138,26 +122,25 @@ def read_src(basename):
 def src_includes(names, dirname):
     """`#include` lines for the Cpp_src/ headers a generated file needs.
 
-       ONE COPY OF THE SHARED NUMERICS for the whole package, so a fix to
-       ikbt_search.h reaches every robot already generated without
+       There is ONE copy of the shared numerics for the whole package, so a
+       fix to ikbt_search.h reaches every robot already generated, without
        regenerating anything.
 
-       THE PATH IS COMPUTED, NOT SPELLED OUT.  From a robot directory it
-       comes out as ../../../Cpp_src/ikbt_types.h, but
+       The path is computed with relpath rather than spelled out.  From a
+       robot directory it comes out as ../../../Cpp_src/ikbt_types.h, but
        scripts/cpp_closed_loop_check.py stages generated files into a
        temporary directory at no fixed depth, where a hardcoded `../../../`
-       would be wrong.  relpath is right from anywhere.
+       would miss.
 
-       `#include "..."` resolves against the INCLUDING FILE's directory, so
-       nothing here needs -I:
+       `#include "..."` resolves against the including file's own directory,
+       so a generated file needs no -I:
            g++ -std=c++11 -O2 file.cpp -o x -lm
+       The headers include each other the same way and are siblings, so they
+       need no handling here either.
 
-       The headers' own `#include "ikbt_*.h"` lines need no handling:  they
-       are siblings inside Cpp_src/ and find each other there.
-
-       Caller supplies the order;  these are five small files and a
-       dependency solver for them would be more machinery than the problem.
-       The order that works is types, linalg, pose_error, dls, search.
+       The caller supplies the order;  with five small headers a dependency
+       solver would be more machinery than the problem.  The order that works
+       is types, linalg, pose_error, dls, search.
     """
 
     rel = os.path.relpath(SRC_DIR, os.path.abspath(dirname))
@@ -168,15 +151,17 @@ def src_includes(names, dirname):
 def robot_dir(name, dirname=None):
     """CodeGen/Cpp/<name>CppCode/ -- one directory per robot, created.
 
-       ONE SOLVE PER ROBOT, so one directory per robot, named for the robot
-       the user ASKED ABOUT.  A hybrid solve emits files under two names --
-       IK_hybrid_Panda.cpp and IK_equationsPanda_a_3_0_a_4_0.cpp -- and they
-       are one deliverable: the entry point includes the derived arm's closed
-       form as a sibling.  So they share PandaCppCode/, and a derived arm
-       never gets a directory of its own.  Which arm each file describes is
-       in its NAME, which is where that distinction belongs.
+       The directory is named for the robot the USER ASKED ABOUT, and holds
+       that robot's <name>.cpp.  A hybrid solve describes two arms, and both
+       go in that one file;  the derived arm is distinguished by a suffix on
+       its function names (ikin_Panda_a_3_0_a_4_0), never by a directory of
+       its own.
 
-       dirname overrides the whole path, for callers staging into a temp
+       A robot collects more than one artifact here -- FK_numeric<name>.h if
+       fkOnly.py has been run, plus whatever the user builds beside it --
+       which is why each gets a directory rather than a bare file.
+
+       dirname overrides the whole path, for callers staging into a temporary
        directory.
     """
 
@@ -204,18 +189,15 @@ def file_header(what, robot, filename):
 def param_values(M, params=None):
     '''{Symbol: float} for the parameters that HAVE a value, as python bakes them.
 
-       Mech.params, NOT Robot.params, for the same reason output_python.py
-       gives:  Mech.params also carries the ca_i / sa_i that
-       forward_kinematics() invented for a twist angle that is not a multiple
-       of 90 degrees, and those appear in the equations.  Here an omission is a
-       COMPILE error rather than a runtime one, since C++ needs every name
-       declared -- which makes it the better of the two failures, but only
-       once the values that DO exist are actually emitted.
+       Mech.params, not Robot.params, and for the reason output_python.py
+       gives:  Mech.params also carries the ca_i / sa_i symbols that
+       forward_kinematics() invents for a twist angle that is not a multiple
+       of 90 degrees, and those appear in the equations.
 
        pvals_numeric() resolves the 'np.cos(al_1)' string fallbacks that
-       kin_cl still writes for an alpha it cannot evaluate.  If it cannot
-       resolve the lot, fall back to the raw dict rather than lose the
-       parameters that were fine.'''
+       kin_cl writes for an alpha it cannot evaluate.  If it cannot resolve
+       them all, fall back to the raw dict rather than lose the parameters
+       that were fine.'''
 
     try:
         return nik.pvals_numeric(M)
@@ -234,14 +216,10 @@ def param_values(M, params=None):
 def param_decls(M, params=None, indent=''):
     '''`const double a_2 = 0.432;` for every declared parameter.
 
-       NAMESPACE SCOPE, not inside ikin().  That mirrors python, where the
-       parameters are module-level so a caller can inspect or override them;
-       the old C++ declared them as locals inside the function, where nothing
-       outside could see them.
-
-       `const`, because the python module's values come from the robot
-       definition and overriding one at runtime means you have a different
-       robot.  A user editing the file to supply an XXXXX edits a const.'''
+       Emitted at namespace scope rather than inside ikin(), mirroring python,
+       where the parameters are module-level.  `const`, because the values
+       come from the robot definition:  changing one at runtime would mean a
+       different robot.'''
 
     decl = list(params if params is not None
                 else (getattr(M, 'params', None) or []))
@@ -269,10 +247,9 @@ def param_decls(M, params=None, indent=''):
 def matrix_cpp(Mx, var, indent='    '):
     '''A sympy Matrix as C++ statements filling `var`, one element per line.
 
-       _matrix_py()'s twin.  An element at a time rather than a braced
-       initialiser:  the expressions are long (Puma's T_06 runs to hundreds of
-       characters), and one element per line is what makes a compiler
-       diagnostic point at something.'''
+       _matrix_py()'s twin.  One element per statement rather than a braced
+       initialiser, because the expressions are long -- Puma's T_06 runs to
+       hundreds of characters per element.'''
 
     lines = []
     for i in range(Mx.rows):
@@ -284,12 +261,7 @@ def matrix_cpp(Mx, var, indent='    '):
 
 def joint_unpack_cpp(syms, indent='    '):
     '''`const double th_1 = q[0];` ... -- the twin of python's tuple unpack.
-
-       With a (void) sweep after it.  Not every matrix mentions every joint --
-       a wrist's J66 does not depend on its own first angle -- and an unused
-       const is a -Wunused-variable warning.  Unpacking all of them keeps the
-       block identical for every robot and every matrix, which is worth more
-       than the warnings cost to silence.'''
+    '''
 
     lines = ['%sconst double %s = q[%d];' % (indent, str(s), i)
              for i, s in enumerate(syms)]
@@ -302,8 +274,8 @@ def joint_unpack_cpp(syms, indent='    '):
 def pose_unpack_cpp(indent='    '):
     '''r_11..r_33, Px, Py, Pz out of a Mat4.
 
-       The same twelve names the equations are written in, and the same
-       ROW-MAJOR reading python does:  T[0,3] is Px in both.'''
+       The same twelve names the equations are written in, read row-major
+       exactly as python reads them:  T[0,3] is Px in both.'''
 
     lines = []
     for i in range(3):
@@ -313,10 +285,9 @@ def pose_unpack_cpp(indent='    '):
     for k, nm in enumerate(('Px', 'Py', 'Pz')):
         lines.append('%sconst double %s = T[%d][3];' % (indent, nm, k))
 
-    #  Not every arm's solution mentions all twelve -- a wrist uses no
-    #  position at all -- and an unused const is a -Wunused-variable warning.
-    #  Declaring them unconditionally keeps the block identical for every
-    #  robot, which is worth more than the warnings cost to silence.
+    #  Not every arm's solution mentions all twelve, and an unused `const`
+    #  draws a warning.  Declaring them all and casting each to void keeps
+    #  this block identical for every robot.
     names = ['r_%d%d' % (i + 1, j + 1) for i in range(3) for j in range(3)]
     names += ['Px', 'Py', 'Pz']
     lines.append('%s(void) %s;' % (indent, '; (void) '.join(names)))
@@ -326,9 +297,8 @@ def pose_unpack_cpp(indent='    '):
 def name_table_cpp(names, var, indent=''):
     '''`const char* const JOINT_NAMES[] = {"th_1", ...};` plus its length.
 
-       The twin of python's JOINT_NAMES list.  C has no way to hand back a
-       name with a value, so the ORDER is the contract and this table is what
-       documents it.'''
+       The twin of python's JOINT_NAMES list:  which joint sits at each
+       position of a returned row.'''
 
     if not names:
         #  A zero-length array is ill-formed in C++;  one empty slot is not.
@@ -348,41 +318,87 @@ def write_fk_module_cpp(M, name, jacobian=True, dirname=None, what=None):
     '''Write FK_numeric<name>.h -- fk_<name>(q), and optionally jacobian_<name>(q).
 
        The twin of output_numeric_common.write_fk_module(), argument for
-       argument, with the same guard and the same reasoning:
+       argument.
 
-       FK_numeric, NOT FK_equations.  output_python.output_FK_python_code()
-       owns FK_equations<name>, which is a readable dump of the symbolic T_06
-       with dummy joint values -- a different artifact.  Sharing the name would
-       mean whichever ran last silently replaced the other.
+       FK_numeric, never FK_equations:  output_python.output_FK_python_code()
+       owns the name FK_equations<name>, and that is a different artifact -- a
+       readable dump of the symbolic T_06 with dummy joint values.  Sharing
+       one name would mean whichever ran last quietly replaced the other.
 
-       A HEADER, not a .cpp, because something else includes it.  The python
-       twin is a module the hybrid and one-variable modules import as a
-       sibling;  `#include "FK_numeric<name>.h"` searches the including file's
-       own directory first, so the two arrangements are the same arrangement.
-       Everything is `inline`, so several translation units may include it.
-
-       It `#include`s ikbt_types.h from Cpp_src/ by relative path, as every
-       generated file does.  The include guards make that safe however many
-       of them end up in one translation unit.
+       The header pulls in ikbt_types.h from Cpp_src/ by relative path, as
+       every generated file does;  its include guard makes it safe to include
+       several of these in one translation unit.
 
        Written into CodeGen/Cpp/<name>CppCode/ unless dirname says otherwise.
-       On the hybrid path THAT IS THE TRUE ROBOT'S DIRECTORY even when this
-       is the derived arm's FK, because the two are one deliverable and the
-       entry point includes this file as a sibling.
-
-       THE PARAMETERS ARE BAKED IN, not left as overridable globals -- the
-       opposite of IK_equations*, and deliberately: these functions are the
-       definition of "the true arm" that Phase II refines against.
-
-       Only the first ndof columns of J66.  It is stored 6x6 for every robot
-       and the surplus columns of a short arm are NOT zero -- a padded DH row
-       still gets a column computed for it -- so handing them to the solver
-       would let it move joints the arm does not have.
+       On the hybrid path that is the TRUE robot's directory even when the FK
+       is the derived arm's, since the two arms are one deliverable.
 
        Returns the path written.'''
 
     dirname = robot_dir(name, dirname)
     ident = cpp_identifier(name)
+    filename = 'FK_numeric%s.h' % name
+    path = os.path.join(dirname, filename)
+    guard = 'IKBT_FK_NUMERIC_%s_H' % ident.upper()
+
+    #  Build the text first, then open the file.  fk_body_cpp() raises if the
+    #  arm's pvals do not resolve every parameter, and open(path, 'w')
+    #  truncates before the first write, so generating into a buffer is what
+    #  keeps a failure from replacing a good header with half of a new one.
+    #
+    #  owner=None, so the function names carry the arm's identifier:  a
+    #  standalone header sits directly in `namespace ikbt`, with no per-robot
+    #  namespace to keep its `fk` from colliding with another robot's.
+    body = _StringIO()
+    fk_body_cpp(M, name, body, jacobian=jacobian, inline=True)
+
+    with open(path, 'w') as f:
+        print(file_header(what or 'Forward kinematics for %s' % name,
+                          name, filename), file=f)
+        print('#ifndef %s' % guard, file=f)
+        print('#define %s' % guard, file=f)
+        print('', file=f)
+        print(src_includes(['ikbt_types.h'], dirname), file=f)
+        print('', file=f)
+        print('namespace ikbt {', file=f)
+        print('', file=f)
+        f.write(body.getvalue())
+        print('}   // namespace ikbt', file=f)
+        print('', file=f)
+        print('#endif   // %s' % guard, file=f)
+
+    return path
+
+
+def fk_suffix(name, owner):
+    """'' for the arm that owns the namespace, '_<ident>' for any other.
+
+       Inside `namespace ikbt::Panda` the true arm's forward kinematics is
+       just `fk()`:  the namespace already says which robot it is.  A derived
+       arm sharing that namespace keeps its suffix, so that `fk()` and
+       `fk_Panda_a_3_0_a_4_0()` cannot be mistaken for each other."""
+
+    if owner is None or str(name) != str(owner):
+        return '_' + cpp_identifier(name)
+    return ''
+
+
+def fk_body_cpp(M, name, f, jacobian=True, owner=None, inline=True):
+    """fk(), jacobian() and their name table, into an already-open stream.
+
+       The part of write_fk_module_cpp() that is the same wherever it lands --
+       a standalone FK_numeric<name>.h or a robot's own <Robot>.cpp -- which
+       is everything except the banner, the include guard and the namespace.
+       Keeping it separate lets one <Robot>.cpp hold the FK of two arms, which
+       the hybrid path needs.
+
+       owner   the robot whose namespace this is emitted into;  see
+               fk_suffix().  None means the suffixed, standalone spelling.
+       inline  mark the two functions `inline`.  A header needs it, and so
+               does a robot file, since nothing stops a user including one."""
+
+    ident = cpp_identifier(name)
+    sfx = fk_suffix(name, owner)
     ndof = M.ndof
     syms = nik.joint_symbols(M, ndof)
     pv = nik.pvals_numeric(M)
@@ -399,76 +415,66 @@ def write_fk_module_cpp(M, name, jacobian=True, dirname=None, what=None):
                              'resolve every parameter'
                              % (label, name, [str(s) for s in extra]))
 
-    filename = 'FK_numeric%s.h' % name
-    path = os.path.join(dirname, filename)
-    guard = 'IKBT_FK_NUMERIC_%s_H' % ident.upper()
+    kw = 'inline ' if inline else ''
+    what_arm = ('' if not sfx else '   (%s)' % name)
 
-    with open(path, 'w') as f:
-        print(file_header(what or 'Forward kinematics for %s' % name,
-                          name, filename), file=f)
-        print('#ifndef %s' % guard, file=f)
-        print('#define %s' % guard, file=f)
-        print('', file=f)
-        print(src_includes(['ikbt_types.h'], dirname), file=f)
-        print('', file=f)
-        print('namespace ikbt {', file=f)
-        print('', file=f)
+    #  Into a buffer, then out in one piece.  On the hybrid path this body
+    #  lands in the middle of a <Robot>.cpp that already holds another arm, so
+    #  a half-written section would spoil the whole robot, not one header.
+    f, _out = _StringIO(), f
 
-        print('//  Joint order is the DH CHAIN order, which is what a q vector', file=f)
-        print('//  must be in.  It is NOT the order the solver happened to', file=f)
-        print('//  solve them in, and it excludes sum-of-angle intermediates.', file=f)
-        print(name_table_cpp([str(s) for s in syms],
-                             'FK_JOINT_NAMES_%s' % ident), file=f)
-        print('const int NDOF_%s = %d;' % (ident, ndof), file=f)
-        print('', file=f)
+    print('//  Joint order is the DH CHAIN order, which is what a q vector', file=f)
+    print('//  must be in.  It is NOT the order the solver happened to', file=f)
+    print('//  solve them in, and it excludes sum-of-angle intermediates.', file=f)
+    print(name_table_cpp([str(s) for s in syms], 'FK_JOINT_NAMES%s' % sfx),
+          file=f)
+    print('const int NDOF%s = %d;' % (sfx, ndof), file=f)
+    print('', file=f)
 
-        print('//  q -> 4x4 homogeneous transform of frame 6 in the base frame.', file=f)
-        print('inline Mat4 fk_%s(const JointVec &q)' % ident, file=f)
+    print('//  q -> 4x4 homogeneous transform of frame 6 in the base frame.%s'
+          % what_arm, file=f)
+    print('%sMat4 fk%s(const JointVec &q)' % (kw, sfx), file=f)
+    print('{', file=f)
+    print(joint_unpack_cpp(syms), file=f)
+    print('    Mat4 T;', file=f)
+    print(matrix_cpp(T, 'T'), file=f)
+    print('    return T;', file=f)
+    print('}', file=f)
+    print('', file=f)
+
+    if jacobian:
+        print('//  q -> 6 x %d Jacobian, EXPRESSED IN FRAME 6.%s'
+              % (ndof, what_arm), file=f)
+        print('//', file=f)
+        print('//  Frame 6, not the base frame:  that is what IKBT computes', file=f)
+        print('//  and stores as J66.  Rotate it with jacobian_base() before', file=f)
+        print('//  comparing against a pose error, which lives in the base', file=f)
+        print('//  frame.', file=f)
+        print('%sMatrix jacobian%s(const JointVec &q)' % (kw, sfx), file=f)
         print('{', file=f)
         print(joint_unpack_cpp(syms), file=f)
-        print('    Mat4 T;', file=f)
-        print(matrix_cpp(T, 'T'), file=f)
-        print('    return T;', file=f)
+        print('    Matrix J(6, std::vector<double>(%d, 0.0));' % ndof, file=f)
+        print(matrix_cpp(J, 'J'), file=f)
+        print('    return J;', file=f)
         print('}', file=f)
         print('', file=f)
 
-        if jacobian:
-            print('//  q -> 6 x %d Jacobian, EXPRESSED IN FRAME 6.' % ndof, file=f)
-            print('//', file=f)
-            print('//  Frame 6, not the base frame:  that is what IKBT computes', file=f)
-            print('//  and stores as J66.  Rotate it with jacobian_base() before', file=f)
-            print('//  comparing against a pose error, which lives in the base', file=f)
-            print('//  frame.', file=f)
-            print('inline Matrix jacobian_%s(const JointVec &q)' % ident, file=f)
-            print('{', file=f)
-            print(joint_unpack_cpp(syms), file=f)
-            print('    Matrix J(6, std::vector<double>(%d, 0.0));' % ndof, file=f)
-            print(matrix_cpp(J, 'J'), file=f)
-            print('    return J;', file=f)
-            print('}', file=f)
-            print('', file=f)
-
-        print('}   // namespace ikbt', file=f)
-        print('', file=f)
-        print('#endif   // %s' % guard, file=f)
-
-    return path
+    _out.write(f.getvalue())
+    return ident
 
 
 #####################################################################
 #
 #   Test code
 #
-#  TestSolver031, and the number matters:  the generator this replaced
-#  carried a `TestSolver010`, which is x2y2_transform's number.  leavestest
-#  does `from ikbtleaves.x2y2_transform import *` and then imports nothing
-#  from output_cpp, so the C++ generator's one test class was shadowed and
-#  had never run -- which is the mechanical reason six defects sat in it for
-#  years.
+#  The class number must be unique across the whole package.  tests/leavestest
+#  imports * from every leaf module, so two test classes of the same name
+#  would leave one of them shadowed and silently never run.
 #
-#  FAST AND OFFLINE.  Everything here is string-level or one small robot from
-#  the FK cache;  the checks that need a solve or a long compile live in
-#  scripts/cpp_closed_loop_check.py, which is not part of this suite.
+#  Everything here is string-level or one small robot out of the FK cache, so
+#  the suite stays fast and needs no network.  The checks that need a full
+#  solve or a long compile live in scripts/cpp_closed_loop_check.py, which is
+#  not part of this suite.
 
 import os as _os
 import shutil as _shutil
@@ -478,8 +484,9 @@ import unittest
 
 
 class TestSolver031(unittest.TestCase):
-    '''The C++ generator's bottom layer:  identifiers, the expression printer,
-       parameter declarations, header inlining, and one real FK header.'''
+    '''The C++ generator's bottom layer:  identifiers, the expression
+       printer, parameter declarations, the Cpp_src/ includes, and one real
+       FK header generated and compiled.'''
 
     def runTest(self):
         self.test_cpp_common()
@@ -511,8 +518,8 @@ class TestSolver031(unittest.TestCase):
         self.assertEqual(cpp_identifier('Puma'), 'Puma')
         self.assertTrue(cpp_identifier('3Dof')[0] == '_')
 
-        #  2.  THE REGRESSIONS.  Each of these was mis-emitted by the `**`
-        #      regex the old generator used instead of a C++ printer.
+        #  2.  The expression printer.  Each of these is a case where
+        #      python's spelling is not valid C++.
         Px, a_1, th_1, x = sp.symbols('Px a_1 th_1 x')
 
         src = expr_cpp((Px - a_1) ** 2)
@@ -522,7 +529,7 @@ class TestSolver031(unittest.TestCase):
         src = expr_cpp(sp.sin(th_1) ** 2)
         self.assertNotIn('**', src)
 
-        #  pi at FULL precision, not the eight digits the old one hardcoded.
+        #  pi at full precision, as a <cmath> constant.
         src = expr_cpp(sp.pi + x)
         self.assertIn('M_PI', src)
         self.assertNotIn('3.1415926 ', src)
@@ -531,7 +538,7 @@ class TestSolver031(unittest.TestCase):
         src = expr_cpp(x / 3)
         self.assertIn('1.0/3.0', src)
 
-        #  Abs -> std::fabs, which the python whitelist used to refuse.
+        #  Abs -> std::fabs.
         self.assertIn('fabs', expr_cpp(sp.Abs(x)))
 
         #  ... and something outside the shared whitelist is REFUSED rather
@@ -550,18 +557,18 @@ class TestSolver031(unittest.TestCase):
         self.assertIn('const double d_4 = XXXXX', text)
         self.assertEqual(missing, ['d_4'])
 
-        #  4.  The Cpp_src/ includes are RELATIVE TO THE INCLUDING FILE, so
-        #      they are right from a robot directory and right from a staging
-        #      directory, and neither needs -I.
+        #  4.  The Cpp_src/ includes are relative to the including file, so
+        #      they work from a robot directory and from a staging directory
+        #      alike, and neither needs -I.
         lines = src_includes(['ikbt_types.h', 'ikbt_dls.h'],
                              _os.path.join(DIR_NAME, 'PumaCppCode'))
         self.assertEqual(lines.split('\n'),
                          ['#include "../../../Cpp_src/ikbt_types.h"',
                           '#include "../../../Cpp_src/ikbt_dls.h"'])
-        #  normpath, not exists():  the `..` steps are resolved TEXTUALLY
-        #  here.  exists() would walk them through the filesystem and need
-        #  PumaCppCode to have been created, which is a fact about a solve
-        #  having been run, not about the path arithmetic being right.
+        #  normpath, not exists():  resolve the `..` steps textually.  Going
+        #  through the filesystem would require PumaCppCode to exist, which
+        #  depends on a solve having been run -- not on the path arithmetic
+        #  being right, which is what is under test.
         for ln in lines.split('\n'):
             rel = ln.split('"')[1]
             self.assertTrue(_os.path.isfile(_os.path.normpath(
@@ -577,7 +584,7 @@ class TestSolver031(unittest.TestCase):
             print('  no g++ -- skipping the compile checks')
             return
 
-        #  5.  Every Cpp_src/ header compiles ON ITS OWN.  That is the whole
+        #  5.  Every Cpp_src/ header compiles on its own, which is the whole
         #      reason they are files rather than strings in this module.
         for h in ('ikbt_types.h', 'ikbt_linalg.h', 'ikbt_pose_error.h',
                   'ikbt_dls.h', 'ikbt_search.h'):
@@ -596,7 +603,7 @@ class TestSolver031(unittest.TestCase):
                         % err[:600])
         print('  all five together      compile')
 
-        #  6.  ONE REAL FK HEADER, end to end.  Wrist is the fast robot and it
+        #  6.  One real FK header, end to end.  Wrist is the fast robot and
         #      comes out of the FK cache in milliseconds.
         import io
         import contextlib

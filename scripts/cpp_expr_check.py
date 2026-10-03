@@ -55,8 +55,8 @@ def standing_set():
     th_1, th_2 = sp.symbols('th_1 th_2')
 
     return [
-        #  THE REGRESSIONS.  Each of these was mis-emitted by the hand-rolled
-        #  `**` regex in the old output_cpp.py.
+        #  CASES WHERE PYTHON'S SPELLING IS NOT VALID C++, which is where
+        #  an expression printer earns its keep.
         ('compound base squared',      (Px - a_1) ** 2),
         ('trig squared',               sp.sin(th_1) ** 2),
         ('nested compound',            (Px - a_1 * sp.cos(th_1)) ** 2),
@@ -262,10 +262,10 @@ def run(exprs, verbose=False, seed=7):
 
 ###############################################################################
 #
-#    The out-of-domain contract
+#    Out-of-domain behaviour
 #
 
-#  ONE CONTRACT, TWO SPELLINGS.  An arccosine whose argument leaves [-1, 1]
+#  BOTH LANGUAGES MUST GIVE NaN.  An arccosine whose argument leaves [-1, 1]
 #  must yield NaN and propagate it, in BOTH languages -- that is what lets the
 #  generated code decide reachability at the end instead of guarding at every
 #  arcsine.  C++ gets it for free (std::acos already returns NaN); python does
@@ -307,7 +307,7 @@ def _emitted_helpers():
     return ns
 
 
-def check_domain_contract(verbose=False):
+def check_domain_behaviour(verbose=False):
     """Do the two languages agree about an out-of-domain arccosine?"""
 
     from ikbtfunctions.output_cpp_common import read_src
@@ -331,7 +331,7 @@ def check_domain_contract(verbose=False):
                          cpath, '-o', bpath, '-lm'],
                         capture_output=True, text=True)
     if cc.returncode != 0:
-        print('COMPILE FAILED in the domain contract check')
+        print('COMPILE FAILED in the out-of-domain check')
         print(cc.stderr[:1500])
         return 1
 
@@ -343,7 +343,7 @@ def check_domain_contract(verbose=False):
             got[int(k)] = float(v)
 
     bad = 0
-    print('\n  out-of-domain contract  (NaN, not an exception, in both)')
+    print('\n  out-of-domain behaviour  (NaN, not an exception, in both)')
     for i, (label, psrc, csrc) in enumerate(DOMAIN_CASES):
         try:
             pv = float(eval(psrc, {'__builtins__': {}}, ns))
@@ -394,7 +394,7 @@ def main():
         exprs = exprs + robot_equations(args.robot)
 
     rc = run(exprs, verbose=args.verbose)
-    rc |= check_domain_contract(verbose=args.verbose)
+    rc |= check_domain_behaviour(verbose=args.verbose)
     return rc
 
 

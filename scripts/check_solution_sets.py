@@ -381,8 +381,8 @@ def check_robot(name, n_poses, verbose=False):
 
 #  Prefix on a note that means "this robot has nothing for this script to
 #  check", as opposed to "the check could not be run".  Carried as a prefix
-#  rather than a second return value so that check_robot()'s (summary, note)
-#  contract is unchanged for every existing caller.
+#  rather than a second return value so that check_robot() still returns
+#  (summary, note) for every existing caller.
 NOT_APPLICABLE = 'n/a: '
 
 

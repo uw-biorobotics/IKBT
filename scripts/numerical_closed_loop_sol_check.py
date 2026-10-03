@@ -43,11 +43,10 @@ import sympy as sp
 from scripts.expected import EXPECT, judge_counts
 
 
-#  THE EXPECTATION TABLE LIVES IN scripts/expected.py.  It used to live here as
-#  KNOWN_GOOD, and in two other files besides, over overlapping sets of the same
-#  robots -- three hand-maintained copies with no mechanism to agree.  EXPECT
-#  carries (good, total) per robot:  how many branches must reproduce the pose
-#  and how many branches there should be.  See that module for why both.
+#  THE EXPECTATION TABLE LIVES IN scripts/expected.py, in one place for every
+#  script that needs it.  EXPECT carries (good, total) per robot:  how many
+#  branches must reproduce the pose, and how many branches there should be.
+#  See that module for why both.
 #
 #  KinovaLite is the hybrid entry, and it converges on ALL EIGHT branches from
 #  a raw seed error of 43-57 mm down to 1e-12..1e-9 in 4 or 5 iterations.  That
@@ -484,8 +483,8 @@ def detect_path(name):
        READ OFF THE ARTIFACTS, not re-derived.  The alternative -- re-solving
        and asking the blackboard -- would make the checker's answer depend on a
        second solve rather than on what was actually shipped, which is the one
-       thing a checker of generated code must not do.  The naming contract is
-       what makes this reliable, one file per path under the TRUE robot's name:
+       thing a checker of generated code must not do.  What makes it reliable
+       is the naming:  one file per path, under the TRUE robot's name:
 
            IK_hybrid_<name>.py     only the hybrid path writes this
            IK_onevar<name>.py      only the one-variable path writes this

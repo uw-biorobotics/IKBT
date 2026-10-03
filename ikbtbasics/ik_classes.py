@@ -108,9 +108,9 @@ def kinematics_pickle(rname, dh, constants, pvals, vv, unks,
 
         #  A pickle written before mechanism.ndof existed carries no joint
         #  count, and unpickling does not call __init__, so it never would.
-        #  Every consumer now reads M.ndof, so treat its absence as staleness
-        #  -- same self-healing contract as the DH check above, and it means
-        #  nobody has to be told to delete their fk_eqns/ by hand.
+        #  Every consumer reads M.ndof, so treat its absence as staleness --
+        #  the DH check above self-heals the same way, and it means nobody
+        #  has to be told to delete their fk_eqns/ by hand.
         if m is not None and getattr(m, 'ndof', None) is None:
             print('   Cached mechanism predates M.ndof -- recomputing.')
             m = R = unknowns = None
@@ -172,10 +172,8 @@ def dh_tables_match(dh1, dh2):
 def check_the_pickle(dh1, dh2):
     '''Warn if two DH tables differ.  Returns True when they match.
 
-       Kept for its callers, but it is now advisory:  kinematics_pickle()
-       recomputes a mismatched pickle by itself, so this should never fire from
-       the normal load path.  It used to call quit() -- which killed batch
-       sweeps and any BT leaf that reached it.'''
+       Advisory only:  kinematics_pickle() recomputes a mismatched pickle by
+       itself, so this should never fire from the normal load path.'''
 
     if dh_tables_match(dh1, dh2):
         return True
@@ -248,8 +246,9 @@ class Robot:
     #
     # class Robot
     def make_LHS_versions(self):
-        #  Rebuild from scratch:  this appends to FinalEqnMatrix and increments
-        #  nversions, so calling it twice used to double both.
+        #  Rebuild from scratch:  this appends to FinalEqnMatrix and
+        #  increments nversions, so without the reset a second call would
+        #  double both.
         self.FinalEqnMatrix = []
         self.nversions = 0
 
@@ -422,7 +421,6 @@ class Robot:
                     if(n > 2):
                         keep(e1, self.l3p)
         #Process the SOA equations
-        #   (these used to be appended with NO dedup at all)
         for e in self.kequation_aux_list:
             lhs = e.LHS
             rhs = e.RHS

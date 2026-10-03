@@ -86,8 +86,8 @@ from ikbtleaves.clear_state      import clear_state
 #    What a tree has to contain (NOT where it has to be)
 #
 
-#  Drop one of these and IKBT loses a solution method outright:  some robot that
-#  used to solve now stops.  This is the "does the tree contain all our valid
+#  Drop one of these and IKBT loses a solution method outright:  robots that
+#  solve today stop solving.  This is the "does the tree contain all our valid
 #  solvers" list.
 REQUIRED_SOLVERS = [algebra_id, algebra_solve,
                     tan_id, tan_solve,
@@ -165,8 +165,7 @@ def _geom_bb(dh):
 
 
 def _wristy_bb():
-    """A 6R table WITH a Pieper triple:  a spherical wrist at axes (4,5,6).
-       The arm the dropped gate used to turn away."""
+    """A 6R table WITH a Pieper triple:  a spherical wrist at axes (4,5,6)."""
     return _geom_bb(sp.Matrix(
         [[0,        sp.Integer(0), sp.Integer(0), sp.Symbol('th_1')],
          [sp.pi/2,  sp.Integer(3), sp.Integer(4), sp.Symbol('th_2')],
@@ -434,9 +433,9 @@ def discovered_leaf_classes():
 def leaf(node, name):
     '''The node named `name` at or below `node`.
 
-       This replaces the old make_leaves() dict.  The tests reach a leaf the
-       same way production does now -- by Name, through bt_assembly.find() --
-       so there is no inventory to keep in step with the tree.'''
+       The tests reach a leaf the same way production does -- by Name,
+       through bt_assembly.find() -- so there is no inventory of leaves to
+       keep in step with the tree.'''
     n = find(node, name)
     assert n is not None, 'bt_assembly_test fixture: no node named %r' % name
     return n
@@ -560,8 +559,7 @@ class TestSolver013(unittest.TestCase):
         self.assertEqual(probs, [], fs + '\n   '.join(probs))
 
     def test_btaD_alternative_shape_is_sound(self):
-        '''Same leaves, different topology -- the case the old version of this
-           test failed by design.'''
+        '''Same leaves, different topology:  the linter must accept both.'''
         fs = ' bt_assembly FAIL: alternative tree shape rejected:\n   '
         wt = build_worktools()
         probs = bt_problems(alt_tree(wt))
@@ -742,7 +740,7 @@ class TestSolver013(unittest.TestCase):
         leaf(wt, 'Sin AND Cos ID').Name = 'dup'
         self.has(bt_problems(bt), 'duplicate Name')
 
-    #  --------------------------------------------  the builder contract
+    #  --------------------------------------------  what the builder must do
 
     def test_btaO_debug_flags_reach_the_leaves(self):
         '''build_default_bt(leaf_debug=, solver_debug=) replaced ~200 lines of
@@ -840,18 +838,16 @@ class TestSolver013(unittest.TestCase):
     def test_btaS_hybrid_branch_can_succeed(self):
         '''The hybrid branch must be able to SUCCEED, and must end on the solver.
 
-           It used to end in hybrid_stub, an always-FAIL leaf that made the
-           branch inert:  the enclosing Priority fell through as though the
-           branch were not there, so a robot the hybrid method had actually
-           solved still got nothing.  That was right only while there was no
-           honest way to present a derived arm's answer.  report_gen now reads
-           hybrid_source and names every artifact for the arm it describes, so
-           the branch is allowed to report.
+           An always-FAIL leaf anywhere in the branch makes it inert:  the
+           enclosing Priority falls through as though the branch were not
+           there, so a robot the hybrid method had actually solved still gets
+           nothing -- and the branch still LOOKS complete.  So what is
+           asserted is that its last child is the second solver, and that no
+           child of it is a leaf that cannot succeed.
 
-           A stub reintroduced anywhere in the branch would silently restore
-           the old behaviour -- the branch would still LOOK complete -- so what
-           is asserted is that its last child is the second solver, and that no
-           child of it is a leaf that cannot succeed.'''
+           report_gen reads hybrid_source and names every artifact for the
+           arm it describes, which is what makes it honest for this branch to
+           report at all.'''
         fs = ' bt_assembly hybrid FAIL'
 
         bt = build_default_bt()
@@ -915,9 +911,9 @@ class TestSolver013(unittest.TestCase):
                from solving completely to solving nothing.
              - its PRESENCE cannot gate the hybrid branch.  ArmRobo, Panda and
                Raven-II all have qualifying triples and all solve 0 of their
-               unknowns, so the old `Sequence[no_pieper_id, ...]` (this leaf's
-               former name and polarity) turned away three arms
-               whose only other answer was "unsolved" (BH, 2026-08-31).
+               unknowns, so a hybrid branch gated on "has no triple" would
+               turn away three arms whose only other answer is "unsolved"
+               (BH, 2026-08-31).
 
            So the leaf ALWAYS RETURNS SUCCESS and ticks for its side effects
            alone -- pieper_triples and the pieper_latex snapshot of
@@ -961,8 +957,8 @@ class TestSolver013(unittest.TestCase):
         #  AND IT MUST NOT BE ABLE TO GATE ANYTHING.  It sits bare in a
         #  b3.Sequence, which aborts on its first FAILURE, so "does not gate" is
         #  a property of the LEAF, not of the wiring:  it has to return SUCCESS
-        #  for an arm that HAS a triple (the case the old gate rejected), for an
-        #  arm that has none, and for a table it could not read at all.
+        #  for an arm that HAS a triple, for an arm that has none, and for a
+        #  table it could not read at all.
         for label, bb in (('a table it cannot read', b3.Blackboard()),
                           ('an arm WITH a triple', _wristy_bb()),
                           ('an arm with NO triple', _no_triple_bb())):

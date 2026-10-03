@@ -57,38 +57,19 @@ class sqrt_dc(sp.Function):
 def dc_rewrite(e):
     r"""One expression with every acos/asin swapped for its checked twin.
 
-       THE GUARD GOES AT THE POINT OF USE, which is the only place it can be
-       written down wrong-proof.  What this replaced hoisted the guard out:
-       it dug the argument out of the RHS and emitted
+       THE GUARD GOES AT THE POINT OF USE.  The alternative is to hoist it
+       out, test the argument once before the assignment, and set a
+       `solvable_pose` flag -- which means digging the argument back out of
+       the right-hand side, a separate problem that can be got wrong.  Here
+       there is nothing to extract, so every arccosine is checked, however
+       many there are and however deeply nested.
 
-           if (solvable_pose and abs(<argument>) > 1):
-               solvable_pose = False
-           else:
-               th_5v1 = acos(<argument>)
-
-       and getting `<argument>` right is then a separate problem that can be
-       got wrong -- and was.  It was pulled out of the PRINTED RHS with a
-       greedy `re.search(r'\((.*)\)', ...)`, so for `acos(x) + atan2(y, z)`
-       the test was on `(x) + atan2(y, z)`, the wrong quantity;  for a sum of
-       two arcsines it tested neither.  acos was then called out of range
-       anyway and the generated module RAISED.  (BH, 2026-09-29: "why not just
-       write a domain-checked version of acos()".)
-
-       There is nothing to extract here, so there is nothing to extract
-       wrongly:  every arccosine is checked, however many there are and
-       however deeply nested.
-
-       THE CONTRACT IS NaN, NOT AN EXCEPTION.  An out-of-range argument means
-       the posture does not exist at this pose -- data, not a fault -- and it
+       NaN, NOT AN EXCEPTION.  An out-of-range argument means the posture
+       does not exist at this pose -- data, not a fault -- and the NaN
        propagates through the arithmetic that follows to the finiteness test
-       at the end.  The C++ needs no equivalent rewrite: std::acos ALREADY
-       returns NaN out of domain, where python's math.acos raises.  Two
-       spellings, one contract, and scripts/cpp_expr_check asserts it.
-
-       It also retires a whole class of failure that was not about arccosine
-       at all:  a tripped guard used to leave the variable UNBOUND, so the
-       next line that read it raised UnboundLocalError rather than reporting
-       the pose unreachable."""
+       at the end.  The C++ needs no equivalent rewrite:  std::acos already
+       returns NaN out of domain, where python's math.acos raises.
+       scripts/cpp_expr_check compares the two."""
 
     e = sp.sympify(e).replace(sp.acos, acos_dc).replace(sp.asin, asin_dc)
 
@@ -300,9 +281,8 @@ def sqrt_dc(x):
 
     #  NO RECOMPUTE.  T_06 is already on the mechanism -- kinematics_pickle()
     #  ran forward_kinematics() before this and the pickle carries the result.
-    #  This line used to call forward_kinematics() again and drop the return
-    #  value on the floor (`Fkeqns` was never read): 2.0 s of symbolic FK per
-    #  report on Puma, for nothing.  (Measured 2026-09-27.)
+    #  Calling it again here would cost 2.0 s of symbolic FK per report on
+    #  Puma for nothing.  (Measured 2026-09-27.)
     Tfk = Robot.Mech.T_06
 
     Tfks = str(Tfk)
@@ -422,7 +402,7 @@ def sqrt_dc(x):
     print(par_decl_str, file=f)
 
     #
-    #   THE RETURN CONTRACT.
+    #   WHAT COMES BACK.
     #
     #   ikin_*() returns JOINTS ONLY, in CHAIN order, with the names emitted
     #   alongside.  The sum-of-angle variables are still computed -- later
@@ -541,16 +521,13 @@ def sqrt_dc(x):
             _say('Python Output: Solution Equation Version: ', solEqnVer)
             rhs = solEqnVer.RHS
 
-            #  ONE PLAIN ASSIGNMENT PER VERSION.  The arccosine domain test is
-            #  inside acos_dc(), at the point of use -- see dc_rewrite().
-            #  This used to be three independent `if`s emitting a hoisted
-            #  guard, and a RHS holding both an asin and an atan2 got the
-            #  guarded assignment AND an unguarded one, the unguarded one
-            #  winning.
+            #  ONE PLAIN ASSIGNMENT PER VERSION.  The arccosine domain test
+            #  is inside acos_dc(), at the point of use -- see dc_rewrite().
+            #  One `if` covers every right-hand side, so a RHS holding both
+            #  an asin and an atan2 cannot pick up two assignments.
             has_dc = bool(sp.sympify(rhs).atoms(sp.asin, sp.acos))
             if has_dc or re.search('atan', str(rhs)) \
                     or node.solvemethod == 'algebra':
-                #  WHICH versions get an assignment is unchanged.
                 _say('  emit ', solEqnVer.LHS, ' = ', rhs)
                 print(indent + str(solEqnVer.LHS) + ' = '
                       + str(dc_rewrite(rhs)), file=f)
@@ -599,12 +576,12 @@ def sqrt_dc(x):
     #   to do with it depends on who is asking.
     #
     if not known:
-        #   THE UNCONDITIONAL FORM DROPS THEM.  A caller wants the postures
-        #   the arm can actually adopt, and the count legitimately varies with
-        #   the pose.  This used to discard ALL branches whenever ANY one of
-        #   them was non-finite, which threw away exact answers: KR16 at the
-        #   probe pose has four postures that reproduce it to 5.6e-16 and four
-        #   that do not exist, and reported "unreachable" for the lot.
+        #   THE UNCONDITIONAL FORM DROPS THEM, one row at a time.  A caller
+        #   wants the postures the arm can actually adopt, and the count
+        #   legitimately varies with the pose:  KR16 at the probe pose has
+        #   four postures that reproduce it to 5.6e-16 and four that do not
+        #   exist, so discarding the whole set over any one of them would
+        #   throw away exact answers.
         print(indent + '#  Keep the postures that exist.  A row with a', file=f)
         print(indent + '#  non-finite value is one that does not exist at this', file=f)
         print(indent + '#  pose -- an arccosine out of range, or a negative', file=f)

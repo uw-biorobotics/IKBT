@@ -61,7 +61,7 @@ artifacts in both languages.  The generated C++ is **C++11 and standard library 
 Eigen, no Boost, no build system:
 
 ```
-> g++ -std=c++11 -O2 -DIKBT_MAIN CodeGen/Cpp/PumaCppCode/IK_equationsPuma.cpp -o ik && ./ik
+> g++ -std=c++11 -O2 -DIKBT_MAIN CodeGen/Cpp/PumaCppCode/Puma.cpp -o ik && ./ik
 ```
 
 The two languages are checked against each other rather than assumed to agree --

@@ -17,7 +17,7 @@ files — everything runs from the repo root as modules.
 **`IKdocs/TESTING.md` is the one-page orientation** — what to run, when, what each command asserts,
 and where every log and artifact lands. Read it (especially "Testing Overview") before adding a test.
 
-**`IKdocs/DEV_NOTES.md`** carries the rationale that used to be inline in the source: measured
+**`IKdocs/DEV_NOTES.md`** carries the rationale that does not belong inline in the source: measured
 numbers, dated decisions, and designs that were tried and abandoned. Nothing there is needed to
 read or change IKBT; it is where a "why is it like this?" question gets answered.  
 
@@ -113,6 +113,18 @@ the "hybrid" method involves
 1) finding a "low cost" modification to the DH parameters which creates a new solvable robot as close as possible to the original arm. 
 2) Using the new solvable robot to get a set of approximate solutions.
 3) Using a damped least squares numerical method to get the exact solution using FK and Jacobian Matrix of the original robot. 
+
+**EVERY PATH EMITS `FK_numeric<Robot>` FOR THE TRUE ARM, IN BOTH LANGUAGES.** The report has a
+Forward Kinematics section and a Jacobian section whichever path wrote it, so the generated code
+does too, and the three file sets differ only where the methods genuinely differ. The symbolic
+path does not *need* them to reach its answer, but whoever calls that answer does: round-tripping
+a joint vector through FK is how a posture gets checked, and the Jacobian is what anything with a
+velocity in it starts from. `ik_driver.emit_fk_modules()` is the one place that writes them; a
+DERIVED arm still gets FK only (`jacobian=False`), since its Jacobian is never wanted. On the
+symbolic path the call degrades to a warning, on fkOnly.py's precedent — a robot whose `pvals` are
+incomplete is still a perfectly good symbolic solve, and a solve that took minutes must not be lost
+over a bonus artifact. On the other two paths the modules are called by the generated entry point,
+so a failure there is a broken artifact and is left to raise.
 
 ### The behavior tree
 
@@ -271,7 +283,7 @@ never be written out as `IK_equations<Robot>.py`, which means an unconditional I
 | `LaTex/ik_solution_C-Arm.tex` | the equations **and the assumption** | `output_latex_solution(..., onevar=)` |
 | `CodeGen/Python/IK_onevarC-Arm.py` | the 1-D search — **the entry point** | `output_onevar_python.write_onevar_top()` |
 | `CodeGen/Python/IK_conditionalC-Arm.py` | the closed form, `th_2` an argument | `output_python.output_python_code(..., known=)` |
-| `CodeGen/Python/FK_numericC-Arm.py` | this arm's FK (no Jacobian needed) | `output_numeric_common.write_fk_module()` |
+| `CodeGen/Python/FK_numericC-Arm.py` | this arm's FK **and Jacobian** | `output_numeric_common.write_fk_module()` |
 
 `IK_conditional`, never `IK_equations`: that name means an unconditional inverse kinematics for the
 robot, and these equations hold only where the assumed value is right. `ikin_C_Arm_given(T, th_2)`
@@ -373,24 +385,66 @@ of always walking 80 iterations, which the ladder calls for many times per pose.
 
 ### C++ code generation (`ikbtfunctions/output_cpp*.py`, `Cpp_src/`)
 
+**`IKdocs/CPP_API.md` is the caller's reference** -- every type and function in `Cpp_src/` and in
+the generated file, where each lives, what each solve path puts in it, and a compiled-and-run
+example program per path. Written for someone calling the generated C++ from an application of
+their own; read it before changing a generated signature.
+
+**ONE FILE PER ROBOT: `CodeGen/Cpp/<Robot>CppCode/<Robot>.cpp`,
+in `namespace ikbt::<Robot>`.** It holds everything specific to that robot -- FK, Jacobian, and
+whichever IK the tree found -- and nothing generic. So an application asks one question and gets
+one answer:
+
+```cpp
+#include "CodeGen/Cpp/PumaCppCode/Puma.cpp"
+ikbt::Puma::ikin(T);
+```
+
+`output_cpp_robot.py` assembles it; `write_symbolic_cpp()`, `write_onevar_cpp()` and
+`write_hybrid_cpp()` mirror `ik_driver`'s three `emit_*` functions.
+
+**ONE TRANSLATION UNIT PER ROBOT** is what a caller compiles, so splitting a robot across
+several `.cpp` files would buy nothing at build time: the pieces all need each other, and each
+one would have to `#include` the next. One file also keeps `ikin()` out of global scope, where
+two robots of equal DOF would collide at link time
+(`multiple definition of ikin(double (*)[4], double (*)[6])`).
+
+**THE NAMESPACE IS THE QUALIFICATION.** Inside `namespace ikbt::Panda` the true arm's functions
+drop the `_Panda` a caller would otherwise type twice: `fk()`, `jacobian()`, `ikin()`,
+`ikin_given()`, `solve()`, `refine_seed()`. The fixed-array wrapper is `ikin_array()`, so
+`ikin` means one thing. A **derived** arm sharing that namespace keeps its suffix --
+`fk_Panda_a_3_0_a_4_0()` -- because it is a different robot and a reader must not have to look
+it up.
+
+**WRITING `<Robot>.cpp` CLEARS SUPERSEDED NAMES** (`IK_equations*`, `IK_conditional*`,
+`IK_onevar*`, `IK_hybrid_*`) from that robot's directory. Such a file compiles, looks current,
+and will never be refreshed, which makes it the worst kind of leftover.
+`FK_numeric<Robot>.h` is deliberately **not** swept: `fkOnly.py` writes it.
+
+**THE FILE SAYS WHICH PATH PRODUCED IT**, in `SOLUTION_PATH`, which
+`cpp_closed_loop_check.detect_path()` reads. A file that says what it is cannot disagree with
+itself.
+
 **EVERY PYTHON EMITTER HAS ONE C++ TWIN, DERIVED FROM IT.** The python generator is the
 specification, and the checks turn "derived from" into an assertion rather than a description.
+**The twins are functions, not files** -- python writes a module per artifact because a module is
+the unit of import; C++ writes one translation unit per robot because that is what a caller
+compiles -- so each C++ emitter below emits a *section* of `<Robot>.cpp`.
 
 | python | C++ | emits |
 |---|---|---|
-| `output_python.output_python_code()` | `output_cpp.output_cpp_code()` | `IK_equations<R>.cpp` / `IK_conditional<R>.cpp` |
-| `output_numeric_common.write_fk_module()` | `output_cpp_common.write_fk_module_cpp()` | `FK_numeric<R>.h` |
-| `output_hybrid_python.write_hybrid_top()` | `output_cpp_hybrid.write_hybrid_top_cpp()` | `IK_hybrid_<R>.cpp` |
-| `output_onevar_python.write_onevar_top()` | `output_cpp_onevar.write_onevar_top_cpp()` | `IK_onevar<R>.cpp` |
+| `output_python.output_python_code()` | `output_cpp.output_cpp_code()` | `ikin()` / `ikin_given()` |
+| `output_numeric_common.write_fk_module()` | `output_cpp_common.fk_body_cpp()` | `fk()` / `jacobian()` |
+| `output_hybrid_python.write_hybrid_top()` | `output_cpp_hybrid.write_hybrid_top_cpp()` | `ikin_approx()` / `refine_seed()` |
+| `output_onevar_python.write_onevar_top()` | `output_cpp_onevar.write_onevar_top_cpp()` | `solve()` |
+| -- | `output_cpp_robot.py` | the file around them |
 | `output_numeric_common.expr_py()` (`sp.pycode`) | `output_cpp_common.expr_cpp()` (`sp.cxxcode`) | one expression |
 
-**ONE DIRECTORY PER ROBOT: `CodeGen/Cpp/<Robot>CppCode/`.** The BT produces one solve per
-robot, so the directory is named for the robot asked about and nothing more. A hybrid solve
-emits files under **two** names -- `IK_hybrid_Panda.cpp` and `IK_equationsPanda_a_3_0_a_4_0.cpp`
--- and all of them land in `PandaCppCode/`, because the entry point includes the derived arm's
-closed form and both FK headers as **siblings**. Which arm a file describes is in its *name*;
-a derived arm never gets a directory of its own. `output_cpp_common.robot_dir()` is the one
-place that decides this, and `ik_driver` passes the true robot's directory down the hybrid path.
+`output_cpp_common.write_fk_module_cpp()` still writes a standalone `FK_numeric<R>.h`, for the
+three callers that want FK on its own: `fkOnly.py`, and the `--fk` and `--dls` probes in
+`cpp_closed_loop_check`. **`fkOnly.py` deliberately does not write `<Robot>.cpp`** -- it knows
+only the forward kinematics, and letting it would mean running it after a solve silently
+discarded that solve's IK.
 
 **C++11, STANDARD LIBRARY ONLY** — no Eigen, no Boost, no build system, no `-I`:
 `g++ -std=c++11 -O2 file.cpp -o x -lm`. Same rule as "a generated python module stands on
@@ -398,23 +452,19 @@ numpy alone", and the reason the AI-translation route was rejected: a generated 
 not make the user install anything. The only linear algebra needed is a 6x6 solve, which is
 40 lines of Gaussian elimination in `Cpp_src/ikbt_linalg.h`.
 
-**`sp.cxxcode`, NOT A REGEX OVER PRINTED PYTHON.** The generator this replaced post-processed
-`x**2` into `x*x` with two regexes, which handled `x**2` and `sin(x)**2` and silently left
-`(Px - a_1)**2` as invalid C++. `sp.cxxcode` is a real C++ printer: `std::pow`, `std::fabs`,
-`M_PI` at full precision, and `(1.0/3.0)` for every Rational so there is no integer-division
-hazard. Measurements of what the old one actually produced: @IKdocs/DEV_NOTES.md.
+**`sp.cxxcode`, NOT A REGEX OVER PRINTED PYTHON.** Post-processing `x**2` into `x*x` with a
+regex handles `x**2` and `sin(x)**2` and silently leaves `(Px - a_1)**2` as invalid C++.
+`sp.cxxcode` is a real C++ printer: `std::pow`, `std::fabs`, `M_PI` at full precision, and
+`(1.0/3.0)` for every Rational so there is no integer-division hazard.
 
 **`#ifdef IKBT_MAIN` is the C++ spelling of `if __name__ == "__main__":`** — behind an ifdef and
 not unconditional so a generated file can be linked into a program, or alongside another robot,
-without two `main()`s. The fallback paths' entry points `#include` their siblings, which is the
-same arrangement as the python modules importing theirs; the suppression dance around
-`IKBT_MAIN` is there so the included file's self-test does not become a second `main()`.
+without two `main()`s. There is **one per robot**, it sits outside both namespaces (because
+`::main` can be nowhere else) and reaches back in with a `using namespace ikbt::<Robot>;`.
 
 **A parameter with no `pvals` entry is emitted as `XXXXX`** — a deliberate compile stop, so
 `g++` names the line and a missing link length cannot be silently defaulted. Parameters the
-robot *does* have values for are baked in, exactly as python does. That distinction is new: the
-old generator wrote `XXXXX` for every parameter, which is why 25 of 26 files could not compile
-and no automated check of the C++ had ever been possible.
+robot *does* have values for are baked in, exactly as python does.
 
 **The one-variable search is GENERIC C++** (`Cpp_src/ikbt_search.h`), where python emits ~470
 lines per robot. Python has no choice — a generated module there has no library to call — but
@@ -423,7 +473,7 @@ closed form give at this value" and "how wrong is it" as callbacks. All three ro
 mechanisms port across unchanged, because each finds cases the others cannot: the doubling
 ladder, the local twin hunt, and the domain-edge probe.
 
-**EVERY DOMAIN-RESTRICTED FUNCTION IS CHECKED AT THE POINT OF USE, AND THE CONTRACT IS NaN.**
+**EVERY DOMAIN-RESTRICTED FUNCTION IS CHECKED AT THE POINT OF USE, AND RETURNS NaN.**
 There are three of them -- `acos`, `asin` and `sqrt` -- and they make the same statement when
 their argument leaves the domain: *this branch has no solution at this pose*. A negative
 discriminant says exactly what an out-of-range arccosine says.
@@ -432,8 +482,8 @@ Python raises on all three; C++ returns NaN on all three. So `output_python.dc_r
 them for `acos_dc`/`asin_dc`/`sqrt_dc`, and the C++ needs no rewrite at all. There is no hoisted
 `if (fabs(argument) > 1)` in either language: a check at the point of use cannot be written
 down wrong, where a hoisted one has to re-derive the argument -- a separate problem that can be
-got wrong, and was. `scripts/cpp_expr_check` asserts the two languages agree about the
-contract, case by case, rather than assuming two mechanisms stay in step.
+got wrong. `scripts/cpp_expr_check` checks that the two languages agree, case by case, rather
+than assuming two mechanisms stay in step.
 
 `sqrt` is matched as a POWER, not a function: sympy has no `sqrt` Function, `sqrt(x)` is
 `Pow(x, 1/2)`. Only the two exponents that print as a square root are rewritten; generated code
@@ -441,9 +491,9 @@ contains no other fractional power.
 
 **A NON-FINITE ROW IS A POSTURE THAT DOES NOT EXIST, AND ONLY THAT ROW IS DROPPED.**
 `ikin_<R>()` returns the branches that exist, so the count varies with the pose and an empty
-return means none do. It used to discard ALL of them whenever ANY one was non-finite, which
-threw away exact answers -- KR16 at the probe pose has four postures reproducing it to 5.6e-16
-and four that do not exist, and reported "unreachable" for the lot.
+return means none do. Discarding the whole set whenever any one row is non-finite would throw
+away exact answers -- KR16 at the probe pose has four postures reproducing it to 5.6e-16 and
+four that do not exist.
 
 **`ikin_<R>_given()` IS THE EXCEPTION AND KEEPS EVERY ROW IN PLACE.** `IK_onevar<R>` calls it at
 hundreds of values and builds ONE ERROR CURVE PER BRANCH, indexing by POSITION. Dropping a row
@@ -464,8 +514,8 @@ one route.
 
 ### Latex output: Equations that fit the page (`ikbtfunctions/texwidth.py`)
 
-Long equations used to run off the right margin. They no longer do: the report is written, **measured**,
-and the equations that did not fit are re-written. `ik_driver.write_latex_fitted()` drives it.
+A long equation can run off the right margin, so the report is written, **measured**, and the
+equations that did not fit are re-written. `ik_driver.write_latex_fitted()` drives it.
 
 **PREDICTING WIDTH DOES NOT WORK — MEASURE IT.** Character count and `count_ops` were both tried
 and both failed on data: they are properties of the expression, and overflow is a property of the
@@ -473,8 +523,8 @@ typeset line. The numbers are in @IKdocs/DEV_NOTES.md.
 
 
 **Every equation is emitted on its own source line, preceded by a `%%IKBT-EQ <lhs>` comment**, which is
-what makes a reported line number attributable. This is also why raw line length predicted so badly
-before: a whole `align` block used to be one source line. 
+what makes a reported line number attributable. It is also what makes a measured line length mean
+anything: a whole `align` block on one source line would measure as one enormous line. 
 
 **THE REMEDY IS `K_i` NAMING, applied where TeX says it is needed.** An equation measured too wide has
 its pieces named whatever the dependency rule thinks, which shortens it without changing its shape. The
@@ -566,8 +616,6 @@ Please keep commit messages to 5 lines or less.
    Python raises `UnboundLocalError`; the C++ compiles, runs, reads the self-reference as NaN
    and returns NO branches. Quieter, and no better -- an empty answer here is a wrong answer
    wearing "unreachable" as a disguise. Both stay out of `EXPECT`.
-   (This list was five. KR16 and DZhang left it on 2026-09-29: their failures were domain
-   errors, which are now reported rather than raised.)
 
 2. **Division by zero is the one domain asymmetry left.** `1.0/0.0` raises `ZeroDivisionError`
    in python and gives `inf` in C++, and it is an OPERATOR, so the `acos_dc` treatment does not

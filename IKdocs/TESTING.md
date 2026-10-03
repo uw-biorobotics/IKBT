@@ -300,9 +300,9 @@ python3 -m tests.test_chair_helper        # full-solve regression, one robot
 
 `kinematics_pickle()` has two branches: load a usable pickle from `fk_eqns/`,
 or compute the forward kinematics and the sum-of-angles scan from scratch. The
-suite always finds a warm cache, so **the compute branch used to be executed by
-no test at all** — and a fixture bug living on it survived until `fk_eqns/` was
-wiped by hand (2026-09-27).
+suite always finds a warm cache, so **nothing reaches the compute branch
+unless a test forces it** — and a fixture bug living there can survive every
+run until `fk_eqns/` is wiped by hand.
 
 `TestSolver030` (in `ikbtbasics/ik_classes.py`) covers it:
 
@@ -320,9 +320,9 @@ python3 -m ikbtbasics.ik_classes      # just this one, ~12 s
 * It also covers both staleness guards: a pickle with no `ndof`, and a changed
   DH table.
 
-It is why `tests.leavestest` now takes ~37 s rather than ~21 s. Wiping
-`fk_eqns/` to test the cold path by hand is no longer necessary, and costs 6x:
-the whole suite runs in ~131 s against an empty cache.
+It is why `tests.leavestest` takes ~37 s. Wiping `fk_eqns/` to test the cold
+path by hand is unnecessary, and costs 6x: the whole suite runs in ~131 s
+against an empty cache.
 
 ## When a robot looks hung — `--perf`
 
@@ -360,7 +360,8 @@ patches a third-party module, so it is opt-in and reversible
 | `CodeGen/Python/IK_onevar<robot>.py` | one-variable 1-D search (the entry point) | generated |
 | `CodeGen/Python/IK_conditional<robot>.py` | closed form given one assumed value | generated |
 | `CodeGen/Python/FK_numeric<robot>.py` | FK (+ Jacobian) callables | generated |
-| `CodeGen/Cpp/<robot>CppCode/` | all C++ for one robot | generated |
+| `CodeGen/Cpp/<robot>CppCode/<robot>.cpp` | **all** C++ for one robot -- FK, Jacobian and whichever IK was found, in `namespace ikbt::<robot>` | generated |
+| `CodeGen/Cpp/<robot>CppCode/FK_numeric<robot>.h` | FK alone, only if `fkOnly.py` has run | generated |
 | `fk_eqns/<robot>_pickle.p` | FK cache | generated, safe to delete |
 
 Artifacts are judged by **freshness, not existence** — `LaTex/` and `CodeGen/`

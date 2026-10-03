@@ -1,45 +1,36 @@
 #!/usr/bin/python
 #
-#   output_cpp.py --  generate C++ code for the IK solution
+#   output_cpp.py --  the closed-form IK, in C++
 #
-#   THE TWIN OF output_python.output_python_code(), derived from it line by
-#   line.  Same walk of Robot.FinalEqnMatrix, same first-seen dedup on the LHS,
-#   same joint/aux column split, same return contract, same two file names:
+#   The twin of output_python.output_python_code(), derived from it line by
+#   line:  the same walk of Robot.FinalEqnMatrix, the same first-seen dedup on
+#   the left-hand sides, the same joint/aux column split, and the same two
+#   entry points:
 #
-#       known=None    <Robot>CppCode/IK_equations<Robot>.cpp,  ikin_<Robot>(T)
-#                     -- an unconditional closed form
-#       known='th_2'  <Robot>CppCode/IK_conditional<Robot>.cpp,
-#                     ikin_<Robot>_given(T, th_2) -- the ONE-VARIABLE branch's
-#                     closed form, valid only where th_2 is right
+#       known=None     ikin(T)             -- an unconditional closed form
+#       known='th_2'   ikin_given(T, th_2) -- the one-variable branch's closed
+#                      form, valid only where the assumed th_2 is right
 #
-#   This file was rewritten from nothing in Sept 2026.  The version it replaced
-#   predated solListMatrix, pvals-in-generated-code and sp.pycode, and had
-#   never been compiled by any test:  1 of the 26 .cpp files it had produced
-#   compiled as shipped, and 11 of 26 still failed once parameters were
-#   supplied by hand.  IKdocs/DEV_NOTES.md records the six divergences and the
-#   measurement.  Keeping the old file would have meant repairing six
-#   independent departures from a python generator that is already right;
-#   deriving a new one from that generator is less work and asserts more.
+#   Python writes a file per artifact;  C++ writes one translation unit per
+#   robot, CodeGen/Cpp/<Robot>CppCode/<Robot>.cpp, so this emits a SECTION of
+#   that file into an already-open stream.  output_cpp_robot.py assembles the
+#   file around it and is the only caller.
 #
 #   Copyright 2017-2026 University of Washington
 #
 #   Developed by Dianmu Zhang and Blake Hannaford
 #   BioRobotics Lab, University of Washington
 
-import os
-
 import sympy as sp
 
 import ikbtbasics.numeric_ik as nik
-from ikbtfunctions.output_cpp_common import (cpp_identifier,
-                                             expr_cpp, file_header,
-                                             name_table_cpp, param_decls,
-                                             pose_unpack_cpp, robot_dir,
-                                             src_includes)
+from ikbtfunctions.output_cpp_common import (cpp_identifier, expr_cpp,
+                                             fk_suffix, name_table_cpp,
+                                             param_decls, pose_unpack_cpp)
 
 
-#  Console chatter from the generator.  Off by default, for the same reason
-#  output_python.py's copy is:  it is a line per version per variable.
+#  Console chatter from the generator:  one line per version per variable,
+#  so off by default.  output_python.py has the same switch.
 VERBOSE = False
 
 
@@ -52,8 +43,9 @@ def _versions(Robot, node):
     '''The DISTINCT solution equations for one variable, in first-seen order.
 
        Straight from output_python.py.  A variable solved early shares its
-       versions between matrix rows (Puma's th_1: 2 versions, 8 rows), so
-       walking the rows emits the same statement several times.'''
+       versions across matrix rows -- Puma's th_1 has 2 versions spread over
+       8 rows -- so walking the rows blindly would emit each statement
+       several times.'''
 
     eqnlist = []
     seen = set()
@@ -69,41 +61,38 @@ def _versions(Robot, node):
 
 #  NO DOMAIN-GUARD HELPER HERE, and none is needed.
 #
-#  std::acos ALREADY returns NaN when its argument leaves [-1, 1] -- quietly,
-#  with no exception and no undefined behaviour -- which is exactly the
-#  contract dc_rewrite() has to install by hand on the python side, where
-#  math.acos raises.  So the two languages carry the SAME contract in two
-#  spellings, and scripts/cpp_expr_check asserts it rather than assuming it.
-#
-#  The hoisted `if (fabs(argument) > 1)` this replaced is gone for the reason
-#  BH gave on 2026-09-29: a check at the point of use cannot be written down
-#  wrong, and a hoisted one has to re-derive the argument, which is a separate
-#  problem that can be got wrong -- and was.
+#  std::acos, std::asin and std::sqrt return NaN, quietly, when their argument
+#  leaves their domain.  Python raises instead, which is why
+#  output_python.dc_rewrite() swaps in acos_dc / asin_dc / sqrt_dc there.
+#  scripts/cpp_expr_check compares the two languages case by case.
 
 
-def output_cpp_code(Robot, solution_groups, known=None, dirname=None):
-    '''Write the generated C++ IK for `Robot`.
+def output_cpp_code(Robot, solution_groups, f, known=None, owner=None):
+    '''Emit the closed-form IK section of a robot's <Robot>.cpp.
 
        Robot            solved, with create_solution_set() already run
        solution_groups  R.solutionSet, used only as a fallback for the rows
+       f                the open stream of the robot file being assembled
        known            the one-variable branch's assumed variable, or None
+       owner            the robot whose namespace this lands in.  Robot's own
+                        name on the symbolic and one-variable paths;  on the
+                        hybrid path it is the true arm, so this closed form
+                        belongs to the derived arm and keeps its suffix.
 
-       Returns the path written.'''
+       Returns the name of the function emitted.'''
 
     print('\n\n\n                       Starting IK C++ Output work \n\n\n')
 
     orig_name = Robot.name.replace('test: ', '')
     ident = cpp_identifier(orig_name)
-    funcname = 'ikin_' + ident + ('_given' if known else '')
+    #  The namespace is the qualification -- see output_cpp_common.fk_suffix().
+    sfx = fk_suffix(orig_name, owner)
+    funcname = 'ikin' + sfx + ('_given' if known else '')
 
     #
-    #   THE RETURN CONTRACT.  Identical to python's, and it matters more here:
-    #   C has no way to hand back a name with a value, so the ORDER IS THE
-    #   CONTRACT.  Joints only, in DH CHAIN order.  The sum-of-angle variables
-    #   are computed -- later solutions depend on them -- but not returned.
-    #
-    #   The sizes used to be hardcoded [64][6], and a 6-DOF arm with one
-    #   sum-of-angles variable wrote SEVEN columns into a row of six.
+    #   WHAT COMES BACK, the same as python:  joints only, in DH CHAIN order.
+    #   Sum-of-angle variables are computed, because later solutions depend
+    #   on them, but are not returned.
     #
     jnames = [str(s) for s in nik.joint_symbols(Robot.Mech)]
     order = [nd.unknown.name for nd in Robot.solution_nodes]
@@ -118,26 +107,24 @@ def output_cpp_code(Robot, solution_groups, known=None, dirname=None):
     if not rows:
         rows = [list(g) for g in sorted(solution_groups)]
 
-    #  max(1, ...):  the legacy entry point declares
+    #  max(1, ...):  the fixed-array entry point declares
     #  `double solution_list[IK_NBRANCHES][IK_NJOINTS]`, and a zero-length
-    #  array is ill-formed in C++.  A solve with no joints or no branches
-    #  should never reach here -- report_gen only ticks on a complete solve --
-    #  but an ill-formed declaration would fail the whole file rather than
-    #  say so.
+    #  array will not compile.  A solve with no joints or no branches should
+    #  never get this far, but if one did it should not take the whole file
+    #  down with it.
     n_joints = max(1, len(joint_cols))
     n_branches = max(1, len(rows))
 
     #
-    #   EVERY NAME THE BODY ASSIGNS, declared up front.
+    #   EVERY NAME THE BODY ASSIGNS, declared up front, and taken from
+    #   FinalEqnMatrix -- which is the same place the assignments come from,
+    #   so no name can be used without being declared.
     #
-    #   From FinalEqnMatrix, not from solution_groups:  the old generator took
-    #   them from the groups and missed some, so DZhang, UR5 and JennyGuoSp24
-    #   referred to undeclared variables.
-    #
-    #   INITIALISED TO NaN, which is also the value an out-of-domain
-    #   arccosine produces, so the two cases arrive at the finiteness test at
-    #   the bottom by the same route.  An uninitialised double would be
-    #   undefined behaviour and would read as plausible garbage instead.
+    #   Each is initialised to NaN, which is also what an out-of-domain
+    #   arccosine returns, so a variable never assigned and a variable with no
+    #   real value reach the finiteness test at the bottom the same way.  An
+    #   uninitialised double is undefined behaviour in C++ and would read as
+    #   plausible garbage instead.
     #
     sol_vars = []
     for node in Robot.solution_nodes:
@@ -150,40 +137,19 @@ def output_cpp_code(Robot, solution_groups, known=None, dirname=None):
                                     getattr(Robot.Mech, 'params', None)
                                     or Robot.params)
 
-    filename = ('IK_conditional' if known else 'IK_equations') + orig_name + '.cpp'
-    #  dirname is THE ROBOT THE USER ASKED ABOUT, which on the hybrid path
-    #  is not orig_name:  this is then the DERIVED arm's closed form, and it
-    #  belongs beside the IK_hybrid_<true>.cpp that includes it.
-    dirname = robot_dir(orig_name, dirname)
-    path = os.path.join(dirname, filename)
-    f = open(path, 'w')
-
-    what = ('CONDITIONAL inverse kinematics for %s (%s assumed known)'
-            % (orig_name, known)) if known else \
-           ('C++ inverse kinematic equations for %s' % orig_name)
-    print(file_header(what, orig_name, filename), file=f)
-
-    #  Cpp_src/ by relative #include:  ONE copy of the shared numerics for
-    #  the whole package.
-    print(src_includes(['ikbt_types.h'], dirname), file=f)
-    print('', file=f)
-    print('#include <cstdio>', file=f)
-    print('', file=f)
-    print('using namespace ikbt;', file=f)
-    print('', file=f)
+    banner = ('the CONDITIONAL closed form -- %s assumed known' % known) \
+        if known else 'the closed form'
+    print(section_banner('%s   (%s)' % (banner, orig_name)), file=f)
 
     if known:
         print('//  CONDITIONAL.  %s is an INPUT, not an output:  these' % known,
               file=f)
-        print('//  equations hold only where its value is right.', file=f)
-        print('//  IK_onevar%s.cpp searches for the values that are, and is'
-              % orig_name, file=f)
-        print('//  what you should normally call.', file=f)
-        #  COND_KNOWN_VARIABLE, not KNOWN_VARIABLE.  The python twin can call
-        #  it the plain name because modules have namespaces;  here
-        #  IK_onevar<Robot>.cpp INCLUDES this file, and the entry point a user
-        #  reads should own the unqualified name.  The included dependency
-        #  yields.
+        print('//  equations hold only where its value is right.  solve()', file=f)
+        print('//  searches for the values that are, and is what you should', file=f)
+        print('//  normally call.', file=f)
+        #  COND_KNOWN_VARIABLE, not KNOWN_VARIABLE:  the search section of
+        #  this same file declares the plain name, and both land in one
+        #  namespace.
         print('const char* const COND_KNOWN_VARIABLE = "%s";' % known, file=f)
         print('', file=f)
 
@@ -199,15 +165,13 @@ def output_cpp_code(Robot, solution_groups, known=None, dirname=None):
     if known:
         print('//  EVERY branch is returned, in a FIXED position, whether or', file=f)
         print('//  not it exists at this pose -- one that does not comes back', file=f)
-        print('//  with NaN in it.  IK_onevar%s.cpp indexes branches by'
-              % orig_name, file=f)
-        print('//  position, so row i must be the same branch at every value.', file=f)
+        print('//  with NaN in it.  solve() indexes branches by position, so', file=f)
+        print('//  row i must be the same branch at every value.', file=f)
     else:
         print('//  Only the branches that EXIST at the goal pose are returned,', file=f)
         print('//  so the count varies with the pose.  Empty means none do.', file=f)
-    print('//  Joint values returned by %s(), in this order.' % funcname, file=f)
-    print('//  C has no way to hand back a name with a value, so this order IS', file=f)
-    print('//  the contract.', file=f)
+    print('//  Joint values returned by %s(), in this order.' % funcname,
+          file=f)
     print(name_table_cpp(joint_cols, 'JOINT_NAMES'), file=f)
     print('//  Sum-of-angle intermediates:  computed, but NOT returned.', file=f)
     print(name_table_cpp(aux_cols, 'AUX_NAMES'), file=f)
@@ -220,14 +184,14 @@ def output_cpp_code(Robot, solution_groups, known=None, dirname=None):
     print('', file=f)
 
     #
-    #   The solver itself.
+    #   The solution equations themselves.
     #
     arglist = 'const Mat4 &T' + (', double %s' % known if known else '')
     print('//', file=f)
-    print('//   Auto generated code to solve the unknowns.', file=f)
+    print('//   Solve the unknowns in closed form.', file=f)
     print('//       T   4x4 numerical target for T06, row major', file=f)
-    print('//   Returns one JointVec per solution branch, or an EMPTY list if', file=f)
-    print('//   the pose is not reachable  (python returns False for that).', file=f)
+    print('//   Returns one JointVec per solution branch, or an EMPTY list', file=f)
+    print('//   if the pose is not reachable.', file=f)
     print('//', file=f)
     print('SolutionList %s(%s)' % (funcname, arglist), file=f)
     print('{', file=f)
@@ -244,11 +208,11 @@ def output_cpp_code(Robot, solution_groups, known=None, dirname=None):
     //  REACHABILITY is decided at the END, from the answer itself.
     //
     //  std::acos and std::asin return NaN, quietly, when their argument
-    //  leaves [-1, 1] -- which means the posture that branch describes does
-    //  not exist at this pose.  That is DATA, not a fault:  the solver
-    //  enumerates combinations of each unknown's branches without discarding
-    //  the ones the arm cannot adopt.  The NaN propagates through the
-    //  arithmetic that follows and is recognised at the bottom of this
+    //  leaves [-1, 1].  That means the posture this branch describes does
+    //  not exist at this pose -- a normal result, since the solver
+    //  enumerates every combination of the unknowns' branches without
+    //  checking which ones the arm can actually adopt.  The NaN carries
+    //  through the arithmetic below and is caught at the bottom of this
     //  function.
     //
     /////////////////////////////////////////////////////////////
@@ -276,10 +240,11 @@ def output_cpp_code(Robot, solution_groups, known=None, dirname=None):
     #
     #   A (void) sweep first.  A sum-of-angles intermediate can be computed
     #   and then read by nothing -- th_34 on Axtman13, th_34 and th_45 on
-    #   JennyGuoSp24 -- which is -Wunused-but-set-variable.  Python emits the
-    #   same dead assignment and says nothing about it.  Emitting every
-    #   version for every variable keeps the body identical in shape for
-    #   every robot, which is worth more than the warnings cost to silence.
+    #   JennyGuoSp24 -- which g++ reports as -Wunused-but-set-variable.
+    #   Python makes the same dead assignment and says nothing.  Emitting
+    #   every version of every variable keeps the body the same shape for
+    #   every robot, which is worth more than the cost of silencing a
+    #   warning.
     if sol_vars:
         print('    ' + '; '.join('(void) %s' % v for v in sol_vars) + ';',
               file=f)
@@ -294,8 +259,8 @@ def output_cpp_code(Robot, solution_groups, known=None, dirname=None):
     print('    SolutionList solution_list;', file=f)
     print('    solution_list.reserve(%d);' % n_branches, file=f)
     for row in rows:
-        #  `known` has no column in the solution matrix -- nothing solved it --
-        #  so its cell is the argument's own name.
+        #  `known` has no column in the solution matrix, because nothing
+        #  solved it, so its cell is just the argument's own name.
         vals = [known if j == known else row[order.index(j)] for j in joint_cols]
         print('    {', file=f)
         print('        JointVec s;', file=f)
@@ -306,9 +271,9 @@ def output_cpp_code(Robot, solution_groups, known=None, dirname=None):
         print('    }', file=f)
     print('', file=f)
     #
-    #   THE TWO ENTRY POINTS DIFFER HERE, exactly as they do in python -- see
-    #   output_python.output_python_code() for the reasoning, which is the
-    #   same reasoning and must stay the same.
+    #   THE TWO ENTRY POINTS DIFFER HERE, exactly as they do in python.
+    #   ikin() returns only the branches that exist;  ikin_given() returns
+    #   every row in a fixed position, because the search indexes them.
     #
     if not known:
         print('    //  Keep the postures that EXIST.  A row holding a', file=f)
@@ -333,22 +298,25 @@ def output_cpp_code(Robot, solution_groups, known=None, dirname=None):
     print('}', file=f)
 
     #
-    #   The legacy C-array entry point.
+    #   The fixed-array entry point, for callers who have a double[4][4]
+    #   rather than a Mat4.
     #
     print('''
 
 /////////////////////////////////////////////////////////////
 //
-//  The original fixed-array interface, kept so that callers holding a
-//  double[4][4] do not have to be rewritten.  Fills solution_list in place
-//  and returns 1 for a solved pose, 0 for none.
+//  A plain C-array interface, for callers holding a double[4][4].  Fills
+//  solution_list in place and returns 1 for a solved pose, 0 for none.
 //
 /////////////////////////////////////////////////////////////
 ''', file=f)
-    legacy_args = 'double T[4][4], double solution_list[IK_NBRANCHES][IK_NJOINTS]'
+    array_args = 'double T[4][4], double solution_list[IK_NBRANCHES][IK_NJOINTS]'
     if known:
-        legacy_args += ', double %s' % known
-    print('int ikin(%s)' % legacy_args, file=f)
+        array_args += ', double %s' % known
+    #  ikin_array, not ikin:  one name per interface, so that ikin() means
+    #  exactly one function.
+    print('int %s(%s)'
+          % (funcname.replace('ikin', 'ikin_array', 1), array_args), file=f)
     print('{', file=f)
     print('    SolutionList sols = %s(from_array(T)%s);'
           % (funcname, (', %s' % known) if known else ''), file=f)
@@ -362,29 +330,30 @@ def output_cpp_code(Robot, solution_groups, known=None, dirname=None):
     print('    return 1;', file=f)
     print('}', file=f)
 
-    #
-    #   The self-test.  The twin of python's `if __name__ == "__main__":`,
-    #   and behind an #ifdef for the same reason it is behind an if:  so that
-    #   this file can be linked into a program, or alongside another robot,
-    #   without two main()s.  The old generator emitted an unconditional
-    #   main() -- and printed `std::cout << sol_list`, which prints a pointer.
-    #
-    print(_MAIN_BLOCK
-          .replace('**FUNC**', funcname)
-          .replace('**ROBOT**', orig_name)
-          .replace('**EXTRA_ARG**', ', 0.3' if known else '')
-          .replace('**KNOWN_NOTE**',
-                   ('\n    std::printf("    (%s assumed = 0.3)\\n");' % known)
-                   if known else ''),
-          file=f)
-
-    f.close()
+    #  NO main() HERE.  A self-test belongs to the file, and a robot's file
+    #  gets exactly one:  output_cpp_robot.py emits whichever of the three
+    #  the robot's solution path calls for.  On the hybrid path this section
+    #  is the derived arm's closed form, which is not what the file's
+    #  self-test should be exercising.
     print('\n\n\n                       End of C++ Output work \n\n\n')
-    return path
+    return funcname
 
 
-#  Kept out of the function body so the emitted text reads as C++.
-_MAIN_BLOCK = '''
+def section_banner(title):
+    '''A labelled rule between the sections of a <Robot>.cpp.
+
+       Everything about a robot is in one file, so a reader scrolls through
+       it;  the sections have to announce themselves.'''
+
+    return ('\n\n/////////////////////////////////////////////////////////////'
+            '\n//\n//   %s\n//\n'
+            '/////////////////////////////////////////////////////////////\n'
+            % title)
+
+
+#  The file's self-test, kept out of the function body so that it reads as
+#  the C++ it is.
+MAIN_BLOCK = '''
 
 /////////////////////////////////////////////////////////////
 //
@@ -394,6 +363,11 @@ _MAIN_BLOCK = '''
 /////////////////////////////////////////////////////////////
 
 #ifdef IKBT_MAIN
+
+//  main() has to be at global scope, so the self-test reaches back into the
+//  robot's namespace from outside it.
+using namespace ikbt;
+using namespace ikbt::**IDENT**;
 
 static Mat4 RotX4(double t)
 {
