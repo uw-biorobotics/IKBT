@@ -192,9 +192,9 @@ undamped Newton step does not exist — which is what the damping is for. Conver
 
 Two non-obvious requirements, both learned the hard way:
 
-- **Everything flushes** (`_say()`). Python buffers stdout when it is not a tty, so under `> log`
-  or `| tee` every line was withheld until exit — a solve printed nothing for 12 minutes and
-  then everything at once.
+- **Everything flushes** (`_say()`). Python buffers stdout when it is not a terminal, so under
+  `> log` or `| tee` nothing appears until the program exits — a long solve prints nothing for
+  12 minutes and then everything at once.
 - **Reporting may never break a solve.** `pass_done()` and `finished()` catch their own errors and
   print a warning instead: they are called on every pass, and a solve that took minutes must not be
   thrown away because a status line would not format.

@@ -37,7 +37,7 @@ CArm::solve(T);
 ```
 
 **Two robots can be linked into one program.** `ikbt::Puma::ikin` and `ikbt::Wrist::ikin` are
-different functions. This did not work before — see section 6.
+different functions, so neither hides the other. See section 6.
 
 ### Which IK did my robot get?
 
@@ -476,8 +476,8 @@ for it — so handing them on would let a solver move joints the arm does not ha
 | link lengths (`a_2`, `d_4`, …) | baked in as `const double` from the robot's `pvals` |
 
 **A non-finite row is a posture that does not exist, and only that row is dropped.** The returned
-count therefore varies with the pose, and an empty list means none exist. (The python twin returns
-`False` there; an empty list is the same information without a second return type.)
+count therefore varies with the pose, and an empty list means none exist. (The generated python returns
+`False` there; an empty list says the same thing without needing a second return type.)
 
 **`ikin_array`, not `ikin`.** The fixed-array wrapper has a name of its own so that `ikin` means
 exactly one function.
@@ -512,7 +512,7 @@ Two things to know about `ikin_given()`:
   the per-branch domain edges the search hunts roots at. So test `all_finite()` yourself if you
   call it directly.
 - **`ikin_given`, never `ikin`.** The plain name means an *unconditional* inverse kinematics for
-  the robot, and these equations are exact only where the assumed value is right. (The python twin
+  the robot, and these equations are exact only where the assumed value is right. (The generated python
   says the same thing with a file name: `IK_conditional<Robot>.py`, never `IK_equations<Robot>.py`.)
 
 Nothing about the robot is approximated here — the DH table, the FK and the equations are the true
@@ -559,8 +559,8 @@ form belongs to a *displaced* arm that genuinely cannot reach everything the tru
 same thing when their argument leaves the domain: *this branch has no solution at this pose*. C++
 returns NaN for all three, so there is no hoisted `if (fabs(arg) > 1)` anywhere — a check at the
 point of use cannot be written down wrong, where a hoisted one has to re-derive the argument. (The
-python twin rewrites them to `acos_dc`/`asin_dc`/`sqrt_dc`, which raise; `scripts/cpp_expr_check`
-asserts the two languages agree case by case.)
+generated python rewrites them to `acos_dc`/`asin_dc`/`sqrt_dc`, which raise;
+`scripts/cpp_expr_check` checks that the two languages agree case by case.)
 
 **Every solution variable is initialised to NaN** — one deliberate divergence from python, where an
 unbound local is an exception. An out-of-domain arccosine produces the same value, so both arrive

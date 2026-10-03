@@ -57,9 +57,9 @@ python3 -m ikbtbasics.kin_cl          # basic kinematic classes
 ```
 
 Test-class numbers are **global** and referenced from `leavestest.py`. When you
-add a leaf, take the next free number. A test double living inside a leaf file
-must be named `test_*`, or the leaf-inventory scan in `bt_assembly_test.py`
-mistakes it for a real leaf.
+add a leaf, take the next free number. A stand-in object living inside a leaf
+file must be named `test_*`, or the leaf-inventory scan in
+`bt_assembly_test.py` mistakes it for a real leaf.
 
 **This is where solver-method coverage belongs.** Re-solving a whole robot to
 reach one leaf pays minutes for what a unit test buys in milliseconds.
