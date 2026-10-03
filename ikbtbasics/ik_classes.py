@@ -639,7 +639,7 @@ def sum_of_angles_sub(R, expr, variables):
 #  Chain position of `symb` among the joint variables.
 #
 #  The n == 0 guard fires for real:  unknown.n defaults to 0 meaning UNSET, and
-#  a caller that numbers its unknowns from 0 hands the first one that sentinel.
+#  a caller that numbers its unknowns from 0 hands the first one that same 0.
 #  x2y2_transform's self-test did exactly that, and it went unnoticed because
 #  only a COLD pickle reaches the sum-of-angles scan that calls this.
 #  (Diagnosed 2026-09-27.)
@@ -651,7 +651,7 @@ def get_variable_index(vars, symb):
             #  -- and quit() there took down the whole process, including a
             #  32-robot sweep.  check_the_pickle() was de-quit()ed for exactly
             #  this reason;  robot_baseline still carries a handler for
-            #  'SystemExit -- a quit() on the unhappy path'.  A ValueError is
+            #  'SystemExit -- a quit() somewhere in the error handling'.  A ValueError is
             #  caught by the leaves' own handlers and reported.
             raise ValueError(
                 'get_variable_index: unknown %s has n == 0, which means UNSET. '
@@ -697,8 +697,8 @@ class TestSolver030(unittest.TestCase):
        WHY THIS EXISTS.  Every other test in the suite runs against a warm
        fk_eqns/, so the `if m is None:` branch -- forward_kinematics() and the
        sum-of-angles scan -- was never executed by the unit suite at all.  A
-       fixture bug living on that path survived indefinitely and surfaced only
-       when fk_eqns/ was wiped by hand (2026-09-27, x2y2_transform).
+       bug in the set-up code there can survive indefinitely;  one did, and
+       surfaced only when fk_eqns/ was wiped by hand (2026-09-27).
 
        BRAD is the robot.  3 DOF, so a cold FK costs about 4 s, and it HAS a
        sum-of-angles variable (th_23), so it actually reaches the scan.  Wrist

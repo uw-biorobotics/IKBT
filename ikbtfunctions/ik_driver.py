@@ -68,8 +68,8 @@ def load_robot(name):
 def init_blackboard(R, unknowns):
     '''Split every scalar equation out of the 4x4 matrix equations into the
        1-unknown / 2-unknown / 3+-unknown lists, and put them plus the Robot and
-       the unknowns on a fresh blackboard.  Solving is a side effect on these
-       objects, so the blackboard is the whole of the solver's state.'''
+       the unknowns on a fresh blackboard.  Solving works by changing these
+       objects in place, so the blackboard holds all of the solver's state.'''
 
     bb = b3.Blackboard()
 

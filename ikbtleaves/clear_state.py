@@ -74,8 +74,8 @@ class clear_state(b3.Action):
         #
         #  Reaching in directly because Blackboard exposes no "list my keys",
         #  and there is no way to drop everything-except-KEEP without one.
-        #  Guarded so a future b3 that renames the attribute degrades to a
-        #  no-op with a warning rather than an AttributeError mid-solve.
+        #  Guarded so a future b3 that renames the attribute simply does
+        #  nothing, with a warning, rather than raising mid-solve.
         base = getattr(bb, '_base_memory', None)
         if base is None:
             print(self.Name, ': blackboard has no _base_memory -- nothing '
@@ -174,7 +174,7 @@ class TestSolver020(unittest.TestCase):
                           'keeping by default, which is backwards)')
 
     def test_clrD_survives_a_blackboard_with_no_base_memory(self):
-        '''If b3 ever renames _base_memory this must degrade to a no-op, not
+        '''If b3 ever renames _base_memory this must quietly do nothing, not
            raise in the middle of a solve.'''
         fs = ' clear_state guard FAIL'
 

@@ -166,11 +166,12 @@ class TestIkClass(unittest.TestCase):
         print('----- Correct:')
         print(correctString)
         print('--------------')
-        #  HISTORICALLY FLAKY, reliable through 2026.  The old failure was the
-        #  3-way sum-of-angles substitution not firing, leaving terms like
-        #  (th_2 + th_34) in place of th_234.  If this assertion ever fails
-        #  again, that is the shape to look for -- and it was intermittent, so
-        #  run it several times before concluding it is fixed.
+        #  THIS ONE HAS FAILED INTERMITTENTLY in the past, and has been
+        #  reliable through 2026.  The failure was the 3-way sum-of-angles
+        #  substitution not firing, leaving terms like (th_2 + th_34) in place
+        #  of th_234.  If it fails again, that is the shape to look for -- and
+        #  since it comes and goes, run it several times before concluding it
+        #  is fixed.
         assert str(term2) == correctString, fs
     
     def test_SOA_idsub_3(self):

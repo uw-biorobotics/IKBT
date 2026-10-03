@@ -47,10 +47,10 @@ SAMPLES = (-2.3, -0.7, 0.0, 1.1, 2.9)
 
 TOL = 1e-9
 
-#  Probe poses per mechanism, and verdicts per (equation, variable).  Both are
-#  pure functions of the robot, so caching is safe;  the verdict cache is what
-#  keeps the check off the hot path -- the same equation is re-offered on every
-#  tick until something solves it.
+#  Probe poses per mechanism, and verdicts per (equation, variable).  Both
+#  depend only on the robot, so caching them is safe;  the verdict cache is
+#  what keeps this check cheap, since the same equation is offered again on
+#  every tick until something solves it.
 _probe_cache = {}
 _verdict_cache = {}
 

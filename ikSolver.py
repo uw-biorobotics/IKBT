@@ -125,8 +125,9 @@ def main(argv):
     ##
     #                                   Set up the BT
     #
-    #  codegen=True: the tree writes LaTex/ and CodeGen/ via the output_gen_full
-    #  leaf.  This front end is the only caller that wants those side effects.
+    #  codegen=True: the tree writes LaTex/ and CodeGen/ through the
+    #  output_gen_full leaf.  This front end is the only caller that wants
+    #  those files written.
     ikbt = build_default_bt(leaf_debug=False, solver_debug=False,
                             codegen=not TEST_DATA_GENERATION)
 

@@ -419,7 +419,7 @@ An empty result means no solution was **found**, which is not quite "unreachable
 |---|---|---|
 | `sample_values(cfg, n)` | 118 | n ascending values. `lo + span*(k/n)`, not an accumulated step, so a doubling re-uses the coarse grid's cached values *exactly* |
 | `wrap_value(t, cfg)` | 131 | back into `[lo, hi)` on a periodic domain |
-| `cached_errors(T, v, cache, errors)` | 147 | `errors()` memoised on the value |
+| `cached_errors(T, v, cache, errors)` | 147 | `errors()`, with the result cached against the value |
 | `error_of(T, t, b, cache, errors, cfg)` | 158 | one branch's error at one value; `INF` past the end of the branch list |
 | `scan_curves(T, n, cache, errors, cfg, values, curves)` | 177 | `curves[branch][i]`. **Gives every real sample two neighbours** — a wrap on a periodic domain, one extra step past each end on a finite one — without which a root at either end is never bracketed |
 | `golden(f, a, b, iters, fx, xtol)` | 232 | golden section. Not a derivative method: near a solution the error is a V, not a parabola |
@@ -636,13 +636,13 @@ number looks wrong, regenerate before you debug.
 
 ## 7. Where each of these comes from
 
-Every python emitter has one C++ twin, derived from it. The python generator is the specification;
-the checks turn "derived from" into an assertion.
+Each python generator function below has one C++ counterpart written from it. The python side is
+the specification, and the checks in section 2 are what make that more than a claim.
 
-**The twins are functions, not files.** Python writes a module per artifact because a module is the
-unit of import; C++ writes one translation unit per robot because that is what you compile. So each
-C++ emitter below produces a *section* of `<Robot>.cpp`, and `output_cpp_robot.py` assembles the
-file around them.
+**The pairing is function to function, not file to file.** Python writes one module per generated
+artifact, because a module is what you import; C++ writes one file per robot, because that is what
+you compile. So each C++ function below produces a *section* of `<Robot>.cpp`, and
+`output_cpp_robot.py` assembles the file around them.
 
 | python | C++ | emits |
 |---|---|---|

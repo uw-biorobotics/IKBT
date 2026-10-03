@@ -195,9 +195,9 @@ Two non-obvious requirements, both learned the hard way:
 - **Everything flushes** (`_say()`). Python buffers stdout when it is not a tty, so under `> log`
   or `| tee` every line was withheld until exit — a solve printed nothing for 12 minutes and
   then everything at once.
-- **Reporting may never break a solve.** `pass_done()` and `finished()` are wrapped and degrade to a
-  warning: they run on the hot path of every pass, and a solve that took minutes must not be thrown
-  away because a status line would not format.
+- **Reporting may never break a solve.** `pass_done()` and `finished()` catch their own errors and
+  print a warning instead: they are called on every pass, and a solve that took minutes must not be
+  thrown away because a status line would not format.
 
 Output is **line-oriented, never `\r`-animated** — a `\r` progress bar collapses in a captured log
 into one unreadable multi-kilobyte line. Do not add animation.
@@ -425,11 +425,11 @@ and will never be refreshed, which makes it the worst kind of leftover.
 `cpp_closed_loop_check.detect_path()` reads. A file that says what it is cannot disagree with
 itself.
 
-**EVERY PYTHON EMITTER HAS ONE C++ TWIN, DERIVED FROM IT.** The python generator is the
-specification, and the checks turn "derived from" into an assertion rather than a description.
-**The twins are functions, not files** -- python writes a module per artifact because a module is
-the unit of import; C++ writes one translation unit per robot because that is what a caller
-compiles -- so each C++ emitter below emits a *section* of `<Robot>.cpp`.
+**EVERY PYTHON GENERATOR FUNCTION HAS ONE C++ COUNTERPART, WRITTEN FROM IT.** The python side is
+the specification, and the checks are what make "written from it" something asserted rather than
+claimed. **The pairing is function to function, not file to file** -- python writes one module per
+generated artifact, because a module is what you import;  C++ writes one file per robot, because
+that is what you compile.  So each C++ function below writes a *section* of `<Robot>.cpp`.
 
 | python | C++ | emits |
 |---|---|---|

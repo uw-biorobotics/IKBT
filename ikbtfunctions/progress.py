@@ -247,10 +247,10 @@ class SolveProgress(object):
 
            unknowns -- the live unknown list;  pools -- (n1u, n2u, n3pu) or None.
 
-           Wrapped so that a reporting bug can never abort a solve.  This runs
-           on the hot path of every pass of every robot, and a solve that took
-           700 s must not be thrown away because a status line could not be
-           formatted.  Observability is not allowed to be a failure mode.'''
+           Wrapped so that a bug in the reporting can never abort a solve.
+           This runs on every pass of every robot, and a solve that took 700 s
+           must not be thrown away because a status line could not be
+           formatted.'''
 
         try:
             self._pass_done(passno, unknowns, pools)
@@ -267,8 +267,8 @@ class SolveProgress(object):
         dt_tot = now - self.t_start
         self.t_last = now
 
-        #  getattr, not u.name:  this is REPORTING code on the hot path of every
-        #  solve, and it must not be able to break one.  kin_cl.unknown always
+        #  getattr, not u.name:  this is REPORTING code, called on every pass
+        #  of every solve, and it must not be able to break one.  kin_cl.unknown always
         #  has .name, but test doubles and any future unknown-like object may
         #  not, and a progress line is never worth an AttributeError mid-solve.
         names = set(getattr(u, 'name', str(u))

@@ -117,10 +117,9 @@ class test_x2z2(b3.Action):    # tester for your ID
         #  ik_robots documents as mandatory for any unknown list built outside
         #  robot_params(), tests included.
         #
-        #  This loop used to be written out here, starting at 0, which stamped
-        #  the sentinel onto th_1.  It hid for as long as the test found a warm
-        #  Puma pickle, because only the RECOMPUTE path runs the SOA scan that
-        #  reads .n.  (Found 2026-09-27 by wiping fk_eqns/.)
+        #  Numbering from 1, not 0:  n == 0 means UNSET, so starting at 0
+        #  would stamp "unset" onto th_1.  Only the RECOMPUTE path runs the
+        #  SOA scan that reads .n, so a warm Puma pickle hides the mistake.
         variables = number_unknowns(variables)
 
         print('Testing x2z2transform with Puma Kinematics')
@@ -310,7 +309,7 @@ class TestSolver010(unittest.TestCase):
            which parses as (not (sym == th_3)) or (sym == th_2) -- so th_2 was
            REJECTED and the 'or' clause was dead.  Only th_3 ever got through.
 
-           Same fixture as test 1 below (cheap -- no Puma kinematics), just
+           Same set-up as test 1 below (cheap -- no Puma kinematics), just
            assigned to th_2 instead of th_3.  Before the fix this returned
            FAILURE immediately; now it must get through and emit the new
            one-unknown equation.'''

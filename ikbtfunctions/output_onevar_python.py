@@ -223,7 +223,7 @@ def errors_**IDENT**(T, value):
 
 
 def _cached_errors_**IDENT**(T, value, cache):
-    """errors_**IDENT**() memoised on the sample value.
+    """errors_**IDENT**(), with each result cached against its sample value.
 
        The doubling ladder revisits every coarse sample at every finer
        resolution, and a sample costs one closed-form solve plus one FK per
@@ -820,12 +820,12 @@ class TestSolver029(unittest.TestCase):
         self.test_ovgG_a_root_at_the_end_of_a_finite_range()
         self.test_ovgH_a_spike_against_the_edge_of_a_domain()
 
-    #  ----------------------------------------------------------  fixtures
+    #  -------------------------------------------------  test set-up
 
     @staticmethod
     def mech(dh, vv, pvals=None):
-        '''A REAL mechanism -- __init__ does no FK, so it is as cheap as a
-           stub and it carries .ndof.'''
+        '''A REAL mechanism -- __init__ does no FK, so it costs no more than
+           a fake would, and it carries .ndof.'''
         M = kc.mechanism(dh, [], vv)
         M.pvals = pvals or {}
         return M
@@ -1033,8 +1033,8 @@ def ikin_**IDENT**_given(T, d_1):
                 np.eye(4))
             self.assertEqual(len(curves), 3, fs + ' (expected three branches)')
             self.assertGreater(min(curves[2]), 0.49,
-                               fs + ' (fixture: branch 2 should never reach 0)')
-            self.assertLess(min(curves[2]), 0.51, fs + ' (fixture)')
+                               fs + ' (test set-up: branch 2 should never reach 0)')
+            self.assertLess(min(curves[2]), 0.51, fs + ' (test set-up)')
         finally:
             shutil.rmtree(d, ignore_errors=True)
 
@@ -1078,12 +1078,12 @@ def ikin_**IDENT**_given(T, d_1):
 
         d, mod = self.build_toy(ik=self.IK_TOY_PAIR)
         try:
-            #  the fixture really is one dip on the starting grid
+            #  the test set-up really is one dip on the starting grid
             values, curves = mod.sweep_ToyOneVar(np.eye(4))
             dips = [i for i in mod._local_minima(curves[0])
                     if curves[0][i] < 1e-3]
             self.assertEqual(len(dips), 1,
-                             fs + ' (fixture: 128 samples should show one '
+                             fs + ' (test set-up: 128 samples should show one '
                              'dip, showed %d)' % len(dips))
             found = mod.solve_ToyOneVar(np.eye(4))
         finally:
@@ -1116,8 +1116,8 @@ def ikin_**IDENT**_given(T, d_1):
                                 mech=self.two_link(prismatic=True),
                                 known='d_1')
         try:
-            self.assertFalse(mod.PERIODIC, fs + ' (fixture: should be finite)')
-            self.assertAlmostEqual(mod.SEARCH_HI, 3.0, msg=fs + ' (fixture)')
+            self.assertFalse(mod.PERIODIC, fs + ' (test set-up: should be finite)')
+            self.assertAlmostEqual(mod.SEARCH_HI, 3.0, msg=fs + ' (test set-up)')
             found = self.toy_solutions(mod)
         finally:
             shutil.rmtree(d, ignore_errors=True)
@@ -1142,17 +1142,17 @@ def ikin_**IDENT**_given(T, d_1):
 
         d, mod = self.build_toy(ik=self.IK_TOY_EDGE)
         try:
-            #  the fixture really is invisible to the grid:  the sample nearest
+            #  the test set-up really is invisible to the grid:  the sample nearest
             #  the root is a local MAXIMUM, so the scan brackets nothing there
             values, curves = mod.sweep_ToyOneVar(np.eye(4))
             near = [i for i in mod._local_minima(curves[0])
                     if abs(values[i] - 0.4995) < 0.05]
             self.assertEqual(near, [],
-                             fs + ' (fixture: the grid should see no dip near '
+                             fs + ' (test set-up: the grid should see no dip near '
                              'the root, saw %s)'
                              % [round(values[i], 4) for i in near])
             self.assertTrue(mod._domain_edges(curves[0]),
-                            fs + ' (fixture: the branch should have an edge)')
+                            fs + ' (test set-up: the branch should have an edge)')
             found = self.toy_solutions(mod)
         finally:
             shutil.rmtree(d, ignore_errors=True)

@@ -367,7 +367,7 @@ class TestSolver014(unittest.TestCase):
         self.assertFalse(bb2.get('no_progress'), fs)
 
     def test_compG_stalled_partial_with_equations_left_keeps_going(self):
-        """THE REGRESSION TEST.  A partial solve whose pass changed nothing but
+        """THE CASE THAT MATTERS.  A partial solve whose pass changed nothing but
            which still HAS one-unknown equations must NOT be stopped.
 
            assigner_leaf round-robins curr_unk, so an unchanged pass often just

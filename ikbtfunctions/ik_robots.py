@@ -104,9 +104,9 @@ def robot_params(name):
             print('   ', n)
         quit()
 
-    #  Sentinel:  every branch below assigns these.  A name in ROBOT_LIST with
-    #  no definition block is then named by the fall-through check after the
-    #  blocks, rather than raising UnboundLocalError.
+    #  Start them empty:  every branch below assigns them.  A name in
+    #  ROBOT_LIST with no definition block is then caught and named by the
+    #  check after the blocks, rather than raising UnboundLocalError.
     dh = vv = params = variables = None
 
 ############################################################
@@ -737,9 +737,9 @@ def robot_params(name):
         
     ################## (all robots) ######################
 
-    ##  A name in ROBOT_LIST with no definition block above lands here with the
-    ##  sentinels untouched.  Say so, instead of raising UnboundLocalError (or,
-    ##  now, TypeError) from whichever line touches `variables` first.
+    ##  A name in ROBOT_LIST with no definition block above arrives here with
+    ##  all four still None.  Say so, instead of raising TypeError from
+    ##  whichever line touches `variables` first.
     if dh is None or vv is None or params is None or variables is None:
         print('robot_params(): "' + name + '" is in ROBOT_LIST but has no '
               'definition block in ik_robots.py.')

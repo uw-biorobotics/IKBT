@@ -79,8 +79,8 @@ def solve_robot(name, quiet=True):
     '''Run the solver as a subprocess.
 
        Subprocess, not import:  on some branches ikSolver.py does its work at
-       module level, and several helpers call quit() on the unhappy path, which
-       would take this checker down with them.'''
+       module level, and several helpers call quit() when something goes
+       wrong, which would take this checker down with them.'''
 
     cmd = [sys.executable, 'ikSolver.py', name]
     env = dict(os.environ, PYTHONHASHSEED='0')

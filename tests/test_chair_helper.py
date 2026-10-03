@@ -1,10 +1,10 @@
 #!/usr/bin/python
 #
-#   Full-solve regression test for the 'Chair_Helper' robot.
+#   A complete solve of the 'Chair_Helper' robot, checked end to end.
 #
-#   These assertions used to sit at the bottom of ikSolver.py, so they only ran
-#   when somebody happened to solve Chair_Helper by hand.  They are a real
-#   regression test, so they live here now.
+#   These assertions belong in the test suite, where they run on their own,
+#   rather than at the bottom of ikSolver.py where they ran only when somebody
+#   happened to solve Chair_Helper by hand.
 #
 #   This runs a COMPLETE IK solve, which is far too slow for the leaf suite.  It
 #   is deliberately NOT registered in tests/leavestest.py -- run it on its own:

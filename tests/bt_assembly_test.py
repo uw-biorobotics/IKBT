@@ -10,7 +10,7 @@
 #
 #       * there is a root, and it is a real b3 node
 #       * no childless Priority / Sequence / OrNode  (a childless Priority always
-#         FAILs, a childless Sequence always SUCCEEDs -- both are silent no-ops)
+#         FAILs, a childless Sequence always SUCCEEDs -- both do nothing, silently)
 #       * no decorator with an empty .child  (b3 returns b3.ERROR)
 #       * every child slot holds a node INSTANCE, not a class  (the b3.Sequence(
 #         [tan_id, tan_solve]) missing-parens mistake)
@@ -254,15 +254,16 @@ def _subtree_classes(node, memo):
 
 ###############################################################################
 #
-#    The linter
+#    The tree checker
 #
 
 def bt_problems(bt, required_solvers=None, required_support=None):
     '''Return a list of human readable structural problems with a tree.
 
        [] means the tree is sound.  Accepts a b3.BehaviorTree or a bare root
-       node.  Pass required_solvers=[] / required_support=[] to lint a partial
-       tree (a subtree under development, say) without demanding full coverage.
+       node.  Pass required_solvers=[] / required_support=[] to check a
+       partial tree -- one under development, say -- without demanding that
+       every solver be present.
 
        Nothing here depends on the tree's SHAPE -- only on properties that any
        tree must have in order to solve anything at all.'''
@@ -304,7 +305,8 @@ def bt_problems(bt, required_solvers=None, required_support=None):
 
         slots = child_slots(node)
 
-        #  childless composites are silent no-ops, not errors b3 reports
+        #  a composite with no children does nothing, silently;  b3 does not
+        #  report it
         if isinstance(node, b3.Composite) and not slots:
             verdict = ('always SUCCEEDs' if isinstance(node, SEQUENCE_TYPES)
                        else 'always FAILs')
@@ -437,7 +439,7 @@ def leaf(node, name):
        through bt_assembly.find() -- so there is no inventory of leaves to
        keep in step with the tree.'''
     n = find(node, name)
-    assert n is not None, 'bt_assembly_test fixture: no node named %r' % name
+    assert n is not None, 'bt_assembly_test set-up: no node named %r' % name
     return n
 
 
@@ -547,7 +549,8 @@ class TestSolver013(unittest.TestCase):
     def test_btaC_reordered_worktools_is_sound(self):
         '''worktools order IS the solver preference policy, and changing it is a
            legitimate experiment (see build_worktools.__doc__ on promoting
-           invariantGen).  A re-ordered worktools must still lint clean.'''
+           invariantGen).  A re-ordered worktools must still pass the
+           checker.'''
         fs = ' bt_assembly FAIL: reordered worktools rejected:\n   '
         wt = build_worktools()
         self.assertTrue(isinstance(wt, b3.Composite),
@@ -559,7 +562,7 @@ class TestSolver013(unittest.TestCase):
         self.assertEqual(probs, [], fs + '\n   '.join(probs))
 
     def test_btaD_alternative_shape_is_sound(self):
-        '''Same leaves, different topology:  the linter must accept both.'''
+        '''Same leaves, different topology:  the checker must accept both.'''
         fs = ' bt_assembly FAIL: alternative tree shape rejected:\n   '
         wt = build_worktools()
         probs = bt_problems(alt_tree(wt))
@@ -567,7 +570,7 @@ class TestSolver013(unittest.TestCase):
 
     #  ------------------------------------------------  the error cases
     #
-    #  Each of these breaks a tree one way and asserts the linter says so.  A
+    #  Each of these breaks a tree one way and asserts the checker says so.  A
     #  broken tree usually trips several checks at once, so they assert that the
     #  RELEVANT complaint is present, not that it is the only one.
 
@@ -816,7 +819,7 @@ class TestSolver013(unittest.TestCase):
     #  ------------------------------------  what the shipped tree promises
 
     def test_btaR_codegen_is_off_unless_asked(self):
-        '''Building a tree must have NO file side effects unless the caller asks.
+        '''Building a tree must write NO files unless the caller asks.
 
            tests/test_chair_helper.py runs a complete solve and documents that
            it leaves LaTex/ and CodeGen/ alone;  so does every structural test
@@ -915,8 +918,8 @@ class TestSolver013(unittest.TestCase):
                turn away three arms whose only other answer is "unsolved"
                (BH, 2026-08-31).
 
-           So the leaf ALWAYS RETURNS SUCCESS and ticks for its side effects
-           alone -- pieper_triples and the pieper_latex snapshot of
+           So the leaf ALWAYS RETURNS SUCCESS and ticks only for what it
+           stores -- pieper_triples and the pieper_latex snapshot of
            the TRUE robot.  A leaf that cannot FAIL cannot gate anything, in
            either branch, however it is wired;  that is why it needs no
            Priority[.., Succeeder] wrapper.  What gates the hybrid branch is

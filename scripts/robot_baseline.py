@@ -26,8 +26,8 @@
 #
 #   Two things about IKBT shape this design:
 #
-#   ONE SUBPROCESS PER ROBOT.  Several functions on the unhappy path terminate
-#   the *process* rather than returning an error -- Num_check() (pykinsym.py),
+#   ONE SUBPROCESS PER ROBOT.  Several functions end the *process* rather
+#   than returning an error when something goes wrong -- Num_check() (pykinsym.py),
 #   get_variable_index() (ik_classes.py), robot_params() on an unknown name
 #   (ik_robots.py) -- so in-process iteration would stop at the first robot
 #   that trips one.  A solve also leaves a great deal behind (sympy caches, the
@@ -185,8 +185,8 @@ def solve_one(name, codegen=False):
             try:
                 if codegen:
                     #  output_gen_full already called create_solution_set(),
-                    #  and it is NOT idempotent -- it appends to
-                    #  LHSversionNames.  Read what it built.
+                    #  which APPENDS to LHSversionNames, so it must not be
+                    #  called again.  Read what it built.
                     ss = getattr(R, 'solutionSet', None)
                     rec['n_solutions'] = len(ss) if ss else None
                 else:
@@ -249,10 +249,10 @@ def solve_one(name, codegen=False):
             rec['status'] = 'unsolved'
 
     except SystemExit as e:
-        #  quit() somewhere on the unhappy path.  This is exactly why the sweep
-        #  forks per robot;  in-process it would have ended the whole run.
+        #  A quit() somewhere in the error handling.  This is exactly why the
+        #  sweep forks per robot;  in one process it would end the whole run.
         rec['status'] = 'crash'
-        rec['error'] = 'SystemExit(%s) -- a quit() on the unhappy path' % (e.code,)
+        rec['error'] = 'SystemExit(%s) -- a quit() while handling an error' % (e.code,)
         rec['traceback'] = traceback.format_exc()
     except BaseException as e:
         rec['status'] = 'crash'
@@ -629,7 +629,8 @@ def format_summary(record):
 
        NO TIMING COLUMNS.  Wall time is not compared and is not a property of
        the solver worth recording per run;  it is printed live while the sweep
-       runs, where it is operational feedback rather than a fixture.'''
+       runs, where it tells the user how things are going rather than
+       standing as something to check against.'''
 
     lines = []
     robots = record['robots']

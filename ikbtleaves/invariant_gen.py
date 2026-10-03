@@ -495,7 +495,7 @@ class TestSolver012(unittest.TestCase):
         unknowns = [unknown(th_2), unknown(th_3), unknown(th_23)]
 
         self.assertEqual(count_unknowns(unknowns, raw), 2,
-                         fs + ' (fixture is not the 2-unknown case)')
+                         fs + ' (test set-up is not the 2-unknown case)')
 
         got = best_form(raw, unknowns, soa)
         self.assertEqual(count_unknowns(unknowns, got), 1,

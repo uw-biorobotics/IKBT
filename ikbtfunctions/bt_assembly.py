@@ -381,10 +381,10 @@ def build_default_bt(leaf_debug=False, solver_debug=False, codegen=False,
        tried when it did not, and each branch can emit its own artifacts.
 
        codegen=False (the default) leaves report_gen inert, so building a tree
-       has no file side effects and run_solver() still owns
-       create_solution_set().  codegen=True hands the whole tail end to the
-       tree, and the caller must then pass run_solver(..., create_solutions=False)
-       -- create_solution_set() is not idempotent.
+       writes no files and run_solver() still owns create_solution_set().
+       codegen=True hands the whole tail end to the tree, and the caller must
+       then pass run_solver(..., create_solutions=False):  create_solution_set()
+       appends, so running it twice is not the same as running it once.
 
        quiet=True is for batch sweeps:  no read_pause, no per-pass progress.
 
@@ -405,12 +405,12 @@ def build_default_bt(leaf_debug=False, solver_debug=False, codegen=False,
     #  so neither its presence nor its absence predicts whether IKBT can crack
     #  a given arm.  See IKdocs/DEV_NOTES.md.
     #
-    #  pieper_geom_report heads the branch for its SIDE EFFECTS -- pieper_triples
-    #  and the pieper_latex snapshot of the TRUE robot, which must be taken
-    #  before install_simplified swaps the Robot.  It always SUCCEEDs, so no
-    #  Priority([x, Succeeder()]) wrapper is needed.
+    #  pieper_geom_report heads the branch for WHAT IT STORES, not for what it
+    #  returns -- pieper_triples, and the pieper_latex snapshot of the TRUE
+    #  robot, which must be taken before install_simplified swaps the Robot.
+    #  It always SUCCEEDs, so no Priority([x, Succeeder()]) wrapper is needed.
     #
-    #  The branch ends with the solver, not a stub:  report_gen reads
+    #  The branch ends with the solver, not a placeholder:  report_gen reads
     #  hybrid_source and writes a HYBRID report plus a two-phase python module,
     #  every artifact naming the arm it actually describes.
     pieperGeomReport = pieper_geom_report()
@@ -506,7 +506,7 @@ def build_default_bt(leaf_debug=False, solver_debug=False, codegen=False,
     #  LaTex/ and CodeGen/;  disabled it does nothing, and
     #  ik_driver.run_solver() owns the solution set instead.  EXACTLY ONE of the
     #  two must call create_solution_set():  it appends to
-    #  unknown.LHSversionNames and is not idempotent.
+    #  unknown.LHSversionNames, so a second call would double it.
     #
     #  Off by default so that a test building a tree does not overwrite the
     #  repo's generated artifacts.  ikSolver.py opts in.

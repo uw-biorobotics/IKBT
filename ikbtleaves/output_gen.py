@@ -39,9 +39,9 @@ class report_gen(b3.Action):
 
        When disabled this leaf does nothing at all -- it does not even build the
        solution set.  That is on purpose:  ik_driver.run_solver() still owns
-       create_solution_set() on the ordinary path, and create_solution_set() is
-       NOT idempotent (it appends to unknown.LHSversionNames), so exactly one of
-       the two must call it.  Enabling this leaf means the tree owns the whole
+       create_solution_set() on the ordinary path, and that function APPENDS
+       to unknown.LHSversionNames, so calling it twice is not the same as
+       calling it once:  exactly one of the two may call it.  Enabling this leaf means the tree owns the whole
        tail end, and the caller passes create_solutions=False.'''
 
     def __init__(self):

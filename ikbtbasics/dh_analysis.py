@@ -785,7 +785,7 @@ class TestSolver019(unittest.TestCase):
                           fs + ' (%s should report %s)' % (name, want))
 
     def test_dhE_collinear_axes(self):
-        '''Stanford: the collinear-axes regression test.
+        '''Stanford: the collinear-axes case.
 
            Its prismatic joint 3 slides along the very axis joint 4 rotates
            about, so axes 3 and 4 are ONE line and the triples are concurrent

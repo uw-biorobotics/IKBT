@@ -113,7 +113,8 @@ python3 -m ikbtleaves.sincos_solver
 
 ### Testing `ik_classes.py`
 
-This file has not been integrated with `unittest` yet. To test:
+The basic kinematic classes have their own tests, including the slow path that
+computes the forward kinematics from scratch instead of reading the cache:
 
 ```bash
 cd ..

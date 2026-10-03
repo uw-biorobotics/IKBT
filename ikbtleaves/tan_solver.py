@@ -493,7 +493,7 @@ class TestSolver004(unittest.TestCase):
         Cwx = sp.Wild('Cwx', exclude=terms)
         Dwx = sp.Wild('Dwx', exclude=terms)
         self.assertIsNone(cos_expr.collect(terms).match(Cwx*sp.cos(th_2) + Dwx),
-                          fs + ' (fixture no longer reproduces the None match -'
+                          fs + ' (test set-up no longer reproduces the None match -'
                                ' if match() got smarter, this test is obsolete)')
 
         u = unknown(th_2)

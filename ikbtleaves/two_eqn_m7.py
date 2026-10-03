@@ -336,12 +336,12 @@ class TestSolver005(unittest.TestCase):
         vals = {Px: Px_v, Py: Py_v, Pz: Pz_v, th_1: th1_v,
                 th_3: th3_v, a_2: a2_v, a_3: a3_v, d_4: d4_v}
 
-        # sanity: the fixture itself is consistent at the true angle
+        # sanity: the set-up itself is consistent at the true angle
         chk = dict(vals); chk[th_23] = th23_true
         self.assertAlmostEqual(float(exp1.subs(chk)), 0.0, places=9,
-                               msg=fs + ' (fixture inconsistent)')
+                               msg=fs + ' (test set-up inconsistent)')
         self.assertAlmostEqual(float(exp2.subs(chk)), 0.0, places=9,
-                               msg=fs + ' (fixture inconsistent)')
+                               msg=fs + ' (test set-up inconsistent)')
 
         status, u = self.run_leaf([exp1, exp2], th_23, presolved=[th_1, th_3])
         self.assertEqual(status, b3.SUCCESS, fs)

@@ -339,7 +339,7 @@ class TestSolver023(unittest.TestCase):
            witness:  the last assertion below reproduces the old behaviour and
            shows the triple disappearing.
 
-           Regression test for the defect found 2026-09-27."""
+           Pins the defect found 2026-09-27."""
 
         fs = ' parallel_triple joint-count FAIL'
         from ikbtfunctions.ik_robots import robot_params
@@ -357,7 +357,7 @@ class TestSolver023(unittest.TestCase):
 
         #  What install_known does to the unknown list.
         reduced = [u for u in unks if str(u.symbol) != 'th_2']
-        self.assertEqual(len(reduced), len(unks) - 1, fs + ' (fixture)')
+        self.assertEqual(len(reduced), len(unks) - 1, fs + ' (test set-up)')
 
         #  THE INVARIANT:  the count does not move, so neither do the triples.
         self.assertEqual(M.ndof, 6,
@@ -369,7 +369,7 @@ class TestSolver023(unittest.TestCase):
         #  THE BUG, reproduced:  counting from the reduced list loses it.
         old_style = len([u for u in reduced
                          if getattr(u, 'n', 0) and u.n <= 6])
-        self.assertEqual(old_style, 5, fs + ' (fixture: the old count)')
+        self.assertEqual(old_style, 5, fs + ' (test set-up: the old count)')
         self.assertNotIn((4, 5, 6),
                          [t['axes'] for t in da.pieper_triples(M.DH, M.pvals, old_style)],
                          fs + ' (this is exactly the defect M.ndof prevents)')

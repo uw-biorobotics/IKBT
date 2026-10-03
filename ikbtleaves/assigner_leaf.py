@@ -185,7 +185,7 @@ class TestSolver027(unittest.TestCase):
         self.test_asgD_an_unsolved_constituent_blocks_promotion()
         self.test_asgE_only_a_definition_promotes_not_any_aux_equation()
 
-    #  -------------------------------------------------- fixtures
+    #  ------------------------------------------- stand-in objects
 
     class fakerobot(object):
         def __init__(self, aux):

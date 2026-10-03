@@ -96,8 +96,9 @@ AGREE_TOL = 1e-9
 DEFAULT_ROBOTS = sorted(EXPECT)
 
 
-#  The harness appended to a copy of the generated file.  Reads 16 doubles for
-#  T on stdin, prints the branch count and then one line per branch.
+#  The test program appended to a copy of the generated file.  Reads 16
+#  doubles for T on stdin, prints the branch count and then one line per
+#  branch.
 #
 #  APPENDED, not #included:  the generated file is a complete translation unit
 #  with no header beside it (that is the point of inlining Cpp_src/), and
@@ -293,7 +294,7 @@ def check_one(name, verbose=False):
 
 ###############################################################################
 #
-#    The FK / Jacobian emitter, elementwise
+#    The FK / Jacobian generator, element by element
 #
 #  A UNIT CHECK, not a path check.  fk_<R>() and jacobian_<R>() are what the
 #  hybrid refinement and the one-variable search are measured against, so an
@@ -492,9 +493,9 @@ def check_dls(name, n_trials=6, seed=13, verbose=False):
                      .replace('**IDENT**', ident))
     cpath = os.path.join(tmp, 'dls_check.cpp')
     bpath = os.path.join(tmp, 'dls_check')
-    #  THIS HARNESS IS NOT A GENERATED ARTIFACT, so it may use -I where a
-    #  generated file may not:  it includes Cpp_src/ directly by name, which
-    #  is also the arrangement the headers themselves assume internally.
+    #  THIS TEST PROGRAM IS NOT A GENERATED ARTIFACT, so it may use -I where
+    #  a generated file may not:  it includes Cpp_src/ directly by name, the
+    #  way the headers themselves expect to find each other.
     with open(cpath, 'w') as f:
         for h in ('ikbt_types.h', 'ikbt_linalg.h', 'ikbt_pose_error.h',
                   'ikbt_dls.h'):
@@ -839,7 +840,7 @@ def main():
     ap.add_argument('--compile-only', action='store_true',
                     help='the compile gate:  build, do not run')
     ap.add_argument('--fk', action='store_true',
-                    help='check the FK/Jacobian emitter elementwise instead')
+                    help='check the FK/Jacobian generator element by element')
     ap.add_argument('--dls', action='store_true',
                     help='pin Cpp_src/ikbt_dls.h against numeric_ik instead')
     ap.add_argument('--onevar', action='store_true',

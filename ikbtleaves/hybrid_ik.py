@@ -140,8 +140,8 @@ class simplified_arm(b3.Action):
         bb.set('simplification_candidates', [])
         bb.set('simplification_choice', None)
 
-        #  `is None`, never a bare truth test:  [] is falsy and is a perfectly
-        #  good answer ("this arm has no triple").
+        #  `is None`, never a bare truth test:  an empty list tests as False
+        #  and is a perfectly good answer ("this arm has no triple").
         if bb.get('pieper_triples') is None:
             print(self.Name, ': the Pieper analysis did not run, so "no triple"'
                   ' is not established -- refusing to simplify.')
@@ -157,9 +157,9 @@ class simplified_arm(b3.Action):
                   '%s: %s' % (type(e).__name__, e))
             return b3.FAILURE
 
-        #  Blocked routes (a prismatic joint variable in the way) and no-op
-        #  entries are kept by rank_candidates for reporting;  they are not
-        #  something we can act on.
+        #  Blocked routes (a prismatic joint variable in the way) and
+        #  entries that would change nothing are kept by rank_candidates for
+        #  reporting;  they are not something we can act on.
         usable = [c for c in ranked if c.get('dh_simp') is not None and c['edits']]
         bb.set('simplification_candidates', usable)
 
@@ -308,8 +308,8 @@ class TestSolver018(unittest.TestCase):
     #  ------------------------------------------------  pieper_geom_report
 
     #  REAL mechanisms, not stand-ins:  mechanism.__init__ does no FK, so one
-    #  is as cheap as a stub and it carries .ndof, which is what the leaves
-    #  read.  Still needs no FK pickle.
+    #  costs no more than a fake would, and it carries .ndof, which is what
+    #  the leaves read.  Still needs no FK pickle.
     @staticmethod
     def mech(dh, pvals, vv=None):
         M = kc.mechanism(dh, [], vv or [1]*6)     # all rotary unless told
@@ -558,7 +558,7 @@ class TestSolver018(unittest.TestCase):
         #  anything
         self.assertEqual(self.tick_pieper(bb), b3.SUCCESS, fs)
         self.assertTrue(bb.get('pieper_triples'),
-                        fs + ' (fixture reports no triple at all)')
+                        fs + ' (test set-up reports no triple at all)')
 
         self.assertEqual(self.tick_simplify(bb), b3.FAILURE,
                          fs + ' (nothing to simplify must close the branch)')

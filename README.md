@@ -55,10 +55,11 @@ Both perform the full *closed-loop* solution validation:
 For detailed usage, see `tests/TESTING_HOWTO.md`. 
 
 
-* Native C++ code generation, for **every** solution path.  Each Python emitter now has one
-C++ twin derived from it, so a symbolic, one-variable or hybrid solve writes the same set of
-artifacts in both languages.  The generated C++ is **C++11 and standard library only** -- no
-Eigen, no Boost, no build system:
+* Native C++ code generation, for **every** solution path.  Each Python generator function has a
+C++ counterpart written from it, so a symbolic, one-variable or hybrid solve now produces working
+code in both languages.  Everything a robot needs is in one file,
+`CodeGen/Cpp/<Robot>CppCode/<Robot>.cpp`, and the generated C++ is **C++11 and standard library
+only** -- no Eigen, no Boost, no build system:
 
 ```
 > g++ -std=c++11 -O2 -DIKBT_MAIN CodeGen/Cpp/PumaCppCode/Puma.cpp -o ik && ./ik

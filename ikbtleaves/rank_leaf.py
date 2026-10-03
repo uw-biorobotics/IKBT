@@ -175,7 +175,7 @@ class TestSolver011(unittest.TestCase):
                u.eqntosolve = u.sincos_eqnlist[0]
            when it picks sincos.  Fixed by appending in both branches.
 
-           The fixture: a 1-unknown cos equation gives arccos (2 solutions,
+           The set-up: a 1-unknown cos equation gives arccos (2 solutions,
            no variables in them); a sin/cos pair sharing the unsolved factor
            sin(th_5) gives tan's two-branch path (2 solutions, mentioning the
            solved th_2).  Equal counts -> the dependency tie-break -> sincos.'''

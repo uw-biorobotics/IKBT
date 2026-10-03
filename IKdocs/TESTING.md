@@ -45,8 +45,8 @@ Why a particular threshold, timeout or expected count is what it is:
 
 Exercises the basic classes and **every solver leaf** directly, with fabricated
 blackboards. Each leaf file `ikbtleaves/*.py` carries its own
-`TestSolverNNN(unittest.TestCase)` and a `test_<name>_id` action that builds the
-fixture; `leavestest.py` collects them.
+`TestSolverNNN(unittest.TestCase)` and a `test_<name>_id` action that builds
+the blackboard that leaf needs; `leavestest.py` collects them.
 
 ```bash
 python3 -m tests.leavestest           # text output
@@ -130,8 +130,8 @@ closed-loop counts are for. Wall time is not compared either.
 
 `--timeout` (default 1800 s) is a **hang backstop, not a performance target**.
 Slow robots vary by 4x run to run; at 900 s a robot's recorded *status* flipped
-between `partial (hybrid)` and `timeout`, and a flaky gate is worse than a slow
-one.
+between `partial (hybrid)` and `timeout`, and a check that fails at random is
+worse than a slow one.
 
 ## The correctness checkers
 
@@ -155,8 +155,8 @@ python3 -m scripts.numerical_closed_loop_sol_check --keep     # don't re-solve
 
 The second one is what the sweep calls (with `resolve=False`, so nothing is
 solved twice). It covers **all three paths from one command**: `detect_path()`
-reads which artifacts exist, so a caller with a robot name needs no idea which
-branch answered it. The hybrid check is
+reads which generated files are on disk, so you need a robot name and nothing
+else. The hybrid check is
 `q → T = FK_true(q) → Phase I → Phase II → FK_true(refined) == T` — **every
 check goes through the TRUE arm's FK**, because judging Phase I against the
 simplified arm would pass no matter how bad the approximation was.
@@ -211,9 +211,9 @@ to disagree with.
 
 ## The C++ checkers — `scripts/cpp_closed_loop_check.py`
 
-The C++ generator is **derived from** the Python generator, and these turn that
-phrase into an assertion. One script, several questions, the way its Python
-twin covers all three paths from one command:
+The C++ generator is **derived from** the Python generator, and these checks
+turn that phrase into something asserted rather than claimed. One script,
+several questions:
 
 ```bash
 python3 -m scripts.cpp_closed_loop_check --keep          # ALL THREE PATHS, one command
@@ -225,10 +225,9 @@ python3 -m scripts.cpp_closed_loop_check --hybrid Panda  # ... and this one
 python3 -m scripts.cpp_expr_check                        # the expression printer
 ```
 
-Like its python twin it covers **all three paths from one command**:
-`detect_path()` reads which artifacts exist, so a caller with a robot name needs
-no idea which branch answered it. The three entry points are distinguishable by
-file name, which is what the naming discipline is for.
+Like the python checker, it covers **all three paths from one command**:
+`detect_path()` reads the `SOLUTION_PATH` constant the generator writes into
+`<Robot>.cpp`, so you need a robot name and nothing else.
 
 **Soundness and fidelity are different questions, and both are asked.**
 Soundness is the same closed loop as everywhere else: `q → T = FK(q) → compiled
@@ -243,7 +242,7 @@ On the one-variable path the distinction matters most: completeness is the
 question that path exists to answer, and a search that quietly finds six of
 eight roots round-trips perfectly. `--onevar` compares the whole root set.
 
-**Three kinds of compile failure, and only one is a regression.** `XXXXX` is
+**Three kinds of compile failure, and they mean different things.** `XXXXX` is
 the deliberate compile stop for a parameter the robot has no `pvals` entry for.
 `undeclared` is a solution referencing the variable it solves for — an
 *upstream* solver defect, the same one Python reports as `UnboundLocalError`,
@@ -264,23 +263,23 @@ the pose, and how many branches there should be. Both numbers, because `good`
 alone catches a solution going wrong while `total` catches a **spurious branch
 coming back** — a real defect that leaves `good` untouched.
 
-This was three tables (`KNOWN_COMPLETE`, `KNOWN_GOOD`, and a copy inside the old
-`bt_path_gate.py`) with no mechanism to agree. If you improve a robot, update it
-**here**, once.
+One table, in one place. If you improve a robot, update it **here**, once.
 
 The same module holds `artifacts_owed()` — which files a finished solve owes,
 by path:
 
 | path | under the true name | under the derived name |
 |---|---|---|
-| symbolic, complete | `tex`, `py`, `cpp` | — |
-| one variable, complete | `tex`, `onevar`, `cond`, `fk`, `cpp_onevar`, `cpp_cond`, `cpp_fk` | — |
-| hybrid, derived arm complete | `tex`, `hybrid`, `fk`, `cpp_hybrid`, `cpp_fk` | `py`, `fk`, `cpp`, `cpp_fk` |
+| symbolic, complete | `tex`, `py`, `fk`, `cpp_robot` | — |
+| one variable, complete | `tex`, `onevar`, `cond`, `fk`, `cpp_robot` | — |
+| hybrid, derived arm complete | `tex`, `hybrid`, `fk`, `cpp_robot` | `py`, `fk` |
 | anything incomplete | nothing | nothing |
 
-**Every Python artifact is owed with its C++ twin.** Before Sept 2026 the two
-fallback paths emitted no C++ and this table said so; pairing them is what
-keeps a half-emitted path from passing.
+**Every path owes its C++ as well as its Python.** `cpp_robot` is the whole C++
+deliverable: one `<Robot>.cpp` holding the forward kinematics, the Jacobian and
+whichever inverse kinematics was found. A path that writes the Python and not
+the C++ cannot pass. On the hybrid path the derived arm has no C++ file of its
+own — its functions live inside the true robot's.
 
 Sets are compared **exactly**: an unexpected artifact is a failure, not just a
 missing one. The characteristic hybrid defect is an *extra* file — a simplified
@@ -293,7 +292,7 @@ it ships `cond` (`IK_conditional<robot>.py`) and never `py`.
 
 ```bash
 python3 -m scripts.axis_triple_check      # DH joint-axis geometry vs numeric FK
-python3 -m tests.test_chair_helper        # full-solve regression, one robot
+python3 -m tests.test_chair_helper        # one robot, solved end to end
 ```
 
 ## The cold FK cache — why one test is slower than the rest
@@ -301,8 +300,8 @@ python3 -m tests.test_chair_helper        # full-solve regression, one robot
 `kinematics_pickle()` has two branches: load a usable pickle from `fk_eqns/`,
 or compute the forward kinematics and the sum-of-angles scan from scratch. The
 suite always finds a warm cache, so **nothing reaches the compute branch
-unless a test forces it** — and a fixture bug living there can survive every
-run until `fk_eqns/` is wiped by hand.
+unless a test forces it** — and a bug in the setup code there can survive
+every run until `fk_eqns/` is wiped by hand.
 
 `TestSolver030` (in `ikbtbasics/ik_classes.py`) covers it:
 
@@ -343,8 +342,8 @@ adds two things to the normal output:
   exactly that.
 
 Off by default, because the extra lines bury the per-pass progress report. It
-patches a third-party module, so it is opt-in and reversible
-(`disable_sympy_meter()`); only this flag turns it on.
+replaces a function inside sympy while it runs, so nothing turns it on but this
+flag, and `disable_sympy_meter()` puts sympy back as it was.
 
 ## Where the output goes
 
@@ -374,8 +373,9 @@ will not load, or whose DH table no longer matches, is silently recomputed.
 ## Things that will bite you
 
 - **Run from the repo root.** Nothing else works.
-- **`create_solution_set()` is not idempotent.** Exactly one of the tree
-  (`codegen=True`) and the caller may call it.
+- **`create_solution_set()` must run exactly once.** It appends, so a second
+  call doubles the solution table. Either the tree calls it (`codegen=True`)
+  or the caller does — never both.
 - **A record captured with codegen on cannot be diffed against one captured
   with it off** — `n_solutions` and the artifact lists do not mean the same
   thing. The sweep refuses rather than producing a nonsense diff.

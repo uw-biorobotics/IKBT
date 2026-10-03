@@ -102,7 +102,7 @@ def expr_cpp(e):
         nm = type(f).__name__
         if nm not in ALLOWED_FUNCS:
             raise ValueError('generated C++ would need %s(), which is not in '
-                             'the shared whitelist' % nm)
+                             'the shared list of allowed functions' % nm)
     return src
 
 
@@ -541,7 +541,7 @@ class TestSolver031(unittest.TestCase):
         #  Abs -> std::fabs.
         self.assertIn('fabs', expr_cpp(sp.Abs(x)))
 
-        #  ... and something outside the shared whitelist is REFUSED rather
+        #  ... and something outside the allowed list is REFUSED rather
         #  than emitted as something that will not compile.
         with self.assertRaises(ValueError):
             expr_cpp(sp.gamma(x))
