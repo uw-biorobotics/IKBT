@@ -346,43 +346,6 @@ joint vectors afterwards.
 pose forever and what goes wrong here is pose-dependent. It re-measures each solution's error from the
 joint vector actually returned, rather than reprinting the number the search accepted.
 
-#### The three problems of 2026-09-23, and what they were
-
-All three were reproduced against an independent ground truth (multistart least squares on the true
-arm's FK) and are fixed. Kept here because the diagnoses are not re-derivable from the code.
-
-1. **Residuals as high as 1e-7.**  Not the search.  `CodeGen/Python/IK_onevar*.py` **on disk was
-   stale** — generated before `POSE_ERROR_CORE` switched `rotation_angle_axis` from
-   `arccos((tr-1)/2)` to `atan2` of the skew norm.  `arccos` has an infinite derivative at R = I, so
-   1e-16 of rounding in the trace comes back as `sqrt(2*eps)` = **2.107e-8** radians — the exact number
-   that kept appearing.  Worse for the search than for the report: that floor is *quantised*, so the
-   error curve near a root is a staircase, and golden section cannot see past a step.  Regenerating
-   the robot took the worst error from 1e-7 to 1e-14.  The lesson is about artifacts, not algorithms —
-   `CodeGen/` is gitignored, so a working copy can be arbitrarily far behind its own source.
-2. **Different poses, different numbers of solutions.**  Correct behaviour, not a bug.  C-Arm really
-   has **4 or 8** real solutions depending on the pose (verified by multistart, which agrees pose by
-   pose); branches go complex as the pose moves, and the count only has to be constant on a connected
-   region away from the branch-collision set.  The premise that it should be constant is wrong.
-3. **Missed solutions.**  Real, and there turned out to be **two independent causes**, found by
-   grading the search against that ground truth over 100 random poses.  *Close pairs*: C-Arm has poses
-   whose roots are **0.045 rad** apart against a sample spacing of 0.049 at 128 samples — one dip
-   where there are two roots.  *Spikes at a domain edge*: other poses put a root within **1e-3 of
-   `th_2 = ±π/2`**, where `d_1 = (...)/cos(th_2)` blows up, in a spike of slope 1000 that the grid
-   cannot bracket **at any resolution**, because the curve rises into it and the nearest sample is a
-   local maximum.  The first is fixed by the doubling ladder and the twin hunt, the second by the
-   domain-edge probe;  neither mechanism finds the other's case.  *Remedy (b) was the right question* —
-   the van der Corput sequence was adding nothing.  Its selling point is that it is a prefix of itself, and that was never used: the
-   sweep evaluated every point it drew and then **sorted** them, and a sorted van der Corput sequence
-   of 2^k points **is** the uniform grid of 2^k points.  At any other count it is an *uneven* grid,
-   which is strictly worse, since a bracketing scan is only as good as its widest gap.
-
-Reviewing the scan-to-golden-section handoff (remedy (c)) turned up one more real gap, now fixed and
-tested: on a **non-periodic** (prismatic) range, `_local_minima` could never flag the first or last
-sample, so a root at either end of the range had one neighbour and was never bracketed.  A periodic
-domain had always been wrapped; a finite one is now extended by one grid step past each end, so every
-real sample has two neighbours under both. Golden section also stops at float resolution now instead
-of always walking 80 iterations, which the ladder calls for many times per pose.
-
 ### C++ code generation (`ikbtfunctions/output_cpp*.py`, `Cpp_src/`)
 
 **`IKdocs/CPP_API.md` is the caller's reference** -- every type and function in `Cpp_src/` and in
