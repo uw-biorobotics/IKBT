@@ -357,10 +357,10 @@ def closed_loop_one(rec, verbose=False):
        Fills rec['closed_loop'] with {'good', 'total', 'note', 'path'} and
        returns it, or None when there was nothing to check.
 
-       resolve=False:  the child has just solved this robot with codegen on, so
-       the modules on disk are the ones we mean and re-solving would double the
-       sweep's cost for nothing.  THIS IS THE WHOLE REASON THE TWO SWEEPS WERE
-       MERGED -- checking used to mean solving all 32 robots a second time.'''
+       resolve=False:  the child has just solved this robot with codegen on,
+       so the modules on disk are the ones we mean.  Re-solving would double
+       the sweep's cost for nothing, and it is the whole reason the sweep and
+       the closed-loop check run together rather than as two passes.'''
 
     if not rec.get('written'):
         return None                      # nothing was generated: nothing to check
@@ -547,10 +547,10 @@ def classify(old, new):
         return ('changed-simplification',
                 '%s -> %s' % (_hybrid_str(old), _hybrid_str(new)))
 
-    #  Backstop:  anything in COMPARED that is not hand-checked above.  COMPARED
-    #  used to be documentation that only LOOKED like configuration -- adding a
-    #  field to it changed nothing.  Now it is authoritative, so a future field
-    #  cannot be silently uncompared.
+    #  Catch-all:  anything in COMPARED that is not checked by name above.
+    #  This is what makes COMPARED authoritative rather than a list that only
+    #  looks like one -- a field added to it is compared from then on, with no
+    #  further code to write.
     for f in COMPARED:
         if old.get(f) != new.get(f):
             return 'changed-other', '%s: %r -> %r' % (f, old.get(f), new.get(f))
@@ -847,11 +847,12 @@ def main(argv=None):
         return 1 if print_diff(diff_records(load_record(a.diff),
                                             load_record(a.new))) else 0
 
-    #  A --diff run loads the old record BEFORE the sweep, so a bad path or a
-    #  stale record_version fails in a second rather than after an hour.
+    #  A --diff run loads the earlier record BEFORE the sweep, so a bad path
+    #  or a stale record_version fails in a second rather than after an
+    #  hour.
     old = load_record(a.diff) if a.diff else None
     if old is not None and bool(old.get('codegen')) != bool(a.codegen):
-        print('  refusing to diff: the old record was captured with codegen '
+        print('  refusing to diff: that record was captured with codegen '
               '%s and this run has it %s.  n_solutions and the artifact lists '
               'do not mean the same thing across that boundary.'
               % ('on' if old.get('codegen') else 'off',

@@ -445,9 +445,9 @@ def leaf(node, name):
 
 def alt_tree(worktools):
     '''A tree with a DIFFERENT shape from build_default_bt():  one loop level
-       instead of two, the failure-swallowing Priority moved inside the loop,
-       different loop budgets.  Used to prove this suite accepts trees other
-       than today's.
+       instead of two, the Priority that hides a failure moved inside the
+       loop, different loop budgets.  It is here to show that the checker
+       accepts shapes other than the current tree's.
 
        It builds its OWN support leaves rather than borrowing another tree's.
        The point is an independent assembly, and sharing instances between two
@@ -841,7 +841,7 @@ class TestSolver013(unittest.TestCase):
     def test_btaS_hybrid_branch_can_succeed(self):
         '''The hybrid branch must be able to SUCCEED, and must end on the solver.
 
-           An always-FAIL leaf anywhere in the branch makes it inert:  the
+           An always-FAIL leaf anywhere in the branch kills it:  the
            enclosing Priority falls through as though the branch were not
            there, so a robot the hybrid method had actually solved still gets
            nothing -- and the branch still LOOKS complete.  So what is

@@ -72,13 +72,14 @@ class TestChairHelper(unittest.TestCase):
     def test_chair_th2(self):
         '''th_2 comes from the simultaneous pair, so it has ONE solution.
 
-           NOT two.  It used to be asin(arg) and pi - asin(arg):  an equation
-           holding only sin(th_2) admits both, but the rest of the FK still
-           constrains cos(th_2), so the supplementary branch was wrong at every
-           pose -- measured, valid 0 times out of 20.  Simu_Eqn_Sol now runs
-           ahead of sc_tan and reads a sin/cos PAIR, which pins both and yields
-           one atan2.  Do not "restore" the second branch;  see
-           IKdocs/DEV_NOTES.md and bt_assembly.build_worktools().'''
+           NOT two, and not asin(arg) with pi - asin(arg).  An equation
+           holding only sin(th_2) does admit both, but the rest of the forward
+           kinematics still constrains cos(th_2), and the supplementary branch
+           is then wrong at every pose -- measured, valid 0 times out of 20.
+           Simu_Eqn_Sol runs ahead of sc_tan and reads a sin/cos PAIR, which
+           pins both and gives a single atan2.  Do not "restore" the second
+           branch;  see IKdocs/DEV_NOTES.md and
+           bt_assembly.build_worktools().'''
         fs = 'Chair_Helper   FAIL'
         u = self.unk(th_2)
         self.assertEqual(u.nsolutions, 1, fs + ' n(th_2)')

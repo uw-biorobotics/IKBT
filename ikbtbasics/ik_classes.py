@@ -357,7 +357,8 @@ class Robot:
         return
 
     #
-    #   Dedup key for an equation list:  collapse SIGN duplicates only.
+    #   The key that decides whether two equations in a list are the same.
+    #   It collapses SIGN duplicates, and nothing else.
     #
     #   `kequation` equality compares the LHS/RHS split, so it sees
     #
@@ -367,12 +368,13 @@ class Robot:
     #   as two different equations.  These are common, and they make a pair of
     #   equations look independent when the pair carries no extra information.
     #
-    #   NOT kequation.__eq__ (asked and answered, BH 2026-09-27).  Two callers
-    #   need __eq__ to stay exact STRUCTURAL equality:  two_eqn_m7.simu_id
-    #   dedups its candidate list with `if e_flat not in eqn_list`, and the
-    #   solver leaves are sp.Wild matchers.  Collapsing sign there would make
-    #   equality mean one thing to the scan and another to the matchers.  The
-    #   collapse belongs here, at the scan site, where the dedup is wanted.
+    #   NOT kequation.__eq__ (asked and answered, BH 2026-09-27).  Two
+    #   callers need __eq__ to stay exact STRUCTURAL equality:
+    #   two_eqn_m7.simu_id screens its candidate list with
+    #   `if e_flat not in eqn_list`, and the solver leaves match with
+    #   sp.Wild.  Collapsing sign there would make equality mean one thing to
+    #   the scan and another to the matchers.  It belongs here, at the scan,
+    #   which is the only place that wants it.
     #
     #   DO NOT extend this to collapse a re-split of the same statement, i.e.
     #
@@ -403,7 +405,7 @@ class Robot:
         assert (len(elist) > 0), '  not enough equations '
 
         def keep(e, lst):
-            lst.append(e)          # dedup happens after erank(), see below
+            lst.append(e)          # duplicates are removed after erank()
 
         for eqn in elist:
             lhs = eqn.Td   #4x4 matrix
@@ -434,13 +436,14 @@ class Robot:
         self.l2 = erank(self.l2)
         self.l3p = erank(self.l3p)
 
-        #  Dedup AFTER erank, not before.
+        #  Remove duplicates AFTER erank, not before.
         #
-        #  One key set across all three lists:  an equation's unknown count puts
-        #  it in exactly one list, so a key seen anywhere else is a duplicate.
+        #  One set of keys covers all three lists:  an equation's unknown
+        #  count puts it in exactly one list, so the same key appearing
+        #  anywhere else is a duplicate.
         seen = set()
 
-        def dedup(lst):
+        def drop_duplicates(lst):
             out = []
             for e in lst:
                 k = Robot.eqn_key(e)
@@ -450,9 +453,9 @@ class Robot:
                 out.append(e)
             return out
 
-        self.l1  = dedup(self.l1)
-        self.l2  = dedup(self.l2)
-        self.l3p = dedup(self.l3p)
+        self.l1  = drop_duplicates(self.l1)
+        self.l2  = drop_duplicates(self.l2)
+        self.l3p = drop_duplicates(self.l3p)
 
         return [self.l1, self.l2, self.l3p]
         #end of scan_for_eqns

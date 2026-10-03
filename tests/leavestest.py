@@ -405,9 +405,9 @@ if __name__ == '__main__':
     suite3.addTest(TestSolver028())   # onevar_ik.py      # rank + install a known variable
     suite3.addTest(TestSolver029())   # output_onevar_python.py # the 1-D search
     suite3.addTest(TestSolver030())   # ik_classes.py     # COLD fk cache + staleness guards
-    #  031, not 010:  the C++ generator this replaced numbered its test class
-    #  TestSolver010, which is x2y2_transform's.  `from x2y2_transform import *`
-    #  above shadowed it and it had never run once.
+    #  The class numbers must all differ.  This file does
+    #  `from <leaf> import *` for every leaf, so two test classes sharing a
+    #  name would leave one of them shadowed and never run.
     suite3.addTest(TestSolver031())   # output_cpp_common.py # the C++ generator
     suite1.addTest(TestSolver009())   # helperfunctions.py
 

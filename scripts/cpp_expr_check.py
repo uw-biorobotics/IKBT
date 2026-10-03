@@ -15,13 +15,14 @@
 #   random substitutions, evaluated by python and by a compiled C++ program,
 #   required to agree to 1e-13 relative.
 #
-#   SEEDED WITH THE EXPRESSIONS THAT BROKE THE OLD GENERATOR.  `(Px - a_1)**2`
-#   is the one that shipped as invalid C++ in Arm_3 and UR5; `pi` is the one
-#   that shipped as 3.1415926, eight digits, injecting 3.6e-8 into every
-#   solution that contained it.
+#   THE LIST STARTS WITH THE EXPRESSIONS THAT ARE EASY TO GET WRONG.
+#   `(Px - a_1)**2` is one:  a naive `**` rewrite turns it into invalid C++.
+#   `pi` is another:  written to only eight digits it puts 3.6e-8 into every
+#   solution that contains it.
 #
-#   Skips cleanly with no g++, the way write_latex_fitted() degrades with no
-#   pdflatex:  a missing compiler must not fail a test run.
+#   With no g++ this skips cleanly and reports nothing, the same way
+#   write_latex_fitted() does with no pdflatex:  a missing compiler must not
+#   fail a test run.
 #
 #   Copyright 2026 University of Washington
 #
