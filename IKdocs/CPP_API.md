@@ -2,6 +2,8 @@
 
 **Who this is for:** you have run `python3 ikSolver.py <Robot>`, you have
 `CodeGen/Cpp/<Robot>CppCode/<Robot>.cpp`, and you want to call it from an application of your own.
+No knowledge of IKBT's internals is assumed or needed anywhere on this page: it is about the code
+that came out, not about how it was produced.
 
 This lists every type and function you can call, says where each lives, and — the question that
 sends people looking through the sources — says **who calls what**. Nothing in `Cpp_src/` calls a
@@ -11,8 +13,23 @@ named in "The wiring" below.
 Every program in section 2 was compiled with `-Wall -Wextra` and run against the checked-in
 generated code; the outputs shown are what they actually printed.
 
->BH: TODO: write a very brief introduction to the three solution methods here consistent with the
-terminology in the sections below.   
+**The three solution methods, in brief.** IKBT tries three methods in order and stops at the
+first that works, so **your robot got exactly one of them**. Which one you got decides which
+function you call; the rest of the generated file is the same either way.
+
+- **Symbolic** — a complete closed form: an explicit equation for every joint in terms of the goal
+  pose. One call, `ikin(T)`, returns every posture at once, exactly, in microseconds.
+- **One-variable** — no complete closed form exists, but if ONE variable is treated as though it
+  were already known, the rest of the arm does solve in closed form. The generated code searches
+  that one variable over its whole range for the values that reproduce the goal pose. **Nothing
+  about the arm is approximated** — the equations are the true arm's — so the answers are exact.
+  One call, `solve(T)`, costing milliseconds.
+- **Hybrid** — not even that works, so IKBT finds the nearest arm that does solve (a small change
+  to one or two DH parameters), solves *that* arm in closed form, and uses its answers as starting
+  points for a numerical correction against your true arm. Two calls, `ikin_approx(T)` then
+  `refine_seed(T, seed)`, because choosing a starting point is choosing a posture (see 2c).
+
+"Which IK did my robot get?" below tells you which one you are holding.
 
 ---
 
@@ -29,10 +46,9 @@ a relative `#include`. So there is one question and one answer, for example:
 ikbt::Puma::ikin(T);
 ```
 
-**The namespace  identifies the callable methods** 
-Use the plain names
-`fk()`, `jacobian()`, `ikin()`, `ikin_given()`, `solve()`, `refine_seed()`as members of your
-robot's namespace.  Example: `ikbt::Puma::fk(T_matrix)`. Or you can use:
+**The namespace carries the robot name, so the functions do not have to.** They have plain names
+— `fk()`, `jacobian()`, `ikin()`, `ikin_given()`, `solve()`, `refine_seed()` — and you qualify them
+with your robot: `ikbt::Puma::fk(q)`. If that gets long, alias it:
 
 ```cpp
 namespace CArm = ikbt::C_Arm;
@@ -62,58 +78,94 @@ const char* const SOLUTION_PATH = "symbolic";
 section and a Jacobian section on every path, so the code does too; the three paths' files differ
 only where the methods genuinely differ.
 
-On the **hybrid** solution method, the file describes **two arms**. The true arm's namespace
-owns the plain names 
-`fk()`, `jacobian()`, `ikin()`, `ikin_given()`, `solve()`, `refine_seed()`; the
-*derived*, simplified, arm keeps a suffix — 
-for the `Panda` robot: `ikin_Panda_a_3_0_a_4_0()`, `fk_Panda_a_3_0_a_4_0()` 
-but no Jacobian code is produced for the simplified arm because the algorithm does not need it.
+**On the hybrid path the file describes TWO arms**, and the names are what tell them apart. Your
+real robot — the *true* arm — owns the plain names. The *derived* arm (the slightly different arm
+IKBT solved in closed form, to get starting points from) gets its own name appended to each
+function, so you cannot call one thinking it is the other. For `Panda`, whose derived arm is named
+`Panda_a_3_0_a_4_0`:
+
+| the true arm — your robot | the derived arm — seeds only |
+|---|---|
+| `fk(q)`, `jacobian(q)` | `fk_Panda_a_3_0_a_4_0(q)` — no Jacobian: nothing needs one |
+| `refine_seed(T, q_seed)` | `ikin_Panda_a_3_0_a_4_0(T)` |
+
+The derived arm's name records what was changed: `a_3` and `a_4` were set to zero, hence
+`_a_3_0_a_4_0`. The string constant `DH_CHANGES` in the file spells the change out in full.
 
 ### The wiring
 
-This is the part that is hard to see by grepping, because the two halves are written at different
-times and live in different trees.
+Everything you call is in one generated file; everything generic is in `Cpp_src/`. The two halves
+meet at exactly the places below — nothing in `Cpp_src/` knows about your robot, and no generated
+file reaches into another robot's internals. Read `<robot>` as your own robot's name.
 
->BH: TODO:  revise the diagram below for improved readability.  Use <robot> instead of e.g. "Panda".
-(readers will confuse that with the well known Panda library).
+The hybrid path is the busiest example, and the only one where control crosses the boundary twice:
 
 ```
-        YOUR APPLICATION
-               |
-               v
-  <Robot>.cpp :: ikbt::Panda::refine_seed(T, q_seed)      (generated, per robot)
-               |
-               |  calls, passing fk and jacobian as the two callbacks
-               v
-  Cpp_src/ikbt_dls.h :: solve_numeric(fk, jac, q0, T_d, w_rot, ...)   (SOURCE, generic)
-               |
-               +--> Cpp_src/ikbt_linalg.h     :: solve6()       the 6x6 step
-               +--> Cpp_src/ikbt_pose_error.h :: pose_error()   "how far from the goal"
-               |
-               v  (the callbacks, back in the same generated file)
-  <Robot>.cpp :: ikbt::Panda::fk(q)  and  ikbt::Panda::jacobian(q)
+  YOUR APPLICATION
+        |
+        |   ikbt::<robot>::refine_seed(T, q_seed)
+        v
+  [GENERATED]  CodeGen/Cpp/<robot>CppCode/<robot>.cpp
+        |
+        |   calls solve_numeric(), handing it fk and jacobian as callbacks
+        v
+  [SOURCE]     Cpp_src/ikbt_dls.h :: solve_numeric(fk, jac, q0, T_d, w_rot, ...)
+        |          |
+        |          +-- Cpp_src/ikbt_linalg.h     :: solve6()      the 6x6 step
+        |          +-- Cpp_src/ikbt_pose_error.h :: pose_error()  "how far from the goal"
+        |
+        |   calls those callbacks back, once per iteration
+        v
+  [GENERATED]  ikbt::<robot>::fk(q)   and   ikbt::<robot>::jacobian(q)
 ```
+
+The one-variable path has the same shape with different parts: `solve()` calls
+`Cpp_src/ikbt_search.h :: onevar_solve()`, which calls back into the generated `branches_at()` and
+`errors()`. The symbolic path never leaves the generated file at all, except to use `pose_error()`
+in its self-test.
  
 
 ### What else is in the directory
 
-`CodeGen/Cpp/<Robot>CppCode/` holds `<Robot>.cpp` and nothing else, unless you ran
-`python3 fkOnly.py <Robot>`, which writes a standalone `FK_numeric<Robot>.h` with `fk_<Robot>(q)`
-and `jacobian_<Robot>(q). 
+`CodeGen/Cpp/<Robot>CppCode/` holds `<Robot>.cpp` and nothing else — unless you have also run
+`python3 fkOnly.py <Robot>`, which writes a standalone `FK_numeric<Robot>.h` holding `fk_<Robot>(q)`
+and `jacobian_<Robot>(q)`. That header is forward kinematics only, and you do not need it to call
+the IK: `<Robot>.cpp` already contains both.
 
 ---
->BH: TODO: This "quick start" section is incoherent and needs major revision or maybe elimination.
 
 ## 2. Quick start
 
-Three complete programs, one per path. Build each with
+Three complete programs, one per solution path. **Read only the one that matches your robot**:
+
+```bash
+grep SOLUTION_PATH CodeGen/Cpp/<Robot>CppCode/<Robot>.cpp
+```
+
+| it prints | read | the shape of it |
+|---|---|---|
+| `"symbolic"` | 2a | one call, exact answers |
+| `"onevar"` | 2b | one call, with a search inside it |
+| `"hybrid"` | 2c | two calls: seeds, then a numerical correction |
+
+Build any of them with
 
 ```
 g++ -std=c++11 -O2 myapp.cpp -o myapp -lm
 ```
 
 **No `-I`, no library, no build system.** The `#include` path to the robot file is the only thing
-that has to be right.
+that has to be right, and it is resolved relative to the file doing the including — the programs
+below are written to be compiled from the repo root.
+
+Two things all three programs do, and your application should do too:
+
+- **The goal pose `T` is a 4x4 homogeneous transform of the tool frame in the base frame**, row
+  major, so `T[0][3]` is x. The programs below manufacture one they know is reachable by running
+  the arm's own `fk()` on a joint vector; in your application it comes from wherever your goals
+  come from.
+- **They check the answer by round-tripping it back through `fk()`.** Do not skip that — 2a says
+  why.
 
 ### 2a. Symbolic (Puma)
 
@@ -208,6 +260,19 @@ already in its own chain position, so it goes straight into `CArm::fk()`.
 
 ### 2c. Hybrid (Panda) — two steps, on purpose
 
+**The two steps are called Phase I and Phase II**, and the generated code uses those names:
+
+- **Phase I**, `ikin_approx(T)` — the *derived* arm's closed form, evaluated at your goal pose. It
+  returns a list of joint vectors, one per posture. **They are seeds, not answers:** each one puts
+  the derived arm on the goal pose, and your arm is not the derived arm.
+- **Phase II**, `refine_seed(T, q_seed)` — damped least squares against your TRUE arm's FK and
+  Jacobian, starting from one seed. This is the call that returns an answer. (The file calls the
+  one-seed version Phase IIa, and `refine_all(T)`, which runs it over every seed, Phase II.)
+
+You call Phase I once and then Phase IIa on the seed you want, because the seed you pick is the
+posture you get — elbow up or down, wrist flipped — and only you know which posture your robot
+should be in.
+
 ```cpp
 #include "CodeGen/Cpp/PandaCppCode/Panda.cpp"
 #include <cstdio>
@@ -249,26 +314,29 @@ Which prints:
   4 iterations, metric 7.885e-11
 ```
 
->BH: TODO: The "Phases" have not been explained yet. 
-
 **A seed that has not been through Phase II does not put the real robot where you asked.** The
 closed form belongs to a *displaced* arm (for Panda, `a_3` and `a_4` zeroed — 0.106 of task-space
-cost). Use `Panda::refine_all(T)` once, in a diagnostic, to learn which postures the true arm can
-actually reach; use `refine_seed()` from then on.
+cost, which on one measured Panda pose put the two arms 39 mm apart). `refine_all(T)` runs Phase
+IIa over every seed at once; use it in a diagnostic, to learn which postures your true arm can
+actually reach, and `refine_seed()` from then on.
 
 ---
 
 ## 3. `Cpp_src/` — the shared library (SOURCE, hand-written)
 
->BH: TODO: start with a gentle introduction to the reader who is totally new to this software!  
-What are you going to describe here???  Why does the user need to know it?
+**You do not need this section in order to use the generated code.** `<Robot>.cpp` includes what
+it needs by itself, and sections 1 and 2 are enough to call it. Read on when you want to:
 
-There are
-Five header files, which  `inline` various functions needed for the 
-Cpp source code.   As generated by IKBT, you get them by a **relative `#include`** from a
-generated file — `../../../Cpp_src/ikbt_types.h` from a robot's Cpp Source Code directory. 
-There is **one copy of the include (.h) files for
-all robots**.  
+- know what the types in those signatures are — `Mat4`, `JointVec`, `SolutionList` (3.1);
+- measure the distance between two poses yourself, with the same definition IKBT uses (3.2);
+- read the fields of what the hybrid path returns (`SolveResult`, 3.4) or what the one-variable
+  path returns (`OneVarSolution`, 3.5), or change their tolerances.
+
+`Cpp_src/` is five hand-written header files — **not generated, and one copy serves every robot**,
+so a fix in them reaches robots that were generated months ago. Everything in them is `inline`, so
+there is no library to build and nothing to link: a generated file picks them up with a relative
+`#include` (`../../../Cpp_src/ikbt_types.h`, from the robot's own directory), and that is the whole
+mechanism.
 
 
 ### 3.1 `ikbt_types.h` defines C++ types used throughout
@@ -289,12 +357,16 @@ all robots**.
 | `Mat4 mat_mul(const Mat4 &A, const Mat4 &B)` | 100 | 4x4 product |
 | `bool all_finite(const Mat4 &T)` | 116 | every entry finite? |
 | `bool all_finite(const JointVec &q)` | 126 | overload for a joint vector |
+
 Line numbers are as of 2026-10-01 and will drift; the symbol names will not.
 
 Also defines `M_PI`, `M_PI_2`, `M_PI_4`, `M_E` if absent — they are POSIX, not ISO C++, and
 `-std=c++11` (as against `-std=gnu++11`) can leave them undefined while sympy's printer emits them.
 
-### 3.2 `ikbt_pose_error.h` — official definition of how close are two end effector poses represented by 4x4 homogeneous transforms.
+### 3.2 `ikbt_pose_error.h` — how far apart are two poses
+
+IKBT's one definition of "how far is this pose from the one I asked for", used by everything that
+has to decide whether an answer is good enough. Both poses are 4x4 homogeneous transforms.
 
 | symbol | line | meaning |
 |---|---|---|
@@ -317,7 +389,7 @@ infinite derivative at `R = I`, so 1e-16 of rounding in the trace comes back as 
 and *quantised*, which turns the error curve near a root into a staircase that golden section
 cannot see past. If you write your own pose error, do it this way.
 
-### 3.3 `ikbt_linalg.h` basic linear algebra as needed
+### 3.3 `ikbt_linalg.h` — the one piece of linear algebra needed
 
 | function | line | what it does |
 |---|---|---|
@@ -349,7 +421,7 @@ SolveResult solve_numeric(const FkFn &fk, const JacFn &jac,
 
 - **`converged` means `metric <= tol`.**  
 
-- `reason` is one of `["converged"`, `"max_iter"`, `"lam_max"]`.
+- `reason` is one of `"converged"`, `"max_iter"`, `"lam_max"`.
 - `history` is the metric after every accepted step.
 - **Solution search stays in the basin of its seed.** That is why `refine_seed()` takes a seed rather than
   choosing one: the branches are different *postures*, and which you want depends on obstacles,
@@ -359,9 +431,13 @@ SolveResult solve_numeric(const FkFn &fk, const JacFn &jac,
 **The Jacobian must be expressed in frame 6**,   IKBT already computes and stores it as `J66`;
 `solve_numeric()` rotates it into the base frame (J06) with `jacobian_base()`. 
 
-### 3.5 `ikbt_search.h` — the 1-D search for the one-variable method.
+### 3.5 `ikbt_search.h` — the 1-D search behind the one-variable method
 
- 
+Generic, and written once for all robots. The generated `solve()` hands it two callbacks — "what
+does the closed form give at this value of the assumed variable" and "how wrong is each of those
+answers" — and it returns every value that reaches the goal pose. **You call `solve()`, not this.**
+The two types below are what `solve()` hands back and what configures it; the rest is here for
+diagnosis.
 
 **Types**
 
@@ -418,12 +494,14 @@ never brackets it at any resolution. C-Arm has poses with a root within 1e-3 of 
 spike of slope 1000.
 
 ---
-## 4. What is inside `<Robot>.cpp`  
->BH: TODO: Section ## 4 needs to be reorganized or AT LEAST the 2 line intro below ("The section appear in") needs to be 
-clarified.   
 
-All of it is in `namespace ikbt::<Robot>`. The section appear in the order below, which is
-declaration order in one translation unit.
+## 4. What is inside `<Robot>.cpp`
+
+Every name below is in `namespace ikbt::<Robot>`, and the subsections follow the order the file
+itself declares things in.
+
+**Read 4.0, then the ONE subsection that matches your `SOLUTION_PATH`.** 4.0 is in every robot file
+whatever the path; 4.1, 4.2 and 4.3 are mutually exclusive, and your file has exactly one of them.
 
 ### 4.0 For all solution methods
 
@@ -448,6 +526,10 @@ the surplus columns of an arm with less than 6DOF are **not** zero.
 | `AUX_NAMES[]`, `N_AUX_NAMES` | sum-of-angle intermediates: computed, **not returned** |
 | `IK_NJOINTS`, `IK_NBRANCHES` | `IK_NBRANCHES` is the *maximum*; the returned count is usually smaller |
 | link lengths (`a_2`, `d_4`, …) | baked in as `const double` from the robot's `pvals` |
+
+**A returned row goes straight back into `fk()`.** `JOINT_NAMES` (the order of a returned row) and
+`FK_JOINT_NAMES` (the order `fk()` wants) are generated separately, but they are identical for
+every robot in the repo, which is what lets the round-trip check in 2a be written the way it is.
 
 **A non-finite row is a posture that does not exist, and only that row is dropped.** The returned
 count therefore varies with the pose, and an empty list means none exist. (The generated python returns
@@ -480,23 +562,26 @@ searches for the values that are right.
 
 Two things to know about `ikin_given()`:
 
--  `solve()` calls it at
-  hundreds of values and builds one error curve per branch,  test `all_finite()` yourself if you
-  call it directly.
-- **`ikin_given`, never `ikin`.** The plain name (ikin) means an *unconditional* inverse kinematics for
-  the robot, and these equations are exact only where the assumed value is right. (The generated python
+- **It is the one function here that keeps non-finite rows.** Everywhere else a row of NaN is
+  dropped; here it is left in place, because `solve()` calls `ikin_given()` at hundreds of values
+  and builds one error curve per branch, indexed by position — dropping a row at some values and
+  not others would stitch one branch's error onto another branch's curve. So if you call it
+  directly, test each row with `all_finite()` yourself.
+- **`ikin_given`, never `ikin`.** The plain name means an *unconditional* inverse kinematics for the
+  robot, and these equations are exact only where the assumed value is right. (The generated python
   says the same thing with a file name: `IK_conditional<Robot>.py`, never `IK_equations<Robot>.py`.)
 
-Nothing about the robot is approximated here — the DH table, the FK and the equations are the true
-arm's. 
+Nothing about the robot is approximated on this path — the DH table, the FK and the equations are
+the true arm's — so what `solve()` returns is exact.
 
 
 ### 4.3 `SOLUTION_PATH == "hybrid"`
 
-**Two arms in one namespace.** The true arm owns the plain function names like `fk(T)`; the derived 
-(simplified) arm keeps its suffix.
-
->BH: TODO: I don't understand "keeps its suffix" at all!. 
+**Two arms share the namespace, and the function names are what tell them apart.** Your real robot
+— the true arm — owns the plain names `fk()`, `jacobian()`, `refine_seed()`. The derived arm's
+functions carry its name: for Panda, `fk_Panda_a_3_0_a_4_0()` rather than `fk()`. So calling the
+derived arm is something you have to do on purpose. In the table below, **`<D>` stands for the
+derived arm's name**, which is in `APPROXIMATE_ARM`.
 
 | symbol | what it is |
 |---|---|
@@ -526,14 +611,16 @@ a posture on your behalf from information IKBT does not have.
 joint vector exists, not that every enumerated branch exists. IKBT does not discard spurious
 branches; a posture can fail to exist at a pose the arm reaches. It is data, not a fault.
 
-**Our numerical  functions return NaN with domain errors.**  NaN returned from
-`acos`, `asin` and `sqrt` all mean the
-same thing\: *this branch has no solution at this pose*.  (The
-generated python rewrites them to `acos_dc`/`asin_dc`/`sqrt_dc`, which raise;
-`scripts/cpp_expr_check` checks that the two languages agree case by case.)
- 
-Division by zero is still handled slightly differently by Python and C++ but this has not
-caused any problems so far. 
+**A NaN in a returned joint value is not a bug — it is that branch saying it does not exist.**
+`acos`, `asin` and `sqrt` all return NaN when their argument leaves their domain, and all three
+mean the same thing when they do: *this branch has no solution at this pose*. The generated code
+tests for it and drops the row, which is why the number of postures returned varies with the pose.
+(The generated python raises an exception instead, via `acos_dc`/`asin_dc`/`sqrt_dc`;
+`scripts/cpp_expr_check` checks case by case that the two languages agree about which cases those
+are.)
+
+Division by zero is the one place the two languages still differ — python raises, C++ gives `inf`
+— and it has not yet been seen to cause trouble.
 
 **`#ifdef IKBT_MAIN` is the C++ spelling of `if __name__ == "__main__":`.** Every robot file has one
 self-test behind it, and exactly one. Build it with
@@ -544,7 +631,7 @@ g++ -std=c++11 -O2 -DIKBT_MAIN CodeGen/Cpp/PumaCppCode/Puma.cpp -o ik_test -lm &
 
 `main()` has to be at global scope, so it sits outside both namespaces and reaches back in with
 `using namespace ikbt::<Robot>;`. Omitting `-DIKBT_MAIN` is how a robot file can be linked into your
-applicaiton program without a stray `main()`. 
+application program without a stray `main()`. 
 
 **Three robots solve "completely" and their generated code is still wrong** — Arm_3, JennyGuoSp24,
 UR5. One defect, and it is the solver's, not the generator's: the solution for a variable contains
@@ -588,10 +675,9 @@ ikbt::Wrist::ikin(T2);
 ```
 
 **The namespace is what makes it work.** Every name a robot file defines is inside
-`ikbt::<Robot>`, so two arms of equal DOF cannot collide at link time.
-
-``ikbt::Puma::ik(T1) != ikbt::Stanford::ik(T1)``
-is a true statement and will compile.
+`ikbt::<Robot>`, so `ikbt::Puma::ikin` and `ikbt::Stanford::ikin` are two different functions and
+two arms of equal DOF cannot collide at link time. Without the namespaces the linker would say
+`multiple definition of ikin(...)`.
 
 **`CodeGen/` is gitignored.** A working copy can be arbitrarily far behind its own source. If a
 number looks wrong, regenerate before you debug.
@@ -601,7 +687,8 @@ number looks wrong, regenerate before you debug.
 ## 7. Where each of these comes from
 
 Each python generator function below has one C++ counterpart written from it. The python side is
-the specification, and the checks in section 2 are what make that more than a claim.
+the specification, and the checks listed at the end of this section are what make that more than a
+claim.
 
 **The pairing is function to function, not file to file.** Python writes one module per generated
 artifact, because a module is what you import; C++ writes one file per robot, because that is what
