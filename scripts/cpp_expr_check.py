@@ -170,9 +170,12 @@ def build_cases(exprs, rng):
 def cpp_program(cases):
     '''One translation unit that prints every case's value at 17 digits.'''
 
-    from ikbtfunctions.output_cpp_common import read_src
+    from ikbtfunctions.output_cpp_common import SRC_DIR
 
-    out = [read_src('ikbt_types.h'),
+    #  #include by absolute path rather than inlining the text:  ikbt_types.h
+    #  reaches the vendored Eigen relative to its OWN directory, which an
+    #  inlined copy in a temporary directory would not be.
+    out = [f'#include "{os.path.join(SRC_DIR, "ikbt_types.h")}"',
            '',
            '#include <cstdio>',
            '',
@@ -207,7 +210,7 @@ def run(exprs, verbose=False, seed=7):
     with open(cpath, 'w') as f:
         f.write(src)
 
-    cc = subprocess.run(['g++', '-std=c++11', '-O2', '-Wall', '-Wextra',
+    cc = subprocess.run(['g++', '-std=c++17', '-O2', '-Wall', '-Wextra',
                          cpath, '-o', bpath, '-lm'],
                         capture_output=True, text=True)
     if cc.returncode != 0:
@@ -311,11 +314,12 @@ def _emitted_helpers():
 def check_domain_behaviour(verbose=False):
     """Do the two languages agree about an out-of-domain arccosine?"""
 
-    from ikbtfunctions.output_cpp_common import read_src
+    from ikbtfunctions.output_cpp_common import SRC_DIR
 
     ns = _emitted_helpers()
 
-    lines = [read_src('ikbt_types.h'), '', '#include <cstdio>', '',
+    lines = [f'#include "{os.path.join(SRC_DIR, "ikbt_types.h")}"', '',
+             '#include <cstdio>', '',
              'using namespace ikbt;', '', 'int main()', '{']
     for i, (_, _, csrc) in enumerate(DOMAIN_CASES):
         lines.append('    std::printf("%d %%.17g\\n", (double)(%s));' % (i, csrc))
@@ -328,7 +332,7 @@ def check_domain_behaviour(verbose=False):
     with open(cpath, 'w') as f:
         f.write('\n'.join(lines))
 
-    cc = subprocess.run(['g++', '-std=c++11', '-O2', '-Wall', '-Wextra',
+    cc = subprocess.run(['g++', '-std=c++17', '-O2', '-Wall', '-Wextra',
                          cpath, '-o', bpath, '-lm'],
                         capture_output=True, text=True)
     if cc.returncode != 0:

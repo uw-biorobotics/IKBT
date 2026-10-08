@@ -39,8 +39,7 @@ from ikbtfunctions.output_cpp_common import cpp_identifier, name_table_cpp
 #  The shared numerics, in dependency order.  ikbt_dls.h is the C++ copy of
 #  ikbtbasics/numeric_ik.solve_numeric();  the two are checked against each
 #  other by `python3 -m scripts.cpp_closed_loop_check --dls`.
-CORE_HEADERS = ['ikbt_types.h', 'ikbt_linalg.h', 'ikbt_pose_error.h',
-                'ikbt_dls.h']
+CORE_HEADERS = ['ikbt_types.h', 'ikbt_pose_error.h', 'ikbt_dls.h']
 
 
 def write_hybrid_top_cpp(M_true, true_name, derived_name, edits_text,
@@ -139,13 +138,9 @@ inline SolutionList ikin_approx(const Mat4 &T,
     SolutionList out;
     for (size_t i = 0; i < raw.size(); ++i) {
         const Mat4 Tq = fk_**DIDENT**(raw[i]);
-        if (!all_finite(Tq))
+        if (!Tq.allFinite())
             continue;
-        double worst = 0.0;
-        for (int r = 0; r < 4; ++r)
-            for (int c = 0; c < 4; ++c)
-                worst = std::max(worst, std::fabs(Tq[r][c] - T[r][c]));
-        if (worst < APPROX_TOL)
+        if ((Tq - T).cwiseAbs().maxCoeff() < APPROX_TOL)
             out.push_back(raw[i]);
     }
     return out;
@@ -232,7 +227,7 @@ MAIN = '''
 /////////////////////////////////////////////////////////////
 //
 //   TEST CODE.  Build it with
-//       g++ -std=c++11 -O2 -DIKBT_MAIN <this file> -o ik_hybrid -lm
+//       g++ -std=c++17 -O2 -DIKBT_MAIN <this file> -o ik_hybrid -lm
 //
 /////////////////////////////////////////////////////////////
 
@@ -248,7 +243,9 @@ int main(void)
     //  A round trip:  pick joint values, build the pose they produce on the
     //  TRUE arm, and see whether the two phases recover them.
     const double q_all[6] = {0.4, -0.6, 0.7, 0.9, -0.5, 0.3};
-    JointVec q_demo(q_all, q_all + NDOF);
+    JointVec q_demo = JointVec::Zero(NDOF);
+    for (int i = 0; i < NDOF && i < 6; ++i)
+        q_demo[i] = q_all[i];
     const Mat4 T_goal = fk(q_demo);
 
     std::printf("\\n  %s -- hybrid IK via %s\\n", TRUE_ROBOT, APPROXIMATE_ARM);

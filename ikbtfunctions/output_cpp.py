@@ -263,10 +263,9 @@ def output_cpp_code(Robot, solution_groups, f, known=None, owner=None):
         #  solved it, so its cell is just the argument's own name.
         vals = [known if j == known else row[order.index(j)] for j in joint_cols]
         print('    {', file=f)
-        print('        JointVec s;', file=f)
-        print('        s.reserve(%d);' % n_joints, file=f)
-        for j, v in zip(joint_cols, vals):
-            print('        s.push_back(%s);   // %s' % (v, j), file=f)
+        print(f'        JointVec s({len(joint_cols)});', file=f)
+        for k, (j, v) in enumerate(zip(joint_cols, vals)):
+            print(f'        s({k}) = {v};   // {j}', file=f)
         print('        solution_list.push_back(s);', file=f)
         print('    }', file=f)
     print('', file=f)
@@ -284,7 +283,7 @@ def output_cpp_code(Robot, solution_groups, f, known=None, owner=None):
         print('    //  python says with False.', file=f)
         print('    SolutionList reachable;', file=f)
         print('    for (size_t i = 0; i < solution_list.size(); ++i)', file=f)
-        print('        if (all_finite(solution_list[i]))', file=f)
+        print('        if (solution_list[i].allFinite())', file=f)
         print('            reachable.push_back(solution_list[i]);', file=f)
         print('', file=f)
         print('    return reachable;', file=f)
@@ -322,11 +321,11 @@ def output_cpp_code(Robot, solution_groups, f, known=None, owner=None):
           % (funcname, (', %s' % known) if known else ''), file=f)
     print('    if (sols.empty())', file=f)
     print('        return 0;', file=f)
-    print('    for (size_t i = 0; i < sols.size() && i < (size_t) IK_NBRANCHES; ++i)',
+    print('    for (int i = 0; i < (int) sols.size() && i < IK_NBRANCHES; ++i)',
           file=f)
-    print('        for (size_t j = 0; j < sols[i].size() && j < (size_t) IK_NJOINTS; ++j)',
+    print('        for (int j = 0; j < (int) sols[i].size() && j < IK_NJOINTS; ++j)',
           file=f)
-    print('            solution_list[i][j] = sols[i][j];', file=f)
+    print('            solution_list[i][j] = sols[i](j);', file=f)
     print('    return 1;', file=f)
     print('}', file=f)
 
@@ -358,7 +357,7 @@ MAIN_BLOCK = '''
 /////////////////////////////////////////////////////////////
 //
 //   TEST CODE.  Build it with
-//       g++ -std=c++11 -O2 -DIKBT_MAIN <this file> -o ik_test -lm
+//       g++ -std=c++17 -O2 -DIKBT_MAIN <this file> -o ik_test -lm
 //
 /////////////////////////////////////////////////////////////
 
@@ -369,29 +368,16 @@ MAIN_BLOCK = '''
 using namespace ikbt;
 using namespace ikbt::**IDENT**;
 
-static Mat4 RotX4(double t)
-{
-    Mat4 R = identity4();
-    R[1][1] =  std::cos(t);  R[1][2] = -std::sin(t);
-    R[2][1] =  std::sin(t);  R[2][2] =  std::cos(t);
-    return R;
-}
-
-static Mat4 RotY4(double t)
-{
-    Mat4 R = identity4();
-    R[0][0] =  std::cos(t);  R[0][2] =  std::sin(t);
-    R[2][0] = -std::sin(t);  R[2][2] =  std::cos(t);
-    return R;
-}
-
 int main()
 {
-    //  The same sample pose the generated python tries.
-    Mat4 T = mat_mul(RotX4(M_PI / 7.0), RotY4(2.0 * M_PI / 7.0));
-    T[0][3] = 0.2;
-    T[1][3] = 0.3;
-    T[2][3] = 0.6;
+    //  The same sample pose the generated python tries:  Rx(pi/7) Ry(2pi/7),
+    //  at (0.2, 0.3, 0.6).
+    Mat4 T = Mat4::Identity();
+    T.topLeftCorner<3, 3>() =
+        (Eigen::AngleAxisd(M_PI / 7.0, Eigen::Vector3d::UnitX())
+         * Eigen::AngleAxisd(2.0 * M_PI / 7.0, Eigen::Vector3d::UnitY()))
+        .toRotationMatrix();
+    T.block<3, 1>(0, 3) << 0.2, 0.3, 0.6;
 
     std::printf("**ROBOT**:  inverse kinematics of a sample pose\\n");**KNOWN_NOTE**
 
@@ -408,8 +394,8 @@ int main()
 
     for (size_t i = 0; i < sols.size(); ++i) {
         std::printf("Solution %d:", (int) i);
-        for (size_t j = 0; j < sols[i].size(); ++j)
-            std::printf("  %s = %+.9f", JOINT_NAMES[j], sols[i][j]);
+        for (int j = 0; j < (int) sols[i].size(); ++j)
+            std::printf("  %s = %+.9f", JOINT_NAMES[j], sols[i](j));
         std::printf("\\n");
     }
     return 0;

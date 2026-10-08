@@ -14,6 +14,12 @@
 //  solve_numeric() on the same robot from the same seed and requires the same
 //  answer, iteration for iteration.
 //
+//  THE 6x6 SOLVE IS LU WITH PARTIAL PIVOTING, the factorisation numpy's
+//  np.linalg.solve uses (LAPACK dgesv).  JJ' + lam^2 I is symmetric positive
+//  definite, so LDLT would also do -- but the iteration count is pinned
+//  against python, and the same factorisation is the shortest route to the
+//  same rounding.
+//
 //  SOURCE, not generated -- see Cpp_src/ikbt_types.h.
 //
 //  Copyright 2026 University of Washington
@@ -25,20 +31,18 @@
 #define IKBT_DLS_H
 
 //  <algorithm> for std::min/std::max.  Named explicitly rather than picked up
-//  transitively from <vector>:  libstdc++ happens to supply it, and a
-//  generated artifact should not depend on which standard library the user
-//  has.
+//  transitively:  a generated artifact should not depend on which standard
+//  library the user has.
 #include <algorithm>
 #include <functional>
 
 #include "ikbt_types.h"
-#include "ikbt_linalg.h"
 #include "ikbt_pose_error.h"
 
 namespace ikbt {
 
-typedef std::function<Mat4(const JointVec &)>   FkFn;
-typedef std::function<Matrix(const JointVec &)> JacFn;
+using FkFn  = std::function<Mat4(const JointVec &)>;
+using JacFn = std::function<Matrix(const JointVec &)>;
 
 //  What solve_numeric() reports.  The python twin returns a dict with exactly
 //  these keys;  `history` is kept because its length is the iteration count
@@ -56,16 +60,10 @@ struct SolveResult {
 //  J_0 = blkdiag(R_06, R_06) . J_66 -- frame 6 into the base frame.
 inline Matrix jacobian_base(const Mat4 &T, const Matrix &J66)
 {
-    const size_t n = J66.empty() ? 0 : J66[0].size();
-    Matrix J(6, std::vector<double>(n, 0.0));
-    for (int blk = 0; blk < 2; ++blk)
-        for (int i = 0; i < 3; ++i)
-            for (size_t c = 0; c < n; ++c) {
-                double s = 0.0;
-                for (int k = 0; k < 3; ++k)
-                    s += T[i][k] * J66[3 * blk + k][c];
-                J[3 * blk + i][c] = s;
-            }
+    const Mat3 R = T.topLeftCorner<3, 3>();
+    Matrix J(6, J66.cols());
+    J.topRows<3>() = R * J66.topRows<3>();
+    J.bottomRows<3>() = R * J66.bottomRows<3>();
     return J;
 }
 
@@ -82,22 +80,25 @@ inline SolveResult solve_numeric(const FkFn &fk, const JacFn &jac,
 {
     JointVec q = q0;
     double lam = lam0;
-    const double w[6] = {1.0, 1.0, 1.0, w_rot, w_rot, w_rot};
+    Vec6 w;
+    w << 1.0, 1.0, 1.0, w_rot, w_rot, w_rot;
 
-    //  measure(): the python closure, with `inf` for a non-finite FK.
-    std::array<double, 6> e;
-    double m;
-    {
-        const Mat4 T = fk(q);
-        if (!all_finite(T)) {
-            e.fill(0.0);
-            m = INF;
+    //  The python closure measure(), with `inf` for a non-finite FK.
+    auto measure = [&](const JointVec &qq, Vec6 &e_out, double &m_out) {
+        const Mat4 T = fk(qq);
+        if (!T.allFinite()) {
+            e_out.setZero();
+            m_out = INF;
         } else {
             const PoseError pe = pose_error(T, T_d, w_rot);
-            e = pe.residual;
-            m = pe.metric;
+            e_out = pe.residual;
+            m_out = pe.metric;
         }
-    }
+    };
+
+    Vec6 e;
+    double m;
+    measure(q, e, m);
 
     SolveResult out;
     out.history.push_back(m);
@@ -109,35 +110,18 @@ inline SolveResult solve_numeric(const FkFn &fk, const JacFn &jac,
             break;
         }
 
-        const Mat4 T = fk(q);
-        const Matrix J66 = jac(q);
-        Matrix J = jacobian_base(T, J66);
-        const size_t n = J.empty() ? 0 : J[0].size();
-        for (int i = 0; i < 6; ++i)                 // J <- W J
-            for (size_t c = 0; c < n; ++c)
-                J[i][c] *= w[i];
+        const Matrix J = w.asDiagonal() * jacobian_base(fk(q), jac(q));   // W J
+        Eigen::Matrix<double, 6, 6> A = J * J.transpose();
+        A.diagonal().array() += lam * lam;
 
-        double A[6][6];
-        for (int i = 0; i < 6; ++i)
-            for (int j = 0; j < 6; ++j) {
-                double s = 0.0;
-                for (size_t c = 0; c < n; ++c)
-                    s += J[i][c] * J[j][c];
-                A[i][j] = s + (i == j ? lam * lam : 0.0);
-            }
-
-        std::array<double, 6> y;
-        bool ok = solve6(A, e, y);
-
-        JointVec dq(n, 0.0);
+        //  A singular or non-finite system is a rejected step, as numpy's
+        //  LinAlgError is in python.  Eigen's LU does not report singularity;
+        //  it divides by the zero pivot, and the finiteness test catches it.
+        bool ok = A.allFinite() && e.allFinite();
+        JointVec dq;
         if (ok) {
-            for (size_t c = 0; c < n; ++c) {
-                double s = 0.0;
-                for (int i = 0; i < 6; ++i)
-                    s += J[i][c] * y[i];
-                dq[c] = s;
-            }
-            ok = all_finite(dq);
+            dq = J.transpose() * A.partialPivLu().solve(e);
+            ok = dq.allFinite();
         }
         if (!ok) {
             lam = std::min(lam * 10.0, lam_max);
@@ -148,23 +132,10 @@ inline SolveResult solve_numeric(const FkFn &fk, const JacFn &jac,
             continue;                    //  no history entry, as in python
         }
 
-        JointVec q_try(n);
-        for (size_t c = 0; c < n; ++c)
-            q_try[c] = q[c] + dq[c];
-
-        std::array<double, 6> e_try;
+        const JointVec q_try = q + dq;
+        Vec6 e_try;
         double m_try;
-        {
-            const Mat4 Tt = fk(q_try);
-            if (!all_finite(Tt)) {
-                e_try.fill(0.0);
-                m_try = INF;
-            } else {
-                const PoseError pe = pose_error(Tt, T_d, w_rot);
-                e_try = pe.residual;
-                m_try = pe.metric;
-            }
-        }
+        measure(q_try, e_try, m_try);
 
         if (m_try < m) {
             q = q_try;

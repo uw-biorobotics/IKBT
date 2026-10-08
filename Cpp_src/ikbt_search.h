@@ -100,8 +100,8 @@ struct SearchConfig {
 
 
 //  The two robot-specific pieces.
-typedef std::function<std::vector<JointVec>(const Mat4 &, double)> BranchesFn;
-typedef std::function<std::vector<double>(const Mat4 &, double)>   ErrorsFn;
+using BranchesFn = std::function<SolutionList(const Mat4 &, double)>;
+using ErrorsFn   = std::function<std::vector<double>(const Mat4 &, double)>;
 
 typedef std::map<double, std::vector<double> > ErrorCache;
 
@@ -286,10 +286,9 @@ inline double max_abs_diff(const JointVec &a, const JointVec &b)
 {
     if (a.size() != b.size())
         return INF;
-    double worst = 0.0;
-    for (size_t i = 0; i < a.size(); ++i)
-        worst = std::max(worst, std::fabs(a[i] - b[i]));
-    return worst;
+    if (a.size() == 0)
+        return 0.0;                 // maxCoeff() of nothing is undefined
+    return (a - b).cwiseAbs().maxCoeff();
 }
 
 

@@ -51,7 +51,7 @@ from ikbtfunctions.output_cpp_common import (cpp_identifier, fk_body_cpp,
 
 
 #  The Cpp_src/ headers each path needs, in dependency order -- types,
-#  linalg, pose_error, dls, search.
+#  pose_error, dls, search.
 #
 #  The symbolic path includes ikbt_pose_error.h although it does not use it.
 #  It is 120 lines, and it is what the first thing anyone does with a

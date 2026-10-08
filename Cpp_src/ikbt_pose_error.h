@@ -8,6 +8,11 @@
 //  one-variable search cannot disagree about which of two joint vectors is
 //  nearer the goal.
 //
+//  NOT Eigen::AngleAxisd.  It takes the angle from an arccosine -- see below
+//  for why that is the wrong choice here -- and its axis near theta = pi is
+//  chosen differently from the python twin's, which the two languages must
+//  agree on.
+//
 //  SOURCE, not generated -- see Cpp_src/ikbt_types.h.
 //
 //  Copyright 2026 University of Washington
@@ -22,12 +27,10 @@
 
 namespace ikbt {
 
-typedef std::array<std::array<double, 3>, 3> Mat3;
-
 //  The 6-vector residual and the scalar metric built from it, together,
 //  because they must never be computed two different ways.
 struct PoseError {
-    std::array<double, 6> residual;
+    Vec6 residual;
     double metric;
 };
 
@@ -42,44 +45,31 @@ struct PoseError {
 //  cannot see past a step.  atan2 is linear in the perturbation and gives
 //  exactly 0.0 at R = I.  Same reasoning, and the same fix, as the python
 //  twin and as dh_analysis.py.
-inline double rotation_angle_axis(const Mat3 &Rerr, std::array<double, 3> &axis)
+inline double rotation_angle_axis(const Mat3 &Rerr, Eigen::Vector3d &axis)
 {
-    const double skew[3] = {Rerr[2][1] - Rerr[1][2],
-                            Rerr[0][2] - Rerr[2][0],
-                            Rerr[1][0] - Rerr[0][1]};
-    const double s = std::sqrt(skew[0] * skew[0] + skew[1] * skew[1]
-                               + skew[2] * skew[2]);
-    const double tr = Rerr[0][0] + Rerr[1][1] + Rerr[2][2];
-    const double theta = std::atan2(0.5 * s, (tr - 1.0) / 2.0);
+    const Eigen::Vector3d skew(Rerr(2, 1) - Rerr(1, 2),
+                               Rerr(0, 2) - Rerr(2, 0),
+                               Rerr(1, 0) - Rerr(0, 1));
+    const double s = skew.norm();
+    const double theta = std::atan2(0.5 * s, (Rerr.trace() - 1.0) / 2.0);
 
-    axis[0] = axis[1] = axis[2] = 0.0;
+    axis.setZero();
     if (theta < 1e-12)
         return 0.0;
     if (theta < M_PI - 1e-6) {
-        for (int i = 0; i < 3; ++i)      // s = 2*sin(theta), never 0 here
-            axis[i] = skew[i] / s;
+        axis = skew / s;                 // s = 2*sin(theta), never 0 here
         return theta;
     }
 
-    //  theta ~ pi:  the skew part vanishes, so take the axis from R + I = 2aa'
-    double Msym[3][3];
-    for (int i = 0; i < 3; ++i)
-        for (int j = 0; j < 3; ++j)
-            Msym[i][j] = Rerr[i][j] + (i == j ? 1.0 : 0.0);
-
-    int best = 0;
-    double bestn = -1.0;
-    for (int j = 0; j < 3; ++j) {        // largest COLUMN norm, as numpy does
-        double n = 0.0;
-        for (int i = 0; i < 3; ++i)
-            n += Msym[i][j] * Msym[i][j];
-        n = std::sqrt(n);
-        if (n > bestn) { bestn = n; best = j; }
-    }
+    //  theta ~ pi:  the skew part vanishes, so take the axis from R + I = 2aa',
+    //  using its largest COLUMN, as numpy does.  maxCoeff() keeps the first of
+    //  equal values, as np.argmax does.
+    const Mat3 Msym = Rerr + Mat3::Identity();
+    Eigen::Index best;
+    const double bestn = Msym.colwise().norm().maxCoeff(&best);
     if (bestn < 1e-12)
         return theta;                    // axis stays zero
-    for (int i = 0; i < 3; ++i)
-        axis[i] = Msym[i][best] / bestn;
+    axis = Msym.col(best) / bestn;
     return theta;
 }
 
@@ -87,31 +77,16 @@ inline double rotation_angle_axis(const Mat3 &Rerr, std::array<double, 3> &axis)
 //  Residual and scalar metric between pose T and target T_d.
 inline PoseError pose_error(const Mat4 &T, const Mat4 &T_d, double w_rot)
 {
-    PoseError out;
+    const Eigen::Vector3d dp = T_d.block<3, 1>(0, 3) - T.block<3, 1>(0, 3);
+    const Mat3 Rerr = T_d.topLeftCorner<3, 3>()
+                      * T.topLeftCorner<3, 3>().transpose();
 
-    double dp[3];
-    for (int i = 0; i < 3; ++i)
-        dp[i] = T_d[i][3] - T[i][3];
-
-    //  Rerr = T_d.R * T.R'
-    Mat3 Rerr;
-    for (int i = 0; i < 3; ++i)
-        for (int j = 0; j < 3; ++j) {
-            double s = 0.0;
-            for (int k = 0; k < 3; ++k)
-                s += T_d[i][k] * T[j][k];
-            Rerr[i][j] = s;
-        }
-
-    std::array<double, 3> axis;
+    Eigen::Vector3d axis;
     const double theta = rotation_angle_axis(Rerr, axis);
 
-    for (int i = 0; i < 3; ++i) {
-        out.residual[i] = dp[i];
-        out.residual[3 + i] = w_rot * theta * axis[i];
-    }
-    out.metric = std::sqrt(dp[0] * dp[0] + dp[1] * dp[1] + dp[2] * dp[2])
-                 + w_rot * theta;
+    PoseError out;
+    out.residual << dp, w_rot * theta * axis;
+    out.metric = dp.norm() + w_rot * theta;
     return out;
 }
 

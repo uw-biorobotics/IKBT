@@ -56,9 +56,11 @@ FILE_HEADER = '''//
 //  Build -- no -I, from any working directory.  This file reaches
 //  Cpp_src/ and its own siblings by paths relative to ITSELF, so keep
 //  this directory intact and where it is relative to Cpp_src/.
-//      g++ -std=c++11 -O2 -c **FILE**
+//      g++ -std=c++17 -O2 -c **FILE**
 //  Run its self-test:
-//      g++ -std=c++11 -O2 -DIKBT_MAIN **FILE** -o ik_test -lm && ./ik_test
+//      g++ -std=c++17 -O2 -DIKBT_MAIN **FILE** -o ik_test -lm && ./ik_test
+//  Types are Eigen's (Cpp_src/third_party/eigen3, vendored).  Define
+//  IKBT_SYSTEM_EIGEN to use your own Eigen instead.
 //
 '''
 
@@ -93,7 +95,11 @@ def expr_cpp(e):
 
        It prints every Rational as `(1.0/3.0)`, so 1/3 cannot become integer
        division, and every Float at 17 significant digits, so a baked-in
-       parameter keeps exactly the value python had.'''
+       parameter keeps exactly the value python had.
+
+       The C++11 printer, although the generated code is C++17:  the language
+       is a superset, and the C++11 printer's output is what every
+       expression check was measured against.'''
 
     src = sp.cxxcode(sp.sympify(e), standard='c++11')
     if 'Not supported' in src or '// Not supported' in src:
@@ -134,13 +140,14 @@ def src_includes(names, dirname):
 
        `#include "..."` resolves against the including file's own directory,
        so a generated file needs no -I:
-           g++ -std=c++11 -O2 file.cpp -o x -lm
+           g++ -std=c++17 -O2 file.cpp -o x -lm
        The headers include each other the same way and are siblings, so they
-       need no handling here either.
+       need no handling here either -- and ikbt_types.h reaches the vendored
+       Eigen the same way, as third_party/eigen3/Eigen/Dense.
 
        The caller supplies the order;  with five small headers a dependency
        solver would be more machinery than the problem.  The order that works
-       is types, linalg, pose_error, dls, search.
+       is types, pose_error, dls, search.
     """
 
     rel = os.path.relpath(SRC_DIR, os.path.abspath(dirname))
@@ -254,8 +261,7 @@ def matrix_cpp(Mx, var, indent='    '):
     lines = []
     for i in range(Mx.rows):
         for j in range(Mx.cols):
-            lines.append('%s%s[%d][%d] = %s;'
-                         % (indent, var, i, j, expr_cpp(Mx[i, j])))
+            lines.append(f'{indent}{var}({i}, {j}) = {expr_cpp(Mx[i, j])};')
     return '\n'.join(lines)
 
 
@@ -274,16 +280,15 @@ def joint_unpack_cpp(syms, indent='    '):
 def pose_unpack_cpp(indent='    '):
     '''r_11..r_33, Px, Py, Pz out of a Mat4.
 
-       The same twelve names the equations are written in, read row-major
-       exactly as python reads them:  T[0,3] is Px in both.'''
+       The same twelve names the equations are written in, indexed exactly
+       as python indexes them:  T[0,3] there is T(0, 3) here, and is Px.'''
 
     lines = []
     for i in range(3):
         for j in range(3):
-            lines.append('%sconst double r_%d%d = T[%d][%d];'
-                         % (indent, i + 1, j + 1, i, j))
+            lines.append(f'{indent}const double r_{i + 1}{j + 1} = T({i}, {j});')
     for k, nm in enumerate(('Px', 'Py', 'Pz')):
-        lines.append('%sconst double %s = T[%d][3];' % (indent, nm, k))
+        lines.append(f'{indent}const double {nm} = T({k}, 3);')
 
     #  Not every arm's solution mentions all twelve, and an unused `const`
     #  draws a warning.  Declaring them all and casting each to void keeps
@@ -453,7 +458,7 @@ def fk_body_cpp(M, name, f, jacobian=True, owner=None, inline=True):
         print('%sMatrix jacobian%s(const JointVec &q)' % (kw, sfx), file=f)
         print('{', file=f)
         print(joint_unpack_cpp(syms), file=f)
-        print('    Matrix J(6, std::vector<double>(%d, 0.0));' % ndof, file=f)
+        print(f'    Matrix J = Matrix::Zero(6, {ndof});', file=f)
         print(matrix_cpp(J, 'J'), file=f)
         print('    return J;', file=f)
         print('}', file=f)
@@ -502,7 +507,7 @@ class TestSolver031(unittest.TestCase):
             p = _os.path.join(tmp, 'probe.cpp')
             with open(p, 'w') as f:
                 f.write(source)
-            cc = _subprocess.run(['g++', '-std=c++11', '-Wall', '-Wextra',
+            cc = _subprocess.run(['g++', '-std=c++17', '-Wall', '-Wextra',
                                   '-fsyntax-only'] + list(extra) + [p],
                                  capture_output=True, text=True)
             return cc.returncode == 0, cc.stderr
@@ -586,8 +591,8 @@ class TestSolver031(unittest.TestCase):
 
         #  5.  Every Cpp_src/ header compiles on its own, which is the whole
         #      reason they are files rather than strings in this module.
-        for h in ('ikbt_types.h', 'ikbt_linalg.h', 'ikbt_pose_error.h',
-                  'ikbt_dls.h', 'ikbt_search.h'):
+        for h in ('ikbt_types.h', 'ikbt_pose_error.h', 'ikbt_dls.h',
+                  'ikbt_search.h'):
             ok, err = self._compiles(read_src(h), extra=('-I', SRC_DIR))
             self.assertTrue(ok, '%s does not compile:\n%s' % (h, err[:600]))
             print('  %-22s compiles standalone' % h)
@@ -595,13 +600,13 @@ class TestSolver031(unittest.TestCase):
         #  ... and so do all five together in one translation unit, which
         #      is what the include guards are for.
         every = ''.join('#include "%s"\n' % h for h in
-                        ('ikbt_types.h', 'ikbt_linalg.h', 'ikbt_pose_error.h',
-                         'ikbt_dls.h', 'ikbt_search.h'))
+                        ('ikbt_types.h', 'ikbt_pose_error.h', 'ikbt_dls.h',
+                         'ikbt_search.h'))
         ok, err = self._compiles(every + 'int main(){return 0;}\n',
                                  extra=('-I', SRC_DIR))
         self.assertTrue(ok, 'the Cpp_src headers do not co-exist:\n%s'
                         % err[:600])
-        print('  all five together      compile')
+        print('  all four together      compile')
 
         #  6.  One real FK header, end to end.  Wrist is the fast robot and
         #      comes out of the FK cache in milliseconds.
@@ -619,10 +624,11 @@ class TestSolver031(unittest.TestCase):
                                            dirname=tmp)
             self.assertTrue(_os.path.exists(path))
             probe = ('#include "FK_numericWrist.h"\n'
-                     'int main(){ ikbt::JointVec q(ikbt::NDOF_Wrist, 0.1);\n'
+                     'int main(){ ikbt::JointVec q = '
+                     'ikbt::JointVec::Constant(ikbt::NDOF_Wrist, 0.1);\n'
                      '  ikbt::Mat4 T = ikbt::fk_Wrist(q);\n'
                      '  ikbt::Matrix J = ikbt::jacobian_Wrist(q);\n'
-                     '  return (T[3][3] == 1.0 && J.size() == 6) ? 0 : 1; }\n')
+                     '  return (T(3, 3) == 1.0 && J.rows() == 6) ? 0 : 1; }\n')
             ok, err = self._compiles(probe, extra=('-I', tmp))
             self.assertTrue(ok, 'the generated FK header does not compile:\n%s'
                             % err[:600])

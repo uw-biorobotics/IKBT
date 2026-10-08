@@ -117,13 +117,13 @@ int main(void)
     Mat4 T;
     for (int i = 0; i < 4; ++i)
         for (int j = 0; j < 4; ++j)
-            if (std::scanf("%lf", &T[i][j]) != 1)
+            if (std::scanf("%lf", &T(i, j)) != 1)
                 return 2;
     SolutionList sols = **CALL**;
     std::printf("%d\\n", (int) sols.size());
     for (size_t i = 0; i < sols.size(); ++i) {
-        for (size_t j = 0; j < sols[i].size(); ++j)
-            std::printf("%s%.17g", j ? " " : "", sols[i][j]);
+        for (int j = 0; j < (int) sols[i].size(); ++j)
+            std::printf("%s%.17g", j ? " " : "", sols[i](j));
         std::printf("\\n");
     }
     return 0;
@@ -184,7 +184,7 @@ def build(name, extra_arg=None, keep_dir=None):
         f.write(DRIVER.replace('**CALL**', call).replace('**IDENT**', ident))
 
     try:
-        cc = subprocess.run(['g++', '-std=c++11', '-O2', '-Wall', '-Wextra',
+        cc = subprocess.run(['g++', '-std=c++17', '-O2', '-Wall', '-Wextra',
                              '-DIKBT_DRIVER', cpath, '-o', bpath, '-lm'],
                             capture_output=True, text=True)
     finally:
@@ -309,23 +309,23 @@ FK_DRIVER = """
 using namespace ikbt;
 int main(void)
 {
-    JointVec q(**NDOF**, 0.0);
+    JointVec q = JointVec::Zero(**NDOF**);
     for (int i = 0; i < **NDOF**; ++i)
         if (std::scanf("%lf", &q[i]) != 1)
             return 2;
     Mat4 T = fk_**IDENT**(q);
     for (int i = 0; i < 4; ++i)
         for (int j = 0; j < 4; ++j)
-            std::printf("%.17g\\n", T[i][j]);
+            std::printf("%.17g\\n", T(i, j));
 **JAC**
     return 0;
 }
 """
 
 FK_DRIVER_JAC = """    Matrix J = jacobian_**IDENT**(q);
-    for (size_t i = 0; i < J.size(); ++i)
-        for (size_t j = 0; j < J[i].size(); ++j)
-            std::printf("%.17g\\n", J[i][j]);
+    for (int i = 0; i < (int) J.rows(); ++i)
+        for (int j = 0; j < (int) J.cols(); ++j)
+            std::printf("%.17g\\n", J(i, j));
 """
 
 
@@ -365,7 +365,7 @@ def check_fk(name, n_trials=8, seed=11, verbose=False):
     with open(cpath, 'w') as f:
         f.write(src)
 
-    cc = subprocess.run(['g++', '-std=c++11', '-O2', '-Wall', '-Wextra',
+    cc = subprocess.run(['g++', '-std=c++17', '-O2', '-Wall', '-Wextra',
                          '-I', tmp, cpath, '-o', bpath, '-lm'],
                         capture_output=True, text=True)
     if cc.returncode != 0:
@@ -422,13 +422,13 @@ using namespace ikbt;
 int main(void)
 {
     const int n = NDOF_**IDENT**;
-    JointVec q0(n, 0.0);
+    JointVec q0 = JointVec::Zero(n);
     for (int i = 0; i < n; ++i)
         if (std::scanf("%lf", &q0[i]) != 1) return 2;
     Mat4 Td;
     for (int i = 0; i < 4; ++i)
         for (int j = 0; j < 4; ++j)
-            if (std::scanf("%lf", &Td[i][j]) != 1) return 2;
+            if (std::scanf("%lf", &Td(i, j)) != 1) return 2;
     double w_rot;
     if (std::scanf("%lf", &w_rot) != 1) return 2;
 
@@ -497,12 +497,11 @@ def check_dls(name, n_trials=6, seed=13, verbose=False):
     #  a generated file may not:  it includes Cpp_src/ directly by name, the
     #  way the headers themselves expect to find each other.
     with open(cpath, 'w') as f:
-        for h in ('ikbt_types.h', 'ikbt_linalg.h', 'ikbt_pose_error.h',
-                  'ikbt_dls.h'):
+        for h in ('ikbt_types.h', 'ikbt_pose_error.h', 'ikbt_dls.h'):
             f.write('#include "%s"\n' % h)
         f.write(src)
 
-    cc = subprocess.run(['g++', '-std=c++11', '-O2', '-Wall', '-Wextra',
+    cc = subprocess.run(['g++', '-std=c++17', '-O2', '-Wall', '-Wextra',
                          '-I', tmp, '-I', SRC_DIR, cpath, '-o', bpath, '-lm'],
                         capture_output=True, text=True)
     if cc.returncode != 0:
@@ -589,7 +588,7 @@ int main(void)
     Mat4 T;
     for (int i = 0; i < 4; ++i)
         for (int j = 0; j < 4; ++j)
-            if (std::scanf("%lf", &T[i][j]) != 1) return 2;
+            if (std::scanf("%lf", &T(i, j)) != 1) return 2;
     std::vector<OneVarSolution> sols = solve(T);
     std::printf("%d %d\\n", (int) sols.size(), ONEVAR_NDOF);
     for (size_t i = 0; i < sols.size(); ++i) {
@@ -617,7 +616,7 @@ int main(void)
     Mat4 T;
     for (int i = 0; i < 4; ++i)
         for (int j = 0; j < 4; ++j)
-            if (std::scanf("%lf", &T[i][j]) != 1) return 2;
+            if (std::scanf("%lf", &T(i, j)) != 1) return 2;
     std::vector<RefineRecord> all = refine_all(T);
     std::printf("%d %d\\n", (int) all.size(), NDOF);
     for (size_t i = 0; i < all.size(); ++i) {
@@ -650,7 +649,7 @@ def _build_appended(src_path, driver, tmp, tag):
         with open(cpath, 'w') as f:
             f.write(open(src_path).read())
             f.write(driver)
-        cc = subprocess.run(['g++', '-std=c++11', '-O2', '-Wall', '-Wextra',
+        cc = subprocess.run(['g++', '-std=c++17', '-O2', '-Wall', '-Wextra',
                              '-DIKBT_CHECK_DRIVER', cpath, '-o', bpath, '-lm'],
                             capture_output=True, text=True)
     finally:

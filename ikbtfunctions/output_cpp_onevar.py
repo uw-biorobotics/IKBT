@@ -145,7 +145,7 @@ _BODY = '''
 //  INCLUDING the assumed variable in its own chain position.  Empty when the
 //  closed form reports the pose unreachable at that value, which is ordinary:
 //  a branch is typically defined over part of the range, not all of it.
-inline std::vector<JointVec> branches_at(const Mat4 &T, double value)
+inline SolutionList branches_at(const Mat4 &T, double value)
 {
     //  Nothing is guarded here.  Where the closed form divides by zero or
     //  takes the root of a negative, IEEE arithmetic gives inf or NaN
@@ -159,16 +159,16 @@ inline std::vector<JointVec> branches_at(const Mat4 &T, double value)
 //  This is the function the search minimises, one entry per branch.
 inline std::vector<double> errors(const Mat4 &T, double value)
 {
-    const std::vector<JointVec> qs = branches_at(T, value);
+    const SolutionList qs = branches_at(T, value);
     std::vector<double> out;
     out.reserve(qs.size());
     for (size_t i = 0; i < qs.size(); ++i) {
-        if (!all_finite(qs[i])) {
+        if (!qs[i].allFinite()) {
             out.push_back(INF);
             continue;
         }
         const Mat4 Tq = fk(qs[i]);
-        if (!all_finite(Tq)) {
+        if (!Tq.allFinite()) {
             out.push_back(INF);
             continue;
         }
@@ -238,7 +238,7 @@ MAIN = '''
 //   exercise one pose forever.  Pass the printed seed back to get the same
 //   pose again:
 //
-//       g++ -std=c++11 -O2 -DIKBT_MAIN <this file> -o ik_onevar -lm
+//       g++ -std=c++17 -O2 -DIKBT_MAIN <this file> -o ik_onevar -lm
 //       ./ik_onevar <seed>
 //
 /////////////////////////////////////////////////////////////
