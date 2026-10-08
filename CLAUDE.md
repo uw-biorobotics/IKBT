@@ -71,7 +71,8 @@ This package produces generated code artifacts, which are not source code for th
 (`LaTex_src/cleanLaTexFolder` does that wipe, from the repo root).
 
 `Cpp_src/` **is** source too, on exactly that precedent: hand-written C++ headers
-(`ikbt_types.h`, `ikbt_pose_error.h`, `ikbt_linalg.h`, `ikbt_dls.h`, `ikbt_search.h`) that a
+(`ikbt_types.h`, `ikbt_pose_error.h`, `ikbt_dls.h`, `ikbt_search.h`), plus a vendored, unmodified
+Eigen 3.4.0 in `Cpp_src/third_party/eigen3/`, that a
 generated `.cpp` reaches by a **relative `#include`** -- `../../../Cpp_src/ikbt_types.h` from a
 robot's directory. They live apart from `CodeGen/Cpp/` so that `CodeGen/cleanCodeGenOutput`
 cannot take them with it. Being real files rather than python string literals, they are
@@ -409,11 +410,19 @@ three callers that want FK on its own: `fkOnly.py`, and the `--fk` and `--dls` p
 only the forward kinematics, and letting it would mean running it after a solve silently
 discarded that solve's IK.
 
-**C++11, STANDARD LIBRARY ONLY** — no Eigen, no Boost, no build system, no `-I`:
-`g++ -std=c++11 -O2 file.cpp -o x -lm`. Same rule as "a generated python module stands on
-numpy alone", and the reason the AI-translation route was rejected: a generated artifact must
-not make the user install anything. The only linear algebra needed is a 6x6 solve, which is
-40 lines of Gaussian elimination in `Cpp_src/ikbt_linalg.h`.
+**C++17, THE STANDARD LIBRARY AND A VENDORED EIGEN** — no Boost, no build system, no `-I`:
+`g++ -std=c++17 -O2 file.cpp -o x -lm`. Same rule as "a generated python module stands on
+numpy alone": a generated artifact must not make the user install anything, which is why Eigen
+(header-only) ships inside `Cpp_src/third_party/eigen3/` and `ikbt_types.h` reaches it by a
+relative `#include`. The types ARE Eigen's -- `Mat4` is `Eigen::Matrix4d`, `JointVec` is
+`Eigen::VectorXd`, `Matrix` is `Eigen::MatrixXd`, `SolutionList` is `std::vector<JointVec>` --
+because an application calling the generated code needs norms, products and inverses, and
+hand-rolled types meant rewriting them. C++17 because a fixed-size Eigen type in a `std::vector`
+or struct needs aligned `operator new`; `ikbt_types.h` `#error`s under anything older.
+`-DIKBT_SYSTEM_EIGEN` swaps the vendored copy for the application's own `<Eigen/Dense>`.
+The DLS step is `partialPivLu()` -- the factorisation numpy's `solve` uses -- because
+`--dls` pins it against python iteration for iteration. `pose_error()` stays hand-written and is
+not `Eigen::AngleAxisd`, which takes the angle from an arccosine.
 
 **`sp.cxxcode`, NOT A REGEX OVER PRINTED PYTHON.** Post-processing `x**2` into `x*x` with a
 regex handles `x**2` and `sin(x)**2` and silently leaves `(Px - a_1)**2` as invalid C++.

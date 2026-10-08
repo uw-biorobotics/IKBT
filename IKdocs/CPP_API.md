@@ -10,7 +10,7 @@ sends people looking through the sources — says **who calls what**. Nothing in
 generated file and no generated file calls another's internals; the two meet at exactly the places
 named in "The wiring" below.
 
-Every program in section 2 was compiled with `-Wall -Wextra` and run against the checked-in
+Every program in section 2 was compiled with `-std=c++17 -Wall -Wextra` (no warnings) and run against the checked-in
 generated code; the outputs shown are what they actually printed.
 
 **The three solution methods, in brief.** IKBT tries three methods in order and stops at the
@@ -111,7 +111,7 @@ The hybrid path is the busiest example, and the only one where control crosses t
         v
   [SOURCE]     Cpp_src/ikbt_dls.h :: solve_numeric(fk, jac, q0, T_d, w_rot, ...)
         |          |
-        |          +-- Cpp_src/ikbt_linalg.h     :: solve6()      the 6x6 step
+        |          +-- Eigen's partialPivLu()                     the 6x6 step
         |          +-- Cpp_src/ikbt_pose_error.h :: pose_error()  "how far from the goal"
         |
         |   calls those callbacks back, once per iteration
@@ -151,17 +151,23 @@ grep SOLUTION_PATH CodeGen/Cpp/<Robot>CppCode/<Robot>.cpp
 Build any of them with
 
 ```
-g++ -std=c++11 -O2 myapp.cpp -o myapp -lm
+g++ -std=c++17 -O2 myapp.cpp -o myapp -lm
 ```
 
-**No `-I`, no library, no build system.** The `#include` path to the robot file is the only thing
-that has to be right, and it is resolved relative to the file doing the including — the programs
-below are written to be compiled from the repo root.
+**No `-I`, no library to install, no build system.** The `#include` path to the robot file is the
+only thing that has to be right, and it is resolved relative to the file doing the including — the
+programs below are written to be compiled from the repo root.
+
+**The types are [Eigen](https://eigen.tuxfamily.org)'s**: a pose is an `Eigen::Matrix4d`, a joint
+vector an `Eigen::VectorXd` (section 3.1). So everything Eigen does — norms, products, inverses,
+slices, comparisons — works on what IKBT hands back, with nothing more to include. Eigen ships
+inside `Cpp_src/`, so you do not have to install it; if your application already uses its own
+Eigen, see section 6.
 
 Two things all three programs do, and your application should do too:
 
-- **The goal pose `T` is a 4x4 homogeneous transform of the tool frame in the base frame**, row
-  major, so `T[0][3]` is x. The programs below manufacture one they know is reachable by running
+- **The goal pose `T` is a 4x4 homogeneous transform of the tool frame in the base frame**, and
+  `T(0, 3)` is x. The programs below manufacture one they know is reachable by running
   the arm's own `fk()` on a joint vector; in your application it comes from wherever your goals
   come from.
 - **They check the answer by round-tripping it back through `fk()`.** Do not skip that — 2a says
@@ -178,7 +184,8 @@ namespace Puma = ikbt::Puma;
 int main()
 {
     //  A pose the arm certainly reaches: its own FK on a joint vector.
-    const ikbt::JointVec q0 = {0.30, -0.80, 0.50, 1.10, 0.70, -0.40};
+    ikbt::JointVec q0(6);
+    q0 << 0.30, -0.80, 0.50, 1.10, 0.70, -0.40;
     const ikbt::Mat4 T = Puma::fk(q0);
 
     ikbt::SolutionList sols = Puma::ikin(T);          // 0..8 postures
@@ -190,20 +197,30 @@ int main()
         //  CHECK IT: round-trip the posture through the arm's own FK.
         const ikbt::PoseError e = ikbt::pose_error(Puma::fk(sols[i]), T, 0.4);
         printf("posture %zu  err=%.2e :", i, e.metric);
-        for (size_t j = 0; j < sols[i].size(); ++j)
-            printf(" %s=%8.4f", Puma::JOINT_NAMES[j], sols[i][j]);
+        for (int j = 0; j < sols[i].size(); ++j)
+            printf(" %s=%8.4f", Puma::JOINT_NAMES[j], sols[i](j));
         printf("\n");
     }
+
+    //  Eigen at work:  which posture is nearest the arm's current one?
+    size_t best = 0;
+    for (size_t i = 1; i < sols.size(); ++i)
+        if ((sols[i] - q0).norm() < (sols[best] - q0).norm())
+            best = i;
+    printf("nearest to q0: posture %zu, %.1e away\n", best,
+           (sols[best] - q0).norm());
     return 0;
 }
 ```
 
-All eight come back at ~1e-16, and posture 1 is `q0` recovered exactly:
+All eight come back at ~1e-16, and posture 1 is `q0` recovered exactly — which the last three
+lines find with one Eigen expression, `(sols[i] - q0).norm()`:
 
 ```
 posture 0  err=1.24e-16 : th_1=  3.9837 th_2=  1.9160 th_3=  0.5000 th_4= -0.9574 th_5=  1.9730 th_6= -2.4012
 posture 1  err=5.55e-17 : th_1=  0.3000 th_2= -0.8000 th_3=  0.5000 th_4=  1.1000 th_5=  0.7000 th_6= -0.4000
 ...
+nearest to q0: posture 1, 4.0e-16 away
 ```
 
 **Round-trip it like this and do not skip the check — a returned branch is a CANDIDATE.** IKBT
@@ -225,7 +242,8 @@ namespace CArm = ikbt::C_Arm;      // 'C-Arm' is not an identifier
 int main()
 {
     //  A pose we know is reachable: run the arm's own FK on a joint vector.
-    const ikbt::JointVec q0 = {0.35, 0.60, -0.40, 0.90, 0.25, -0.70};
+    ikbt::JointVec q0(6);
+    q0 << 0.35, 0.60, -0.40, 0.90, 0.25, -0.70;
     const ikbt::Mat4 T = CArm::fk(q0);
 
     std::vector<ikbt::OneVarSolution> sols = CArm::solve(T);   // the 1-D search
@@ -235,8 +253,8 @@ int main()
     }
     for (size_t i = 0; i < sols.size(); ++i) {
         printf("q =");
-        for (size_t j = 0; j < sols[i].q.size(); ++j)
-            printf(" %8.4f", sols[i].q[j]);
+        for (int j = 0; j < sols[i].q.size(); ++j)
+            printf(" %8.4f", sols[i].q(j));
         printf("   %s=%7.4f  err=%.2e  branch=%d  n=%d\n",
                CArm::KNOWN_VARIABLE, sols[i].known_value,
                sols[i].error, sols[i].branch, sols[i].n_samples);
@@ -282,7 +300,8 @@ namespace Panda = ikbt::Panda;
 int main()
 {
     //  A pose we know the TRUE arm reaches: its own FK on a joint vector.
-    const ikbt::JointVec q0 = {0.30, 0.55, -0.40, 0.85, 0.60, -0.25};
+    ikbt::JointVec q0(6);
+    q0 << 0.30, 0.55, -0.40, 0.85, 0.60, -0.25;
     const ikbt::Mat4 T = Panda::fk(q0);
 
     //  PHASE I -- seeds from the APPROXIMATE arm.  Not answers.
@@ -292,15 +311,22 @@ int main()
         return 1;
 
     //  Pick the posture you want -- normally the seed nearest where the arm
-    //  is now.  Here, just the first.
+    //  is now.  Here the arm is "now" at q0 plus a small offset.
+    const ikbt::JointVec q_now = q0 + ikbt::JointVec::Constant(6, 0.05);
+    size_t pick = 0;
+    for (size_t i = 1; i < seeds.size(); ++i)
+        if ((seeds[i] - q_now).norm() < (seeds[pick] - q_now).norm())
+            pick = i;
+    printf("nearest seed: %zu\n", pick);
+
     //  PHASE IIa -- correct it against the TRUE arm.
-    const ikbt::SolveResult r = Panda::refine_seed(T, seeds[0]);
+    const ikbt::SolveResult r = Panda::refine_seed(T, seeds[pick]);
     if (!r.converged) {
         printf("did not converge: %s (metric %.3e)\n", r.reason, r.metric);
         return 1;
     }
-    for (size_t j = 0; j < r.q.size(); ++j)
-        printf(" %s=%8.4f", Panda::HYBRID_JOINT_NAMES[j], r.q[j]);
+    for (int j = 0; j < r.q.size(); ++j)
+        printf(" %s=%8.4f", Panda::HYBRID_JOINT_NAMES[j], r.q(j));
     printf("\n  %d iterations, metric %.3e\n", r.iterations, r.metric);
     return 0;
 }
@@ -310,6 +336,7 @@ Which prints:
 
 ```
 8 seeds
+nearest seed: 0
  th_1=  0.3000 th_2=  0.5500 th_3= -0.4000 th_4=  0.8500 th_5=  0.6000 th_6= -0.2500
   4 iterations, metric 7.885e-11
 ```
@@ -329,39 +356,50 @@ it needs by itself, and sections 1 and 2 are enough to call it. Read on when you
 
 - know what the types in those signatures are — `Mat4`, `JointVec`, `SolutionList` (3.1);
 - measure the distance between two poses yourself, with the same definition IKBT uses (3.2);
-- read the fields of what the hybrid path returns (`SolveResult`, 3.4) or what the one-variable
-  path returns (`OneVarSolution`, 3.5), or change their tolerances.
+- read the fields of what the hybrid path returns (`SolveResult`, 3.3) or what the one-variable
+  path returns (`OneVarSolution`, 3.4), or change their tolerances.
 
-`Cpp_src/` is five hand-written header files — **not generated, and one copy serves every robot**,
-so a fix in them reaches robots that were generated months ago. Everything in them is `inline`, so
-there is no library to build and nothing to link: a generated file picks them up with a relative
-`#include` (`../../../Cpp_src/ikbt_types.h`, from the robot's own directory), and that is the whole
-mechanism.
+`Cpp_src/` is four hand-written header files plus a vendored copy of Eigen — **not generated, and
+one copy serves every robot**, so a fix in them reaches robots that were generated months ago.
+Everything in them is `inline` or a template, so there is no library to build and nothing to link:
+a generated file picks them up with a relative `#include` (`../../../Cpp_src/ikbt_types.h`, from
+the robot's own directory), and that is the whole mechanism.
 
 
-### 3.1 `ikbt_types.h` defines C++ types used throughout
+### 3.1 `ikbt_types.h` — the types, which are Eigen's
 
 | symbol | line | meaning |
 |---|---|---|
-| `Mat4` | 51 | `std::array<std::array<double,4>,4>`, **row major**: `T[row][col]`, `T[0][3]` is x |
-| `JointVec` | 55 | `std::vector<double>` — one joint vector. A vector, not an array, so the shared numerics are not templated on DOF |
-| `SolutionList` | 60 | `std::vector<JointVec>` — one row per posture |
-| `Matrix` | 65 | `std::vector<std::vector<double>>`, row major — what a Jacobian comes back as |
-| `INF` | 67 | `std::numeric_limits<double>::infinity()` |
+| `Mat4` | 75 | `Eigen::Matrix4d` — a homogeneous transform. `T(row, col)`; `T(0, 3)` is x |
+| `Mat3` | 76 | `Eigen::Matrix3d` — a rotation |
+| `Vec6` | 79 | `Eigen::Matrix<double, 6, 1>` — a pose residual |
+| `JointVec` | 83 | `Eigen::VectorXd` — one joint vector. Dynamic size, so the shared numerics are not templated on DOF |
+| `SolutionList` | 91 | `std::vector<JointVec>` — one entry per posture. A `std::vector` because the count varies with the pose |
+| `Matrix` | 94 | `Eigen::MatrixXd` — what a Jacobian comes back as (6 x NDOF) |
+| `INF` | 96 | `std::numeric_limits<double>::infinity()` |
 
 | function | line | what it does |
 |---|---|---|
-| `Mat4 identity4()` | 70 | 4x4 identity |
-| `Mat4 from_array(const double T[4][4])` | 82 | interop with a plain C array |
-| `void to_array(const Mat4 &M, double T[4][4])` | 92 | the other direction |
-| `Mat4 mat_mul(const Mat4 &A, const Mat4 &B)` | 100 | 4x4 product |
-| `bool all_finite(const Mat4 &T)` | 116 | every entry finite? |
-| `bool all_finite(const JointVec &q)` | 126 | overload for a joint vector |
+| `Mat4 from_array(const double T[4][4])` | 102 | interop with a plain row-major C array |
+| `void to_array(const Mat4 &M, double T[4][4])` | 112 | the other direction |
 
-Line numbers are as of 2026-10-01 and will drift; the symbol names will not.
+Line numbers are as of 2026-10-08 and will drift; the symbol names will not.
+
+**What you get from Eigen, and no longer from IKBT.** The old hand-written helpers are gone,
+because Eigen has them: `identity4()` is `Mat4::Identity()`, `mat_mul(A, B)` is `A * B`, and
+`all_finite(x)` is `x.allFinite()`. A few more that an application tends to want:
+
+```cpp
+(q1 - q2).norm()                       // distance between two postures
+q1.isApprox(q2, 1e-9)                  // close enough?
+T.inverse()                            // or, cheaper for a rigid transform:
+Eigen::Isometry3d(T).inverse().matrix()
+T.topLeftCorner<3, 3>()                // the rotation;  T.block<3, 1>(0, 3) is the position
+```
 
 Also defines `M_PI`, `M_PI_2`, `M_PI_4`, `M_E` if absent — they are POSIX, not ISO C++, and
-`-std=c++11` (as against `-std=gnu++11`) can leave them undefined while sympy's printer emits them.
+`-std=c++17` (as against `-std=gnu++17`) can leave them undefined while sympy's printer emits them.
+It stops the compile with a clear message under anything older than C++17 (section 6 says why).
 
 ### 3.2 `ikbt_pose_error.h` — how far apart are two poses
 
@@ -370,10 +408,9 @@ has to decide whether an answer is good enough. Both poses are 4x4 homogeneous t
 
 | symbol | line | meaning |
 |---|---|---|
-| `Mat3` | 25 | `std::array<std::array<double,3>,3>` |
-| `struct PoseError` | 29 | `std::array<double,6> residual;` and `double metric;` |
-| `double rotation_angle_axis(const Mat3 &Rerr, std::array<double,3> &axis)` | 45 | returns theta in `[0, pi]`, writes the unit axis |
-| `PoseError pose_error(const Mat4 &T, const Mat4 &T_d, double w_rot)` | 88 | residual `[dp ; w_rot*theta*axis]` and metric `\|\|dp\|\| + w_rot*theta` |
+| `struct PoseError` | 32 | `Vec6 residual;` and `double metric;` |
+| `double rotation_angle_axis(const Mat3 &Rerr, Eigen::Vector3d &axis)` | 48 | returns theta in `[0, pi]`, writes the unit axis |
+| `PoseError pose_error(const Mat4 &T, const Mat4 &T_d, double w_rot)` | 78 | residual `[dp ; w_rot*theta*axis]` and metric `\|\|dp\|\| + w_rot*theta` |
 
 `w_rot` is one characteristic arm length per radian — it is what puts a position error and an
 orientation error in comparable units. The generated code bakes a value in as `W_ROT` /
@@ -384,29 +421,21 @@ robot set.
 different ways.** The refinement step and the stopping test share one rotation parameterisation and
 one weight, so they cannot disagree about which of two joint vectors is nearer the goal.
 
-`rotation_angle_axis` uses `atan2` of the skew norm, **not** `arccos((tr-1)/2)`. `arccos` has an
-infinite derivative at `R = I`, so 1e-16 of rounding in the trace comes back as ~2.1e-8 radians —
-and *quantised*, which turns the error curve near a root into a staircase that golden section
-cannot see past. If you write your own pose error, do it this way.
+`rotation_angle_axis` uses `atan2` of the skew norm, **not** `arccos((tr-1)/2)` — and so it is not
+`Eigen::AngleAxisd`, which uses the arccosine. `arccos` has an infinite derivative at `R = I`, so
+1e-16 of rounding in the trace comes back as ~2.1e-8 radians — and *quantised*, which turns the
+error curve near a root into a staircase that golden section cannot see past. If you write your
+own pose error, do it this way.
 
-### 3.3 `ikbt_linalg.h` — the one piece of linear algebra needed
-
-| function | line | what it does |
-|---|---|---|
-| `bool solve6(const double A[6][6], const std::array<double,6> &b, std::array<double,6> &x)` | 39 | Gaussian elimination with partial pivoting. **Returns `false` rather than throwing** on a singular or non-finite system, leaving `x` untouched |
-
-`false` is not an error — in `solve_numeric()` a singular solve is a **rejected step**, which raises
-the damping and tries again. That is what the damping is for.
-
-### 3.4 `ikbt_dls.h` — damped least squares (for numerical part of hybrid method)
+### 3.3 `ikbt_dls.h` — damped least squares (for numerical part of hybrid method)
 
 | symbol | line | meaning |
 |---|---|---|
-| `FkFn` | 40 | `std::function<Mat4(const JointVec &)>` |
-| `JacFn` | 41 | `std::function<Matrix(const JointVec &)>` |
-| `struct SolveResult` | 46 | `q`, `metric`, `iterations`, `converged`, `reason`, `history` |
-| `Matrix jacobian_base(const Mat4 &T, const Matrix &J66)` | 57 | `J_0 = blkdiag(R,R) . J_66` — frame 6 into the base frame |
-| `SolveResult solve_numeric(...)` | 77 | the solver |
+| `FkFn` | 44 | `std::function<Mat4(const JointVec &)>` |
+| `JacFn` | 45 | `std::function<Matrix(const JointVec &)>` |
+| `struct SolveResult` | 50 | `q`, `metric`, `iterations`, `converged`, `reason`, `history` |
+| `Matrix jacobian_base(const Mat4 &T, const Matrix &J66)` | 61 | `J_0 = blkdiag(R,R) . J_66` — frame 6 into the base frame |
+| `SolveResult solve_numeric(...)` | 75 | the solver |
 
 ```cpp
 SolveResult solve_numeric(const FkFn &fk, const JacFn &jac,
@@ -417,7 +446,11 @@ SolveResult solve_numeric(const FkFn &fk, const JacFn &jac,
 ```
 
 `dq = J'(JJ' + lam^2 I)^-1 e`. Levenberg-Marquardt: a step that improves the metric is accepted and
-`lam` drops by 3; one that does not is rejected and `lam` rises by 3 (by 10 for a singular solve). 
+`lam` drops by 3; one that does not is rejected and `lam` rises by 3 (by 10 for a singular solve).
+The 6x6 system is solved with Eigen's `partialPivLu()` — LU with partial pivoting, the same
+factorisation as numpy's `np.linalg.solve` — because `--dls` pins this against the python
+iteration for iteration. A singular system is a **rejected step**, not an error: that is what the
+damping is for.
 
 - **`converged` means `metric <= tol`.**  
 
@@ -431,7 +464,7 @@ SolveResult solve_numeric(const FkFn &fk, const JacFn &jac,
 **The Jacobian must be expressed in frame 6**,   IKBT already computes and stores it as `J66`;
 `solve_numeric()` rotates it into the base frame (J06) with `jacobian_base()`. 
 
-### 3.5 `ikbt_search.h` — the 1-D search behind the one-variable method
+### 3.4 `ikbt_search.h` — the 1-D search behind the one-variable method
 
 Generic, and written once for all robots. The generated `solve()` hands it two callbacks — "what
 does the closed form give at this value of the assumed variable" and "how wrong is each of those
@@ -445,7 +478,7 @@ diagnosis.
 |---|---|---|
 | `struct OneVarSolution` | 76 | `JointVec q`, `double known_value`, `int branch`, `double error`, `int n_samples` |
 | `struct SearchConfig` | 85 | `lo`, `hi`, `periodic`, `n_samples`, `max_samples`, `accept_tol`, `dedup_tol`, `refine_iters` — defaults `[-pi, pi]`, periodic, 128, 4096, 1e-6, 1e-6, 80 |
-| `BranchesFn` | 103 | `std::function<std::vector<JointVec>(const Mat4 &, double)>` — "what does the closed form give at this value" |
+| `BranchesFn` | 103 | `std::function<SolutionList(const Mat4 &, double)>` — "what does the closed form give at this value" |
 | `ErrorsFn` | 104 | `std::function<std::vector<double>(const Mat4 &, double)>` — "how wrong is each branch there" |
 | `ErrorCache` | 106 | `std::map<double, std::vector<double>>` — memo keyed on the sample value |
 
@@ -477,13 +510,13 @@ An empty result means no solution was found, which is not quite "unreachable".
 | `golden(f, a, b, iters, fx, xtol)` | 232 | golden section. Not a derivative method: near a solution the error is a V, not a parabola |
 | `local_minima(curve)` | 272 | indices where the curve dips. A neighbour of `INF` is allowed and is often exactly where a solution is |
 | `max_abs_diff(a, b)` | 285 | `INF` on a size mismatch |
-| `dedup(found, tol)` | 301 | one entry per posture, keeping the most accurate |
+| `dedup(found, tol)` | 300 | one entry per posture, keeping the most accurate |
 | `roots_in(...)` | 321 | bracket every dip in one branch's curve and refine it. **Accepted only if it reaches `accept_tol`** — a minimum that stops above it is a feature of the curve, not a solution |
 | `hunt_near(...)` | 357 | the **twin hunt**: re-scan one grid step around each root at 16x, three rounds |
 | `domain_edges(curve)` | 408 | adjacent finite/infinite pairs |
 | `hunt_edges(...)` | 420 | the **domain-edge probe**: bisect to the edge, then walk inward in halving steps |
 | `solve_at(T, n, ...)` | 478 | every root at ONE resolution — grid, then edges, then twins |
-| `same_postures(a, b, tol)` | 502 | the ladder's stopping test |
+| `same_postures(a, b, tol)` | 501 | the ladder's stopping test |
 
 **Why three algorithms and not one.** Roots hide in three ways and each algorithm finds cases the
 others cannot. The ladder is the general one and is *not* proof — two successive grids can step over
@@ -553,7 +586,7 @@ searches for the values that are right.
 | `SolutionList ikin_given(const Mat4 &T, double <known>)` | the conditional closed form. The assumed value is an **argument**, not a constant |
 | `int ikin_array_given(double T[4][4], double sol[][], double <known>)` | fixed-array interface |
 | `void sweep(const Mat4 &T, int n, std::vector<double> &values, std::vector<std::vector<double>> &curves)` | the raw scan at ONE resolution — for plotting, and for understanding a pose that comes back empty |
-| `std::vector<JointVec> branches_at(const Mat4 &T, double value)` | the `BranchesFn`. Every branch at one assumed value |
+| `SolutionList branches_at(const Mat4 &T, double value)` | the `BranchesFn`. Every branch at one assumed value |
 | `std::vector<double> errors(const Mat4 &T, double value)` | the `ErrorsFn`. `INF` where a branch is undefined |
 | `SearchConfig search_config(int n_samples = N_SAMPLES)` | the baked-in config |
 | `ROBOT`, `KNOWN_VARIABLE`, `COND_KNOWN_VARIABLE` | the robot, and which variable was assumed known |
@@ -566,7 +599,7 @@ Two things to know about `ikin_given()`:
   dropped; here it is left in place, because `solve()` calls `ikin_given()` at hundreds of values
   and builds one error curve per branch, indexed by position — dropping a row at some values and
   not others would stitch one branch's error onto another branch's curve. So if you call it
-  directly, test each row with `all_finite()` yourself.
+  directly, test each row with `.allFinite()` yourself.
 - **`ikin_given`, never `ikin`.** The plain name means an *unconditional* inverse kinematics for the
   robot, and these equations are exact only where the assumed value is right. (The generated python
   says the same thing with a file name: `IK_conditional<Robot>.py`, never `IK_equations<Robot>.py`.)
@@ -626,7 +659,7 @@ Division by zero is the one place the two languages still differ — python rais
 self-test behind it, and exactly one. Build it with
 
 ```
-g++ -std=c++11 -O2 -DIKBT_MAIN CodeGen/Cpp/PumaCppCode/Puma.cpp -o ik_test -lm && ./ik_test
+g++ -std=c++17 -O2 -DIKBT_MAIN CodeGen/Cpp/PumaCppCode/Puma.cpp -o ik_test -lm && ./ik_test
 ```
 
 `main()` has to be at global scope, so it sits outside both namespaces and reaches back in with
@@ -645,19 +678,41 @@ is the reason.
 It is a design decision to make the compilation process as simple as possible for the user:
 
 ```
-g++ -std=c++11 -O2 <file>.cpp -o <exe> -lm
+g++ -std=c++17 -O2 <file>.cpp -o <exe> -lm
 ```
-Dependencies are minimized:
 
-**C++11, standard library only.** No Eigen, no Boost, no build system, no `-I`. The only linear
-algebra needed is a 6x6 solve, which is 40 lines in `ikbt_linalg.h`. The rule is the same one that
-says a generated python module stands on numpy alone: a generated artifact must not make you install
-anything.
+**C++17, the standard library, and Eigen — which ships with IKBT.** No Boost, no build system, no
+`-I`, nothing to install. Eigen is header-only, so it adds no link step, and a copy of
+**Eigen 3.4.0** is vendored in `Cpp_src/third_party/eigen3/` (version, source and checksum in
+`VENDORED.md` there). The rule is the same one that says a generated python module stands on numpy
+alone: a generated artifact must not make you install anything.
+
+**Why Eigen.** The generator itself needs very little linear algebra, so it used to carry its own
+minimal types. But an application does need it, and those types would have meant rewriting a
+library one function at a time. With Eigen's types, what IKBT returns is what the rest of a
+robotics C++ program already uses.
+
+**Why C++17.** `Mat4` is a fixed-size Eigen type. Under C++11/14 a fixed-size Eigen type inside a
+`std::vector` or a struct needs `Eigen::aligned_allocator` and `EIGEN_MAKE_ALIGNED_OPERATOR_NEW`,
+or it can crash on an unaligned load. C++17's aligned `operator new` makes that problem go away
+entirely. `ikbt_types.h` refuses to compile under anything older and says why.
+
+**Already using Eigen?** Define `IKBT_SYSTEM_EIGEN` before including a robot file (or pass
+`-DIKBT_SYSTEM_EIGEN`). `ikbt_types.h` then includes `<Eigen/Dense>` from your include path
+instead of the vendored copy, so your program contains one Eigen, not two.
+
+**Compile time is one to two seconds per robot file** with `-c`, a little more with `main` and
+linking, almost all of it Eigen's headers, and paid once per translation unit that includes a
+robot file.
+
+**Eigen's own range checks are on** unless you define `NDEBUG`: an out-of-range `T(4, 0)` aborts
+with a message instead of reading garbage. Add `-DNDEBUG` for a release build.
 
 **Nothing needs `-I` because `#include "..."` resolves against the including file's own directory.**
 `Cpp_src/` is reached by a path relative to the generated file (`../../../Cpp_src/...`, computed with
-`os.path.relpath`, not spelled out), and the headers' own `#include "ikbt_*.h"` lines find each other
-as siblings inside `Cpp_src/`.
+`os.path.relpath`, not spelled out), the headers' own `#include "ikbt_*.h"` lines find each other
+as siblings inside `Cpp_src/`, and `ikbt_types.h` reaches `third_party/eigen3/Eigen/Dense` the same
+way. Eigen's own headers include each other relatively too.
 
 **A robot's directory must keep its position relative to `Cpp_src/`.** To build it somewhere else,
 carry `Cpp_src/` along at the same depth, or you can modify the include statements to fit  your 

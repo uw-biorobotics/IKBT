@@ -34,7 +34,9 @@ Run 1–3 after any edit. Run 4 before a commit that touches the tree, a solver
 leaf, or the code generators. Run 5 after touching a code generator — it needs
 artifacts on disk, so run it after 3 or 4, or drop `--keep` and let it solve.
 Every C++ check **skips cleanly with no `g++`**, the way the report-fitting
-pass degrades with no `pdflatex`.
+pass degrades with no `pdflatex`. Every one compiles `-std=c++17` against the
+Eigen vendored in `Cpp_src/third_party/eigen3/`, so no system Eigen is needed
+or used.
 
 Why a particular threshold, timeout or expected count is what it is:
 [DEV_NOTES.md](DEV_NOTES.md).

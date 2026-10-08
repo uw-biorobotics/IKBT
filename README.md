@@ -58,12 +58,15 @@ For detailed usage, see `tests/TESTING_HOWTO.md`.
 * Native C++ code generation, for **every** solution path.  Each Python generator function has a
 C++ counterpart written from it, so a symbolic, one-variable or hybrid solve now produces working
 code in both languages.  Everything a robot needs is in one file,
-`CodeGen/Cpp/<Robot>CppCode/<Robot>.cpp`, and the generated C++ is **C++11 and standard library
-only** -- no Eigen, no Boost, no build system:
+`CodeGen/Cpp/<Robot>CppCode/<Robot>.cpp`.  The generated C++ is **C++17**, and its types are
+[Eigen](https://eigen.tuxfamily.org)'s -- Eigen ships inside `Cpp_src/`, so there is nothing to
+install, no build system and no `-I`:
 
 ```
-> g++ -std=c++11 -O2 -DIKBT_MAIN CodeGen/Cpp/PumaCppCode/Puma.cpp -o ik && ./ik
+> g++ -std=c++17 -O2 -DIKBT_MAIN CodeGen/Cpp/PumaCppCode/Puma.cpp -o ik && ./ik
 ```
+
+`IKdocs/CPP_API.md` is the reference for calling it from an application.
 
 The two languages are checked against each other rather than assumed to agree --
 `scripts/cpp_closed_loop_check.py` runs the same robot at the same pose through both and

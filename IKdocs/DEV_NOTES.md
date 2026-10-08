@@ -1002,3 +1002,76 @@ rows — but if the discipline ever slips, NaN makes it loud.
 **refused every expression containing an absolute value** — although `sp.pycode` emits a
 perfectly good `abs(x)` for it. Found by `cpp_expr_check`, which prints the same expression
 through both languages and so notices when one of them declines. Fixed.
+
+# Eigen for the C++ types (2026-10-08)
+
+## Why the hand-written types went
+
+The first C++ generator held to "C++11, standard library only": `Mat4` was
+`std::array<std::array<double,4>,4>`, `JointVec` a `std::vector<double>`, and the only linear
+algebra was a 40-line Gaussian elimination in `ikbt_linalg.h`. That was enough for the
+*generator*, which fills in matrix entries and does one 6x6 solve per DLS step. It was not enough
+for an *application*. The first attempt to build one on the generated code needed a vector
+norm, an approximate comparison and a matrix inverse straight away, and each would have been one
+more hand-written function in `ikbt_types.h`: the start of a linear algebra library, one helper
+at a time.
+
+**Decision:** the types are Eigen's (`Matrix4d`, `VectorXd`, `MatrixXd`). Eigen 3.4.0 is
+**vendored** in `Cpp_src/third_party/eigen3/`, so the rule that a generated artifact must not make
+the user install anything still holds, and so does "no `-I`". Eigen is header-only, and its
+headers include each other relatively, which is the same mechanism `Cpp_src/` already relied on.
+Rejected alternatives: Armadillo (needs LAPACK/BLAS at link time, which is the build complexity
+the rule exists to avoid); GLM (graphics-sized fixed matrices only, no dynamic `JointVec`); an
+opt-in adapter header that converts at the boundary (two type systems, and a conversion on every
+call).
+
+**C++17, not C++11.** A fixed-size Eigen type in a `std::vector` or a struct needs
+over-aligned allocation. Before C++17 that means `aligned_allocator` and
+`EIGEN_MAKE_ALIGNED_OPERATOR_NEW` everywhere a user might store one, or a crash that depends on
+the allocator. C++17's aligned `operator new` removes the problem, so `ikbt_types.h` `#error`s
+under anything older rather than leave that trap in place.
+
+**What stayed hand-written.** `pose_error()` is not `Eigen::AngleAxisd`, because that takes the
+angle from an arccosine (see "The arcsine domain" above for why that floor matters to the
+search), and its axis choice near theta = pi differs from the python twin's. The DLS step uses
+`partialPivLu()`, not LDLT, although `JJ' + lam^2 I` is SPD: `--dls` pins the iteration count
+against numpy, and LU with partial pivoting is the factorisation `np.linalg.solve` uses.
+
+**`-DIKBT_SYSTEM_EIGEN`** swaps the vendored copy for `<Eigen/Dense>` from the include path, for
+an application that already has its own Eigen. Two Eigens in one program would share include
+guards and silently mix versions.
+
+## Measurements
+
+Before/after on the same commit's solves: HEAD regenerated in a separate worktree, the
+refactor regenerated in place, both from scratch over all 32 robots.
+
+- **Generated output, all 31 robots with C++**, 4 seeded joint vectors each, through the same
+  driver compiled against both type systems: `fk()`, `jacobian()`, `ikin()`, `ikin_given()`,
+  `ikin_approx()` and the one-variable `solve()` (roots, errors, sample counts) are
+  **bit-identical**. The hybrid `refine_all()` differs by at most 1.6e-14 in `q`, with the same
+  iteration counts, convergence flags and reasons. Bit-identical is better than predicted: the
+  expressions are untouched, and `T(i, j) = ...` stores exactly what `T[i][j] = ...` did.
+- **`cpp_closed_loop_check --all --keep`**: the result table is identical line for line,
+  including python agreement 0.00e+00 on every symbolic robot and the one-variable and hybrid
+  match counts (C-Arm 28/28, KinovaLite 40/40, ArmRobo 16/16, KawasakiRS05L 14/14, Panda 12/12).
+- **`--fk --all`**: identical, digit for digit. **`--dls --all`**: still 0 iteration mismatches
+  against numpy on all 32 robots; worst `|dq|` moved from 2.6e-13 to 1.0e-12 (KinovaLite).
+- **`pose_error()` old vs new**, 292 poses: worst 3.4e-15 on random poses, 6e-17 near the
+  identity. The one larger value, 5.1e-11, is at theta = pi - 2e-6, just above the switch to the
+  theta ~ pi branch, where the axis is `skew / (2 sin eps)` and amplifies last-bit rounding by
+  ~1/eps in either implementation. It comes from Eigen ordering a 3x3 product's sums differently,
+  not from a change of formula.
+- **6x6 solve**, old Gaussian elimination vs `partialPivLu()`: agree to ~1e-15 relative on
+  well-conditioned systems and 7e-14 on rank-5 `JJ'` with lam = 1e-12, where both are equally
+  inaccurate. Both report the exactly singular system as singular.
+- **DLS old vs new header**, 6 robots x 45 seeds at three perturbation sizes: 270 of 270 agree on
+  convergence, 268 on iteration count; converged answers within 2.8e-13. The two count
+  differences (55 vs 53, 83 vs 81) are stalls that reach `lam_max` at the same metric.
+- **Self-tests** (`-DIKBT_MAIN`), all 31: no warnings under `-Wall -Wextra`; output identical to
+  the old build for 30, and for Panda except two 1e-16 error values.
+- **Compile time**, `g++ -O2 -c`: 0.2-0.5 s per robot file became 0.8-2.1 s (Panda the
+  largest). `cpp_closed_loop_check --all --keep --compile-only` went from 8.4 s to 31 s.
+- **Vendoring**: no system Eigen on the test machine, so every build above used the vendored
+  copy. A robot directory copied elsewhere with `Cpp_src/` at the same depth builds with the
+  plain command; `-std=c++14` stops at the `#error`.
