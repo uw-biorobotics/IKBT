@@ -221,7 +221,7 @@ def artifact_paths(name, robot=None):
     #  directory per robot, and the derived arm has no C++ file of its own.
     robot = robot or name
     cppdir = os.path.join('CodeGen', 'Cpp', '%sCppCode' % robot)
-    return {
+    paths = {
         'tex':    os.path.join('LaTex', 'ik_solution_%s.tex' % name),
         'py':     os.path.join('CodeGen', 'Python', 'IK_equations%s.py' % name),
         'hybrid': os.path.join('CodeGen', 'Python', 'IK_hybrid_%s.py' % name),
@@ -234,6 +234,12 @@ def artifact_paths(name, robot=None):
         #  inside the true robot's.  See ikbtfunctions/output_cpp_robot.py.
         'cpp_robot': os.path.join(cppdir, '%s.cpp' % robot),
     }
+    #  ... and so a DERIVED arm has no cpp_robot key at all.  Left in, it
+    #  would point at the true robot's file, which this same run just wrote,
+    #  and the derived arm would be charged with an "unexpected" artifact.
+    if name != robot:
+        del paths['cpp_robot']
+    return paths
 
 
 NOTHING = frozenset()
