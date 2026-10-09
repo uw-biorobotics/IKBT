@@ -4,7 +4,7 @@
 #                         a change:  what solves, what crashed, and is the
 #                         generated code correct.
 #
-#       python3 -m scripts.robot_baseline --gate       # fast: 5 robots, ~1 min
+#       python3 -m scripts.robot_baseline --gate       # fast: 6 robots, a few min
 #       python3 -m scripts.robot_baseline --full       # all of ROBOT_LIST, codegen + IK
 #       python3 -m scripts.robot_baseline --full --diff
 #       python3 -m scripts.robot_baseline --robots Puma Wrist --codegen --closed-loop
@@ -78,24 +78,28 @@ FENCE_CLOSE = '#### BASELINE-JSON-END ####'
 
 ###############################################################################
 #
-#    The five robots of --gate:  one per distinct PATH through the tree
+#    The robots of --gate:  one per distinct PATH through the tree
 #
 #  Not an assertion table:  what each robot must deliver is worked out from the
 #  path it took (scripts/expected.artifacts_owed).  This documents WHY these
-#  five, for --list.
+#  robots, for --list.
 #
-#  A sixth path -- simplified_arm finding no usable candidate, closing the
-#  hybrid branch on an arm satisfying Pieper's condition on every triple -- is
-#  not reachable by any robot in ROBOT_LIST;  TestSolver018.test_hybJ covers
-#  it.
+#  Three hybrid paths are not reachable by any robot in ROBOT_LIST since the
+#  one-variable branch took over the arms that used to reach them:  the derived
+#  arm solving partly (require_complete withholds the report), the derived arm
+#  solving nothing, and simplified_arm finding no usable candidate.  Unit tests
+#  cover two of them (symbolic_loop test_loopE: require_complete;  hybrid_ik
+#  test_hybI/test_hybJ: no candidate);  "derived arm solves nothing" has no
+#  test of its own.
 GATE_PATHS = [
     ('Puma',          'symbolic branch wins, 6 DOF, sum-of-angles, ranking'),
     ('Chair_Helper',  'symbolic branch wins, 5 DOF, prismatic joint'),
-    ('KinovaLite',    'hybrid branch, derived arm solves completely -- the '
-                      'only path that reports a hybrid answer'),
-    ('ArmRobo',       'hybrid branch, derived arm partial, so require_complete '
-                      'withholds the report'),
-    ('KawasakiRS05L', 'hybrid branch, derived arm solves nothing'),
+    ('KinovaLite',    'one-variable branch, th_1 assumed known, 1-D search'),
+    ('ArmRobo',       'one-variable branch, prismatic joint and a '
+                      'sum-of-angles variable among the rest'),
+    ('KawasakiRS05L', 'one-variable branch, few postures (2 at the probe)'),
+    ('Raven-II',      'hybrid branch, derived arm (a_5 -> 0) solves completely '
+                      '-- the only robot that reports a hybrid answer'),
 ]
 GATE_ROBOTS = [n for n, _ in GATE_PATHS]
 

@@ -48,12 +48,13 @@ import sympy as sp
 import b3 as b3          # behavior trees
 
 from ikbtfunctions.helperfunctions import count_unknowns
-from ikbtbasics.kin_cl import kequation, mechanism
+from ikbtbasics.kin_cl import kequation, mechanism, MEQN_SPLITS
 import ikbtbasics.dh_analysis as da
 
 #  Reused wholesale.  These are invariant_gen's, and there is no second copy.
 from ikbtleaves.invariant_gen import (soa_subs_dict, best_form,
-                                      element_forms, is_redundant)
+                                      element_forms, is_redundant,
+                                      simplify_cached)
 
 
 #####################################################################
@@ -116,8 +117,25 @@ def split_known(expr, unknowns):
     return known, unk
 
 
-def generate_parallel_equations(R, unknowns, debug=False):
+def spans_a_triple(split, triples):
+    '''True if the right-hand side T_ij of `split` holds every joint of at
+       least one triple.  Joint n (1-based) is T[n-1], so T_ij holds joints
+       i+1 .. j, and a triple (a, a+1, a+2) is inside it when i <= a-1 and
+       j >= a+2.  Only such a split has the triple's two link vectors on one
+       side, which is where the law-of-cosines norm lives.'''
+
+    i, j = split
+    return any(i <= t['axes'][0] - 1 and j >= t['axes'][2] for t in triples)
+
+
+def generate_parallel_equations(R, unknowns, debug=False, triples=None):
     '''Mine R.mequation_list for law-of-cosines equations in one unknown.
+
+       `triples` (from parallel_axis_triples) restricts the mining to the
+       matrix equations whose right-hand side spans a triple -- 6 of UR5's 21.
+       The DH table already says where the equation can be;  simplifying the
+       other 15 every tick is what made this leaf cost UR5 32 minutes.
+       None mines them all (the unit tests' hand-built robots).
 
        Returns a list of kequation, NOT appended to anything -- keeping the
        computation separate from the side effect is what makes it testable,
@@ -125,6 +143,11 @@ def generate_parallel_equations(R, unknowns, debug=False):
 
     soa_defs = soa_subs_dict(R, unknowns)
     meqns = R.mequation_list
+    if triples is not None:
+        mined = [k for k, split in enumerate(MEQN_SPLITS[:len(meqns)])
+                 if spans_a_triple(split, triples)]
+    else:
+        mined = range(len(meqns))
 
     known_forms = element_forms(meqns)
     known_forms += [sp.expand(e.LHS - e.RHS) for e in R.kequation_aux_list]
@@ -134,8 +157,8 @@ def generate_parallel_equations(R, unknowns, debug=False):
     def consider(lhs_raw, rhs_raw, what, k):
         '''Score one candidate and keep it if it beats every gate.'''
         try:
-            rhs = best_form(sp.simplify(rhs_raw), unknowns, soa_defs)
-            lhs = best_form(sp.simplify(lhs_raw), unknowns, soa_defs)
+            rhs = best_form(simplify_cached(rhs_raw), unknowns, soa_defs)
+            lhs = best_form(simplify_cached(lhs_raw), unknowns, soa_defs)
         except Exception as e:
             if debug:
                 print('parallel_triple: meqn %d %s did not simplify -- %s'
@@ -164,7 +187,8 @@ def generate_parallel_equations(R, unknowns, debug=False):
             print('parallel_triple:    ++ KEEPING meqn %d %s:  %s = %s'
                   % (k, what, lhs, rhs))
 
-    for k, Meq in enumerate(meqns):
+    for k in mined:
+        Meq = meqns[k]
         #  Partition the three position components, then square.  Td is the
         #  known side already, so the known half of Ts crosses over with a
         #  minus sign and the two sides stay balanced.
@@ -241,7 +265,8 @@ class parallel_triple_transform(b3.Action):
             print('parallel_triple: parallel triples at ',
                   [t['axes'] for t in triples], ' solved so far: ', list(sig))
 
-        keepers = generate_parallel_equations(R, unknowns, debug=self.BHdebug)
+        keepers = generate_parallel_equations(R, unknowns, debug=self.BHdebug,
+                                              triples=triples)
 
         if not keepers:
             if self.BHdebug:

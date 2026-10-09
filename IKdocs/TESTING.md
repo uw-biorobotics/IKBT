@@ -91,23 +91,23 @@ robot (`PYTHONHASHSEED=0`), solves, and hands the result back as fenced JSON.
    produced artifacts is round-tripped through the code IKBT just wrote.
 
 ```bash
-python3 -m scripts.robot_baseline --gate            # 5 robots, one per tree path
+python3 -m scripts.robot_baseline --gate            # 6 robots, one per tree path
 python3 -m scripts.robot_baseline --full            # all 32, codegen + IK check
 python3 -m scripts.robot_baseline --full --diff     # ... and compare to the record
 python3 -m scripts.robot_baseline --robots Puma Wrist --codegen --closed-loop
-python3 -m scripts.robot_baseline --gate --list     # what the five robots stand for
+python3 -m scripts.robot_baseline --gate --list     # what the six robots stand for
 ```
 
-`--gate` is the fast one: the five robots that cover the distinct **paths**
-through the tree (symbolic 6-DOF, symbolic 5-DOF/prismatic, hybrid-complete,
-hybrid-partial, hybrid-failed). It saves nothing and asserts everything.
+`--gate` is the fast one: the six robots that cover the distinct **paths**
+through the tree (symbolic 6-DOF, symbolic 5-DOF/prismatic, three one-variable
+solves, hybrid-complete). It saves nothing and asserts everything.
 
 **Most of the sweep asserts nothing.** "Does not solve" is a legitimate entry —
 most of `ROBOT_LIST` does not solve completely. Only two things are asserted:
 
 - **the artifacts a finished solve owes**, a *rule* applied to every robot
   (`scripts/expected.artifacts_owed`), not a per-robot list;
-- **the closed-loop counts**, for the ten robots that have a recorded
+- **the closed-loop counts**, for the robots that have a recorded
   expectation in `scripts/expected.EXPECT`.
 
 ### Exit status
@@ -223,7 +223,7 @@ python3 -m scripts.cpp_closed_loop_check --all --compile-only   # the compile ga
 python3 -m scripts.cpp_closed_loop_check --fk  Puma      # FK/Jacobian, elementwise
 python3 -m scripts.cpp_closed_loop_check --dls Puma      # ikbt_dls.h vs numeric_ik
 python3 -m scripts.cpp_closed_loop_check --onevar C-Arm  # that check on purpose
-python3 -m scripts.cpp_closed_loop_check --hybrid Panda  # ... and this one
+python3 -m scripts.cpp_closed_loop_check --hybrid Raven-II  # ... and this one
 python3 -m scripts.cpp_expr_check                        # the expression printer
 ```
 

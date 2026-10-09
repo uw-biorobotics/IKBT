@@ -115,6 +115,16 @@ def kinematics_pickle(rname, dh, constants, pvals, vv, unks,
             print('   Cached mechanism predates M.ndof -- recomputing.')
             m = R = unknowns = None
 
+        #  invariant_gen's sp.simplify work, done once and kept in the
+        #  pickle.  An older pickle without it is fine otherwise, so it is
+        #  completed here and rewritten -- R is still pristine at this point --
+        #  rather than discarded and recomputed from scratch.
+        if m is not None and not simplify_cache_current(R):
+            print('   Cached Robot has no current simplify_cache -- adding it (once).')
+            attach_simplify_cache(R, unknowns)
+            with open(name, 'wb') as pf:
+                pickle.dump([m, R, unknowns], pf, protocol=pprotocol)
+
         if m is not None:
             #  pvals never enter the symbolic FK (the subs() branch in
             #  forward_kinematics() is dead code), so a pvals-only edit does not
@@ -142,13 +152,36 @@ def kinematics_pickle(rname, dh, constants, pvals, vv, unks,
         R.scan_for_equations(unks)       # generate equation lists
 
         R.sum_of_angles_transform(unks)  # find sum of angles
+        attach_simplify_cache(R, unks)
 
         print(' Storing kinematics pickle for '+rname + '('+name+')')
         with open(name,'wb') as pf:
             pickle.dump( [m, R, unks], pf, protocol=pprotocol)
         unknowns = unks    # be sure to return updated unknown list (including SOAs)
 
+    #  Seed the in-process cache, so invariant_gen finds its work done.
+    from ikbtleaves import invariant_gen as ig
+    if simplify_cache_current(R):
+        ig._SIMPLIFIED.update(R.simplify_cache)
+
     return [m,R,unknowns]
+
+
+def attach_simplify_cache(R, unknowns):
+    '''Store invariant_gen's simplifications on R (so they are pickled with
+       it) and seed the in-process cache from them.'''
+    from ikbtleaves import invariant_gen as ig    # here:  ig imports this module
+    print('Simplifying kinematic invariants (once per robot, slow) ...')
+    R.simplify_cache = ig.precompute_simplifications(R, unknowns)
+    R.simplify_cache_version = ig.SIMPLIFY_VERSION
+
+
+def simplify_cache_current(R):
+    '''True if R carries a simplify_cache computed the way simplify_cached()
+       computes today.'''
+    from ikbtleaves import invariant_gen as ig
+    return (getattr(R, 'simplify_cache', None) is not None and
+            getattr(R, 'simplify_cache_version', None) == ig.SIMPLIFY_VERSION)
 
 
 def dh_tables_match(dh1, dh2):

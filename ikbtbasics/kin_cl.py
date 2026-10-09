@@ -286,6 +286,17 @@ class matrix_equation:
         sp.pprint(notation_squeeze(self.Ts))
         return ' '
 
+#  Which split  T_0i^-1 * Td * T_j6^-1 = T_ij  each entry of
+#  mechanism.get_mequation_set() is, in list order:  entry k is MEQN_SPLITS[k].
+#  The first 8 are the historical set and keep their indices;  the other 13 of
+#  the 21 (0 <= i < j <= 6) follow.  (i, j) indexes T = [T_01, ..., T_56], so
+#  joint n (1-based) is in T[n-1], and the right-hand side T_ij holds joints
+#  i+1 .. j.
+_FIRST_8 = [(0,6), (1,6), (2,6), (3,6), (4,6), (5,6), (1,5), (2,4)]
+MEQN_SPLITS = _FIRST_8 + [(i, j) for i in range(6) for j in range(i+1, 7)
+                          if (i, j) not in _FIRST_8]
+
+
 class mechanism:
 
     def __init__(self, dh, params, varvect):
@@ -550,7 +561,9 @@ class mechanism:
     #    T10*Td*T65 = T12*T23*T34*T45  (needed for UR5)
     #    T21*T10*Td*T65*T54 = T23*T34
     #
-    #  TODO: should we also try T32*T21*T10*Td*T65*T54 = T34 ???
+    #  Oct '26 - and the other 13 of the 21 splits  T_0i^-1*Td*T_j6^-1 = T_ij,
+    #  appended after the 8 above.  MEQN_SPLITS (module level) records which
+    #  split each entry of the returned list is.
 
 
     def get_mequation_set(self):
@@ -592,6 +605,21 @@ class mechanism:
         rhs =                          self.T_23*self.T_34
         list.append(matrix_equation(lhs,rhs))
 
+        #  The remaining 13 of the 21 splits  T_0i^-1 * Td * T_j6^-1 = T_ij
+        #  (0 <= i < j <= 6), APPENDED so the 8 above keep their indices.
+        #  Includes every pure right-peel (Td*T65 = T01*...*T45 ...), which an
+        #  arm whose BASE joints form the Pieper triple (Raven-II) needs.
+        T = [self.T_01, self.T_12, self.T_23, self.T_34, self.T_45, self.T_56]
+        for (i, j) in MEQN_SPLITS[8:]:
+            lhs = self.Td
+            for k in range(i):
+                lhs = H_inv_S(T[k])*lhs
+            for k in range(5, j-1, -1):
+                lhs = lhs*H_inv_S(T[k])
+            rhs = sp.eye(4)
+            for k in range(i, j):
+                rhs = rhs*T[k]
+            list.append(matrix_equation(lhs,rhs))
 
         return list
 

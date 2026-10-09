@@ -81,16 +81,15 @@ only where the methods genuinely differ.
 **On the hybrid path the file describes TWO arms**, and the names are what tell them apart. Your
 real robot — the *true* arm — owns the plain names. The *derived* arm (the slightly different arm
 IKBT solved in closed form, to get starting points from) gets its own name appended to each
-function, so you cannot call one thinking it is the other. For `Panda`, whose derived arm is named
-`Panda_a_3_0_a_4_0`:
+function, so you cannot call one thinking it is the other. For `Raven-II` (namespace
+`ikbt::Raven_II`: a hyphen cannot be in a C++ name), whose derived arm is named `Raven-II_a_5_0`:
 
 | the true arm — your robot | the derived arm — seeds only |
 |---|---|
-| `fk(q)`, `jacobian(q)` | `fk_Panda_a_3_0_a_4_0(q)` — no Jacobian: nothing needs one |
-| `refine_seed(T, q_seed)` | `ikin_Panda_a_3_0_a_4_0(T)` |
+| `fk(q)`, `jacobian(q)` | `fk_Raven_II_a_5_0(q)` — no Jacobian: nothing needs one |
+| `refine_seed(T, q_seed)` | `ikin_Raven_II_a_5_0(T)` |
 
-The derived arm's name records what was changed: `a_3` and `a_4` were set to zero, hence
-`_a_3_0_a_4_0`. The string constant `DH_CHANGES` in the file spells the change out in full.
+The derived arm's name records what was changed: `a_5` was set to zero, hence `_a_5_0`. The string constant `DH_CHANGES` in the file spells the change out in full.
 
 ### The wiring
 
@@ -276,7 +275,7 @@ q =   1.5111  -1.1905  -0.5291   0.4102  -1.5700  -0.2131   th_2=-1.1905  err=1.
 `sols[i].q` is a **complete** joint vector in `ONEVAR_JOINT_NAMES` order, with the assumed variable
 already in its own chain position, so it goes straight into `CArm::fk()`.
 
-### 2c. Hybrid (Panda) — two steps, on purpose
+### 2c. Hybrid (Raven-II) — two steps, on purpose
 
 **The two steps are called Phase I and Phase II**, and the generated code uses those names:
 
@@ -292,20 +291,21 @@ posture you get — elbow up or down, wrist flipped — and only you know which 
 should be in.
 
 ```cpp
-#include "CodeGen/Cpp/PandaCppCode/Panda.cpp"
+#include "CodeGen/Cpp/Raven-IICppCode/Raven-II.cpp"
 #include <cstdio>
 
-namespace Panda = ikbt::Panda;
+namespace Raven = ikbt::Raven_II;
 
 int main()
 {
     //  A pose we know the TRUE arm reaches: its own FK on a joint vector.
+    //  d_3 is the insertion depth, in mm.
     ikbt::JointVec q0(6);
-    q0 << 0.30, 0.55, -0.40, 0.85, 0.60, -0.25;
-    const ikbt::Mat4 T = Panda::fk(q0);
+    q0 << 0.30, 1.20, 50.0, 0.40, 0.60, -0.25;
+    const ikbt::Mat4 T = Raven::fk(q0);
 
     //  PHASE I -- seeds from the APPROXIMATE arm.  Not answers.
-    const ikbt::SolutionList seeds = Panda::ikin_approx(T);
+    const ikbt::SolutionList seeds = Raven::ikin_approx(T);
     printf("%zu seeds\n", seeds.size());
     if (seeds.empty())
         return 1;
@@ -320,13 +320,13 @@ int main()
     printf("nearest seed: %zu\n", pick);
 
     //  PHASE IIa -- correct it against the TRUE arm.
-    const ikbt::SolveResult r = Panda::refine_seed(T, seeds[pick]);
+    const ikbt::SolveResult r = Raven::refine_seed(T, seeds[pick]);
     if (!r.converged) {
         printf("did not converge: %s (metric %.3e)\n", r.reason, r.metric);
         return 1;
     }
     for (int j = 0; j < r.q.size(); ++j)
-        printf(" %s=%8.4f", Panda::HYBRID_JOINT_NAMES[j], r.q(j));
+        printf(" %s=%8.4f", Raven::HYBRID_JOINT_NAMES[j], r.q(j));
     printf("\n  %d iterations, metric %.3e\n", r.iterations, r.metric);
     return 0;
 }
@@ -336,14 +336,14 @@ Which prints:
 
 ```
 8 seeds
-nearest seed: 0
- th_1=  0.3000 th_2=  0.5500 th_3= -0.4000 th_4=  0.8500 th_5=  0.6000 th_6= -0.2500
-  4 iterations, metric 7.885e-11
+nearest seed: 3
+ th_1=  0.3000 th_2=  1.2000 d_3= 50.0000 th_4=  0.4000 th_5=  0.6000 th_6= -0.2500
+  3 iterations, metric 9.479e-12
 ```
 
 **A seed that has not been through Phase II does not put the real robot where you asked.** The
-closed form belongs to a *displaced* arm (for Panda, `a_3` and `a_4` zeroed — 0.106 of task-space
-cost, which on one measured Panda pose put the two arms 39 mm apart). `refine_all(T)` runs Phase
+closed form belongs to a *displaced* arm (for Raven-II, the 13 mm wrist offset `a_5` zeroed, which
+puts the derived arm's tool exactly 13 mm from the true arm's at every joint vector). `refine_all(T)` runs Phase
 IIa over every seed at once; use it in a diagnostic, to learn which postures your true arm can
 actually reach, and `refine_seed()` from then on.
 
@@ -612,7 +612,7 @@ the true arm's — so what `solve()` returns is exact.
 
 **Two arms share the namespace, and the function names are what tell them apart.** Your real robot
 — the true arm — owns the plain names `fk()`, `jacobian()`, `refine_seed()`. The derived arm's
-functions carry its name: for Panda, `fk_Panda_a_3_0_a_4_0()` rather than `fk()`. So calling the
+functions carry its name: for Raven-II, `fk_Raven_II_a_5_0()` rather than `fk()`. So calling the
 derived arm is something you have to do on purpose. In the table below, **`<D>` stands for the
 derived arm's name**, which is in `APPROXIMATE_ARM`.
 
@@ -775,7 +775,7 @@ python3 -m scripts.cpp_closed_loop_check --all --compile-only
 python3 -m scripts.cpp_closed_loop_check --fk Puma        # FK/Jacobian, elementwise vs python
 python3 -m scripts.cpp_closed_loop_check --dls Puma       # ikbt_dls.h vs numeric_ik, iteration for iteration
 python3 -m scripts.cpp_closed_loop_check --onevar C-Arm   # same root set as the python search
-python3 -m scripts.cpp_closed_loop_check --hybrid Panda   # same refined postures
+python3 -m scripts.cpp_closed_loop_check --hybrid Raven-II   # same refined postures
 ```
 
 `detect_path()` in that script reads `SOLUTION_PATH` out of the robot file, which is how one command

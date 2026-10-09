@@ -161,7 +161,7 @@ def robot_dir(name, dirname=None):
        The directory is named for the robot the USER ASKED ABOUT, and holds
        that robot's <name>.cpp.  A hybrid solve describes two arms, and both
        go in that one file;  the derived arm is distinguished by a suffix on
-       its function names (ikin_Panda_a_3_0_a_4_0), never by a directory of
+       its function names (ikin_Raven_II_a_5_0), never by a directory of
        its own.
 
        A robot collects more than one artifact here -- FK_numeric<name>.h if
@@ -378,10 +378,10 @@ def write_fk_module_cpp(M, name, jacobian=True, dirname=None, what=None):
 def fk_suffix(name, owner):
     """'' for the arm that owns the namespace, '_<ident>' for any other.
 
-       Inside `namespace ikbt::Panda` the true arm's forward kinematics is
+       Inside `namespace ikbt::Raven_II` the true arm's forward kinematics is
        just `fk()`:  the namespace already says which robot it is.  A derived
        arm sharing that namespace keeps its suffix, so that `fk()` and
-       `fk_Panda_a_3_0_a_4_0()` cannot be mistaken for each other."""
+       `fk_Raven_II_a_5_0()` cannot be mistaken for each other."""
 
     if owner is None or str(name) != str(owner):
         return '_' + cpp_identifier(name)

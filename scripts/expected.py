@@ -71,10 +71,6 @@ EXPECT = {
     'Srisuan11':    (4, 4),
     'KawasakiRS007L': (8, 8),
 
-    #  HYBRID.  Panda solves 6/6 on the derived arm, and all eight refined
-    #  poses reach the true arm.
-    'Panda':        (8, 8),
-
     #  ONE VARIABLE.  `total` is how many solutions the 1-D search RETURNED and
     #  `good` how many of them reach the pose -- and a third thing is checked
     #  that no count can carry: whether the joint vector the probe pose was
@@ -93,6 +89,24 @@ EXPECT = {
     'ArmRobo':      (4, 4),
     'KawasakiRS05L': (2, 2),
 
+    #  ONE VARIABLE since 2026-10-09.  Before, it solved symbolically and the
+    #  generated code raised UnboundLocalError (a solution containing its own
+    #  variable -- see Future Work in CLAUDE.md);  now th_1 is assumed known
+    #  and both solutions reach the probe, which is recovered.
+    'Arm_3':        (2, 2),
+
+    #  HYBRID since 2026-10-09, and the only robot that takes that path:  the
+    #  derived arm (a_5: 13 -> 0, a spherical wrist) solves 6/6 once the
+    #  invariants know sa_i**2 + ca_i**2 = 1 for its non-right-angle twists
+    #  (invariant_gen.twist_identities).  All four refined postures reach the
+    #  probe pose on the TRUE arm (seed error 9.8 -> 1.6e-11).
+    'Raven-II':     (4, 4),
+
+    #  KNOWN INCOMPLETE (1 of 2) until 2026-10-09:  with all 21 matrix-equation
+    #  splits, th_3 is solved by atan2 instead of arcsin and the spurious
+    #  branch is gone.
+    'Axtman13':     (1, 1),
+
     #  --------------------------------------------------------------------
     #  KNOWN INCOMPLETE.  These are floors, not targets:  IKBT does not filter
     #  spurious version combinations, so some branches legitimately do not
@@ -105,7 +119,6 @@ EXPECT = {
     'Sims11':       (1, 2),
     'Wachtveitl':   (1, 2),
     'Palm13':       (1, 2),
-    'Axtman13':     (1, 2),
     'Craig417':     (2, 4),
     'MiniDD':       (1, 4),
 
@@ -129,17 +142,26 @@ EXPECT = {
 
     #  Parkman13 is mostly wrong and unexplained.
     'Parkman13':    (1, 4),
+
+    #  SYMBOLIC since 2026-10-08 (HYBRID before, on a derived arm with a_3 and
+    #  a_4 zeroed):  get_mequation_set() grew from 8 matrix equations to all 21
+    #  splits, and the true arm now solves 6/6.  8 of 16 branches reproduce the
+    #  probe;  the other 8 are finite and wrong -- spurious version
+    #  combinations, the KNOWN INCOMPLETE pattern above.  Over 200 random poses
+    #  the source joint vector was among the correct branches every time (the
+    #  hybrid's refined postures found it 130 times), and the hybrid found no
+    #  posture the closed form misses.
+    'Panda':        (8, 16),
 }
 
-#  THREE ROBOTS SOLVE COMPLETELY AND THEIR GENERATED CODE CANNOT BE RUN.  They
+#  TWO ROBOTS SOLVE COMPLETELY AND THEIR GENERATED CODE CANNOT BE RUN.  They
 #  are deliberately NOT in EXPECT:  an entry would make the gate fail forever
 #  on a defect that is already recorded.
 #
-#      Arm_3          UnboundLocalError: th_23v1  -- the solution CONTAINS the
-#      JennyGuoSp24   UnboundLocalError: th_3v1      variable it solves for
-#      UR5            UnboundLocalError: th_2v1      ... and so does this one
+#      JennyGuoSp24   UnboundLocalError: th_3v1   -- the solution CONTAINS the
+#      UR5            UnboundLocalError: th_2v1      variable it solves for
 #
-#  ONE DEFECT, NOT THREE, and it is the SOLVER's, not the code generator's:
+#  ONE DEFECT, NOT TWO, and it is the SOLVER's, not the code generator's:
 #  an equation of the form th_23v1 = atan2(..., ... + a_3*sin(th_23v1 - th_2v1))
 #  is not a solution for th_23v1.  No amount of domain checking helps.
 #
@@ -149,7 +171,11 @@ EXPECT = {
 #  out of range, AND the same self-reference" -- the first half is fixed, so
 #  what is left is the self-reference alone.
 #
-#  WHAT THE GENERATED C++ DOES WITH ALL THREE:  it compiles and runs, and
+#  Arm_3 left it on 2026-10-09 (UnboundLocalError: th_23v1 -- the example
+#  above):  its symbolic solve now fails cleanly and the one-variable branch
+#  answers instead, correctly;  see its EXPECT entry.
+#
+#  WHAT THE GENERATED C++ DOES WITH BOTH:  it compiles and runs, and
 #  returns NO branches.  Every solved variable is declared up front and
 #  initialised to NaN, so a self-reference reads NaN, the row is non-finite,
 #  and it is dropped -- where python raises.  Quieter, and no better:  an
@@ -160,7 +186,7 @@ EXPECT = {
 #  typo in the DH table, is fixed, and it now checks 1 of 4.
 #
 #  Move a robot into EXPECT the moment its generated code runs.
-UNCHECKABLE = ['Arm_3', 'JennyGuoSp24', 'UR5']
+UNCHECKABLE = ['JennyGuoSp24', 'UR5']
 
 
 def judge_counts(name, good, total):

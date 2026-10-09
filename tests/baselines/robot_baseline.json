@@ -36,12 +36,10 @@
    },
    "solution_set_error": null,
    "status": "solved (onevar)",
-   "wall_s": 116.28,
+   "wall_s": 72.6,
    "written": [
     "cond",
-    "cpp_cond",
-    "cpp_fk",
-    "cpp_onevar",
+    "cpp_robot",
     "fk",
     "onevar",
     "tex"
@@ -49,36 +47,41 @@
    "written_derived": []
   },
   "Arm_3": {
-   "branch": "symbolic",
+   "branch": "onevar",
    "closed_loop": {
-    "good": 0,
-    "note": "UnboundLocalError: cannot access local variable 'th_23v1' where it is not associated with a value",
-    "path": null,
-    "total": 0
+    "good": 2,
+    "note": "IK_equationsArm_3.py also exist(s) -- checking the newest (onevar);  the rest are stale, delete them; probe recovered",
+    "path": "onevar",
+    "total": 2
    },
    "codegen_run": true,
    "error": null,
    "hybrid": null,
    "methods": {
-    "th_1": "algebra",
     "th_12": "algebra",
     "th_123": "simultaneous eqn",
-    "th_2": "arccos",
-    "th_23": "simultaneous eqn",
+    "th_2": "simultaneous eqn",
+    "th_23": "atan2(y,x), arccos, best ranked, atan2(y,x)",
     "th_3": "algebra"
    },
-   "n_solutions": 2,
-   "n_solved": 6,
-   "n_unknowns": 6,
+   "n_solutions": 1,
+   "n_solved": 5,
+   "n_unknowns": 5,
    "name": "Arm_3",
    "no_progress": false,
-   "onevar": null,
+   "onevar": {
+    "attempt": 1,
+    "known": "th_1",
+    "of": 3
+   },
    "solution_set_error": null,
-   "status": "solved",
-   "wall_s": 30.62,
+   "status": "solved (onevar)",
+   "wall_s": 31.44,
    "written": [
-    "cpp",
-    "py",
+    "cond",
+    "cpp_robot",
+    "fk",
+    "onevar",
     "tex"
    ],
    "written_derived": []
@@ -89,7 +92,7 @@
     "good": 1,
     "note": "",
     "path": "symbolic",
-    "total": 2
+    "total": 1
    },
    "codegen_run": true,
    "error": null,
@@ -97,11 +100,11 @@
    "methods": {
     "d_1": "algebra",
     "th_2": "simultaneous eqn",
-    "th_3": "arcsin",
+    "th_3": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
     "th_34": "algebra",
     "th_4": "simultaneous eqn"
    },
-   "n_solutions": 2,
+   "n_solutions": 1,
    "n_solved": 5,
    "n_unknowns": 5,
    "name": "Axtman13",
@@ -109,9 +112,10 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 15.24,
+   "wall_s": 17.3,
    "written": [
-    "cpp",
+    "cpp_robot",
+    "fk",
     "py",
     "tex"
    ],
@@ -143,9 +147,10 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 1.52,
+   "wall_s": 12.49,
    "written": [
-    "cpp",
+    "cpp_robot",
+    "fk",
     "py",
     "tex"
    ],
@@ -176,9 +181,10 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 1.7,
+   "wall_s": 6.85,
    "written": [
-    "cpp",
+    "cpp_robot",
+    "fk",
     "py",
     "tex"
    ],
@@ -197,11 +203,11 @@
    "hybrid": null,
    "methods": {
     "d_1": "algebra",
-    "th_3": "algebra",
-    "th_34": "simultaneous eqn",
-    "th_4": "arcsin",
-    "th_5": "atan2(y,x), arccos, best ranked, atan2(y,x)",
-    "th_6": "simultaneous eqn"
+    "th_2": "atan2(y,x)",
+    "th_3": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
+    "th_34": "algebra",
+    "th_4": "simultaneous eqn",
+    "th_5": "simultaneous eqn"
    },
    "n_solutions": 2,
    "n_solved": 6,
@@ -210,17 +216,15 @@
    "no_progress": false,
    "onevar": {
     "attempt": 1,
-    "known": "th_2",
+    "known": "th_6",
     "of": 3
    },
    "solution_set_error": null,
    "status": "solved (onevar)",
-   "wall_s": 61.8,
+   "wall_s": 35.7,
    "written": [
     "cond",
-    "cpp_cond",
-    "cpp_fk",
-    "cpp_onevar",
+    "cpp_robot",
     "fk",
     "onevar",
     "tex"
@@ -253,9 +257,10 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 2.24,
+   "wall_s": 45.29,
    "written": [
-    "cpp",
+    "cpp_robot",
+    "fk",
     "py",
     "tex"
    ],
@@ -287,9 +292,10 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 3.1,
+   "wall_s": 5.07,
    "written": [
-    "cpp",
+    "cpp_robot",
+    "fk",
     "py",
     "tex"
    ],
@@ -322,9 +328,10 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 55.53,
+   "wall_s": 61.51,
    "written": [
-    "cpp",
+    "cpp_robot",
+    "fk",
     "py",
     "tex"
    ],
@@ -356,9 +363,10 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 42.34,
+   "wall_s": 47.39,
    "written": [
-    "cpp",
+    "cpp_robot",
+    "fk",
     "py",
     "tex"
    ],
@@ -389,9 +397,10 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 24.69,
+   "wall_s": 15.0,
    "written": [
-    "cpp",
+    "cpp_robot",
+    "fk",
     "py",
     "tex"
    ],
@@ -426,9 +435,10 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 49.41,
+   "wall_s": 30.62,
    "written": [
-    "cpp",
+    "cpp_robot",
+    "fk",
     "py",
     "tex"
    ],
@@ -462,9 +472,10 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 89.05,
+   "wall_s": 84.16,
    "written": [
-    "cpp",
+    "cpp_robot",
+    "fk",
     "py",
     "tex"
    ],
@@ -498,9 +509,10 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 63.74,
+   "wall_s": 73.72,
    "written": [
-    "cpp",
+    "cpp_robot",
+    "fk",
     "py",
     "tex"
    ],
@@ -537,12 +549,10 @@
    },
    "solution_set_error": null,
    "status": "solved (onevar)",
-   "wall_s": 157.85,
+   "wall_s": 104.82,
    "written": [
     "cond",
-    "cpp_cond",
-    "cpp_fk",
-    "cpp_onevar",
+    "cpp_robot",
     "fk",
     "onevar",
     "tex"
@@ -577,9 +587,10 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 81.67,
+   "wall_s": 92.37,
    "written": [
-    "cpp",
+    "cpp_robot",
+    "fk",
     "py",
     "tex"
    ],
@@ -616,12 +627,10 @@
    },
    "solution_set_error": null,
    "status": "solved (onevar)",
-   "wall_s": 208.81,
+   "wall_s": 126.42,
    "written": [
     "cond",
-    "cpp_cond",
-    "cpp_fk",
-    "cpp_onevar",
+    "cpp_robot",
     "fk",
     "onevar",
     "tex"
@@ -654,9 +663,10 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 55.31,
+   "wall_s": 61.73,
    "written": [
-    "cpp",
+    "cpp_robot",
+    "fk",
     "py",
     "tex"
    ],
@@ -687,9 +697,10 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 1.5,
+   "wall_s": 12.6,
    "written": [
-    "cpp",
+    "cpp_robot",
+    "fk",
     "py",
     "tex"
    ],
@@ -721,9 +732,10 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 40.64,
+   "wall_s": 41.49,
    "written": [
-    "cpp",
+    "cpp_robot",
+    "fk",
     "py",
     "tex"
    ],
@@ -757,9 +769,10 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 19.64,
+   "wall_s": 22.89,
    "written": [
-    "cpp",
+    "cpp_robot",
+    "fk",
     "py",
     "tex"
    ],
@@ -790,43 +803,31 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 1.5,
+   "wall_s": 12.39,
    "written": [
-    "cpp",
+    "cpp_robot",
+    "fk",
     "py",
     "tex"
    ],
    "written_derived": []
   },
   "Panda": {
-   "branch": "hybrid",
+   "branch": "symbolic",
    "closed_loop": {
     "good": 8,
-    "note": "seed err 6.0e-02 -> 2.2e-16",
-    "path": "hybrid",
-    "total": 8
+    "note": "",
+    "path": "symbolic",
+    "total": 16
    },
    "codegen_run": true,
    "error": null,
-   "hybrid": {
-    "axes": [
-     3,
-     4,
-     5
-    ],
-    "derived_robot": "Panda_a_3_0_a_4_0",
-    "edits": [
-     "a_3: 0.0825000000000000 -> 0",
-     "a_4: -0.0825000000000000 -> 0"
-    ],
-    "kind": "intersect",
-    "route": "zero_offsets"
-   },
+   "hybrid": null,
    "methods": {
-    "th_1": "sinANDcos",
+    "th_1": "atan2(y,x)",
     "th_2": "simultaneous eqn",
     "th_3": "simultaneous eqn",
-    "th_4": "arccos",
+    "th_4": "sinANDcos",
     "th_5": "arcsin",
     "th_6": "sinANDcos"
    },
@@ -837,21 +838,15 @@
    "no_progress": false,
    "onevar": null,
    "solution_set_error": null,
-   "status": "solved (hybrid)",
-   "wall_s": 422.85,
+   "status": "solved",
+   "wall_s": 244.7,
    "written": [
-    "cpp_fk",
-    "cpp_hybrid",
+    "cpp_robot",
     "fk",
-    "hybrid",
+    "py",
     "tex"
    ],
-   "written_derived": [
-    "cpp",
-    "cpp_fk",
-    "fk",
-    "py"
-   ]
+   "written_derived": []
   },
   "Parkman13": {
    "branch": "symbolic",
@@ -880,9 +875,10 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 38.07,
+   "wall_s": 39.28,
    "written": [
-    "cpp",
+    "cpp_robot",
+    "fk",
     "py",
     "tex"
    ],
@@ -916,9 +912,10 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 75.11,
+   "wall_s": 14.65,
    "written": [
-    "cpp",
+    "cpp_robot",
+    "fk",
     "py",
     "tex"
    ],
@@ -926,6 +923,12 @@
   },
   "Raven-II": {
    "branch": "hybrid",
+   "closed_loop": {
+    "good": 4,
+    "note": "seed err 9.8e+00 -> 1.6e-11",
+    "path": "hybrid",
+    "total": 4
+   },
    "codegen_run": true,
    "error": null,
    "hybrid": {
@@ -942,24 +945,32 @@
     "route": "zero_offsets"
    },
    "methods": {
-    "d_3": "",
-    "th_1": "",
-    "th_2": "",
-    "th_4": "",
-    "th_5": "",
-    "th_6": ""
+    "d_3": "algebra",
+    "th_1": "sinANDcos",
+    "th_2": "simultaneous eqn",
+    "th_4": "simultaneous eqn",
+    "th_5": "sinANDcos",
+    "th_6": "sinANDcos"
    },
-   "n_solutions": null,
-   "n_solved": 0,
+   "n_solutions": 8,
+   "n_solved": 6,
    "n_unknowns": 6,
    "name": "Raven-II",
-   "no_progress": true,
+   "no_progress": false,
    "onevar": null,
    "solution_set_error": null,
-   "status": "unsolved",
-   "wall_s": 576.31,
-   "written": [],
-   "written_derived": []
+   "status": "solved (hybrid)",
+   "wall_s": 39.13,
+   "written": [
+    "cpp_robot",
+    "fk",
+    "hybrid",
+    "tex"
+   ],
+   "written_derived": [
+    "fk",
+    "py"
+   ]
   },
   "Sims11": {
    "branch": "symbolic",
@@ -987,9 +998,10 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 17.63,
+   "wall_s": 19.16,
    "written": [
-    "cpp",
+    "cpp_robot",
+    "fk",
     "py",
     "tex"
    ],
@@ -1022,9 +1034,10 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 16.99,
+   "wall_s": 20.78,
    "written": [
-    "cpp",
+    "cpp_robot",
+    "fk",
     "py",
     "tex"
    ],
@@ -1057,9 +1070,10 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 3.03,
+   "wall_s": 49.93,
    "written": [
-    "cpp",
+    "cpp_robot",
+    "fk",
     "py",
     "tex"
    ],
@@ -1083,7 +1097,7 @@
     "th_234": "simultaneous eqn",
     "th_3": "arccos",
     "th_34": "algebra",
-    "th_4": "arcsinalgebra",
+    "th_4": "algebra",
     "th_5": "arccos",
     "th_6": "simultaneous eqn"
    },
@@ -1095,9 +1109,10 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 153.31,
+   "wall_s": 109.64,
    "written": [
-    "cpp",
+    "cpp_robot",
+    "fk",
     "py",
     "tex"
    ],
@@ -1130,9 +1145,10 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 24.39,
+   "wall_s": 30.53,
    "written": [
-    "cpp",
+    "cpp_robot",
+    "fk",
     "py",
     "tex"
    ],
@@ -1162,9 +1178,10 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 1.36,
+   "wall_s": 7.01,
    "written": [
-    "cpp",
+    "cpp_robot",
+    "fk",
     "py",
     "tex"
    ],

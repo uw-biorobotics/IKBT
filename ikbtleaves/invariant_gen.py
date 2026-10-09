@@ -47,7 +47,10 @@ import b3 as b3          # behavior trees
 #  How many matrix equations to mine.  None = all of them.  The premultiplied
 #  equations (Craig's  T_01^-1 * Td = T_12*...  and friends) are where the good
 #  invariants live, so do not lower this without measuring.
-N_MEQNS = None
+#  8, not None (2026-10-08):  get_mequation_set() now returns all 21 splits,
+#  the original 8 first.  Mining all 21 kept Raven-II in this leaf for 25+
+#  minutes of sp.simplify;  the raw-element scan of the other 13 is cheap.
+N_MEQNS = 8
 
 #  Only equations the solvers can actually consume are worth generating.
 #  1 or 2 unknowns land in L1/L2; 3+ land in L3p, which no solver reads, so
@@ -142,6 +145,77 @@ def soa_subs_dict(R, unknowns):
     return d
 
 
+#####################################################################
+#
+#   sp.simplify, once per expression
+#
+#  sp.simplify is >99% of this leaf's time (and parallel_triple's), and its
+#  result depends on nothing but the expression -- not on what is solved, not
+#  on which pass or one-variable attempt asked.  So it is computed once per
+#  process and looked up after that.  Keyed on the expression itself:  sympy
+#  hashes structurally, so the equal expressions a reloaded pickle rebuilds
+#  (fresh_problem(), each one-variable attempt) hit the same entry.
+
+_SIMPLIFIED = {}
+
+#  Bump when what simplify_cached() computes changes, so the copies kept in FK
+#  pickles (R.simplify_cache) are recomputed rather than served stale.
+#    1  plain sp.simplify
+#    2  + sa_i**2 + ca_i**2 = 1 for the twist-angle symbols  (2026-10-09)
+SIMPLIFY_VERSION = 2
+
+
+def twist_identities(expr):
+    '''{sa_i**2: 1 - ca_i**2} for each twist pair in expr.
+
+       forward_kinematics() writes a twist that is not a multiple of pi/2 as two
+       plain symbols, ca{i} and sa{i}, and sympy cannot know they are a cosine
+       and a sine.  Without sa_i**2 + ca_i**2 = 1 a Raven-II invariant that is
+       exactly  |P|^2 = (d_3 + ld_2)^2  stays a two-unknown expression in
+       d_3 and th_2.'''
+    names = {str(v) for v in expr.free_symbols}
+    return {sp.Symbol(f'sa{n[2:]}')**2: 1 - sp.Symbol(f'ca{n[2:]}')**2
+            for n in names
+            if n.startswith('sa') and n[2:].isdigit() and f'ca{n[2:]}' in names}
+
+
+def simplify_cached(expr):
+    try:
+        return _SIMPLIFIED[expr]
+    except KeyError:
+        ident = twist_identities(expr)
+        e = sp.expand(expr).subs(ident) if ident else expr
+        out = _SIMPLIFIED[expr] = sp.simplify(e)
+        return out
+
+
+def precompute_simplifications(R, unknowns):
+    '''{raw: simplified} for every expression generate_invariants() will hand
+       to simplify_cached() on a fresh robot:  each invariant of each mined
+       matrix equation, and best_form()'s sum-of-angles re-simplification of
+       it.  All of it depends only on the FK, so kinematics_pickle() computes
+       it once and stores it on R, where it rides along in the FK pickle.
+
+       Keyed by the raw expression, so it can never answer for a matrix
+       equation that has changed since (sub_transform rewrites meqn 0 in
+       place):  that is a miss, and simplify_cached() computes it.'''
+
+    meqns = R.mequation_list
+    if N_MEQNS is not None:
+        meqns = meqns[:N_MEQNS]
+    soa_defs = soa_subs_dict(R, unknowns)
+    out = {}
+    for Meq in meqns:
+        for name, f in INVARIANTS:
+            for raw in f(Meq.Td, Meq.Ts):
+                simple = out[raw] = simplify_cached(raw)
+                #  best_form()'s second candidate, exactly as it builds it
+                if soa_defs and any(v in simple.free_symbols for v in soa_defs):
+                    alt = simple.subs(soa_defs)
+                    out[alt] = simplify_cached(alt)
+    return out
+
+
 def best_form(expr, unknowns, soa_defs):
     '''Return the more useful of {expr, expr with SOA variables expanded}.
 
@@ -163,7 +237,7 @@ def best_form(expr, unknowns, soa_defs):
 
     best = expr
     if soa_defs and any(s in expr.free_symbols for s in soa_defs):
-        alt = sp.simplify(expr.subs(soa_defs))
+        alt = simplify_cached(expr.subs(soa_defs))
         if score(alt) < score(best):
             best = alt
     return best
@@ -251,8 +325,8 @@ def generate_invariants(R, unknowns, debug=False):
         for name, f in INVARIANTS:
             lhs_raw, rhs_raw = f(Meq.Td, Meq.Ts)
 
-            rhs = best_form(sp.simplify(rhs_raw), unknowns, soa_defs)
-            lhs = best_form(sp.simplify(lhs_raw), unknowns, soa_defs)
+            rhs = best_form(simplify_cached(rhs_raw), unknowns, soa_defs)
+            lhs = best_form(simplify_cached(lhs_raw), unknowns, soa_defs)
 
             nunk = count_unknowns(unknowns, rhs) + count_unknowns(unknowns, lhs)
             nops = sp.count_ops(rhs) + sp.count_ops(lhs)

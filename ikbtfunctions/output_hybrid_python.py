@@ -213,19 +213,35 @@ def write_hybrid_top(M_true, true_name, derived_name, edits_text, cost_text,
                           'HYBRID inverse kinematics for %s' % true_name)
         print(hdr, file=f)
 
+        #  Siblings are loaded by PATH, as output_onevar_python does:  robot
+        #  names are not always python identifiers ('Raven-II'), and
+        #  `import IK_equationsRaven-II_a_5_0` is a syntax error.
         print('import os', file=f)
-        print('import sys', file=f)
+        print('import importlib.util', file=f)
         print('', file=f)
-        print('#  Import our siblings by location, so this works however the', file=f)
-        print('#  caller happens to have arranged sys.path.', file=f)
-        print('sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))', file=f)
-        print('', file=f)
-        print('import IK_equations%s as approx_ik    # approximate arm, closed form'
-              % derived_name, file=f)
-        print('import FK_numeric%s as approx_fk      # approximate arm, FK'
-              % derived_name, file=f)
-        print('import FK_numeric%s as true_fk        # TRUE arm, FK and Jacobian'
-              % true_name, file=f)
+        print('_HERE = os.path.dirname(os.path.abspath(__file__))', file=f)
+        print('''
+
+def _sibling(filename, modname):
+    """Load a generated module sitting next to this one, by PATH.
+
+       Robot names are not always python identifiers ('Raven-II'), so the
+       file name cannot be an import statement."""
+    spec = importlib.util.spec_from_file_location(
+        modname, os.path.join(_HERE, filename))
+    if spec is None:
+        raise ImportError('cannot find %s next to %s' % (filename, __file__))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+''', file=f)
+        print("approx_ik = _sibling('IK_equations%s.py', 'hybrid_ik_%s')"
+              "    # approximate arm, closed form" % (derived_name, dident), file=f)
+        print("approx_fk = _sibling('FK_numeric%s.py', 'hybrid_fk_%s')"
+              "      # approximate arm, FK" % (derived_name, dident), file=f)
+        print("true_fk = _sibling('FK_numeric%s.py', 'hybrid_fk_%s')"
+              "        # TRUE arm, FK and Jacobian" % (true_name, ident), file=f)
         print('', file=f)
 
         print('''

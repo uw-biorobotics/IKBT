@@ -11,11 +11,11 @@
 #       #include "CodeGen/Cpp/PumaCppCode/Puma.cpp"
 #       ikbt::Puma::ikin(T);
 #
-#   THE NAMESPACE IS THE QUALIFICATION.  Inside `namespace ikbt::Panda` the
-#   true arm's functions drop the `_Panda` a caller would otherwise have to
+#   THE NAMESPACE IS THE QUALIFICATION.  Inside `namespace ikbt::Raven_II` the
+#   true arm's functions drop the `_Raven_II` a caller would otherwise have to
 #   type twice:  fk(), jacobian(), ikin(), ikin_given(), solve(),
 #   refine_seed().  A DERIVED arm sharing that namespace keeps its suffix --
-#   fk_Panda_a_3_0_a_4_0() -- because it is a different robot and a reader
+#   fk_Raven_II_a_5_0() -- because it is a different robot and a reader
 #   should not have to look up which is which.
 #
 #   The namespace is also what lets two robots be linked into one program.  A

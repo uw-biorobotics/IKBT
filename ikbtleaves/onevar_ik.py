@@ -344,8 +344,11 @@ class TestSolver028(unittest.TestCase):
         self.assertEqual(self.tick(node, bb), b3.SUCCESS, fs)
 
         ranked = bb.get('onevar_candidates')
-        self.assertEqual([c['symbol'] for c in ranked], ['B', 'A', 'C'],
-                         fs + ' (measured restock: B 14, A 12, C 8)')
+        #  Measured on the 21-split FK pickle (2026-10-09).  C and A tie on
+        #  L1, so the L2 count decides;  on the old 8 splits it was B 14, A 12,
+        #  C 8, and the order was B, A, C.
+        self.assertEqual([c['symbol'] for c in ranked], ['B', 'C', 'A'],
+                         fs + ' (measured restock L1/L2: B 20/28, C 18/30, A 18/28)')
         self.assertEqual(bb.get('onevar_cursor'), 0, fs + ' (cursor not reset)')
         for c in ranked:
             self.assertEqual(c['robot'], self.ROBOT, fs)
@@ -399,7 +402,7 @@ class TestSolver028(unittest.TestCase):
         for _ in range(3):
             self.assertEqual(self.tick(node, bb), b3.SUCCESS, fs)
             got.append(bb.get('onevar_source')['known'])
-        self.assertEqual(got, ['B', 'A', 'C'], fs + ' (not in rank order)')
+        self.assertEqual(got, ['B', 'C', 'A'], fs + ' (not in rank order)')
 
         self.assertEqual(self.tick(node, bb), b3.FAILURE,
                          fs + ' (an exhausted list must close the branch)')
