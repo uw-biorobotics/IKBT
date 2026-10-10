@@ -30,6 +30,7 @@
 #   Developed by Blake Hannaford
 #   BioRobotics Lab, University of Washington
 
+import sympy as sp
 import b3 as b3          # behavior trees
 
 import ikbtbasics.dh_analysis as da
@@ -185,6 +186,61 @@ class simplified_arm(b3.Action):
         return b3.SUCCESS
 
 
+class scaled_arm(b3.Action):
+    """FOR TESTING THE HYBRID METHOD ONLY:  stand in for simplified_arm with a
+       derived arm whose every constant, nonzero link length -- a_{i-1}, and
+       d_i on a revolute joint -- is scaled by (1 + delta).
+
+       An arm that solves symbolically still solves after this:  scaling a
+       length leaves every zero a zero, so every intersection and parallelism
+       of the joint axes, and with them any Pieper triple, survives.  So the
+       hybrid branch runs end to end on a robot whose EXACT answer is known --
+       bt_assembly.build_hybrid_test_bt(), scripts/hybrid_test.py.
+
+           SUCCESS  simplification_choice is set (route 'scaled')
+           FAILURE  no Robot, or nothing to scale"""
+
+    def __init__(self, delta=0.05):
+        super(scaled_arm, self).__init__()
+        self.Name = 'Scaled Arm (hybrid test)'
+        self.BHdebug = False
+        self.delta = delta
+
+    def tick(self, tick):
+        bb = tick.blackboard
+        R = bb.get('Robot')
+        bb.set('simplification_candidates', [])
+        bb.set('simplification_choice', None)
+        if R is None or getattr(R, 'Mech', None) is None:
+            print(self.Name, ': no Robot on the blackboard.')
+            return b3.FAILURE
+
+        M = R.Mech
+        k = sp.nsimplify(1 + self.delta)          # exact:  21/20, not 1.05
+        dh = sp.Matrix(M.DH)
+        edits = []
+        for i in range(M.ndof):
+            cols = [1] if M.vv[i] == 0 else [1, 2]   # prismatic: d_i is the joint
+            for c in cols:
+                v = dh[i, c]
+                if v != 0:
+                    dh[i, c] = k*v
+                    edits.append({'symbol': v, 'from': v, 'to': dh[i, c],
+                                  'delta': float(self.delta), 'kind': 'scale'})
+        if not edits:
+            print(self.Name, ': no nonzero link length to scale.')
+            return b3.FAILURE
+
+        pct = int(round(100*(1 + self.delta)))
+        choice = {'dh_simp': dh, 'edits': edits, 'axes': None, 'kind': 'scaled',
+                  'route': 'scaled', 'cost': None, 'suffix': 'len%d' % pct}
+        bb.set('simplification_candidates', [choice])
+        bb.set('simplification_choice', choice)
+        print('\n', self.Name, ':', getattr(R, 'name', '?'), '-- every link'
+              ' length x %s (%d edits)' % (k, len(edits)))
+        return b3.SUCCESS
+
+
 class install_simplified(b3.Action):
     """Build the derived robot from simplification_choice and install it on the
        blackboard, so the solver that follows solves the SIMPLIFIED arm.
@@ -207,7 +263,10 @@ class install_simplified(b3.Action):
         self.BHdebug = False
 
     def suffix(self, choice):
-        """A pickle-name suffix naming what changed:  'd_5_0', 'al_4_snap'."""
+        """A pickle-name suffix naming what changed:  'd_5_0', 'al_4_snap'.
+           A choice may name itself instead (scaled_arm:  'len105')."""
+        if choice.get('suffix'):
+            return choice['suffix']
         bits = []
         for e in choice['edits']:
             nm = str(e['symbol'])

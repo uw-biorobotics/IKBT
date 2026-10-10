@@ -76,6 +76,23 @@ ROBOT_LIST = [ 'KinovaLite',
 #  IKdocs/DEV_NOTES.md.
 EXCLUDED_FROM_SWEEP = ['Issue4']
 
+#  HYBRID-METHOD TEST ALIASES.  'Puma_HT' is Puma's DH table under another
+#  name, for scripts/hybrid_test.py, which sends a robot that solves
+#  symbolically down the hybrid branch on purpose (bt_assembly.
+#  build_hybrid_test_bt).  Every artifact is named for the robot, so the alias
+#  is what keeps that run's report, code and FK pickle apart from the real
+#  Puma's.  Any name in ROBOT_LIST takes the suffix;  none is in the sweep.
+HYBRID_TEST_SUFFIX = '_HT'
+
+
+def hybrid_test_base(name):
+    '''The ROBOT_LIST name behind a hybrid-test alias, or None.'''
+    if name.endswith(HYBRID_TEST_SUFFIX):
+        base = name[:-len(HYBRID_TEST_SUFFIX)]
+        if base in ROBOT_LIST:
+            return base
+    return None
+
 
 def number_unknowns(variables):
     '''Give each unknown its 1-based position in the serial chain.
@@ -92,6 +109,7 @@ def number_unknowns(variables):
 
 
 def robot_params(name):
+    name = hybrid_test_base(name) or name
     pvals = {}   # null for most robots
     #  Sweep list PLUS the excluded ones:  an excluded robot must stay
     #  runnable by name.

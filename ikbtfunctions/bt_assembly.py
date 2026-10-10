@@ -64,7 +64,7 @@ from ikbtleaves.comp_detect     import comp_det
 from ikbtleaves.symbolic_loop   import symbolic_loop
 from ikbtleaves.output_gen      import report_gen
 from ikbtleaves.hybrid_ik       import (pieper_geom_report,
-                                        simplified_arm, install_simplified)
+                                        simplified_arm, install_simplified, scaled_arm)
 from ikbtleaves.onevar_ik       import onevar_rank, install_known
 from ikbtleaves.clear_state     import clear_state
 
@@ -520,4 +520,47 @@ def build_default_bt(leaf_debug=False, solver_debug=False, codegen=False,
     ikbt = b3.BehaviorTree()
     ikbt.root = topnode
 
+    return ikbt
+
+
+def build_hybrid_test_bt(delta=0.05, leaf_debug=False, solver_debug=False,
+                         codegen=False, quiet=False):
+    '''FOR TESTING ONLY:  a tree that sends a robot STRAIGHT to the hybrid
+       branch, with scaled_arm (every link length x (1 + delta)) in place of
+       simplified_arm.
+
+           Sequence[ Sequence[ pieper_geom_report, scaled_arm,
+                               install_simplified, symbolic_branch (hybrid) ],
+                     report_gen ]
+
+       Only ROBOT_LIST has one robot that needs the hybrid method (Raven-II),
+       which leaves its code generators with one real customer.  This runs them
+       on robots that solve symbolically -- whose exact answer is known -- and
+       scripts/hybrid_test.py compares the refined postures against it.  Run it
+       under a hybrid-test alias ('Puma_HT', ik_robots.HYBRID_TEST_SUFFIX) so
+       its artifacts cannot overwrite the real robot's.'''
+
+    pieperGeomReport = pieper_geom_report()
+    pieperGeomReport.BHdebug = leaf_debug
+    scaledArm = scaled_arm(delta=delta)
+    scaledArm.BHdebug = leaf_debug
+    installSimplified = install_simplified()
+    installSimplified.BHdebug = leaf_debug
+
+    hybridBranch = b3.Sequence([pieperGeomReport, scaledArm, installSimplified,
+                                build_symbolic_branch(tag=' (hybrid)',
+                                                      leaf_debug=leaf_debug,
+                                                      solver_debug=solver_debug,
+                                                      quiet=quiet)])
+    hybridBranch.Name = 'Hybrid Branch (test)'
+
+    reportGen = report_gen()
+    reportGen.BHdebug = False
+    reportGen.enabled = bool(codegen)
+
+    topnode = b3.Sequence([hybridBranch, reportGen])
+    topnode.Name = 'Top Node (hybrid test)'
+
+    ikbt = b3.BehaviorTree()
+    ikbt.root = topnode
     return ikbt

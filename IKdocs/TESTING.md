@@ -18,9 +18,22 @@ generate the LaTex report, etc.   Fully closed loop testing is the most rigorous
 
 
 
+## Pose, posture, seed
+
+Three words used throughout the checks below.  Keep them apart:
+
+| term | space | meaning |
+|---|---|---|
+| **pose** | task space | `T = FK(q0)`, a 4×4 transform:  where the hand is.  The checks make one from a random joint vector `q0`, so the arm reaches it by construction. |
+| **posture** | joint space | a joint vector `q` with `FK(q) = T`.  A pose usually has several — Puma up to 8 (shoulder left/right × elbow up/down × wrist flipped or not).  The closed form gives the exact set. |
+| **seed** | joint space | a `q` that the hybrid method's *derived* arm's closed form gives for `T` (Phase I).  Only approximately a true posture;  Phase II refines it into one. |
+
+On the hybrid path the chain is **pose → Phase I → seeds → Phase II → postures**, and
+`FK` always means the *true* arm's:  a seed is judged by where it puts the real robot.
+
 Everything runs from the **repo root** — module imports are package-relative.
 
-There are four questions worth asking of a change, and one command for each.
+There are six questions worth asking of a change, and one command for each.
 
 | # | question | command | takes |
 |---|---|---|---|
@@ -29,10 +42,12 @@ There are four questions worth asking of a change, and one command for each.
 | 3 | Did any path through the tree stop delivering? | `python3 -m scripts.robot_baseline --gate` | ~5 min |
 | 4 | Did anything move, anywhere, on any robot? | `python3 -m scripts.robot_baseline --full --diff` | hours |
 | 5 | Does the generated C++ still say what the generated Python says? | `python3 -m scripts.cpp_closed_loop_check --gate --keep` | ~2 min |
+| 6 | Does the hybrid method give the *right* answers, not just ones that reach the pose? | `python3 -m scripts.hybrid_test` | ~3 min |
 
 Run 1–3 after any edit. Run 4 before a commit that touches the tree, a solver
 leaf, or the code generators. Run 5 after touching a code generator — it needs
 artifacts on disk, so run it after 3 or 4, or drop `--keep` and let it solve.
+Run 6 after touching the hybrid branch or its code generators.
 Every C++ check **skips cleanly with no `g++`**, the way the report-fitting
 pass degrades with no `pdflatex`. Every one compiles `-std=c++17` against the
 Eigen vendored in `Cpp_src/third_party/eigen3/`, so no system Eigen is needed
@@ -258,6 +273,79 @@ vector, the metric *and the iteration count* all have to match. The iteration
 count is the sharp one — it catches a damping schedule that drifted, which a
 converged answer would hide.
 
+## The hybrid method on known answers — `scripts/hybrid_test.py`
+
+```bash
+python3 -m scripts.hybrid_test                        # Puma and KawasakiRS007L
+python3 -m scripts.hybrid_test Puma --poses 50 --delta 0.01
+python3 -m scripts.hybrid_test --no-cpp               # skip the C++ comparison
+```
+
+**Why it exists.** Raven-II is the only robot in `ROBOT_LIST` that needs the
+hybrid method, and nobody knows its exact answer independently, so the closed
+loop can say whether a refined answer *reaches* the pose but not whether it is
+*one of the right answers*. This test sends robots that **already solve
+symbolically** down the hybrid branch on purpose
+(`bt_assembly.build_hybrid_test_bt`), so their own closed form is the oracle.
+The derived arm is the real one with every nonzero link length scaled by
+`1 + delta` (`hybrid_ik.scaled_arm`, default 5%); scaling keeps every zero a
+zero, so every Pieper triple survives and the derived arm still solves.
+
+It runs under a **test alias**, `Puma_HT` (`ik_robots.HYBRID_TEST_SUFFIX`):
+Puma's DH table under another name, so the test's report, code and FK pickle
+never overwrite the real Puma's. Aliases are not in `ROBOT_LIST`, so no sweep
+picks them up.
+
+### Poses, postures and seeds
+
+As defined at the top of this file ([Pose, posture, seed](#pose-posture-seed)).
+Here the derived arm is the true one with every link length scaled, each converged
+refined posture is compared with the robot's exact closed-form set, and the poses
+are 20 random ones by default.
+
+### Why some poses have no seeds
+
+Phase I asks the **derived** arm to reach the **true** arm's pose. If `T` is
+outside the derived arm's workspace, every branch of its closed form leaves its
+domain (an arccosine argument outside [−1, 1], a negative square root) and
+Phase I returns nothing. Scaling every length up does not just enlarge the
+workspace — it moves the **inner** boundaries outward too, so poses just inside
+the true arm's inner boundary fall into the derived arm's hole.
+
+Measured on Puma, 20 poses, `delta = 0.05`:  all 4 seedless poses fail the
+same limit, the **shoulder offset** `d_3`. Puma's wrist center can never come
+closer to the base axis than `d_3 = 0.1245`;  the scaled arm's limit is
+`1.05 × d_3 = 0.1307`. At each of the 4 poses the wrist center sits at about
+0.125 from the axis — inside the true arm's workspace, inside the scaled arm's
+hole. The elbow's law-of-cosines limit was satisfied at all four;  the other 16
+poses clear both limits and Phase I gave all 8 seeds.
+
+That is a property of the **hybrid method**, not of this test: a derived arm
+that is slightly *bigger* loses poses near the true arm's inner boundaries, and
+one that is slightly *smaller* (`--delta -0.05`) loses them near its outer
+reach instead. A smaller `|delta|` narrows the band.
+
+### What fails and what is reported
+
+**Fails** (exit 1):  the hybrid solve does not finish;  a converged refined
+posture is **not** one of the exact ones (`unsound`);  or Phase I gave a pose
+seeds and none of them converged (`stuck`).
+
+**Reported, not asserted:**  how many of the exact postures some refined seed
+reached (`exact: found/total`) — damped least squares stays in its seed's
+basin, and two seeds can share one;  poses with no seeds (`no seeds`), for the
+reason above;  and whether `q0` itself was among the refined postures
+(`probe`). It also runs `cpp_closed_loop_check --hybrid` on each alias.
+
+Measured 2026-10-09, 20 poses, `delta = 0.05`:
+
+| robot | exact postures reached | unsound | no seeds | seeds converged | probe | C++ |
+|---|---|---|---|---|---|---|
+| Puma | 128 / 160 | 0 | 4 / 20 | 128 / 128 | 16 / 20 | agrees |
+| KawasakiRS007L | 160 / 160 | 0 | 0 / 20 | 160 / 160 | 20 / 20 | agrees |
+
+Puma's 32 missing postures are exactly the 8 at each of the 4 seedless poses.
+
 ## The one expectation table — `scripts/expected.py`
 
 `EXPECT` maps robot → `(good, total)`: how many returned branches must reproduce
@@ -364,6 +452,7 @@ flag, and `disable_sympy_meter()` puts sympy back as it was.
 | `CodeGen/Cpp/<robot>CppCode/<robot>.cpp` | **all** C++ for one robot -- FK, Jacobian and whichever IK was found, in `namespace ikbt::<robot>` | generated |
 | `CodeGen/Cpp/<robot>CppCode/FK_numeric<robot>.h` | FK alone, only if `fkOnly.py` has run | generated |
 | `fk_eqns/<robot>_pickle.p` | FK cache | generated, safe to delete |
+| any of the above for `<robot>_HT` | `scripts/hybrid_test.py`'s run of that robot down the hybrid branch | generated |
 
 Artifacts are judged by **freshness, not existence** — `LaTex/` and `CodeGen/`
 carry output from earlier sessions for most robots, so "the file is there"

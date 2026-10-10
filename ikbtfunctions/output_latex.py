@@ -398,6 +398,13 @@ def hybrid_true_arm_section(hybrid, R_true):
                  else 'mutually parallel') +
                 r", which satisfies Pieper's sufficient condition for a closed"
                 r' form to exist.' + eol)
+    elif kind == 'scaled':
+        sec += (r'\textbf{This is a test of the hybrid method.}  Every nonzero'
+                r' link length was scaled by the same factor, which keeps every'
+                r' intersection and parallelism of the joint axes.  The real arm'
+                r' solves symbolically;  it was sent down the hybrid path on'
+                r' purpose, so that the refined answers can be compared with its'
+                r' exact ones.' + eol)
 
     cost = hybrid.get('cost')
     if cost is not None:
