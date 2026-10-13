@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="8.5in" height="11in" viewBox="0 0 816 1056">
+<defs><marker id="arr" orient="auto" refX="0" refY="0" style="overflow:visible"><path transform="matrix(-1.1,0,0,-1.1,-1.1,0)" d="M 8.72,4.03 -2.21,0.02 8.72,-4.0 c -1.75,2.37 -1.74,5.62 0,8.04 z" style="fill:#000;stroke:#000;stroke-width:0.625;stroke-linejoin:round"/></marker></defs>
+<rect width="100%" height="100%" fill="#fff"/>
+<g transform="translate(108.7,32) scale(0.7961)">
+<text x="0.0" y="16.0" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:16px;font-weight:bold">IKBT Behavior Tree</text>
+<text x="0.0" y="34.0" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:11.5px;fill:#555;font-style:italic">bt_assembly.build_default_bt():  three strategies, tried in order, then the report</text>
+<path d="M 432.0,95.0 V 141.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<circle cx="432.0" cy="78.0" r="17" style="fill:#ffffff;stroke:#000;stroke-width:1.76"/>
+<image x="422.0" y="68.0" width="20" height="20" preserveAspectRatio="none" xlink:href="data:image/png;base64,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"/>
+<text x="455.0" y="82.0" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;fill:#444;font-style:italic">Root</text>
+<path d="M 432.0,175.0 V 202.0 H 320.0 V 221.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<path d="M 432.0,175.0 V 202.0 H 544.0 V 218.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<path d="M 320.0,255.0 V 282.0 H 208.0 V 301.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<path d="M 320.0,255.0 V 282.0 H 320.0 V 301.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<path d="M 320.0,255.0 V 282.0 H 432.0 V 301.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<circle cx="432.0" cy="158.0" r="17" style="fill:#ffe071;stroke:#000;stroke-width:1.76"/>
+<path d="M 421.3,158.0 h 20.4" style="stroke:#000;stroke-width:0.6;marker-end:url(#arr)"/>
+<text x="454.0" y="162.0" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10px;fill:#444;font-style:italic">Top Node</text>
+<circle cx="320.0" cy="238.0" r="17" style="fill:#a4da77;stroke:#000;stroke-width:1.76"/>
+<text x="320.0" y="243.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:14px;">?</text>
+<text x="342.0" y="242.0" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10px;fill:#444;font-style:italic">Analysis</text>
+<circle cx="208.0" cy="318.0" r="17" style="fill:#ff6432;stroke:#000;stroke-width:1.76"/>
+<text x="208.0" y="323.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:14px;font-weight:bold">A</text>
+<text x="208.0" y="348.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;fill:#444;font-style:italic">Symbolic Branch</text>
+<circle cx="320.0" cy="318.0" r="17" style="fill:#ff6432;stroke:#000;stroke-width:1.76"/>
+<text x="320.0" y="323.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:14px;font-weight:bold">B</text>
+<text x="320.0" y="348.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;fill:#444;font-style:italic">One Variable</text>
+<text x="320.0" y="360.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;fill:#444;font-style:italic">Branch</text>
+<circle cx="432.0" cy="318.0" r="17" style="fill:#ff6432;stroke:#000;stroke-width:1.76"/>
+<text x="432.0" y="323.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:14px;font-weight:bold">C</text>
+<text x="432.0" y="348.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;fill:#444;font-style:italic">Hybrid Branch</text>
+<rect x="492.0" y="218.0" width="104.0" height="40" rx="16" ry="16" style="fill:#9ad3f3;stroke:#000;stroke-width:1.875"/>
+<text x="544.0" y="242.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">Report Generator</text>
+<path d="M 0,389.0 H 752" style="stroke:#bbb;stroke-width:1;stroke-dasharray:4,4"/>
+<text x="0.0" y="423.0" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:16px;font-weight:bold">B:  One Variable Branch</text>
+<text x="0.0" y="441.0" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:11.5px;fill:#555;font-style:italic">declare one unknown known, solve the true arm for the rest</text>
+<path d="M 348.0,502.0 V 525.0 H 348.0 V 548.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<circle cx="348.0" cy="485.0" r="17" style="fill:#ff6432;stroke:#000;stroke-width:1.76"/>
+<text x="348.0" y="490.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:14px;font-weight:bold">B</text>
+<path d="M 348.0,582.0 V 609.0 H 264.0 V 625.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<path d="M 348.0,582.0 V 609.0 H 432.0 V 621.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<path d="M 432.0,669.0 V 689.0 H 432.0 V 708.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<path d="M 432.0,742.0 V 769.0 H 376.0 V 785.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<path d="M 432.0,742.0 V 769.0 H 488.0 V 788.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<circle cx="348.0" cy="565.0" r="17" style="fill:#ffe071;stroke:#000;stroke-width:1.76"/>
+<path d="M 337.3,565.0 h 20.4" style="stroke:#000;stroke-width:0.6;marker-end:url(#arr)"/>
+<text x="370.0" y="562.5" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10px;fill:#444;font-style:italic">One Variable</text>
+<text x="370.0" y="574.5" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10px;fill:#444;font-style:italic">Branch</text>
+<rect x="212.0" y="625.0" width="104.0" height="40" rx="16" ry="16" style="fill:#9ad3f3;stroke:#000;stroke-width:1.875"/>
+<text x="264.0" y="642.5" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">One Variable</text>
+<text x="264.0" y="655.5" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">Rank</text>
+<path d="M 432.0,621.0 L 456.0,645.0 L 432.0,669.0 L 408.0,645.0 z" style="fill:#cccccc;stroke:#000;stroke-width:1.875;stroke-linejoin:round"/>
+<text x="461.0" y="629.5" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10px;fill:#444;font-style:italic">One Variable</text>
+<text x="461.0" y="641.5" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10px;fill:#444;font-style:italic">Attempt Loop</text>
+<text x="461.0" y="653.5" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10px;fill:#666">RepeatUntilSuccess</text>
+<text x="461.0" y="665.5" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10px;fill:#666">≤4</text>
+<circle cx="432.0" cy="725.0" r="17" style="fill:#ffe071;stroke:#000;stroke-width:1.76"/>
+<path d="M 421.3,725.0 h 20.4" style="stroke:#000;stroke-width:0.6;marker-end:url(#arr)"/>
+<text x="454.0" y="722.5" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10px;fill:#444;font-style:italic">One Variable</text>
+<text x="454.0" y="734.5" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10px;fill:#444;font-style:italic">Attempt</text>
+<rect x="324.0" y="785.0" width="104.0" height="40" rx="16" ry="16" style="fill:#9ad3f3;stroke:#000;stroke-width:1.875"/>
+<text x="376.0" y="802.5" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">Install Known</text>
+<text x="376.0" y="815.5" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">Variable</text>
+<circle cx="488.0" cy="805.0" r="17" style="fill:#ff6432;stroke:#000;stroke-width:1.76"/>
+<text x="488.0" y="810.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:14px;font-weight:bold">D</text>
+<text x="488.0" y="835.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;fill:#444;font-style:italic">Symbolic Branch</text>
+<path d="M 0,876.0 H 752" style="stroke:#bbb;stroke-width:1;stroke-dasharray:4,4"/>
+<text x="0.0" y="910.0" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:16px;font-weight:bold">C:  Hybrid Branch</text>
+<text x="0.0" y="928.0" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:11.5px;fill:#555;font-style:italic">solve a nearby arm with a Pieper triple, refine numerically</text>
+<path d="M 376.0,989.0 V 1012.0 H 376.0 V 1035.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<circle cx="376.0" cy="972.0" r="17" style="fill:#ff6432;stroke:#000;stroke-width:1.76"/>
+<text x="376.0" y="977.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:14px;font-weight:bold">C</text>
+<path d="M 376.0,1069.0 V 1096.0 H 208.0 V 1112.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<path d="M 376.0,1069.0 V 1096.0 H 320.0 V 1112.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<path d="M 376.0,1069.0 V 1096.0 H 432.0 V 1112.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<path d="M 376.0,1069.0 V 1096.0 H 544.0 V 1115.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<circle cx="376.0" cy="1052.0" r="17" style="fill:#ffe071;stroke:#000;stroke-width:1.76"/>
+<path d="M 365.3,1052.0 h 20.4" style="stroke:#000;stroke-width:0.6;marker-end:url(#arr)"/>
+<text x="398.0" y="1056.0" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10px;fill:#444;font-style:italic">Hybrid Branch</text>
+<rect x="156.0" y="1112.0" width="104.0" height="40" rx="16" ry="16" style="fill:#9ad3f3;stroke:#000;stroke-width:1.875"/>
+<text x="208.0" y="1129.5" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">Pieper Geometry</text>
+<text x="208.0" y="1142.5" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">Report</text>
+<rect x="268.0" y="1112.0" width="104.0" height="40" rx="16" ry="16" style="fill:#9ad3f3;stroke:#000;stroke-width:1.875"/>
+<text x="320.0" y="1136.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">Simplified Arm</text>
+<rect x="380.0" y="1112.0" width="104.0" height="40" rx="16" ry="16" style="fill:#9ad3f3;stroke:#000;stroke-width:1.875"/>
+<text x="432.0" y="1129.5" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">Install</text>
+<text x="432.0" y="1142.5" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">Simplified Arm</text>
+<circle cx="544.0" cy="1132.0" r="17" style="fill:#ff6432;stroke:#000;stroke-width:1.76"/>
+<text x="544.0" y="1137.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:14px;font-weight:bold">E</text>
+<text x="544.0" y="1162.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;fill:#444;font-style:italic">Symbolic Branch</text>
+</g>
+<text x="784.0" y="1032.0" text-anchor="end" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10px;fill:#888">IKBT behavior tree   1 / 3</text>
+</svg>

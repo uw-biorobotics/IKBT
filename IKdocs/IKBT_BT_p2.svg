@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="8.5in" height="11in" viewBox="0 0 816 1056">
+<defs><marker id="arr" orient="auto" refX="0" refY="0" style="overflow:visible"><path transform="matrix(-1.1,0,0,-1.1,-1.1,0)" d="M 8.72,4.03 -2.21,0.02 8.72,-4.0 c -1.75,2.37 -1.74,5.62 0,8.04 z" style="fill:#000;stroke:#000;stroke-width:0.625;stroke-linejoin:round"/></marker></defs>
+<rect width="100%" height="100%" fill="#fff"/>
+<g transform="translate(52.8,32) scale(0.9446)">
+<text x="0.0" y="16.0" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:16px;font-weight:bold">A, D, E:  Symbolic Branch</text>
+<text x="0.0" y="34.0" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:11.5px;fill:#555;font-style:italic">one complete symbolic solver;  three separate instances</text>
+<path d="M 202.0,95.0 V 118.0 H 278.0 V 141.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<circle cx="202.0" cy="78.0" r="17" style="fill:#ff6432;stroke:#000;stroke-width:1.76"/>
+<text x="202.0" y="83.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:14px;font-weight:bold">A</text>
+<text x="202.0" y="55.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;fill:#444;font-style:italic">plain</text>
+<path d="M 278.0,95.0 V 118.0 H 278.0 V 141.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<circle cx="278.0" cy="78.0" r="17" style="fill:#ff6432;stroke:#000;stroke-width:1.76"/>
+<text x="278.0" y="83.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:14px;font-weight:bold">D</text>
+<text x="278.0" y="55.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;fill:#444;font-style:italic">(onevar)</text>
+<path d="M 354.0,95.0 V 118.0 H 278.0 V 141.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<circle cx="354.0" cy="78.0" r="17" style="fill:#ff6432;stroke:#000;stroke-width:1.76"/>
+<text x="354.0" y="83.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:14px;font-weight:bold">E</text>
+<text x="354.0" y="55.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;fill:#444;font-style:italic">(hybrid)</text>
+<path d="M 278.0,175.0 V 202.0 H 96.0 V 218.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<path d="M 278.0,175.0 V 202.0 H 460.0 V 214.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<path d="M 460.0,262.0 V 282.0 H 460.0 V 301.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<path d="M 460.0,335.0 V 362.0 H 264.0 V 381.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<path d="M 460.0,335.0 V 362.0 H 432.0 V 381.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<path d="M 460.0,335.0 V 362.0 H 544.0 V 378.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<path d="M 460.0,335.0 V 362.0 H 656.0 V 378.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<path d="M 264.0,415.0 V 442.0 H 208.0 V 458.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<path d="M 264.0,415.0 V 442.0 H 320.0 V 458.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<circle cx="278.0" cy="158.0" r="17" style="fill:#ffe071;stroke:#000;stroke-width:1.76"/>
+<path d="M 267.3,158.0 h 20.4" style="stroke:#000;stroke-width:0.6;marker-end:url(#arr)"/>
+<text x="300.0" y="162.0" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10px;fill:#444;font-style:italic">Symbolic Branch</text>
+<rect x="44.0" y="218.0" width="104.0" height="40" rx="16" ry="16" style="fill:#9ad3f3;stroke:#000;stroke-width:1.875"/>
+<text x="96.0" y="235.5" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">Clear Solver</text>
+<text x="96.0" y="248.5" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">State</text>
+<path d="M 460.0,214.0 L 484.0,238.0 L 460.0,262.0 L 436.0,238.0 z" style="fill:#cccccc;stroke:#000;stroke-width:1.875;stroke-linejoin:round"/>
+<text x="489.0" y="222.5" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10px;fill:#444;font-style:italic">Symbolic Solver</text>
+<text x="489.0" y="234.5" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10px;fill:#444;font-style:italic">Loop</text>
+<text x="489.0" y="246.5" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10px;fill:#666">symbolic_loop</text>
+<text x="489.0" y="258.5" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10px;fill:#666">≤20</text>
+<circle cx="460.0" cy="318.0" r="17" style="fill:#ffe071;stroke:#000;stroke-width:1.76"/>
+<path d="M 449.3,318.0 h 20.4" style="stroke:#000;stroke-width:0.6;marker-end:url(#arr)"/>
+<text x="482.0" y="322.0" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10px;fill:#444;font-style:italic">Solve Routine</text>
+<circle cx="264.0" cy="398.0" r="17" style="fill:#a4da77;stroke:#000;stroke-width:1.76"/>
+<text x="264.0" y="403.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:14px;">?</text>
+<text x="286.0" y="395.5" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10px;fill:#444;font-style:italic">Try Sub</text>
+<text x="286.0" y="407.5" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10px;fill:#444;font-style:italic">Transform</text>
+<rect x="156.0" y="458.0" width="104.0" height="40" rx="16" ry="16" style="fill:#9ad3f3;stroke:#000;stroke-width:1.875"/>
+<text x="208.0" y="475.5" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">Substitution</text>
+<text x="208.0" y="488.5" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">Transform</text>
+<rect x="268.0" y="458.0" width="104.0" height="40" rx="16" ry="16" style="fill:#9ad3f3;stroke:#000;stroke-width:1.875"/>
+<text x="320.0" y="482.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">Succeeder</text>
+<circle cx="432.0" cy="398.0" r="17" style="fill:#ff6432;stroke:#000;stroke-width:1.76"/>
+<text x="432.0" y="403.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:14px;font-weight:bold">F</text>
+<text x="432.0" y="428.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;fill:#444;font-style:italic">Try Solve</text>
+<text x="432.0" y="440.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;fill:#444;font-style:italic">Subtree</text>
+<rect x="492.0" y="378.0" width="104.0" height="40" rx="16" ry="16" style="fill:#9ad3f3;stroke:#000;stroke-width:1.875"/>
+<text x="544.0" y="395.5" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">updateL</text>
+<text x="544.0" y="408.5" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">Transform</text>
+<rect x="604.0" y="378.0" width="104.0" height="40" rx="16" ry="16" style="fill:#9ad3f3;stroke:#000;stroke-width:1.875"/>
+<text x="656.0" y="395.5" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">Completion</text>
+<text x="656.0" y="408.5" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">Detect</text>
+<path d="M 0,524.0 H 752" style="stroke:#bbb;stroke-width:1;stroke-dasharray:4,4"/>
+<text x="0.0" y="558.0" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:16px;font-weight:bold">F:  Try Solve Subtree</text>
+<text x="0.0" y="576.0" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:11.5px;fill:#555;font-style:italic">pick an unknown, try every solver on it</text>
+<path d="M 432.0,637.0 V 660.0 H 432.0 V 683.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<circle cx="432.0" cy="620.0" r="17" style="fill:#ff6432;stroke:#000;stroke-width:1.76"/>
+<text x="432.0" y="625.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:14px;font-weight:bold">F</text>
+<path d="M 432.0,717.0 V 744.0 H 320.0 V 756.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<path d="M 432.0,717.0 V 744.0 H 544.0 V 760.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<path d="M 320.0,804.0 V 824.0 H 320.0 V 843.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<path d="M 320.0,877.0 V 904.0 H 208.0 V 920.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<path d="M 320.0,877.0 V 904.0 H 320.0 V 920.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<path d="M 320.0,877.0 V 904.0 H 432.0 V 923.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<circle cx="432.0" cy="700.0" r="17" style="fill:#a4da77;stroke:#000;stroke-width:1.76"/>
+<text x="432.0" y="705.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:14px;">?</text>
+<text x="454.0" y="697.5" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10px;fill:#444;font-style:italic">Try Solve</text>
+<text x="454.0" y="709.5" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10px;fill:#444;font-style:italic">Subtree</text>
+<path d="M 320.0,756.0 L 344.0,780.0 L 320.0,804.0 L 296.0,780.0 z" style="fill:#cccccc;stroke:#000;stroke-width:1.875;stroke-linejoin:round"/>
+<text x="349.0" y="771.0" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10px;fill:#444;font-style:italic">Solve Subtree</text>
+<text x="349.0" y="783.0" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10px;fill:#666">RepeatUntilSuccess</text>
+<text x="349.0" y="795.0" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10px;fill:#666">≤6</text>
+<circle cx="320.0" cy="860.0" r="17" style="fill:#ffe071;stroke:#000;stroke-width:1.76"/>
+<path d="M 309.3,860.0 h 20.4" style="stroke:#000;stroke-width:0.6;marker-end:url(#arr)"/>
+<rect x="156.0" y="920.0" width="104.0" height="40" rx="16" ry="16" style="fill:#9ad3f3;stroke:#000;stroke-width:1.875"/>
+<text x="208.0" y="944.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">Assigner</text>
+<rect x="268.0" y="920.0" width="104.0" height="40" rx="16" ry="16" style="fill:#9ad3f3;stroke:#000;stroke-width:1.875"/>
+<text x="320.0" y="944.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">Sum of Angles ID</text>
+<circle cx="432.0" cy="940.0" r="17" style="fill:#ff6432;stroke:#000;stroke-width:1.76"/>
+<text x="432.0" y="945.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:14px;font-weight:bold">G</text>
+<text x="432.0" y="970.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;fill:#444;font-style:italic">Work Tools</text>
+<rect x="492.0" y="760.0" width="104.0" height="40" rx="16" ry="16" style="fill:#9ad3f3;stroke:#000;stroke-width:1.875"/>
+<text x="544.0" y="784.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">Succeeder</text>
+</g>
+<text x="784.0" y="1032.0" text-anchor="end" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10px;fill:#888">IKBT behavior tree   2 / 3</text>
+</svg>

@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="8.5in" height="11in" viewBox="0 0 816 1056">
+<defs><marker id="arr" orient="auto" refX="0" refY="0" style="overflow:visible"><path transform="matrix(-1.1,0,0,-1.1,-1.1,0)" d="M 8.72,4.03 -2.21,0.02 8.72,-4.0 c -1.75,2.37 -1.74,5.62 0,8.04 z" style="fill:#000;stroke:#000;stroke-width:0.625;stroke-linejoin:round"/></marker></defs>
+<rect width="100%" height="100%" fill="#fff"/>
+<g transform="translate(52.5,32) scale(0.9455)">
+<text x="0.0" y="16.0" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:16px;font-weight:bold">G:  Work Tools</text>
+<text x="0.0" y="34.0" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:11.5px;fill:#555;font-style:italic">the solver Priority -- order decides which strategy owns a variable</text>
+<path d="M 396.9,95.0 V 118.0 H 396.9 V 141.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<circle cx="396.9" cy="78.0" r="17" style="fill:#ff6432;stroke:#000;stroke-width:1.76"/>
+<text x="396.9" y="83.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:14px;font-weight:bold">G</text>
+<path d="M 396.9,175.0 V 202.0 H 83.6 V 221.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<path d="M 396.9,175.0 V 202.0 H 250.7 V 221.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<path d="M 396.9,175.0 V 202.0 H 376.0 V 221.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<path d="M 396.9,175.0 V 202.0 H 501.3 V 221.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<path d="M 396.9,175.0 V 202.0 H 626.7 V 218.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<path d="M 396.9,175.0 V 202.0 H 710.2 V 218.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<path d="M 83.6,255.0 V 282.0 H 41.8 V 298.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<path d="M 83.6,255.0 V 282.0 H 125.3 V 298.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<path d="M 250.7,255.0 V 282.0 H 208.9 V 298.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<path d="M 250.7,255.0 V 282.0 H 292.4 V 298.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<path d="M 501.3,255.0 V 282.0 H 459.6 V 298.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<path d="M 501.3,255.0 V 282.0 H 543.1 V 298.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<circle cx="396.9" cy="158.0" r="17" style="fill:#a4da77;stroke:#000;stroke-width:1.76"/>
+<text x="396.9" y="163.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:14px;">?</text>
+<text x="418.9" y="162.0" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10px;fill:#444;font-style:italic">Work Tools</text>
+<circle cx="83.6" cy="238.0" r="17" style="fill:#ffe071;stroke:#000;stroke-width:1.76"/>
+<path d="M 72.9,238.0 h 20.4" style="stroke:#000;stroke-width:0.6;marker-end:url(#arr)"/>
+<text x="105.6" y="235.5" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10px;fill:#444;font-style:italic">Algebra ID</text>
+<text x="105.6" y="247.5" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10px;fill:#444;font-style:italic">and Solve</text>
+<rect x="4.0" y="298.0" width="75.6" height="40" rx="16" ry="16" style="fill:#9ad3f3;stroke:#000;stroke-width:1.875"/>
+<text x="41.8" y="322.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">Algebra ID</text>
+<rect x="87.6" y="298.0" width="75.6" height="40" rx="16" ry="16" style="fill:#9ad3f3;stroke:#000;stroke-width:1.875"/>
+<text x="125.3" y="315.5" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">Algebra</text>
+<text x="125.3" y="328.5" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">Solver</text>
+<circle cx="250.7" cy="238.0" r="17" style="fill:#ffe071;stroke:#000;stroke-width:1.76"/>
+<path d="M 240.0,238.0 h 20.4" style="stroke:#000;stroke-width:0.6;marker-end:url(#arr)"/>
+<text x="272.7" y="235.5" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10px;fill:#444;font-style:italic">Simultaneous</text>
+<text x="272.7" y="247.5" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10px;fill:#444;font-style:italic">Eqn ID+Solve</text>
+<rect x="171.1" y="298.0" width="75.6" height="40" rx="16" ry="16" style="fill:#9ad3f3;stroke:#000;stroke-width:1.875"/>
+<text x="208.9" y="315.5" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">Simultaneous</text>
+<text x="208.9" y="328.5" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">Eqn ID</text>
+<rect x="254.7" y="298.0" width="75.6" height="40" rx="16" ry="16" style="fill:#9ad3f3;stroke:#000;stroke-width:1.875"/>
+<text x="292.4" y="315.5" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">Simultaneous</text>
+<text x="292.4" y="328.5" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">Eqn solver</text>
+<circle cx="376.0" cy="238.0" r="17" style="fill:#ff6432;stroke:#000;stroke-width:1.76"/>
+<text x="376.0" y="243.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:14px;font-weight:bold">H</text>
+<text x="376.0" y="268.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;fill:#444;font-style:italic">Tan/SinCos +</text>
+<text x="376.0" y="280.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;fill:#444;font-style:italic">Rank</text>
+<circle cx="501.3" cy="238.0" r="17" style="fill:#ffe071;stroke:#000;stroke-width:1.76"/>
+<path d="M 490.6,238.0 h 20.4" style="stroke:#000;stroke-width:0.6;marker-end:url(#arr)"/>
+<text x="523.3" y="235.5" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10px;fill:#444;font-style:italic">Sin AND Cos</text>
+<text x="523.3" y="247.5" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10px;fill:#444;font-style:italic">ID+Solve</text>
+<rect x="421.8" y="298.0" width="75.6" height="40" rx="16" ry="16" style="fill:#9ad3f3;stroke:#000;stroke-width:1.875"/>
+<text x="459.6" y="315.5" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">Sin AND Cos</text>
+<text x="459.6" y="328.5" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">ID</text>
+<rect x="505.3" y="298.0" width="75.6" height="40" rx="16" ry="16" style="fill:#9ad3f3;stroke:#000;stroke-width:1.875"/>
+<text x="543.1" y="315.5" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">Sin AND Cos</text>
+<text x="543.1" y="328.5" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">Solver</text>
+<rect x="588.9" y="218.0" width="75.6" height="40" rx="16" ry="16" style="fill:#9ad3f3;stroke:#000;stroke-width:1.875"/>
+<text x="626.7" y="229.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">Parallel</text>
+<text x="626.7" y="242.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">Triple</text>
+<text x="626.7" y="255.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">Transform</text>
+<rect x="672.4" y="218.0" width="75.6" height="40" rx="16" ry="16" style="fill:#9ad3f3;stroke:#000;stroke-width:1.875"/>
+<text x="710.2" y="235.5" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">Invariant</text>
+<text x="710.2" y="248.5" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">Generator</text>
+<path d="M 0,364.0 H 752" style="stroke:#bbb;stroke-width:1;stroke-dasharray:4,4"/>
+<text x="0.0" y="398.0" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:16px;font-weight:bold">H:  Tan/SinCos + Rank</text>
+<text x="0.0" y="416.0" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:11.5px;fill:#555;font-style:italic">both solvers run;  rank keeps the nicer solution</text>
+<path d="M 460.0,477.0 V 500.0 H 460.0 V 523.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<circle cx="460.0" cy="460.0" r="17" style="fill:#ff6432;stroke:#000;stroke-width:1.76"/>
+<text x="460.0" y="465.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:14px;font-weight:bold">H</text>
+<path d="M 460.0,557.0 V 584.0 H 320.0 V 603.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<path d="M 460.0,557.0 V 584.0 H 600.0 V 600.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<path d="M 320.0,637.0 V 664.0 H 208.0 V 683.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<path d="M 320.0,637.0 V 664.0 H 432.0 V 683.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<path d="M 208.0,717.0 V 744.0 H 152.0 V 760.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<path d="M 208.0,717.0 V 744.0 H 264.0 V 760.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<path d="M 432.0,717.0 V 744.0 H 376.0 V 760.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<path d="M 432.0,717.0 V 744.0 H 488.0 V 760.0" style="fill:none;stroke:#000;stroke-width:1.2"/>
+<circle cx="460.0" cy="540.0" r="17" style="fill:#ffe071;stroke:#000;stroke-width:1.76"/>
+<path d="M 449.3,540.0 h 20.4" style="stroke:#000;stroke-width:0.6;marker-end:url(#arr)"/>
+<text x="482.0" y="537.5" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10px;fill:#444;font-style:italic">Tan/SinCos +</text>
+<text x="482.0" y="549.5" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10px;fill:#444;font-style:italic">Rank</text>
+<circle cx="320.0" cy="620.0" r="17" style="fill:#ff64c8;stroke:#000;stroke-width:1.76"/>
+<path d="M 309.3,616.4 h 20.4" style="stroke:#000;stroke-width:0.6;marker-end:url(#arr)"/>
+<path d="M 309.3,623.6 h 20.4" style="stroke:#000;stroke-width:0.6;marker-end:url(#arr)"/>
+<circle cx="208.0" cy="700.0" r="17" style="fill:#ffe071;stroke:#000;stroke-width:1.76"/>
+<path d="M 197.3,700.0 h 20.4" style="stroke:#000;stroke-width:0.6;marker-end:url(#arr)"/>
+<text x="230.0" y="704.0" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10px;fill:#444;font-style:italic">TanID+Solv</text>
+<rect x="100.0" y="760.0" width="104.0" height="40" rx="16" ry="16" style="fill:#9ad3f3;stroke:#000;stroke-width:1.875"/>
+<text x="152.0" y="784.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">Tangent ID</text>
+<rect x="212.0" y="760.0" width="104.0" height="40" rx="16" ry="16" style="fill:#9ad3f3;stroke:#000;stroke-width:1.875"/>
+<text x="264.0" y="784.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">Tangent Solver</text>
+<circle cx="432.0" cy="700.0" r="17" style="fill:#ffe071;stroke:#000;stroke-width:1.76"/>
+<path d="M 421.3,700.0 h 20.4" style="stroke:#000;stroke-width:0.6;marker-end:url(#arr)"/>
+<text x="454.0" y="704.0" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10px;fill:#444;font-style:italic">SinCos ID+Solve</text>
+<rect x="324.0" y="760.0" width="104.0" height="40" rx="16" ry="16" style="fill:#9ad3f3;stroke:#000;stroke-width:1.875"/>
+<text x="376.0" y="784.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">Sin Cos ID</text>
+<rect x="436.0" y="760.0" width="104.0" height="40" rx="16" ry="16" style="fill:#9ad3f3;stroke:#000;stroke-width:1.875"/>
+<text x="488.0" y="777.5" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">Sine Cosine</text>
+<text x="488.0" y="790.5" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">Solver</text>
+<rect x="548.0" y="600.0" width="104.0" height="40" rx="16" ry="16" style="fill:#9ad3f3;stroke:#000;stroke-width:1.875"/>
+<text x="600.0" y="624.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;">Rank Node</text>
+<path d="M 0,826.0 H 752" style="stroke:#bbb;stroke-width:1;stroke-dasharray:4,4"/>
+<text x="0.0" y="860.0" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:14px;font-weight:bold">Symbols  (IKdocs/BT_Symbols.svg)</text>
+<circle cx="30.0" cy="894.0" r="17" style="fill:#a4da77;stroke:#000;stroke-width:1.76"/>
+<text x="30.0" y="899.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:14px;">?</text>
+<text x="66.0" y="898.0" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:11px;">Selector  (b3.Priority):  first non-FAILURE child wins</text>
+<circle cx="406.0" cy="894.0" r="17" style="fill:#ffe071;stroke:#000;stroke-width:1.76"/>
+<path d="M 395.3,894.0 h 20.4" style="stroke:#000;stroke-width:0.6;marker-end:url(#arr)"/>
+<text x="442.0" y="898.0" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:11px;">Sequence  (b3.Sequence):  FAILs at first failing child</text>
+<circle cx="30.0" cy="946.0" r="17" style="fill:#ff64c8;stroke:#000;stroke-width:1.76"/>
+<path d="M 19.3,942.4 h 20.4" style="stroke:#000;stroke-width:0.6;marker-end:url(#arr)"/>
+<path d="M 19.3,949.6 h 20.4" style="stroke:#000;stroke-width:0.6;marker-end:url(#arr)"/>
+<text x="66.0" y="950.0" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:11px;">Parallel  (b3.OrNode):  ticks ALL children</text>
+<path d="M 406.0,922.0 L 430.0,946.0 L 406.0,970.0 L 382.0,946.0 z" style="fill:#cccccc;stroke:#000;stroke-width:1.875;stroke-linejoin:round"/>
+<text x="442.0" y="950.0" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:11px;">Decorator:  loop, budget ≤N</text>
+<rect x="5.0" y="978.0" width="50.0" height="40" rx="16" ry="16" style="fill:#9ad3f3;stroke:#000;stroke-width:1.875"/>
+<text x="66.0" y="1002.0" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:11px;">Action leaf</text>
+<circle cx="406.0" cy="998.0" r="17" style="fill:#ff6432;stroke:#000;stroke-width:1.76"/>
+<text x="406.0" y="1003.0" text-anchor="middle" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:14px;font-weight:bold">A</text>
+<text x="442.0" y="1002.0" text-anchor="start" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:11px;">Continuation:  the panel headed by this letter</text>
+</g>
+<text x="784.0" y="1032.0" text-anchor="end" style="font-family:FreeSans,'Helvetica Neue',Arial,sans-serif;font-size:10px;fill:#888">IKBT behavior tree   3 / 3</text>
+</svg>

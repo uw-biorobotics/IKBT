@@ -317,10 +317,10 @@ def build_symbolic_branch(tag='', leaf_debug=False, solver_debug=False,
     #  that achieved nothing:  updateL re-scans, comp_det only decides whether
     #  to stop.
     tryTransform = b3.Priority([sub_trans, b3.Succeeder()])
-    tryTransform.Name = 'Sub Transform (optional)' + tag
+    tryTransform.Name = 'Try Sub Transform' + tag
 
     trySolve = b3.Priority([subtree, b3.Succeeder()])
-    trySolve.Name = 'Solve Subtree (optional)' + tag
+    trySolve.Name = 'Try Solve Subtree' + tag
 
     solveRoutine = b3.Sequence([tryTransform, trySolve,
                                 updateLNode, compDetect])
