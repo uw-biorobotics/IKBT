@@ -42,6 +42,7 @@ python3 -m scripts.robot_baseline --full --diff  # ... and diff it against the c
 python3 -m scripts.axis_triple_check       # DH joint-axis geometry vs. numeric FK (exit 1 on mismatch)
 
 python3 -m scripts.tube_map Puma           # solution graph as a subway map -> graphs/Puma_tube.svg
+python3 -m scripts.bt_diagram              # the BT itself, as slides -> IKdocs/IKBT_BT_p1..p3.svg
 
 python3 -m scripts.check_solution_sets Puma                   # is the SYMBOLIC solution set correct? (10 random poses)
 python3 -m scripts.check_solution_sets Puma --poses 20 --gate # ... exit 1 unless EVERY version reproduces EVERY pose
