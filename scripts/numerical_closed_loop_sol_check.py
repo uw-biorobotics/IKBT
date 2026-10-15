@@ -11,13 +11,24 @@
 #
 #   WHAT IT PROVES, and why it needs no hand-checked answers:
 #
-#       pick joints q  ->  T = FK(q)  ->  generated ikin_*(T)  ->  every
-#       returned branch must satisfy  FK(branch) == T
+#       pick joints q  ->  T = FK(q)  ->  generated ikin_*(T)  ->
+#
+#         1) SOUND     every returned joint vector satisfies  FK(vector) == T
+#         2) COMPLETE  q itself is among the returned vectors (mod 2*pi on
+#                      revolute joints)
 #
 #   T comes from the robot's own forward kinematics, so it is reachable by
 #   construction:  a failure is the solver's, never the target's.  Any valid IK
-#   branch has to land back on T;  which branch is which does not matter, and
-#   there is nothing to look up or trust.
+#   branch has to land back on T, and q is one solution known to exist, so
+#   neither check needs anything looked up or trusted.  The same two checks
+#   apply on all three paths.
+#
+#   A robot failing either one FAILS.  There is NO per-robot expectation
+#   table (scripts/expected.py was removed 2026-10-15):  a table of accepted
+#   partial scores is a table of hidden flaws.  Every robot that has generated
+#   IK is held to the same two rules, and generated IK that cannot be run at
+#   all is a failure too.  A robot with no generated IK was not solved, which
+#   is reported and is not a failure of the generated code.
 #
 #   This is the only check on the GENERATED CODE.  check_solution_sets.py
 #   checks the same property one stage earlier, on the symbolic version matrix
@@ -40,22 +51,12 @@ import sys
 import numpy as np
 import sympy as sp
 
-from scripts.expected import EXPECT, judge_counts
+from ikbtfunctions.ik_robots import ROBOT_LIST
 
 
-#  THE EXPECTATION TABLE LIVES IN scripts/expected.py, in one place for every
-#  script that needs it.  EXPECT carries (good, total) per robot:  how many
-#  branches must reproduce the pose, and how many branches there should be.
-#  See that module for why both.
-#
-#  KinovaLite is the hybrid entry, and it converges on ALL EIGHT branches from
-#  a raw seed error of 43-57 mm down to 1e-12..1e-9 in 4 or 5 iterations.  That
-#  spread is worth keeping in view:  the simplification really does displace the
-#  end effector by tens of millimetres, and Phase II really does remove all of
-#  it, so the answer is exact even though the seed was not.
-
-#  With no robots named, check every robot we have an expectation for.
-DEFAULT_ROBOTS = sorted(EXPECT)
+#  With no robots named, check every robot;  the ones with no generated IK are
+#  reported as not solved.
+DEFAULT_ROBOTS = sorted(ROBOT_LIST)
 
 GEN_DIR = os.path.join('CodeGen', 'Python')
 
@@ -73,6 +74,64 @@ HYBRID_TOL = 1e-6
 #  The joint vector used to build the target pose.  Arbitrary, but fixed, so a
 #  failure is reproducible.  Truncated to the arm's real DOF.
 Q_PROBE = [0.4, -0.6, 0.7, 0.9, -0.5, 0.3]
+
+#  Joint-space tolerance for "this returned solution IS the probe".  Looser
+#  than TOL because the hybrid answer is iterative (see HYBRID_TOL), and a
+#  pose error of 1e-9 can be a joint error a few orders larger.
+PROBE_TOL = 1e-5
+
+
+###############################################################################
+#
+#    COMPLETENESS:  is the joint vector the pose was BUILT from among the answers?
+#
+#  Reproducing T is SOUNDNESS:  every returned solution is a real one.  It says
+#  nothing about whether a real one is MISSING.  The probe is the one solution
+#  known for certain to exist, so its absence is a defect on every path, with
+#  no stored expectation needed:  a closed form whose branches exclude it has a
+#  wrong expression, a 1-D search that misses it stepped over its basin, and a
+#  hybrid that misses it had no seed in its basin.
+#
+
+def probe_recovered(solutions, q_true, revolute):
+    '''Is q_true among `solutions` (joint vectors, DH chain order)?
+
+       Revolute joints are compared MOD 2*pi:  th and th + 2*pi are the same
+       posture, and a closed form is free to return either.'''
+
+    for q in solutions:
+        d = np.asarray(q, dtype=float) - np.asarray(q_true, dtype=float)
+        d = np.where(revolute, (d + np.pi) % (2 * np.pi) - np.pi, d)
+        if np.all(np.abs(d) < PROBE_TOL):
+            return True
+    return False
+
+
+def load_mechanism(name):
+    '''The robot's mechanism M, from the FK pickle cache.'''
+
+    from ikbtfunctions.ik_robots import robot_params
+    from ikbtbasics.ik_classes import kinematics_pickle
+
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        dh, vv, params, pvals, unks = robot_params(name)
+        M, R, unks = kinematics_pickle(name, dh, params, pvals, vv, unks)
+    return M
+
+
+def revolute_joints(name):
+    '''One bool per joint, DH chain order:  True for a revolute joint.
+
+       From the DH table's vv, not from joint names:  Wrist's joints are
+       A, B and C.'''
+
+    M = load_mechanism(name)
+    return [M.vv[r] == 1 for r in range(M.ndof)]
+
+
+def probe_note(recovered, n):
+    return 'probe recovered' if recovered else f'PROBE NOT FOUND among {n}'
 
 
 def solve_robot(name, quiet=True):
@@ -105,15 +164,9 @@ def robot_fk(name):
        'B + pi/2', so the joint is the symbol inside the cell, not the
        cell)."""
 
-    from ikbtfunctions.ik_robots import robot_params
-    from ikbtbasics.ik_classes import kinematics_pickle
     import ikbtbasics.numeric_ik as nik
 
-    buf = io.StringIO()
-    with contextlib.redirect_stdout(buf):
-        dh, vv, params, pvals, unks = robot_params(name)
-        M, R, unks = kinematics_pickle(name, dh, params, pvals, vv, unks)
-
+    M = load_mechanism(name)
     jnames = [str(s) for s in nik.joint_symbols(M)]
     return nik.fk_callable(M), jnames
 
@@ -185,28 +238,33 @@ def check_symbolic(name, verbose=False):
     try:
         fk, jnames = robot_fk(name)
     except Exception as e:
-        return 0, 0, 'FK unavailable -- %s' % str(e)[:70]
+        return 0, 0, 'FK unavailable -- %s' % str(e)[:70], None
 
     try:
         fn, cols = import_generated_ik(name)
     except Exception as e:
-        return 0, 0, '%s: %s' % (type(e).__name__, str(e)[:70])
+        return 0, 0, '%s: %s' % (type(e).__name__, str(e)[:70]), None
 
     try:
         jcol = [cols.index(j) for j in jnames]
     except ValueError as e:
-        return 0, 0, 'joint %s not among returned columns %s' % (e, cols)
+        return 0, 0, 'joint %s not among returned columns %s' % (e, cols), None
 
     q_true = [float(x) for x in Q_PROBE[:len(jnames)]]
     T = np.asarray(fk(q_true), dtype=float)
 
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
-        sols = fn(np.matrix(T))
+        try:
+            sols = fn(np.matrix(T))
+        except Exception as e:
+            return 0, 0, ('ikin_*() raised %s: %s'
+                          % (type(e).__name__, str(e)[:70])), None
     if sols is False:
-        return 0, 0, 'ikin_*() reports the pose unreachable (solvable_pose False)'
+        return 0, 0, 'ikin_*() reports the pose unreachable (solvable_pose False)', None
 
     good = 0
+    qs = []
     for i, row in enumerate(sols):
         try:
             q = [float(row[k]) for k in jcol]
@@ -215,11 +273,14 @@ def check_symbolic(name, verbose=False):
             if verbose:
                 print('      branch %-3d unusable (%s)' % (i, type(e).__name__))
             continue
+        qs.append(q)
         if err < TOL:
             good += 1
         elif verbose:
             print('      branch %-3d FK error %.2e' % (i, err))
-    return good, len(sols), ''
+
+    recovered = probe_recovered(qs, q_true, revolute_joints(name))
+    return good, len(sols), probe_note(recovered, len(sols)), recovered
 
 
 ###############################################################################
@@ -237,10 +298,11 @@ def check_symbolic(name, verbose=False):
 #  hybrid answer is EXACT, not approximate:  Phase II converged against the
 #  real kinematics.  The approximation is in the SEED, not the answer.
 #
-#  NOT EVERY BRANCH IS EXPECTED TO CONVERGE, and that is not a defect:  the
-#  branches are different postures and the true arm may not reach the pose in
-#  some of them, and damped least squares stays in the basin of its seed --
-#  which is the whole reason the caller chooses the index.
+#  EVERY REFINED BRANCH MUST CONVERGE, as every branch must on the other
+#  paths.  A branch's posture may genuinely not exist on the true arm, and
+#  damped least squares stays in the basin of its seed;  but a branch handed to
+#  the caller that misses T is still a wrong answer, so it fails here and the
+#  question of whether the posture exists is then asked of that robot.
 #
 
 def import_hybrid(name):
@@ -307,7 +369,7 @@ def check_hybrid(name, verbose=False):
         mod, phase1, phase2 = import_hybrid(name)
         fk_true = true_fk_of(mod)
     except Exception as e:
-        return 0, 0, '%s: %s' % (type(e).__name__, str(e)[:90])
+        return 0, 0, '%s: %s' % (type(e).__name__, str(e)[:90]), None
 
     ndof = int(getattr(mod, 'NDOF', len(Q_PROBE)))
     q_true = [float(x) for x in Q_PROBE[:ndof]]
@@ -315,7 +377,7 @@ def check_hybrid(name, verbose=False):
     try:
         T = np.asarray(fk_true(q_true), dtype=float)
     except Exception as e:
-        return 0, 0, 'true FK failed: %s: %s' % (type(e).__name__, str(e)[:70])
+        return 0, 0, 'true FK failed: %s: %s' % (type(e).__name__, str(e)[:70]), None
 
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
@@ -323,13 +385,13 @@ def check_hybrid(name, verbose=False):
             seeds = phase1(T)
         except Exception as e:
             return 0, 0, ('Phase I raised %s: %s'
-                          % (type(e).__name__, str(e)[:70]))
+                          % (type(e).__name__, str(e)[:70])), None
 
     if not seeds:
-        return 0, 0, 'Phase I returned no usable branch for a reachable pose'
+        return 0, 0, 'Phase I returned no usable branch for a reachable pose', None
 
     good = 0
-    seed_err, final_err = [], []
+    seed_err, final_err, refined = [], [], []
     for i, seed in enumerate(seeds):
         #  How wrong the RAW approximate answer is on the true arm.  This is
         #  the quantity Phase II exists to remove, so it is measured rather
@@ -357,6 +419,7 @@ def check_hybrid(name, verbose=False):
         except Exception:
             continue
         final_err.append(e1)
+        refined.append(q_ref)
 
         if e1 < HYBRID_TOL:
             good += 1
@@ -367,27 +430,23 @@ def check_hybrid(name, verbose=False):
             print('      branch %-2d  seed err %.2e -> %.2e   %2d iters  '
                   'error %.2e' % (i, e0, e1, iters, error))
 
-    note = ''
+    #  The REFINED postures, not the seeds:  a seed belongs to the simplified
+    #  arm, and only Phase II's answer is a joint vector of the true one.
+    recovered = probe_recovered(refined, q_true, revolute_joints(name))
+    note = probe_note(recovered, len(seeds))
     if seed_err and final_err:
-        note = ('seed err %.1e -> %.1e'
-                % (min(seed_err), min(final_err)))
-    return good, len(seeds), note
+        note = ('seed err %.1e -> %.1e;  %s'
+                % (min(seed_err), min(final_err), note))
+    return good, len(seeds), note, recovered
 
 
 ###############################################################################
 #
 #    The ONE-VARIABLE path
 #
-#  The same question, with one more answer available.  The generated search
-#  returns every joint vector it FOUND, so the check is both directions:
-#
-#    soundness     does each returned vector actually reach T
-#    completeness  is the vector the pose was BUILT from among them
-#
-#  Completeness is the one the other two paths cannot ask.  A closed form
-#  enumerates its branches and either contains the answer or does not;  a 1-D
-#  search can step over a basin narrower than its sample spacing, and the only
-#  way to notice is to look for a solution you already know is there.
+#  The same two checks as the other paths.  Completeness matters most here:
+#  a 1-D search can step over a basin narrower than its sample spacing, and
+#  the only way to notice is to look for a solution you already know is there.
 #
 
 def import_onevar(name):
@@ -427,7 +486,7 @@ def check_onevar(name, verbose=False):
     try:
         mod, solve, fk_true = import_onevar(name)
     except Exception as e:
-        return 0, 0, '%s: %s' % (type(e).__name__, str(e)[:90])
+        return 0, 0, '%s: %s' % (type(e).__name__, str(e)[:90]), None
 
     ndof = int(getattr(mod, 'NDOF', len(Q_PROBE)))
     q_true = [float(x) for x in Q_PROBE[:ndof]]
@@ -435,18 +494,18 @@ def check_onevar(name, verbose=False):
     try:
         T = np.asarray(fk_true(q_true), dtype=float)
     except Exception as e:
-        return 0, 0, 'true FK failed: %s: %s' % (type(e).__name__, str(e)[:70])
+        return 0, 0, 'true FK failed: %s: %s' % (type(e).__name__, str(e)[:70]), None
 
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
         try:
             sols = solve(T)
         except Exception as e:
-            return 0, 0, 'search raised %s: %s' % (type(e).__name__, str(e)[:70])
+            return 0, 0, 'search raised %s: %s' % (type(e).__name__, str(e)[:70]), None
 
     if not sols:
         return 0, 0, ('the search found nothing for a pose built from this '
-                      "arm's own FK")
+                      "arm's own FK"), None
 
     good = 0
     for i, s in enumerate(sols):
@@ -464,10 +523,9 @@ def check_onevar(name, verbose=False):
     #  COMPLETENESS.  The pose was built from q_true, so q_true is a solution;
     #  a search that returns four other solutions and not that one has stepped
     #  over its basin.
-    recovered = any(max(abs(a - b) for a, b in zip(s['q'], q_true)) < 1e-5
-                    for s in sols)
-    note = 'probe recovered' if recovered else 'PROBE NOT FOUND among %d' % len(sols)
-    return good, len(sols), note
+    recovered = probe_recovered([s['q'] for s in sols], q_true,
+                                revolute_joints(name))
+    return good, len(sols), probe_note(recovered, len(sols)), recovered
 
 
 ###############################################################################
@@ -526,12 +584,17 @@ def check(name, resolve=True, verbose=False):
          symbolic  q -> T = FK(q) -> ikin_*(T) -> FK(each branch) == T
          hybrid    q -> T = FK_true(q) -> Phase I -> Phase II
                                        -> FK_true(refined) == T
-         onevar    q -> T = FK(q) -> 1-D search -> FK(each found) == T,
-                                  and was q itself found
+         onevar    q -> T = FK(q) -> 1-D search -> FK(each found) == T
+
+       and on every path, was q itself among the answers.
 
        name:    robot name
        resolve: re-run ikSolver.py first (False re-uses what is on disk)
-       returns: (poses that reproduced the target, poses checked, note, path)
+       returns: (good, n, note, path, recovered)
+                good       returned joint vectors that reproduce the target
+                n          joint vectors returned
+                recovered  True/False:  is the probe joint vector among them;
+                           None when nothing could be checked
 
        Never raises:  a robot that could not be checked comes back with 0
        poses and a note saying why.
@@ -545,23 +608,41 @@ def check(name, resolve=True, verbose=False):
     if resolve:
         ok, why = solve_robot(name)
         if not ok:
-            return 0, 0, why, None
+            return 0, 0, why, None, None
 
     path, note = detect_path(name)
     if path is None:
-        return 0, 0, note, None
+        return 0, 0, note, None, None
 
     if path == 'hybrid':
-        good, n, hnote = check_hybrid(name, verbose=verbose)
+        good, n, hnote, recovered = check_hybrid(name, verbose=verbose)
     elif path == 'onevar':
-        good, n, hnote = check_onevar(name, verbose=verbose)
+        good, n, hnote, recovered = check_onevar(name, verbose=verbose)
     else:
-        good, n, hnote = check_symbolic(name, verbose=verbose)
+        good, n, hnote, recovered = check_symbolic(name, verbose=verbose)
 
     #  detect_path's note is a WARNING about the artifacts;  the checker's is a
     #  measurement.  Both matter, so neither is dropped.
     both = '; '.join(x for x in (note, hnote) if x)
-    return good, n, both, path
+    return good, n, both, path, recovered
+
+
+def closed_loop_failures(good, n, recovered):
+    '''The two requirements every checked robot must meet, on every path.
+
+         SOUND     every returned joint vector reproduces the target T
+         COMPLETE  the joint vector T was built from is among them
+
+       Neither needs a stored expectation:  T came from the arm's own FK, so a
+       returned vector that misses it is wrong, and the probe is a solution
+       that is known to exist.  Returns a list of complaints, empty = pass.'''
+
+    bad = []
+    if good < n:
+        bad.append(f'{n - good} of {n} returned joint vectors miss the target')
+    if recovered is False:
+        bad.append('the probe joint vector is not among them')
+    return bad
 
 
 def main(argv=None):
@@ -581,46 +662,48 @@ def main(argv=None):
     print('    symbolic  q -> T = FK(q) -> ikin_*(T) -> FK(each branch) == T')
     print('    hybrid    q -> T = FK_true(q) -> Phase I -> Phase II')
     print('                                  -> FK_true(refined) == T')
-    print('    onevar    q -> T = FK(q) -> 1-D search -> FK(each found) == T,')
-    print('                             and whether q itself was found')
+    print('    onevar    q -> T = FK(q) -> 1-D search -> FK(each found) == T')
+    print('  and on every path, q itself must be among the answers.')
     print("  T comes from the robot's own FK, so it is reachable by")
     print("  construction and a failure is the solver's, never the target's.")
     print('')
     print('  %-16s %-9s %8s  %s' % ('robot', 'path', 'poses', 'note'))
     print('  ' + '-' * 70)
 
-    regressions, blanks = [], []
+    failures, unsolved = [], []
     for name in names:
-        good, n, note, path = check(name, resolve=not a.keep, verbose=a.verbose)
-        known = name in EXPECT
-
+        good, n, note, path, recovered = check(name, resolve=not a.keep,
+                                               verbose=a.verbose)
         if n == 0:
-            #  COULD NOT CHECK IS A FAILURE for a robot we know should pass.
-            flag = ('  <-- REGRESSION (expected %d poses)' % EXPECT[name][0]
-                    if known else '')
+            #  NO GENERATED IK means the robot was not solved:  reported, not
+            #  failed.  Generated IK that cannot be run, or returns nothing for
+            #  a pose built from the arm's own FK, is a failure.
+            if path is None:
+                flag = ''
+                unsolved.append(name)
+            else:
+                flag = '  <-- FAIL: generated IK could not be checked'
+                failures.append(name)
             print('  %-16s %-9s %8s  %s%s'
                   % (name, path or '-', '-', note, flag))
-            (regressions if known else blanks).append(name)
             continue
 
-        bad = judge_counts(name, good, n)
-        flag = ''
-        if bad:
-            flag = '  <-- REGRESSION: ' + '; '.join(bad)
-            regressions.append(name)
-        elif good == 0:
-            flag = '  <-- no pose reproduces the target'
+        fail = closed_loop_failures(good, n, recovered)
+        flag = ('  <-- FAIL: ' + '; '.join(fail)) if fail else ''
+        if fail:
+            failures.append(name)
         print('  %-16s %-9s %8s  %s%s'
               % (name, path, '%d/%d' % (good, n), note, flag))
 
     print('')
-    if regressions:
-        print('  FAILED: %s' % ', '.join(sorted(set(regressions))))
+    if unsolved:
+        print('  Not solved (no generated IK): %s' % ', '.join(unsolved))
+    if failures:
+        print('  FAIL: %s' % ', '.join(sorted(set(failures))))
         print('')
         return 1
-    if blanks and not a.robots:
-        print('  Could not check: %s' % ', '.join(blanks))
-    print('  PASS: every checked robot meets its expected pose count.')
+    print('  PASS: every returned joint vector reproduces T, and the probe')
+    print('        joint vector is among them, for every checked robot.')
     print('')
     return 0
 

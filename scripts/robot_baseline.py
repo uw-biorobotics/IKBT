@@ -9,8 +9,9 @@
 #       python3 -m scripts.robot_baseline --full --diff
 #       python3 -m scripts.robot_baseline --robots Puma Wrist --codegen --closed-loop
 #
-#   Exit status is 1 when an expectation was missed or (with --diff) when
-#   something moved, so it works as a gate in a shell script.
+#   Exit status is 1 when a robot broke a rule (artifacts owed, closed loop)
+#   or (with --diff) when something moved, so it works as a gate in a shell
+#   script.
 #
 #   WHAT THE SWEEP RECORDS, per robot:  status, how many unknowns were solved,
 #   by which method, how many solution versions, and whether the hybrid branch
@@ -51,8 +52,6 @@ import time
 import traceback
 
 from ikbtfunctions.ik_robots import ROBOT_LIST
-from scripts.expected import (EXPECT, artifact_paths, artifacts_owed,
-                              fresh_since, artifact_complaints, judge_counts)
 
 
 #  Where the checked-in record lives.  It is fixturing, so it sits with the
@@ -78,10 +77,160 @@ FENCE_CLOSE = '#### BASELINE-JSON-END ####'
 
 ###############################################################################
 #
+#    What a finished solve owes the user, and where it lands
+#
+
+#  Seven kinds.  The three paths write different sets, and WHICH set appeared
+#  is the thing worth asserting:  a path that emits some of what it owes and
+#  not the rest is a half-finished path.
+#
+#      tex          the report                    every path
+#      py           closed-form IK                symbolic path, and the
+#                                                 DERIVED arm on the hybrid one
+#      hybrid       the two-phase top level       hybrid path, TRUE name only
+#      onevar       the 1-D search                one-variable path
+#      cond         closed form given one value   one-variable path
+#      fk           FK (+ Jacobian) callables     every path
+#      cpp_robot    ALL of the above, in C++      every path, TRUE name only
+#
+#  ONE C++ KEY, WHERE PYTHON HAS FIVE.  The C++ is one translation unit per
+#  robot -- <Robot>.cpp, holding FK, Jacobian and whichever IK was found -- so
+#  there is one artifact to owe however the robot was solved.  The python side
+#  keeps a module per artifact because a python module is the unit of import.
+#  A DERIVED arm owes no C++ of its own:  its sections live inside the true
+#  robot's file.
+#
+#  A name here is an ARM, not a robot:  on the hybrid path the true robot and
+#  the derived arm each own some of these, and both are checked.
+def artifact_paths(name, robot=None):
+    #  robot is the ROBOT THE USER ASKED ABOUT;  name is the arm the file
+    #  describes.  They differ only on the hybrid path, and only the C++
+    #  cares:  python files are flat in CodeGen/Python/, but the C++ is one
+    #  directory per robot, and the derived arm has no C++ file of its own.
+    robot = robot or name
+    cppdir = os.path.join('CodeGen', 'Cpp', '%sCppCode' % robot)
+    paths = {
+        'tex':    os.path.join('LaTex', 'ik_solution_%s.tex' % name),
+        'py':     os.path.join('CodeGen', 'Python', 'IK_equations%s.py' % name),
+        'hybrid': os.path.join('CodeGen', 'Python', 'IK_hybrid_%s.py' % name),
+        'onevar': os.path.join('CodeGen', 'Python', 'IK_onevar%s.py' % name),
+        'cond':   os.path.join('CodeGen', 'Python', 'IK_conditional%s.py' % name),
+        'fk':     os.path.join('CodeGen', 'Python', 'FK_numeric%s.py' % name),
+
+        #  The C++, all of it.  Named for the ROBOT, not for this arm:  on the
+        #  hybrid path the derived arm has no file of its own, it is sections
+        #  inside the true robot's.  See ikbtfunctions/output_cpp_robot.py.
+        'cpp_robot': os.path.join(cppdir, '%s.cpp' % robot),
+    }
+    #  ... and so a DERIVED arm has no cpp_robot key at all.  Left in, it
+    #  would point at the true robot's file, which this same run just wrote,
+    #  and the derived arm would be charged with an "unexpected" artifact.
+    if name != robot:
+        del paths['cpp_robot']
+    return paths
+
+
+NOTHING = frozenset()
+
+
+def artifacts_owed(branch, complete):
+    """Which artifacts a run owes, as (under the TRUE name, under the DERIVED name).
+
+       branch    'symbolic', 'onevar' or 'hybrid', read from the blackboard's
+                 onevar_source / hybrid_source -- NOT inferred from what is on
+                 disk, which would make this check compare the files against
+                 themselves.
+       complete  did the arm that was actually solved solve every unknown?
+
+       A RULE, NOT A PER-ROBOT TABLE.  What to expect is not per-robot -- it
+       follows from the path and from whether the solve finished -- so
+       writing it once applies it to every robot in the sweep.
+
+       NOTHING when the solve did not complete.  symbolic_loop carries
+       require_complete = True on both instances:  a closed form for SOME of the
+       joints is not inverse kinematics, so the branch FAILs, the outer Sequence
+       aborts, and report_gen never ticks.
+
+       NO 'py' UNDER THE TRUE NAME ON THE HYBRID PATH.  There is no closed form
+       for that robot -- that is why the path was taken -- so a file claiming to
+       be one would be a simplified arm's equations shipped under the real
+       robot's name.  C++ says the same thing with a FUNCTION name: inside
+       <True>.cpp the derived arm's closed form is ikin_<Derived>(), and there
+       is no plain ikin().  That is the one thing this method must never do,
+       and it is why the sets are compared EXACTLY: an unexpected artifact is a
+       failure, not just a missing one.
+
+       THE SAME ON THE ONE-VARIABLE PATH, for a different reason.  There the
+       equations ARE this robot's -- nothing was approximated -- but they hold
+       only where the assumed value is right, so they ship as 'cond'
+       (IK_conditional<name>), never as 'py'.  'onevar' is the search that
+       makes them usable and is the entry point;  'fk' is what the search
+       measures against.
+
+       'fk' AND 'cpp_robot' ARE OWED ON EVERY PATH.  The report has a Forward
+       Kinematics section and a Jacobian section whichever path wrote it, so
+       the generated code has them on every path too.
+
+       'cpp_robot' IS THE WHOLE C++ DELIVERABLE:  one file per robot, holding
+       FK, Jacobian and whichever IK was found.  Which path produced it is in
+       the file's own SOLUTION_PATH constant, which detect_path() reads."""
+
+    if not complete:
+        return NOTHING, NOTHING
+    if branch == 'hybrid':
+        #  The derived arm owes python only:  its C++ is inside cpp_robot.
+        return (frozenset({'tex', 'hybrid', 'fk', 'cpp_robot'}),
+                frozenset({'py', 'fk'}))
+    if branch == 'onevar':
+        return (frozenset({'tex', 'onevar', 'cond', 'fk', 'cpp_robot'}),
+                NOTHING)
+    return frozenset({'tex', 'py', 'fk', 'cpp_robot'}), NOTHING
+
+
+def fresh_since(paths, t0):
+    """Which of `paths` this run actually wrote, as a sorted list of keys.
+
+       FRESHNESS, not existence.  CodeGen/ and LaTex/ carry artifacts from
+       earlier sessions for most of these robots, so "the file is there" proves
+       nothing.
+
+       Timed against the solve's own start rather than a before/after snapshot,
+       because the DERIVED arm's name is not known until install_simplified has
+       run and its files therefore cannot be snapshotted in advance.  One rule
+       for both names beats two rules that could disagree."""
+
+    got = []
+    for k in sorted(paths):
+        try:
+            if os.path.getmtime(paths[k]) >= t0:
+                got.append(k)
+        except OSError:
+            pass                     # not there at all: not written
+    return got
+
+
+def artifact_complaints(got, want, where):
+    '''What is wrong with one name-space's artifact set.'''
+
+    out = []
+    missing = sorted(set(want) - set(got))
+    extra = sorted(set(got) - set(want))
+    if missing:
+        out.append('did not write %s %s' % (', '.join(missing), where))
+    if extra:
+        #  The loud one.  Named separately from "missing" because an unexpected
+        #  artifact is not an omission, it is a claim:  a file that says it is
+        #  the IK of a robot IKBT could not solve.
+        out.append('WROTE UNEXPECTED %s %s' % (', '.join(extra), where))
+    return out
+
+
+###############################################################################
+#
 #    The robots of --gate:  one per distinct PATH through the tree
 #
 #  Not an assertion table:  what each robot must deliver is worked out from the
-#  path it took (scripts/expected.artifacts_owed).  This documents WHY these
+#  path it took (artifacts_owed() above).  This documents WHY these
 #  robots, for --list.
 #
 #  Three hybrid paths are not reachable by any robot in ROBOT_LIST since the
@@ -358,7 +507,8 @@ def sweep_one(name, timeout=DEFAULT_TIMEOUT, logdir=DEFAULT_LOGDIR,
 def closed_loop_one(rec, verbose=False):
     '''Round-trip one robot through the code the child just generated.
 
-       Fills rec['closed_loop'] with {'good', 'total', 'note', 'path'} and
+       Fills rec['closed_loop'] with {'good', 'total', 'note', 'path',
+       'recovered'} and
        returns it, or None when there was nothing to check.
 
        resolve=False:  the child has just solved this robot with codegen on,
@@ -375,23 +525,25 @@ def closed_loop_one(rec, verbose=False):
     #  artifacts, so a caller with a robot name needs no idea which branch of
     #  the tree answered it.
     try:
-        good, total, note, path = check(rec['name'], resolve=False,
-                                        verbose=verbose)
+        good, total, note, path, recovered = check(rec['name'], resolve=False,
+                                                   verbose=verbose)
     except Exception as e:
-        good, total, note, path = 0, 0, '%s: %s' % (type(e).__name__, e), None
+        good, total, note, path, recovered = (
+            0, 0, '%s: %s' % (type(e).__name__, e), None, None)
 
     rec['closed_loop'] = {'good': good, 'total': total,
-                          'note': note, 'path': path}
+                          'note': note, 'path': path, 'recovered': recovered}
     return rec['closed_loop']
 
 
 def judge(rec):
     '''What is wrong with one robot's run.  Empty list = nothing to report.
 
-       Judges only what can be judged from the run itself plus the ONE
-       expectation table:  the files a finished solve owes (a rule, applied to
-       every robot) and the recorded closed-loop counts (a table, covering the
-       robots that have an entry).  Everything else -- which method solved
+       Judges only what can be judged from the run itself, by two RULES that
+       apply to every robot alike -- there is no per-robot expectation table:
+       the files a finished solve owes, and the closed-loop requirements (every
+       returned joint vector reproduces T, and the probe is among them).
+       Everything else -- which method solved
        which variable, how many unknowns a robot gets through -- is RECORDED
        and diffed, never asserted, because "does not solve" is a legitimate
        outcome for most of ROBOT_LIST.'''
@@ -414,9 +566,11 @@ def judge(rec):
 
     cl = rec.get('closed_loop')
     if cl and cl['total']:
-        bad += judge_counts(rec['name'], cl['good'], cl['total'])
-    elif cl and rec['name'] in EXPECT:
-        #  COULD NOT CHECK IS A FAILURE for a robot we know should pass.
+        from scripts.numerical_closed_loop_sol_check import closed_loop_failures
+        bad += closed_loop_failures(cl['good'], cl['total'], cl.get('recovered'))
+    elif cl and cl.get('path'):
+        #  IK WAS GENERATED AND COULD NOT BE CHECKED:  a failure, whichever
+        #  robot it is.  Generated code that raises is wrong code.
         bad.append('could not check the generated code -- %s' % cl['note'])
 
     return bad
@@ -707,12 +861,12 @@ def format_summary(record):
     if quiet:
         lines.append('(none)')
 
-    #  Expectations missed.  Separate from Notes: a note is an observation, this
+    #  Failures.  Separate from Notes: a note is an observation, this
     #  is a failure.
     comp = record.get('complaints') or {}
     if comp:
         lines.append('')
-        lines.append('EXPECTATIONS MISSED')
+        lines.append('FAILURES')
         lines.append('-' * 62)
         for name in sorted(comp):
             for b in comp[name]:
@@ -892,7 +1046,7 @@ def main(argv=None):
     comp = record.get('complaints') or {}
     if comp:
         print('')
-        print('  FAILED -- %d of %d robots missed an expectation:'
+        print('  FAILED -- %d of %d robots broke a rule:'
               % (len(comp), len(names)))
         for name in sorted(comp):
             for b in comp[name]:
@@ -901,7 +1055,7 @@ def main(argv=None):
         rc = 1
     elif a.closed_loop:
         print('')
-        print('  OK -- every robot with a recorded expectation met it.')
+        print('  OK -- every robot met the artifact and closed-loop rules.')
         print('')
 
     if old is not None:

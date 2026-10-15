@@ -42,19 +42,18 @@
 #   EVERY VERSION MUST REPRODUCE THE POSE.  IKBT enumerates combinations of the
 #   unknowns' solution branches without filtering spurious ones, and several
 #   robots score less than 100% because of it -- Craig417 at 2-of-4, MiniDD at
-#   1-of-4, and the rest of KNOWN INCOMPLETE in scripts/expected.py.  Those are
-#   TEST FAILURES here, not accepted states:  a branch handed to the user that
-#   puts the arm somewhere other than where it was asked for is wrong, and none
-#   of these robots ever had a high-confidence solution (BH, 2026-09-17).  Why
-#   they fail is open;  that they fail is not.
+#   1-of-4, and others.  Those are TEST FAILURES here, not accepted states:  a
+#   branch handed to the user that puts the arm somewhere other than where it
+#   was asked for is wrong (BH, 2026-09-17).  Why they fail is in
+#   IKdocs/DEV_NOTES.md (2026-10-15):  the true solution is always among the
+#   rows, and the extra rows violate equations no leaf consulted.
 #
 #   A version that evaluates COMPLEX is excused rather than failed:  that
 #   posture does not exist at that pose, which is a fact about the arm.
 #
-#   scripts/numerical_closed_loop_sol_check.py is the other checker.  It keeps
-#   scripts/expected.py, runs against the GENERATED code, and is what the
-#   robot_baseline sweep calls -- so the recorded partial counts still have a
-#   home, and this script does not need them.
+#   scripts/numerical_closed_loop_sol_check.py is the other checker.  It runs
+#   against the GENERATED code, is what the robot_baseline sweep calls, and
+#   holds every robot to the same rule as this script.
 #
 #   WHAT IT CANNOT SEE:  a solution that is MISSING.  Every count here descends
 #   from the same leaves that produced the solution set, so there is nothing to

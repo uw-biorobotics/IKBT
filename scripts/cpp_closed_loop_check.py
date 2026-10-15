@@ -31,15 +31,15 @@
 #   dropped branch or two versions swapped, because every permutation of a
 #   correct answer is still a correct answer.  Agreement can see all three.
 #
-#   THREE KINDS OF COMPILE FAILURE, and only one of them is a regression:
+#   THREE KINDS OF COMPILE FAILURE, and two of them are failures:
 #
 #     XXXXX        the deliberate compile stop for a parameter the robot has
 #                  no pvals entry for.  Expected;  see CodeGen/HOWTO.txt.
 #     undeclared   a solution that references the variable it solves for.  An
 #                  UPSTREAM solver defect -- the same one that shows up in
-#                  python as UnboundLocalError, which is why these robots are
-#                  in expected.UNCHECKABLE.  C++ catches it at compile time
-#                  instead of at run time, which is the better of the two.
+#                  python as UnboundLocalError.  C++ catches it at compile
+#                  time instead of at run time, which is the better of the
+#                  two.  A failure like any other:  it is wrong code.
 #     other        a real defect in this generator.
 #
 #   Skips cleanly with no g++, the way write_latex_fitted() degrades with no
@@ -68,10 +68,11 @@ import tempfile
 import numpy as np
 
 from ikbtfunctions.output_cpp_common import SRC_DIR, cpp_identifier
-from scripts.expected import EXPECT, UNCHECKABLE, judge_counts
+from ikbtfunctions.ik_robots import ROBOT_LIST
 from scripts.numerical_closed_loop_sol_check import (Q_PROBE, TOL, robot_fk,
                                                      import_generated_ik,
-                                                     solve_robot)
+                                                     solve_robot,
+                                                     closed_loop_failures)
 
 
 CPP_DIR = os.path.join('CodeGen', 'Cpp')
@@ -93,7 +94,8 @@ def cpp_dir(robot):
 #  the end of every run -- if it creeps up, something has diverged.
 AGREE_TOL = 1e-9
 
-DEFAULT_ROBOTS = sorted(EXPECT)
+#  Every robot;  one with no generated C++ is reported, not failed.
+DEFAULT_ROBOTS = sorted(ROBOT_LIST)
 
 
 #  The test program appended to a copy of the generated file.  Reads 16
@@ -832,9 +834,9 @@ def detect_path(name):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument('robots', nargs='*', help='robot names (default: the '
-                                              'robots scripts/expected.py judges)')
-    ap.add_argument('--all', action='store_true', help='every robot in ROBOT_LIST')
+    ap.add_argument('robots', nargs='*', help='robot names (default: every '
+                                              'robot in ROBOT_LIST)')
+    ap.add_argument('--all', action='store_true', help='every robot in ROBOT_LIST (the default)')
     ap.add_argument('--keep', action='store_true', help='do not re-solve')
     ap.add_argument('--compile-only', action='store_true',
                     help='the compile gate:  build, do not run')
@@ -979,9 +981,9 @@ def main():
             print('%-18s %-9s %s' % (n, kind, msg), flush=True)
             if kind == 'other':
                 failures.append('%s: compile failed -- %s' % (n, msg))
-            elif kind == 'undeclared' and n not in UNCHECKABLE:
-                failures.append('%s: undeclared name, and it is not a known '
-                                'UNCHECKABLE robot -- %s' % (n, msg))
+            elif kind == 'undeclared':
+                failures.append('%s: undeclared name -- a solution refers to '
+                                'its own variable -- %s' % (n, msg))
             continue
 
         #  ALL THREE PATHS FROM ONE COMMAND, dispatched on what is on disk.
@@ -1018,9 +1020,9 @@ def main():
             print('%-18s %-9s %s' % (n, r['kind'], r['note']), flush=True)
             if r['kind'] == 'other':
                 failures.append('%s: compile failed -- %s' % (n, r['note']))
-            elif r['kind'] == 'undeclared' and n not in UNCHECKABLE:
-                failures.append('%s: undeclared name, not a known defect -- %s'
-                                % (n, r['note']))
+            elif r['kind'] == 'undeclared':
+                failures.append('%s: undeclared name -- a solution refers to '
+                                'its own variable -- %s' % (n, r['note']))
             continue
 
         agree = r['agree']
@@ -1031,16 +1033,22 @@ def main():
                 failures.append('%s: C++ and python differ by %.2e' % (n, agree))
         else:
             atxt = str(agree)
-            if n not in UNCHECKABLE:
-                failures.append('%s: could not compare with python -- %s'
-                                % (n, agree))
+            failures.append('%s: could not compare with python -- %s'
+                            % (n, agree))
 
         cnt = '%d of %d branches' % (r['good'], r['total'])
         if r['worst_fk'] is not None:
             cnt += '  (worst %.1e)' % r['worst_fk']
         print('%-18s %-9s %-26s %s' % (n, 'symbolic', cnt, atxt), flush=True)
 
-        for complaint in judge_counts(n, r['good'], r['total']):
+        #  The same rule as the python checker:  every returned branch must
+        #  reproduce T.  Completeness follows from agreement -- the rows match
+        #  the python's, which is checked for the probe.
+        complaints = closed_loop_failures(r['good'], r['total'], None)
+        if r['total'] == 0:
+            complaints.append('no branches for a pose built from the arm\'s '
+                              'own FK')
+        for complaint in complaints:
             failures.append('%s: %s' % (n, complaint))
             print('    ! %s' % complaint)
 

@@ -688,6 +688,63 @@ artifact assertions from five hand-listed robots to all 32.
 
 ## scripts/expected.py
 
+### Removed, 2026-10-15
+
+**`EXPECT`, `UNCHECKABLE` and `judge_counts()` are gone, and so is the file** (BH: "eliminate
+expected.py so that our tests do not HIDE flaws"). A table of accepted partial scores is a table of
+hidden flaws: it let nine robots pass with spurious branches, and kept the two whose generated code
+raises out of the default robot list altogether, which is also why `check_symbolic()` had never
+been seen to crash on them. Every checker now applies the same two rules to every robot that
+generated IK: every returned joint vector reproduces `T` (sound), and the joint vector `T` was built
+from is among them (complete). Generated IK that cannot be run is a failure. The artifact rule
+(`artifacts_owed()` and friends) was never an expectation table and moved into
+`scripts/robot_baseline.py`, its only user. A branch-count change is still visible, as
+`changed-solutions` in `robot_baseline --diff`.
+
+At removal, 21 robots pass both rules and 11 fail. In python and C++ alike:
+
+    sound fails:    Craig417 2/4, DZhang 1/2, Mackler13 1/4, MiniDD 1/4, Palm13 1/2,
+                    Panda 8/16, Parkman13 1/4, Sims11 1/2, Wachtveitl 1/2
+    cannot run:     JennyGuoSp24, UR5  (UnboundLocalError: a solution contains the
+                    variable it solves for -- see Future Work in CLAUDE.md)
+
+**Why the nine are unsound.** Measured over 200 random poses per robot from the generated code:
+the true joint vector is among the returned rows **200 of 200 times for every one of the nine**,
+so the set is always a superset, never wrong in place. The extra rows are combinations of
+branches that satisfy the equation each variable was solved from but not the remaining ones:
+`asin`/`pi - asin` pairs (MiniDD, Mackler13, Parkman13, DZhang), `+-sqrt` (Craig417, Panda) and
+the `atan2(y,x)`/`atan2(-y,-x)` pair that `tan_solver` emits when the common factor of both
+arguments is a still-unsolved joint of unknown sign. Eight of the nine have 4 or 5 DOF, where 12
+matrix equations over-determine the unknowns and the unused ones are pure constraints; on a 6-DOF
+arm the same `atan2` pair is the genuine wrist flip. For Sims11, Wachtveitl, Palm13, Craig417 and
+Parkman13 every bad row has the orientation exact and misses on position only. Panda (6 DOF) is
+the exception that rules out a solve-time fix: which 8 of its 16 rows are spurious changes with the
+pose (rows 2, 6, 11, 15 are never right; row 1 is right at 60 poses of 100).
+
+**The history the table carried**, kept here because it was only in comments:
+
+- Chair_Helper went 2-of-4 to 2-of-2 when its always-wrong arcsin branch stopped being generated;
+  `total` was in the table to catch exactly that kind of branch coming back.
+- KinovaLite: one-variable since 2026-09-21, hybrid before, 8 of 8 both ways. The hybrid figures:
+  eight Phase I seeds converging from 43-57 mm to 1e-12..1e-9 in 4 or 5 iterations, on a derived
+  arm with `d_5` zeroed.
+- ArmRobo (4/4) and KawasakiRS05L (2/2) were beyond IKBT before the one-variable path. Their low
+  counts are measured, not settled: raising the sweep from 128 to 2048 samples finds no more.
+- Arm_3: one-variable since 2026-10-09; before, it solved symbolically and raised
+  UnboundLocalError (`th_23v1`, the self-reference defect).
+- Raven-II: the only hybrid robot. Derived arm `a_5: 13 -> 0`, which solves 6/6 once the
+  invariants know `sa_i**2 + ca_i**2 = 1` (`invariant_gen.twist_identities`); seed error 9.8 to
+  1.6e-11.
+- Axtman13 left KNOWN INCOMPLETE (1 of 2 -> 1 of 1) on 2026-10-09: with all 21 matrix-equation
+  splits, `th_3` is solved by atan2 instead of arcsin and the spurious branch is gone.
+- KR16 (4/4) and DZhang left UNCHECKABLE on 2026-09-29 when domain errors became NaN rather than
+  raises; KR16's discriminant is -202.2 at the probe and its four real postures reach it to 5.6e-16.
+- Panda: symbolic since 2026-10-08 (hybrid before); over 200 random poses the source joint vector
+  was among the correct branches every time, and the hybrid found no posture the closed form misses.
+- Mackler13 was once uncheckable over a stray `h`, which was a typo in its DH table.
+
+### Before removal
+
 It replaced three hand-maintained tables over overlapping sets of the same robots:
 
     check_solution_sets.KNOWN_COMPLETE          9 robots, "must be 100%"

@@ -335,8 +335,8 @@ least-squares enumeration of the true arm's FK: **888 of 888 true solutions foun
 worst round-trip pose error 2.4e-12, at 0.14 s per pose.
 The count per pose is legitimately 4 **or** 8 — real branches go complex as the pose moves, and that
 is the arm, not the search. `python3 -m scripts.numerical_closed_loop_sol_check C-Arm` detects this
-third path from `IK_onevar<name>.py` and checks **completeness** as well as soundness — the question
-the other two paths cannot ask.
+third path from `IK_onevar<name>.py` and checks **completeness** as well as soundness, as it does on
+the other two paths; here completeness is what the search exists to get right.
 
 Joint ranges and 2*pi wraps stay out of the search: they are one range test applied to the accepted
 joint vectors afterwards.
@@ -554,10 +554,12 @@ Output is a static SVG — open it in a browser or Inkscape, and export from the
 `scripts/numerical_closed_loop_sol_check.py` thoroughly tests a robot by 1) solving by either method
 2) choosing some reachable end effector configurations 3) enumerating all IK solutions for a configurations
 4) re running the IK solutions through FK and comparing with the reachable EE configuration of step 2 within
-a numerical tolerance.   For a perfect result, all returned IK solutions (vector of computed joint values)
-must match the selected EE configuration of step 2.    
+a numerical tolerance, and 5) confirming the joint vector of step 2 is itself among the returned solutions.
+For a perfect result, all returned IK solutions (vector of computed joint values)
+must match the selected EE configuration of step 2 (**sound**), and one of them must be the original
+joint vector (**complete**).  Either failure fails the robot, on every path.
  
-`scripts/numerical_closed_loop_sol_check.py` covers **both paths from one command**. 
+`scripts/numerical_closed_loop_sol_check.py` covers **all three paths from one command**. 
 
 **Solutions vs. versions.** A variable has *solutions* (e.g. the two branches of an `asin`) and *versions* —
 one per combination of its own solutions with those of everything it depends on.  For example, see `IKdocs/solExamp.tex'.
@@ -588,7 +590,7 @@ Please keep commit messages to 5 lines or less.
    is correct, 2 of 2.)
    Python raises `UnboundLocalError`; the C++ compiles, runs, reads the self-reference as NaN
    and returns NO branches. Quieter, and no better -- an empty answer here is a wrong answer
-   wearing "unreachable" as a disguise. Both stay out of `EXPECT`.
+   wearing "unreachable" as a disguise. Both FAIL the closed-loop checks, in both languages.
 
 2. **Division by zero is the one domain asymmetry left.** `1.0/0.0` raises `ZeroDivisionError`
    in python and gives `inf` in C++, and it is an OPERATOR, so the `acos_dc` treatment does not

@@ -733,7 +733,7 @@ def robot_params(name):
         #
         #   This is Kuka Model KR60
         #    ( as analyzed in Khatamian6DOF_IK2015.pdf)
-        # 6 DOF, and it solves:  8 of 8 branches verified (scripts/expected.py)
+        # 6 DOF, and it solves:  8 of 8 branches verified (numerical_closed_loop_sol_check)
 
         dh = sp.Matrix([                  ##  This one requires sum-of-angles.
         [  0,       a_1 , l_1 ,     th_1  ],

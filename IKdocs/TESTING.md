@@ -118,16 +118,19 @@ through the tree (symbolic 6-DOF, symbolic 5-DOF/prismatic, three one-variable
 solves, hybrid-complete). It saves nothing and asserts everything.
 
 **Most of the sweep asserts nothing.** "Does not solve" is a legitimate entry —
-most of `ROBOT_LIST` does not solve completely. Only two things are asserted:
+most of `ROBOT_LIST` does not solve completely. Two things are asserted, both
+*rules* applied to every robot alike; there is no per-robot table of accepted
+results:
 
-- **the artifacts a finished solve owes**, a *rule* applied to every robot
-  (`scripts/expected.artifacts_owed`), not a per-robot list;
-- **the closed-loop counts**, for the robots that have a recorded
-  expectation in `scripts/expected.EXPECT`.
+- **the artifacts a finished solve owes** (`artifacts_owed()` in
+  `robot_baseline.py`);
+- **the closed-loop requirements**, for every robot that generated IK: every
+  returned joint vector reproduces `T`, the probe joint vector is among them,
+  and generated IK that cannot be run at all is a failure.
 
 ### Exit status
 
-`0` = nothing to report. `1` = an expectation was missed, or (with `--diff`)
+`0` = nothing to report. `1` = a rule was broken, or (with `--diff`)
 something moved. `2` = the run was refused (e.g. diffing a codegen record
 against a non-codegen one).
 
@@ -178,12 +181,28 @@ else. The hybrid check is
 check goes through the TRUE arm's FK**, because judging Phase I against the
 simplified arm would pass no matter how bad the approximation was.
 
-The one-variable check is `q → T = FK(q) → solve_*(T) → FK(each found) == T`,
-**plus one question the other two cannot ask: was `q` itself among them.** A
-closed form enumerates its branches and either contains the answer or does not;
-a 1-D search can step over a basin narrower than its sample spacing, and the
-only way to notice is to look for a solution you already know is there. The
-note column says `probe recovered` or `PROBE NOT FOUND among N`.
+The one-variable check is `q → T = FK(q) → solve_*(T) → FK(each found) == T`.
+
+**Every path is held to the same two requirements**, and a robot failing either
+one FAILS (exit 1):
+
+- **sound** — every returned joint vector reproduces `T`. A partial score
+  fails.
+- **complete** — `q` itself is among the returned vectors (mod 2π on revolute
+  joints, joint type read from the DH table's `vv`). `q` is the one solution
+  known to exist: a closed form that excludes it has a wrong expression, a 1-D
+  search that misses it stepped over its basin, and a hybrid that misses it had
+  no seed in its basin. The note column says `probe recovered` or
+  `PROBE NOT FOUND among N`.
+
+**There is no expectation table.** `scripts/expected.py` recorded partial
+scores as acceptable floors, and was removed on 2026-10-15 because a table of
+accepted partial scores is a table of hidden flaws. With no robots named, the
+checker runs all of `ROBOT_LIST`. A robot with generated IK that raises or
+returns nothing FAILS; a robot with no generated IK is listed as not solved.
+`robot_baseline` applies exactly the same rules, and so does the C++ checker.
+A change in a robot's branch count still shows up, as `changed-solutions` in
+`robot_baseline --diff`.
 
 Keep the first one for **diagnosis**: when the generated code is wrong, it tells
 you whether the fault is in the closed form or in the code generator.
@@ -199,9 +218,10 @@ It fails on two defects:
 
 - **a version that does not reproduce the pose.** Every version, not most of
   them — a partial score is a failure here, so Craig417 (2-of-4), MiniDD
-  (1-of-4) and the rest of `expected.py`'s KNOWN INCOMPLETE list do not pass.
-  They never had high-confidence solutions; why they fail is open, that they
-  fail is not (BH, 2026-09-17). A version that evaluates *complex* is excused
+  (1-of-4) and the other robots with spurious branches do not pass.
+  Why is diagnosed (2026-10-15, DEV_NOTES.md): the extra rows are combinations
+  of branches that satisfy the equations each variable was solved from but not
+  the rest, and the true solution is always among the rows. A version that evaluates *complex* is excused
   — that posture does not exist at that pose.
 - **two versions that are identical** — the same arm configuration — whether or
   not that configuration is correct (compared mod 2π on revolute joints, since
@@ -217,14 +237,10 @@ It also reports when **which versions fail depends on the pose** — a stable
 the guilty pair rotating, and the counts cannot tell those apart. Craig417 is
 the second kind.
 
-Note this is **stricter than `EXPECT`**, which records those partial counts as
-floors to be met. That table still governs `numerical_closed_loop_sol_check`
-and the sweep, so the two checkers deliberately disagree about Craig417: the
-sweep asks "did it get worse?", this asks "is it right?".
-
 What it **cannot** see is a solution that is *missing*: every count it has
 descends from the same leaves that built the solution set, so there is nothing
-to disagree with.
+to disagree with. `numerical_closed_loop_sol_check`'s probe test is the check
+that can.
 
 ## The C++ checkers — `scripts/cpp_closed_loop_check.py`
 
@@ -263,9 +279,8 @@ eight roots round-trips perfectly. `--onevar` compares the whole root set.
 the deliberate compile stop for a parameter the robot has no `pvals` entry for.
 `undeclared` is a solution referencing the variable it solves for — an
 *upstream* solver defect, the same one Python reports as `UnboundLocalError`,
-which is why those robots are in `expected.UNCHECKABLE`; C++ catches it at
-compile time, which is the better of the two. Anything else is this
-generator's fault.
+and a failure like any other; C++ catches it at compile time, which is the
+better of the two. Anything else is this generator's fault.
 
 `--dls` is a **pin**, not a check of an answer: `Cpp_src/ikbt_dls.h` is a copy
 of `numeric_ik.solve_numeric()` two languages removed, so the refined joint
@@ -346,17 +361,10 @@ Measured 2026-10-09, 20 poses, `delta = 0.05`:
 
 Puma's 32 missing postures are exactly the 8 at each of the 4 seedless poses.
 
-## The one expectation table — `scripts/expected.py`
+## What a finished solve owes — `artifacts_owed()`
 
-`EXPECT` maps robot → `(good, total)`: how many returned branches must reproduce
-the pose, and how many branches there should be. Both numbers, because `good`
-alone catches a solution going wrong while `total` catches a **spurious branch
-coming back** — a real defect that leaves `good` untouched.
-
-One table, in one place. If you improve a robot, update it **here**, once.
-
-The same module holds `artifacts_owed()` — which files a finished solve owes,
-by path:
+`robot_baseline.py` holds the rule for which files a finished solve owes, by
+path. It is a rule, not a per-robot table:
 
 | path | under the true name | under the derived name |
 |---|---|---|
