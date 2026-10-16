@@ -208,8 +208,7 @@ def write_hybrid_top(M_true, true_name, derived_name, edits_text, cost_text,
 
     path = os.path.join(dirname, 'IK_hybrid_%s.py' % true_name)
     with open(path, 'w') as f:
-        hdr = MODULE_HEADER.replace('**ROBOT**', true_name)
-        hdr = hdr.replace('**WHAT**',
+        hdr = MODULE_HEADER.replace('**WHAT**',
                           'HYBRID inverse kinematics for %s' % true_name)
         print(hdr, file=f)
 

@@ -163,7 +163,7 @@ class simu_id(b3.Action):
                         print("found two eqns in one unknown")
                         print(eq1)
                         print(eq2)
-                    curr_unk.solvemethod += "simultaneous eqn"
+                    curr_unk.add_solvemethod('simultaneous eqn')
                     curr_unk.eqntosolve = kequation(0, eq1)
                     curr_unk.secondeqn = kequation(0, eq2)
                     tick.blackboard.set('curr_unk', curr_unk)

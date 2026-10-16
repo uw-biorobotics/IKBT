@@ -423,9 +423,6 @@ def sqrt_dc(x):
         print('#  not it exists at this pose -- a branch that does not comes', file=f)
         print('#  back with NaN in it.  IK_onevar%s.py indexes branches by' % orig_name, file=f)
         print('#  position, so row i must be the same branch at every value.', file=f)
-    else:
-        print('#  Only the branches that EXIST at the goal pose are returned,', file=f)
-        print('#  so the count varies with the pose.  False means none do.', file=f)
     print('#  Joint values returned by %s(), in this order:' % funcname, file=f)
     print('JOINT_NAMES = %r' % joint_cols, file=f)
     print('#  Sum-of-angle intermediates:  computed, but NOT returned', file=f)
@@ -471,20 +468,7 @@ def sqrt_dc(x):
     Py = T[1,3]
     Pz = T[2,3]
 
-#
-# Caution:    Generated code is not yet validated
-#
-
     ''', file=f)
-    
-
-
-    #  SILENT ON THE CONDITIONAL PATH.  These three lines are advice for a
-    #  human calling ikin once.
-    if not known:
-        print(indent + 'print ( " Caution - this code has no solution checking.")', file=f)
-        print(indent + 'print ("in case of domain errors, change the test position / orientation ")', file=f)
-        print(indent + 'print ( " to a pose reachable by your specific robot")', file=f)
     print(indent + '', file=f)
     print(indent + '''
 #############################################################
@@ -582,14 +566,13 @@ def sqrt_dc(x):
         #   four postures that reproduce it to 5.6e-16 and four that do not
         #   exist, so discarding the whole set over any one of them would
         #   throw away exact answers.
-        print(indent + '#  Keep the postures that exist.  A row with a', file=f)
-        print(indent + '#  non-finite value is one that does not exist at this', file=f)
-        print(indent + '#  pose -- an arccosine out of range, or a negative', file=f)
-        print(indent + '#  discriminant -- and the count varies with the pose.', file=f)
+        print(indent + '#  Drop the rows with a non-finite value:  that posture', file=f)
+        print(indent + '#  does not exist at this pose -- an arccosine out of', file=f)
+        print(indent + '#  range, or a negative discriminant.', file=f)
         print(indent + 'reachable = [r for r in solution_list', file=f)
         print(indent + '             if all(isfinite(v) for v in r)]', file=f)
         print(indent + 'if not reachable:', file=f)
-        print(indent*2 + 'return(False)     #  no posture at all reaches T', file=f)
+        print(indent*2 + 'return(False)     #  no branch is finite', file=f)
         print(indent + 'return(reachable)', file=f)
     else:
         #   THE CONDITIONAL FORM KEEPS THEM, IN PLACE.  IK_onevar<Robot>.py
@@ -667,13 +650,7 @@ if __name__ == "__main__":
     T1[1,3] = py
     T1[2,3] = pz
 
-    #  NOTE, all three fixed here:  the generated __main__ used PYTHON 2 print
-    #  STATEMENTS (`print ''`), which made the module unimportable under
-    #  python3 -- "SyntaxError: Missing parentheses in call to 'print'".  It
-    #  also bound the result to `list`, shadowing the builtin, and iterated it
-    #  without checking for the False that ikin_*() returns on an unreachable
-    #  pose, giving "TypeError: bool is not iterable" instead of saying so.
-    # try the Puma IK
+    # try the IK
 
     sols = ''' + funcname + '''(''' + ('T1' if not known else 'T1, 0.3') + ''')
 

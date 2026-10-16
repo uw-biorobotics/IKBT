@@ -124,10 +124,7 @@ class sincos_id(b3.Action):    # action leaf for sincosid
                     if(self.BHdebug):
                         print('I found an sin() equation to ID: ', e)
                     u.eqntosolve = e
-                    if len(u.solvemethod) > 0:
-                        u.solvemethod += ", arcsin"
-                    else:
-                        u.solvemethod += "arcsin"
+                    u.add_solvemethod('arcsin')
 
                     found = True
                     break
@@ -136,10 +133,7 @@ class sincos_id(b3.Action):    # action leaf for sincosid
                     if(self.BHdebug):
                         print('I found an cos() equation to ID: ', e)
                     u.eqntosolve = e
-                    if len(u.solvemethod) > 0:
-                        u.solvemethod += ", arccos"
-                    else:
-                        u.solvemethod += "arccos"
+                    u.add_solvemethod('arccos')
                     found = True
                     break
                 
@@ -200,6 +194,7 @@ class sincos_solve(b3.Action):    # Solve asincos equation pairs
                 # leaf, as the arccos branch below does.
                 if(d is None):
                     print("sincos_solve (arcsin branch):  Somethings Wrong!")
+                    u.withdraw_solvemethod('arcsin')
                     return b3.FAILURE
                 A = d[Aw]
                 if(d[Bw] is not None):
@@ -219,6 +214,7 @@ class sincos_solve(b3.Action):    # Solve asincos equation pairs
                 if targument.has(u.symbol):
                     print('sincos_solve (arcsin): solution would contain %s '
                           'itself -- declining' % u.symbol)
+                    u.withdraw_solvemethod('arcsin')
                     return b3.FAILURE
                 sol1 = sp.asin( targument  )
                 sol2 = sp.pi - sp.asin( targument  )  
@@ -240,6 +236,7 @@ class sincos_solve(b3.Action):    # Solve asincos equation pairs
                 d   = rhs.match(Aw*sp.cos(u.symbol)+Bw)  
                 if(d is None):
                     print("sincos_solve (arccos branch):  Somethings Wrong!")
+                    u.withdraw_solvemethod('arccos')
                     return b3.FAILURE                    
                 else:        
                     A = d[Aw]
@@ -253,6 +250,7 @@ class sincos_solve(b3.Action):    # Solve asincos equation pairs
                     if targument.has(u.symbol):
                         print('sincos_solve (arccos): solution would contain %s '
                               'itself -- declining' % u.symbol)
+                        u.withdraw_solvemethod('arccos')
                         return b3.FAILURE
                     sol1 =   sp.acos( targument  )
                     sol2 = - sp.acos( targument  )  

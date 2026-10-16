@@ -135,7 +135,7 @@ class sinandcos_id(b3.Action):    # action leaf for sincosid
                   if not d[Cw].has(u.symbol):
                       u.readytosolve = True
                       u.eqntosolve   = kc.kequation(lhs, es)
-                      u.solvemethod += 'sinANDcos'
+                      u.add_solvemethod('sinANDcos')
                       found = True
                       break
             

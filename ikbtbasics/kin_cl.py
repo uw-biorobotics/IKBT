@@ -139,6 +139,22 @@ class unknown(object):
     def __repr__(self): # string representation
         return self.symbol.__repr__()
 
+    def add_solvemethod(self, name):
+        '''Append a method to solvemethod, with ", " between methods.
+
+           None after a trailing space:  x2z2's 'x2z2 transform and ' and the
+           ranker's ', best ranked, ' are built to run on into the next one.'''
+        s = self.solvemethod
+        self.solvemethod = s + ('' if not s or s.endswith(' ') else ', ') + name
+
+    def withdraw_solvemethod(self, name):
+        '''Undo add_solvemethod(name):  the leaf that added it declined.'''
+        s = self.solvemethod
+        for tail in (', ' + name, name):
+            if s.endswith(tail):
+                self.solvemethod = s[:-len(tail)]
+                return
+
     def details(self):   # easier debugging
         sret = ''
         sret += 'Name:       ' + self.name + '\n'

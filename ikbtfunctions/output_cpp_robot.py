@@ -103,7 +103,7 @@ def _assemble(name, dirname, what, headers, sections, main_text, solved_by,
     filename = '%s.cpp' % name
     path = os.path.join(dirname, filename)
     with open(path, 'w') as f:
-        print(file_header(what, name, filename), file=f)
+        print(file_header(what, filename), file=f)
         print(src_includes(headers, dirname), file=f)
         print('', file=f)
         for inc in std_includes:

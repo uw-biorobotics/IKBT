@@ -99,9 +99,9 @@ def write_onevar_top_cpp(M, name, known, f, n_samples=128, max_samples=4096):
     print('const double ONEVAR_W_ROT = %.17g;' % w_rot, file=f)
     print('', file=f)
     if periodic:
-        print('//  %s is a revolute joint, so this is its WHOLE range and'
+        print('//  %s is a revolute joint, so this is its WHOLE range:'
               % known, file=f)
-        print('//  a search over it misses nothing.', file=f)
+        print('//  there is nothing outside it to search.', file=f)
     else:
         print('//  %s is PRISMATIC, and a DH table does not record how far'
               % known, file=f)

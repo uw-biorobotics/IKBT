@@ -57,17 +57,6 @@ struct SolveResult {
 };
 
 
-//  J_0 = blkdiag(R_06, R_06) . J_66 -- frame 6 into the base frame.
-inline Matrix jacobian_base(const Mat4 &T, const Matrix &J66)
-{
-    const Mat3 R = T.topLeftCorner<3, 3>();
-    Matrix J(6, J66.cols());
-    J.topRows<3>() = R * J66.topRows<3>();
-    J.bottomRows<3>() = R * J66.bottomRows<3>();
-    return J;
-}
-
-
 //  Refine seed q0 until fk(q) matches T_d.
 //
 //  NEVER FAILS ON A BAD STEP:  a singular solve or a non-finite FK is a

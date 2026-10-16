@@ -122,9 +122,9 @@ SEARCH_CORE = '''
 #
 #   SAMPLING IS A UNIFORM GRID, AND THE GRID IS HALVED UNTIL THE ANSWER
 #   STOPS CHANGING.  Two solutions of a real arm can sit closer together in
-#   the assumed variable than one sample spacing -- C-Arm has reachable poses
-#   whose roots are 0.045 rad apart, against a spacing of 0.049 at 128
-#   samples -- and a scan that steps over such a pair sees one dip where
+#   the assumed variable than one sample spacing -- measured on C-Arm, the
+#   arm this method comes from:  reachable poses whose roots are 0.045 rad
+#   apart, against a spacing of 0.049 at 128 samples -- and a scan that steps over such a pair sees one dip where
 #   there are two and returns one posture where there are two.  Silently.
 #   No fixed resolution can be ARGUED to be enough, so this does not argue
 #   one:  it solves at n samples, again at 2n, and again, until two
@@ -133,13 +133,6 @@ SEARCH_CORE = '''
 #   one -- n is a power of two, so the values are bit-identical -- and every
 #   sample's error is cached, so the whole ladder costs little more than its
 #   finest rung.  N_SAMPLES is where the ladder STARTS, not where it stops.
-#
-#   (This was a van der Corput sequence, whose selling point is that it is a
-#   prefix of itself.  That property was never used:  the sweep evaluates
-#   every point it draws and then SORTS them, and a sorted van der Corput
-#   sequence of 2^k points IS the uniform grid of 2^k points.  At any other
-#   count it is an UNEVEN grid, which is strictly worse for this job -- a
-#   bracketing scan is only as good as its widest gap.)
 #
 #   ONE ERROR CURVE PER BRANCH.  The closed form returns several branches
 #   (elbow up/down, wrist flipped), and they are separate functions of the
@@ -186,9 +179,9 @@ def branches_at_**IDENT**(T, value):
     T = np.matrix(np.asarray(T, dtype=float))
     try:
         #  errstate:  at some values of the assumed variable the closed form
-        #  divides by zero or takes a root of a negative -- ArmRobo does both.
-        #  That is the branch being undefined there, which is the same answer
-        #  as an arcsine out of range and is DATA, not a fault;  numpy would
+        #  can divide by zero or take a root of a negative.  That is the
+        #  branch being undefined there, which is the same answer as an
+        #  arcsine out of range and is DATA, not a fault;  numpy would
         #  otherwise print a RuntimeWarning for each of a thousand samples.
         #  The non-finite result it produces is caught by the isfinite test in
         #  errors_**IDENT**().
@@ -287,11 +280,11 @@ def _golden(f, a, b, iters=80, xtol=1e-15):
        jumps sign and nothing based on curvature behaves.  Unimodality on the
        bracket is all this needs.
 
-       It stops when the bracket reaches float resolution, which is what the
-       tail of those 80 iterations used to be spent on:  0.618**80 is far
-       below it, so the last dozen-odd passes were deciding between two floats
-       that are equal.  The ladder in solve_**IDENT**() calls this many times
-       per resolution, so that tail is worth not walking."""
+       It stops early, when the bracket reaches float resolution (xtol):
+       0.618**80 is far below it, so the last dozen-odd of `iters` passes
+       would only decide between two floats that are equal.  The ladder in
+       solve_**IDENT**() calls this many times per resolution, so that tail is
+       worth not walking."""
 
     invphi = (5.0 ** 0.5 - 1.0) / 2.0
     invphi2 = (3.0 - 5.0 ** 0.5) / 2.0
@@ -444,9 +437,10 @@ def _hunt_edges_**IDENT**(T, values, curve, b, cache, tol, refine_iters,
        pressed against the edge of the branch's domain -- because that edge is
        where the closed form's denominators vanish and its arcsines leave
        range, so it is where the joint values, and the pose error built from
-       them, move fastest.  C-Arm's d_1 goes as 1 / cos(th_2), and it has poses
-       whose third and fourth solutions sit within 1e-3 of th_2 = +/- pi/2, in
-       a spike whose sides rise at a slope of 1000.  A uniform grid would need
+       them, move fastest.  Measured on C-Arm, the arm this method comes
+       from:  its d_1 goes as 1 / cos(th_2), and it has poses whose third and
+       fourth solutions sit within 1e-3 of th_2 = +/- pi/2, in a spike whose
+       sides rise at a slope of 1000.  A uniform grid would need
        about six thousand points to see one, and approaching it from inside the
        curve RISES first, so the nearest sample is a local maximum and the
        ordinary scan never even brackets it.
@@ -666,8 +660,7 @@ def write_onevar_top(M, name, known, dirname=DIR_NAME, n_samples=128,
 
     path = os.path.join(dirname, 'IK_onevar%s.py' % name)
     with open(path, 'w') as f:
-        hdr = MODULE_HEADER.replace('**ROBOT**', name)
-        hdr = hdr.replace('**WHAT**',
+        hdr = MODULE_HEADER.replace('**WHAT**',
                           'ONE-VARIABLE inverse kinematics for %s' % name)
         print(hdr, file=f)
 
@@ -739,9 +732,9 @@ def _sibling(filename, modname):
         print('W_ROT          = %r' % float(w_rot), file=f)
         print('', file=f)
         if periodic:
-            print('#  %s is periodic, so this is the WHOLE domain and the'
+            print('#  %s is periodic, so this is the WHOLE domain:  there is'
                   % known, file=f)
-            print('#  search over it is complete.', file=f)
+            print('#  nothing outside it to search.', file=f)
         else:
             print('#  %s is PRISMATIC and its travel is not recorded anywhere in'
                   % known, file=f)
@@ -756,7 +749,8 @@ def _sibling(filename, modname):
         print('#  Where the resolution ladder STARTS.  solve() scans at this', file=f)
         print('#  many samples, then twice as many, until two grids running agree', file=f)
         print('#  about the answer -- so this is a starting cost, not a limit on', file=f)
-        print('#  what can be found.  A sample costs one closed-form evaluation.', file=f)
+        print('#  what can be found.  A sample costs one closed-form solve plus', file=f)
+        print('#  one FK per branch.', file=f)
         print('N_SAMPLES      = %d' % int(n_samples), file=f)
         print('', file=f)
         print('#  ... and where it gives up.  Reaching this means the answer was', file=f)

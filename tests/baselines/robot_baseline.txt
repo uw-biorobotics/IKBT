@@ -47,6 +47,20 @@ KawasakiRS05L      th_1 ASSUMED KNOWN (candidate 1 of 3) -- solved counts exclud
 KinovaLite         th_1 ASSUMED KNOWN (candidate 1 of 3) -- solved counts exclude it
 Raven-II           SIMPLIFIED to Raven-II_a_5_0 -- a_5: 13.0000000000000 -> 0 (axes [4, 5, 6], intersect)
 
+FAILURES
+--------------------------------------------------------------
+Craig417           2 of 4 returned joint vectors miss the target
+DZhang             1 of 2 returned joint vectors miss the target
+JennyGuoSp24       could not check the generated code -- ikin_*() raised UnboundLocalError: cannot access local variable 'th_3v1' where it is not associated with 
+Mackler13          3 of 4 returned joint vectors miss the target
+MiniDD             3 of 4 returned joint vectors miss the target
+Palm13             1 of 2 returned joint vectors miss the target
+Panda              8 of 16 returned joint vectors miss the target
+Parkman13          3 of 4 returned joint vectors miss the target
+Sims11             1 of 2 returned joint vectors miss the target
+UR5                could not check the generated code -- ikin_*() raised UnboundLocalError: cannot access local variable 'th_2v1' where it is not associated with 
+Wachtveitl         1 of 2 returned joint vectors miss the target
+
 Solution methods  (recorded, not compared)
 --------------------------------------------------------------
 ArmRobo
@@ -95,7 +109,7 @@ Chair_Helper
 Craig417
     th_1     sinANDcos
     th_2     simultaneous eqn
-    th_3     arcsinsinANDcos
+    th_3     sinANDcos
     th_34    algebra
     th_4     simultaneous eqn
 DZhang

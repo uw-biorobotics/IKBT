@@ -1,7 +1,41 @@
 {
  "closed_loop": true,
  "codegen": true,
- "complaints": {},
+ "complaints": {
+  "Craig417": [
+   "2 of 4 returned joint vectors miss the target"
+  ],
+  "DZhang": [
+   "1 of 2 returned joint vectors miss the target"
+  ],
+  "JennyGuoSp24": [
+   "could not check the generated code -- ikin_*() raised UnboundLocalError: cannot access local variable 'th_3v1' where it is not associated with "
+  ],
+  "Mackler13": [
+   "3 of 4 returned joint vectors miss the target"
+  ],
+  "MiniDD": [
+   "3 of 4 returned joint vectors miss the target"
+  ],
+  "Palm13": [
+   "1 of 2 returned joint vectors miss the target"
+  ],
+  "Panda": [
+   "8 of 16 returned joint vectors miss the target"
+  ],
+  "Parkman13": [
+   "3 of 4 returned joint vectors miss the target"
+  ],
+  "Sims11": [
+   "1 of 2 returned joint vectors miss the target"
+  ],
+  "UR5": [
+   "could not check the generated code -- ikin_*() raised UnboundLocalError: cannot access local variable 'th_2v1' where it is not associated with "
+  ],
+  "Wachtveitl": [
+   "1 of 2 returned joint vectors miss the target"
+  ]
+ },
  "n_robots": 32,
  "record_version": 2,
  "robots": {
@@ -11,6 +45,7 @@
     "good": 4,
     "note": "probe recovered",
     "path": "onevar",
+    "recovered": true,
     "total": 4
    },
    "codegen_run": true,
@@ -36,7 +71,7 @@
    },
    "solution_set_error": null,
    "status": "solved (onevar)",
-   "wall_s": 72.6,
+   "wall_s": 22.61,
    "written": [
     "cond",
     "cpp_robot",
@@ -50,8 +85,9 @@
    "branch": "onevar",
    "closed_loop": {
     "good": 2,
-    "note": "IK_equationsArm_3.py also exist(s) -- checking the newest (onevar);  the rest are stale, delete them; probe recovered",
+    "note": "probe recovered",
     "path": "onevar",
+    "recovered": true,
     "total": 2
    },
    "codegen_run": true,
@@ -76,7 +112,7 @@
    },
    "solution_set_error": null,
    "status": "solved (onevar)",
-   "wall_s": 31.44,
+   "wall_s": 29.39,
    "written": [
     "cond",
     "cpp_robot",
@@ -90,8 +126,9 @@
    "branch": "symbolic",
    "closed_loop": {
     "good": 1,
-    "note": "",
+    "note": "probe recovered",
     "path": "symbolic",
+    "recovered": true,
     "total": 1
    },
    "codegen_run": true,
@@ -112,7 +149,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 17.3,
+   "wall_s": 5.52,
    "written": [
     "cpp_robot",
     "fk",
@@ -125,8 +162,9 @@
    "branch": "symbolic",
    "closed_loop": {
     "good": 2,
-    "note": "",
+    "note": "probe recovered",
     "path": "symbolic",
+    "recovered": true,
     "total": 2
    },
    "codegen_run": true,
@@ -147,7 +185,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 12.49,
+   "wall_s": 3.15,
    "written": [
     "cpp_robot",
     "fk",
@@ -160,8 +198,9 @@
    "branch": "symbolic",
    "closed_loop": {
     "good": 1,
-    "note": "",
+    "note": "probe recovered",
     "path": "symbolic",
+    "recovered": true,
     "total": 1
    },
    "codegen_run": true,
@@ -181,7 +220,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 6.85,
+   "wall_s": 2.5,
    "written": [
     "cpp_robot",
     "fk",
@@ -196,6 +235,7 @@
     "good": 8,
     "note": "probe recovered",
     "path": "onevar",
+    "recovered": true,
     "total": 8
    },
    "codegen_run": true,
@@ -221,7 +261,7 @@
    },
    "solution_set_error": null,
    "status": "solved (onevar)",
-   "wall_s": 35.7,
+   "wall_s": 12.27,
    "written": [
     "cond",
     "cpp_robot",
@@ -235,8 +275,9 @@
    "branch": "symbolic",
    "closed_loop": {
     "good": 2,
-    "note": "",
+    "note": "probe recovered",
     "path": "symbolic",
+    "recovered": true,
     "total": 2
    },
    "codegen_run": true,
@@ -257,7 +298,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 45.29,
+   "wall_s": 4.96,
    "written": [
     "cpp_robot",
     "fk",
@@ -270,8 +311,9 @@
    "branch": "symbolic",
    "closed_loop": {
     "good": 2,
-    "note": "",
+    "note": "probe recovered",
     "path": "symbolic",
+    "recovered": true,
     "total": 4
    },
    "codegen_run": true,
@@ -280,7 +322,7 @@
    "methods": {
     "th_1": "sinANDcos",
     "th_2": "simultaneous eqn",
-    "th_3": "arcsinsinANDcos",
+    "th_3": "sinANDcos",
     "th_34": "algebra",
     "th_4": "simultaneous eqn"
    },
@@ -292,7 +334,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 5.07,
+   "wall_s": 5.3,
    "written": [
     "cpp_robot",
     "fk",
@@ -305,8 +347,9 @@
    "branch": "symbolic",
    "closed_loop": {
     "good": 1,
-    "note": "",
+    "note": "probe recovered",
     "path": "symbolic",
+    "recovered": true,
     "total": 2
    },
    "codegen_run": true,
@@ -328,7 +371,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 61.51,
+   "wall_s": 10.11,
    "written": [
     "cpp_robot",
     "fk",
@@ -341,8 +384,9 @@
    "branch": "symbolic",
    "closed_loop": {
     "good": 4,
-    "note": "",
+    "note": "probe recovered",
     "path": "symbolic",
+    "recovered": true,
     "total": 4
    },
    "codegen_run": true,
@@ -363,7 +407,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 47.39,
+   "wall_s": 7.75,
    "written": [
     "cpp_robot",
     "fk",
@@ -376,8 +420,9 @@
    "branch": "symbolic",
    "closed_loop": {
     "good": 1,
-    "note": "",
+    "note": "probe recovered",
     "path": "symbolic",
+    "recovered": true,
     "total": 1
    },
    "codegen_run": true,
@@ -397,7 +442,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 15.0,
+   "wall_s": 5.89,
    "written": [
     "cpp_robot",
     "fk",
@@ -410,8 +455,9 @@
    "branch": "symbolic",
    "closed_loop": {
     "good": 0,
-    "note": "UnboundLocalError: cannot access local variable 'th_3v1' where it is not associated with a value",
-    "path": null,
+    "note": "ikin_*() raised UnboundLocalError: cannot access local variable 'th_3v1' where it is not associated with ",
+    "path": "symbolic",
+    "recovered": null,
     "total": 0
    },
    "codegen_run": true,
@@ -435,7 +481,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 30.62,
+   "wall_s": 13.97,
    "written": [
     "cpp_robot",
     "fk",
@@ -448,8 +494,9 @@
    "branch": "symbolic",
    "closed_loop": {
     "good": 4,
-    "note": "",
+    "note": "probe recovered",
     "path": "symbolic",
+    "recovered": true,
     "total": 4
    },
    "codegen_run": true,
@@ -472,7 +519,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 84.16,
+   "wall_s": 16.04,
    "written": [
     "cpp_robot",
     "fk",
@@ -485,8 +532,9 @@
    "branch": "symbolic",
    "closed_loop": {
     "good": 8,
-    "note": "",
+    "note": "probe recovered",
     "path": "symbolic",
+    "recovered": true,
     "total": 8
    },
    "codegen_run": true,
@@ -509,7 +557,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 73.72,
+   "wall_s": 14.47,
    "written": [
     "cpp_robot",
     "fk",
@@ -524,6 +572,7 @@
     "good": 2,
     "note": "probe recovered",
     "path": "onevar",
+    "recovered": true,
     "total": 2
    },
    "codegen_run": true,
@@ -549,7 +598,7 @@
    },
    "solution_set_error": null,
    "status": "solved (onevar)",
-   "wall_s": 104.82,
+   "wall_s": 21.71,
    "written": [
     "cond",
     "cpp_robot",
@@ -563,8 +612,9 @@
    "branch": "symbolic",
    "closed_loop": {
     "good": 8,
-    "note": "",
+    "note": "probe recovered",
     "path": "symbolic",
+    "recovered": true,
     "total": 8
    },
    "codegen_run": true,
@@ -587,7 +637,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 92.37,
+   "wall_s": 15.49,
    "written": [
     "cpp_robot",
     "fk",
@@ -602,6 +652,7 @@
     "good": 8,
     "note": "probe recovered",
     "path": "onevar",
+    "recovered": true,
     "total": 8
    },
    "codegen_run": true,
@@ -627,7 +678,7 @@
    },
    "solution_set_error": null,
    "status": "solved (onevar)",
-   "wall_s": 126.42,
+   "wall_s": 40.83,
    "written": [
     "cond",
     "cpp_robot",
@@ -641,8 +692,9 @@
    "branch": "symbolic",
    "closed_loop": {
     "good": 1,
-    "note": "",
+    "note": "probe recovered",
     "path": "symbolic",
+    "recovered": true,
     "total": 4
    },
    "codegen_run": true,
@@ -663,7 +715,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 61.73,
+   "wall_s": 6.22,
    "written": [
     "cpp_robot",
     "fk",
@@ -676,8 +728,9 @@
    "branch": "symbolic",
    "closed_loop": {
     "good": 2,
-    "note": "",
+    "note": "probe recovered",
     "path": "symbolic",
+    "recovered": true,
     "total": 2
    },
    "codegen_run": true,
@@ -697,7 +750,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 12.6,
+   "wall_s": 2.53,
    "written": [
     "cpp_robot",
     "fk",
@@ -710,8 +763,9 @@
    "branch": "symbolic",
    "closed_loop": {
     "good": 1,
-    "note": "",
+    "note": "probe recovered",
     "path": "symbolic",
+    "recovered": true,
     "total": 4
    },
    "codegen_run": true,
@@ -732,7 +786,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 41.49,
+   "wall_s": 5.34,
    "written": [
     "cpp_robot",
     "fk",
@@ -745,8 +799,9 @@
    "branch": "symbolic",
    "closed_loop": {
     "good": 4,
-    "note": "",
+    "note": "probe recovered",
     "path": "symbolic",
+    "recovered": true,
     "total": 4
    },
    "codegen_run": true,
@@ -769,7 +824,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 22.89,
+   "wall_s": 7.63,
    "written": [
     "cpp_robot",
     "fk",
@@ -782,8 +837,9 @@
    "branch": "symbolic",
    "closed_loop": {
     "good": 1,
-    "note": "",
+    "note": "probe recovered",
     "path": "symbolic",
+    "recovered": true,
     "total": 2
    },
    "codegen_run": true,
@@ -803,7 +859,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 12.39,
+   "wall_s": 2.8,
    "written": [
     "cpp_robot",
     "fk",
@@ -816,8 +872,9 @@
    "branch": "symbolic",
    "closed_loop": {
     "good": 8,
-    "note": "",
+    "note": "probe recovered",
     "path": "symbolic",
+    "recovered": true,
     "total": 16
    },
    "codegen_run": true,
@@ -839,7 +896,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 244.7,
+   "wall_s": 20.27,
    "written": [
     "cpp_robot",
     "fk",
@@ -852,8 +909,9 @@
    "branch": "symbolic",
    "closed_loop": {
     "good": 1,
-    "note": "",
+    "note": "probe recovered",
     "path": "symbolic",
+    "recovered": true,
     "total": 4
    },
    "codegen_run": true,
@@ -875,7 +933,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 39.28,
+   "wall_s": 10.69,
    "written": [
     "cpp_robot",
     "fk",
@@ -888,8 +946,9 @@
    "branch": "symbolic",
    "closed_loop": {
     "good": 8,
-    "note": "",
+    "note": "probe recovered",
     "path": "symbolic",
+    "recovered": true,
     "total": 8
    },
    "codegen_run": true,
@@ -912,7 +971,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 14.65,
+   "wall_s": 16.8,
    "written": [
     "cpp_robot",
     "fk",
@@ -925,8 +984,9 @@
    "branch": "hybrid",
    "closed_loop": {
     "good": 4,
-    "note": "seed err 9.8e+00 -> 1.6e-11",
+    "note": "seed err 9.8e+00 -> 1.6e-11;  probe recovered",
     "path": "hybrid",
+    "recovered": true,
     "total": 4
    },
    "codegen_run": true,
@@ -960,7 +1020,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved (hybrid)",
-   "wall_s": 39.13,
+   "wall_s": 39.79,
    "written": [
     "cpp_robot",
     "fk",
@@ -976,8 +1036,9 @@
    "branch": "symbolic",
    "closed_loop": {
     "good": 1,
-    "note": "",
+    "note": "probe recovered",
     "path": "symbolic",
+    "recovered": true,
     "total": 2
    },
    "codegen_run": true,
@@ -998,7 +1059,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 19.16,
+   "wall_s": 5.12,
    "written": [
     "cpp_robot",
     "fk",
@@ -1011,8 +1072,9 @@
    "branch": "symbolic",
    "closed_loop": {
     "good": 4,
-    "note": "",
+    "note": "probe recovered",
     "path": "symbolic",
+    "recovered": true,
     "total": 4
    },
    "codegen_run": true,
@@ -1034,7 +1096,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 20.78,
+   "wall_s": 5.56,
    "written": [
     "cpp_robot",
     "fk",
@@ -1047,8 +1109,9 @@
    "branch": "symbolic",
    "closed_loop": {
     "good": 8,
-    "note": "",
+    "note": "probe recovered",
     "path": "symbolic",
+    "recovered": true,
     "total": 8
    },
    "codegen_run": true,
@@ -1070,7 +1133,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 49.93,
+   "wall_s": 6.47,
    "written": [
     "cpp_robot",
     "fk",
@@ -1083,8 +1146,9 @@
    "branch": "symbolic",
    "closed_loop": {
     "good": 0,
-    "note": "UnboundLocalError: cannot access local variable 'th_2v1' where it is not associated with a value",
-    "path": null,
+    "note": "ikin_*() raised UnboundLocalError: cannot access local variable 'th_2v1' where it is not associated with ",
+    "path": "symbolic",
+    "recovered": null,
     "total": 0
    },
    "codegen_run": true,
@@ -1109,7 +1173,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 109.64,
+   "wall_s": 622.32,
    "written": [
     "cpp_robot",
     "fk",
@@ -1122,8 +1186,9 @@
    "branch": "symbolic",
    "closed_loop": {
     "good": 1,
-    "note": "",
+    "note": "probe recovered",
     "path": "symbolic",
+    "recovered": true,
     "total": 2
    },
    "codegen_run": true,
@@ -1145,7 +1210,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 30.53,
+   "wall_s": 8.72,
    "written": [
     "cpp_robot",
     "fk",
@@ -1158,8 +1223,9 @@
    "branch": "symbolic",
    "closed_loop": {
     "good": 2,
-    "note": "",
+    "note": "probe recovered",
     "path": "symbolic",
+    "recovered": true,
     "total": 2
    },
    "codegen_run": true,
@@ -1178,7 +1244,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 7.01,
+   "wall_s": 2.13,
    "written": [
     "cpp_robot",
     "fk",

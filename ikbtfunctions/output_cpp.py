@@ -167,9 +167,6 @@ def output_cpp_code(Robot, solution_groups, f, known=None, owner=None):
         print('//  not it exists at this pose -- one that does not comes back', file=f)
         print('//  with NaN in it.  solve() indexes branches by position, so', file=f)
         print('//  row i must be the same branch at every value.', file=f)
-    else:
-        print('//  Only the branches that EXIST at the goal pose are returned,', file=f)
-        print('//  so the count varies with the pose.  Empty means none do.', file=f)
     print('//  Joint values returned by %s(), in this order.' % funcname,
           file=f)
     print(name_table_cpp(joint_cols, 'JOINT_NAMES'), file=f)
@@ -190,8 +187,8 @@ def output_cpp_code(Robot, solution_groups, f, known=None, owner=None):
     print('//', file=f)
     print('//   Solve the unknowns in closed form.', file=f)
     print('//       T   4x4 numerical target for T06, row major', file=f)
-    print('//   Returns one JointVec per solution branch, or an EMPTY list', file=f)
-    print('//   if the pose is not reachable.', file=f)
+    print('//   Returns one JointVec per finite solution branch, or an EMPTY', file=f)
+    print('//   list if no branch is finite.', file=f)
     print('//', file=f)
     print('SolutionList %s(%s)' % (funcname, arglist), file=f)
     print('{', file=f)
@@ -275,12 +272,10 @@ def output_cpp_code(Robot, solution_groups, f, known=None, owner=None):
     #   every row in a fixed position, because the search indexes them.
     #
     if not known:
-        print('    //  Keep the postures that EXIST.  A row holding a', file=f)
-        print('    //  non-finite value is one that does not exist at this', file=f)
-        print('    //  pose -- an arccosine out of range, or a negative', file=f)
-        print('    //  discriminant -- and the count varies with the pose.', file=f)
-        print('    //  An EMPTY list means none of them do, which is what', file=f)
-        print('    //  python says with False.', file=f)
+        print('    //  Drop the rows holding a non-finite value:  that', file=f)
+        print('    //  posture does not exist at this pose -- an arccosine', file=f)
+        print('    //  out of range, or a negative discriminant.  An EMPTY', file=f)
+        print('    //  list is what python says with False.', file=f)
         print('    SolutionList reachable;', file=f)
         print('    for (size_t i = 0; i < solution_list.size(); ++i)', file=f)
         print('        if (solution_list[i].allFinite())', file=f)

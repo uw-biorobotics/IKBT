@@ -382,6 +382,7 @@ the robot's own directory), and that is the whole mechanism.
 |---|---|---|
 | `Mat4 from_array(const double T[4][4])` | 102 | interop with a plain row-major C array |
 | `void to_array(const Mat4 &M, double T[4][4])` | 112 | the other direction |
+| `Matrix jacobian_base(const Mat4 &T, const Matrix &J66)` | 125 | `J_0 = blkdiag(R,R) . J_66` — frame 6 into the base frame. Here because every generated file includes this header, so it is callable whichever path wrote the file |
 
 Line numbers are as of 2026-10-08 and will drift; the symbol names will not.
 
@@ -434,8 +435,7 @@ own pose error, do it this way.
 | `FkFn` | 44 | `std::function<Mat4(const JointVec &)>` |
 | `JacFn` | 45 | `std::function<Matrix(const JointVec &)>` |
 | `struct SolveResult` | 50 | `q`, `metric`, `iterations`, `converged`, `reason`, `history` |
-| `Matrix jacobian_base(const Mat4 &T, const Matrix &J66)` | 61 | `J_0 = blkdiag(R,R) . J_66` — frame 6 into the base frame |
-| `SolveResult solve_numeric(...)` | 75 | the solver |
+| `SolveResult solve_numeric(...)` | 64 | the solver |
 
 ```cpp
 SolveResult solve_numeric(const FkFn &fk, const JacFn &jac,
@@ -462,7 +462,9 @@ damping is for.
  
 
 **The Jacobian must be expressed in frame 6**,   IKBT already computes and stores it as `J66`;
-`solve_numeric()` rotates it into the base frame (J06) with `jacobian_base()`. 
+`solve_numeric()` rotates it into the base frame (J06) with `jacobian_base()`, from `ikbt_types.h`.
+The generated `jacobian()` returns J66 on every path, and `jacobian_base(fk(q), jacobian(q))` gives
+J06 in any robot's file.
 
 ### 3.4 `ikbt_search.h` — the 1-D search behind the one-variable method
 

@@ -183,7 +183,7 @@ class algebra_id(b3.Action):
 
                         u.readytosolve = True
                         u.eqntosolve = kequation(0, tmp)
-                        u.solvemethod += "algebra"
+                        u.add_solvemethod('algebra')
                         found = True
                         break
 
