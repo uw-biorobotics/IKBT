@@ -9,7 +9,7 @@
 #       python3 -m scripts.robot_baseline --full --diff
 #       python3 -m scripts.robot_baseline --robots Puma Wrist --codegen --closed-loop
 #
-#   Exit status is 1 when a robot broke a rule (artifacts owed, closed loop)
+#   Exit status is 1 when a robot broke a rule (artifacts owed, self edge, closed loop)
 #   or (with --diff) when something moved, so it works as a gate in a shell
 #   script.
 #
@@ -131,6 +131,20 @@ def artifact_paths(name, robot=None):
 
 
 NOTHING = frozenset()
+
+
+def self_edges(name, graphdir='graphs'):
+    '''Variables whose solution depends on THEMSELVES, from the
+       `edge X X` lines of graphs/<name>_graph.txt.  A solution containing its
+       own unknown is not a solution (UR5's th_2, JennyGuoSp24's th_3 until
+       2026-10-15), and the report's TikZ figure leaves such an edge out, so
+       nothing else would show it.  [] when there is no graph file.'''
+    try:
+        with open(os.path.join(graphdir, f'{name}_graph.txt')) as f:
+            return [w[1] for w in (line.split() for line in f)
+                    if len(w) == 3 and w[0] == 'edge' and w[1] == w[2]]
+    except OSError:
+        return []
 
 
 def artifacts_owed(branch, complete):
@@ -539,10 +553,11 @@ def closed_loop_one(rec, verbose=False):
 def judge(rec):
     '''What is wrong with one robot's run.  Empty list = nothing to report.
 
-       Judges only what can be judged from the run itself, by two RULES that
+       Judges only what can be judged from the run itself, by three RULES that
        apply to every robot alike -- there is no per-robot expectation table:
-       the files a finished solve owes, and the closed-loop requirements (every
-       returned joint vector reproduces T, and the probe is among them).
+       the files a finished solve owes, no variable depending on itself in the
+       solution graph, and the closed-loop requirements (every returned joint
+       vector reproduces T, and the probe is among them).
        Everything else -- which method solved
        which variable, how many unknowns a robot gets through -- is RECORDED
        and diffed, never asserted, because "does not solve" is a legitimate
@@ -563,6 +578,14 @@ def judge(rec):
         bad += artifact_complaints(rec.get('written_derived') or [],
                                    owed_derived,
                                    'under the derived name %s' % (derived or '?'))
+
+    #  The graph file is written with the report, so only a fresh report
+    #  vouches for it.  On the hybrid path it is named for the DERIVED arm,
+    #  the one actually solved.
+    if 'tex' in (rec.get('written') or []):
+        arm = (rec.get('hybrid') or {}).get('derived_robot') or rec['name']
+        for v in self_edges(arm):
+            bad.append(f'{v} depends on itself in the solution graph of {arm}')
 
     cl = rec.get('closed_loop')
     if cl and cl['total']:
@@ -1055,7 +1078,7 @@ def main(argv=None):
         rc = 1
     elif a.closed_loop:
         print('')
-        print('  OK -- every robot met the artifact and closed-loop rules.')
+        print('  OK -- every robot met the artifact, solution-graph and closed-loop rules.')
         print('')
 
     if old is not None:

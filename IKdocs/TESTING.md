@@ -118,12 +118,16 @@ through the tree (symbolic 6-DOF, symbolic 5-DOF/prismatic, three one-variable
 solves, hybrid-complete). It saves nothing and asserts everything.
 
 **Most of the sweep asserts nothing.** "Does not solve" is a legitimate entry —
-most of `ROBOT_LIST` does not solve completely. Two things are asserted, both
+most of `ROBOT_LIST` does not solve completely. Three things are asserted, all
 *rules* applied to every robot alike; there is no per-robot table of accepted
 results:
 
 - **the artifacts a finished solve owes** (`artifacts_owed()` in
   `robot_baseline.py`);
+- **no variable depends on itself** -- an `edge X X` line in a freshly written
+  `graphs/<robot>_graph.txt` (`self_edges()`). A solution containing its own
+  unknown is not a solution, and the report's TikZ figure leaves such an edge
+  out;
 - **the closed-loop requirements**, for every robot that generated IK: every
   returned joint vector reproduces `T`, the probe joint vector is among them,
   and generated IK that cannot be run at all is a failure.

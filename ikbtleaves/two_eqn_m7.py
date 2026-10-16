@@ -70,10 +70,34 @@ def _partner_of(u, e1, e2):
     a2 = e2.coeff(sp.cos(u))
     b2 = -e2.coeff(sp.sin(u))
     if a2 == A and b2 == B:
-        return e2
-    if a2 == -A and b2 == -B:
-        return -e2
-    return None
+        second = e2
+    elif a2 == -A and b2 == -B:
+        second = -e2
+    else:
+        return None
+    #  u ANYWHERE ELSE and the pair is not the pattern:  simu_solver would
+    #  fold that term into C or D and return an "answer" containing u.
+    #  UR5's th_2 did exactly that through an unexpanded sin(th_2 + th_3)
+    #  (2026-10-15).
+    C = sp.expand(A*sp.sin(u) + B*sp.cos(u) - e1)
+    D = sp.expand(A*sp.cos(u) - B*sp.sin(u) - second)
+    if any(x.has(u) for x in (A, B, C, D)):
+        return None
+    return second
+
+
+def split_sums(e, u):
+    """e with every sin/cos of a SUM containing u expanded, so that
+       sin(th_2 + th_3) shows its sin(th_2) and cos(th_2) terms.
+
+       .coeff(sp.sin(u)) cannot see inside sin(th_2 + th_3), and
+       invariant_gen.best_form() puts such sums back on purpose when that
+       leaves fewer unknowns.  Expanded, a_2*sin(th_2) + a_3*sin(th_2 + th_3)
+       is this leaf's pattern with A = a_2 + a_3*cos(th_3) -- the textbook
+       elbow solve."""
+    reps = {f: sp.expand_trig(f) for f in e.atoms(sp.sin, sp.cos)
+            if isinstance(f.args[0], sp.Add) and f.args[0].has(u)}
+    return sp.expand(e.xreplace(reps)) if reps else e
 
 
 def solvable_pair(u, ea, eb):
@@ -124,7 +148,7 @@ class simu_id(b3.Action):
         if not curr_unk.solved:
             for e in one_unk:
                 e_flat = e.RHS - e.LHS
-                e_flat = e_flat.expand()
+                e_flat = split_sums(e_flat.expand(), curr_unk.symbol)
                 # must carry a sin or cos of the unknown: this solver reads
                 # coefficients via .coeff(sin(u)) / .coeff(cos(u)), so a purely
                 # algebraic appearance of u (e.g. an SOA definition) yields
@@ -209,7 +233,10 @@ class simu_solver(b3.Action):
 
 
         sol = sp.atan2(A*C - B*D, A*D + B*C)
-        
+        if sol.has(curr_unk.symbol):    # not a solution;  _partner_of should have refused
+            print(f"Simultaneous Eqn Unsuccessful: solution contains {curr_unk.symbol}")
+            return b3.FAILURE
+
         curr_unk.solutions=[sol]
         # enable test for atan(0,0) case
         curr_unk.argument = sp.Abs(A*C - B*D) + \
@@ -243,6 +270,8 @@ class TestSolver005(unittest.TestCase):
         self.test_m7_rejects_algebraic_pair()
         self.test_m7_rejects_mixed_sign_pair()
         self.test_m7_solvable_pair_tries_both_role_assignments()
+        self.test_m7_ur5_th2_sum_of_angles()
+        self.test_m7_rejects_leftover_unknown()
 
     #####################################################################
     #  helpers
@@ -438,6 +467,34 @@ class TestSolver005(unittest.TestCase):
         expected = sp.atan2(AA*CC, AA*DD)
         self.assertEqual(sp.simplify(u.solutions[0] - expected), 0, fs)
 
+    def test_m7_ur5_th2_sum_of_angles(self):
+        '''UR5's th_2 pair, as invariant_gen hands it over:  th_3 solved, and
+           th_2 also inside sin(th_2 + th_3).  The leaf used to read that term
+           as part of the constant and return a th_2 containing th_2.'''
+        sp.var('Px Py Pz a_2 a_3 d_1 d_5 d_6 r_33 th_1 th_2 th_3 th_234 th_5')
+        fs = ' simultaneous eqn UR5 th_2 FAIL'
+        eq1 = (-Pz + a_2*sp.sin(th_2) + a_3*sp.sin(th_2 + th_3) + d_1
+               - d_5*sp.cos(th_234) + d_6*r_33)
+        eq2 = (-Px*sp.cos(th_1) - Py*sp.sin(th_1) + a_2*sp.cos(th_2)
+               + a_3*sp.cos(th_2 + th_3) + d_5*sp.sin(th_234)
+               - d_6*sp.sin(th_5)*sp.cos(th_234))
+
+        status, u = self.run_leaf([eq1, eq2], th_2,
+                                  presolved=(th_1, th_3, th_234, th_5))
+
+        self.assertEqual(status, b3.SUCCESS, fs + ' (leaf did not fire)')
+        self.assertFalse(u.solutions[0].has(th_2), fs + ' (solution contains th_2)')
+
+        #  round trip:  pick everything but Pz, Px;  make both equations hold
+        #  at th_2 = 0.7;  the solution must give 0.7 back
+        v = {Py: 0.3, a_2: 0.425, a_3: 0.392, d_1: 0.089, d_5: 0.095,
+             d_6: 0.082, r_33: -0.4, th_1: 0.5, th_3: -1.1, th_234: 0.9,
+             th_5: 1.3, th_2: 0.7}
+        v[Pz] = sp.solve(eq1.subs(v), Pz)[0]
+        v[Px] = sp.solve(eq2.subs(v), Px)[0]
+        got = float(u.solutions[0].subs(v))
+        self.assertAlmostEqual(got, 0.7, places=10, msg=fs + ' (wrong value)')
+
     #####################################################################
     #  negative cases -- these are the two bugs
 
@@ -473,6 +530,21 @@ class TestSolver005(unittest.TestCase):
         if u.solved:   # extra diagnosis if it ever regresses
             self.assertFalse(u.solutions[0].has(th_23),
                              fs + ' (solution still contains th_23)')
+
+
+    def test_m7_rejects_leftover_unknown(self):
+        '''A pair whose sin/cos coefficients match but which carries u in a
+           further term is NOT the pattern:  that term would go into C and the
+           atan2 would contain u.'''
+        sp.var('AA BB CC DD th_23')
+        fs = ' simultaneous eqn leftover-unknown FAIL'
+        eq1 = AA*sp.sin(th_23) + BB*sp.cos(th_23) - CC + th_23
+        eq2 = AA*sp.cos(th_23) - BB*sp.sin(th_23) - DD
+
+        status, u = self.run_leaf([eq1, eq2], th_23)
+
+        self.assertEqual(status, b3.FAILURE, fs + ' (accepted the pair)')
+        self.assertFalse(u.solved, fs)
 
 
 def run_test():

@@ -1031,6 +1031,20 @@ to NaN, so the self-reference reads NaN and the row is dropped. An earlier note 
 would catch this at compile time as an undeclared name — that was true of the OLD generator,
 which emitted the unversioned symbol, and is not true now.
 
+**Fixed 2026-10-15: the self-reference was `two_eqn_m7` reading coefficients it could not see.**
+`invariant_gen.best_form()` substitutes `th_23 -> th_2 + th_3` on purpose when that leaves fewer
+unknowns, and on UR5 it produced the textbook elbow pair, legitimately in `th_2` alone once `th_3`
+is solved:  `0 = a_2*sin(th_2) + a_3*sin(th_2 + th_3) - ...`.  `simu_id` flattened it with
+`.expand()`, which leaves `sin(th_2 + th_3)` whole, so `.coeff(sin(th_2))` missed that term and
+`simu_solver` put it into the "constant" C -- `th_2` and all.  JennyGuoSp24's `th_3` was the same
+leaf on the same shape.  Collapsing the sum back to `th_23` was considered and rejected:  it
+would make a one-unknown equation a two-unknown one and throw the solve away.  Instead
+`split_sums()` expands every sin/cos of a sum containing the unknown before the coefficients
+are read (A = a_2 + a_3*cos(th_3), B = a_3*sin(th_3)), and `_partner_of()` refuses a pair
+whose remainder still contains it.  Both robots now pass both closed-loop checks.  The report's
+TikZ figure drops self edges (it must, to layer by depth), which is why the defect was visible
+only in the edge listing;  `robot_baseline` now fails any `edge X X` in `graphs/`.
+
 ### Per-branch returns, and the one place they must not happen
 
 `ikin_<R>()` returns the branches that exist; the count varies with the pose and an empty

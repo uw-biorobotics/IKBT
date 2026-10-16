@@ -582,17 +582,7 @@ Please keep commit messages to 5 lines or less.
 
 ## Still open
 
-1. **Two robots solve "completely" and their generated code is still wrong**
-   (JennyGuoSp24, UR5). ONE defect, and it is the SOLVER's, not the code generator's:
-   the solution for a variable CONTAINS that variable --
-   `th_23v1 = atan2(..., ... + a_3*sin(th_23v1 - th_2v1))` is not a solution for `th_23v1`.
-   (That example is Arm_3's, which since 2026-10-09 takes the one-variable path instead and
-   is correct, 2 of 2.)
-   Python raises `UnboundLocalError`; the C++ compiles, runs, reads the self-reference as NaN
-   and returns NO branches. Quieter, and no better -- an empty answer here is a wrong answer
-   wearing "unreachable" as a disguise. Both FAIL the closed-loop checks, in both languages.
-
-2. **Division by zero is the one domain asymmetry left.** `1.0/0.0` raises `ZeroDivisionError`
+1. **Division by zero is the one domain asymmetry left.** `1.0/0.0` raises `ZeroDivisionError`
    in python and gives `inf` in C++, and it is an OPERATOR, so the `acos_dc` treatment does not
    reach it. The one-variable search already catches it (`branches_at_*` swallows the
    exception and reads the value as "no solution here"), so what is exposed is the
