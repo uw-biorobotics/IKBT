@@ -142,6 +142,9 @@ def asin_dc(x):
 def sqrt_dc(x):
     return sqrt(x) if x >= 0.0 else float('nan')
 
+# note that an interesting result is that when complex joint angles are returned, it can be shown
+#   that the real part of the complex joint angle represents the closest *reachable* end effector
+#   pose to the desired pose.  We are not supporting this here.
 '''
 #
 #   Output python code to simplify and numerically evaluate the forward kinematic equations
