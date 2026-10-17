@@ -71,6 +71,7 @@ from ikbtleaves.assigner_leaf import TestSolver027
 from ikbtleaves.onevar_ik    import TestSolver028
 from ikbtfunctions.output_onevar_python import TestSolver029
 from ikbtfunctions.output_cpp_common import TestSolver031
+from ikbtleaves.disambiguate import TestSolver032
 
 
 import b3 as b3          # behavior trees
@@ -409,6 +410,7 @@ if __name__ == '__main__':
     #  `from <leaf> import *` for every leaf, so two test classes sharing a
     #  name would leave one of them shadowed and never run.
     suite3.addTest(TestSolver031())   # output_cpp_common.py # the C++ generator
+    suite3.addTest(TestSolver032())   # disambiguate.py   # unused equations decide a branch
     suite1.addTest(TestSolver009())   # helperfunctions.py
 
     if(not HTML):

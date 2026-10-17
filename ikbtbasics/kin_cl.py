@@ -114,6 +114,12 @@ class unknown(object):
         self.nversions = 1  # filled in by Robot.create_solution_set() in solution order
         self.nsolutions = 0   # number of solutions (== len(self.solutions))
         self.assumption = [] #assumputions about the solutions
+        #  Set by a solver leaf that splits into branches on a SIGN it could not
+        #  determine:  {'solutions': the branches it emitted, 'expr': ONE
+        #  expression valid for every branch, still holding the unknowns whose
+        #  sign decided the split}.  Read by the disambiguate leaf, which tries
+        #  to express those unknowns from equations no solver used.
+        self.unsplit = None
         self.LHSversionNames = []
         self.argument = sp.var('a')*sp.var('b')  # argument to arcin() for example (used for generating checking code output)
 
@@ -222,23 +228,24 @@ class unknown(object):
         R.solveN += 1                 # increment solution level counter
         self.solveorder = R.solveN    # first solution starts with 0 (no more "Root")
 
-        #get dependencies from the solutions
-        n=1
-        for sol in self.solutions:
-            self.dependencies.update(get_deps(unknowns,sol))  # add to set of deps
-            solname = self.name + 's' + str(n)
-            n += 1
-            self.solutionNames.append(solname)
-        # set up a node
-        newNode = Node(self)
-
+        self.record_versions(R, unknowns)
+        R.solution_nodes.append(Node(self))
         print(self.details())
-        #breakpoint()
 
-        R.solution_nodes.append(newNode)
+    def record_versions(self, R, unknowns):
+        '''Dependencies, solution names, version names and graph edges, all
+           read from self.solutions.  set_solved() calls it once;  the
+           disambiguate leaf calls it again on every solved unknown after it
+           has replaced a branch pair with one solution, because the version
+           counts of everything downstream change with it.'''
+        self.dependencies = set()
+        self.solutionNames = []
+        self.versionNames = []
+        self.nsolutions = len(self.solutions)
+        for n, sol in enumerate(self.solutions, start=1):
+            self.dependencies.update(get_deps(unknowns, sol))
+            self.solutionNames.append(self.name + 's' + str(n))
 
-        #########
-        # create the versions of this unknown
         nver = len(self.solutions)
         for d in self.dependencies:
             nver *= d.nsolutions
@@ -250,9 +257,6 @@ class unknown(object):
             #  see "THE TWO NAMESPACES MUST STAY SEPARATE" in CLAUDE.md.
             self.versionNames.append(self.name + 'v' + str(i+1))
 
-
-        #########################
-        # update edge set
         for d in self.dependencies:
             R.notation_graph_edges.add(Edge(self,d))  #edge(unk, dependency)
 

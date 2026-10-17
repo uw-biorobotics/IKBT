@@ -58,6 +58,7 @@ from ikbtleaves.sub_transform   import sub_transform
 from ikbtleaves.sum_id          import sum_id      # detect and sub sum-of-angles
 from ikbtleaves.updateL         import updateL
 from ikbtleaves.comp_detect     import comp_det
+from ikbtleaves.disambiguate    import disambiguate
 
 #  Top-of-tree leaves.  symbolic_loop is the outer solve loop (it replaced
 #  b3.RepeatUntilSuccess -- see below) and report_gen is codegen-as-a-leaf.
@@ -254,7 +255,8 @@ def build_symbolic_branch(tag='', leaf_debug=False, solver_debug=False,
                           quiet=False, worktools=None):
     '''Assemble one complete symbolic solver, building its leaves as it wires them.
 
-           Sequence[ clear_state, symbolic_loop(x20, solveRoutine) ]
+           Sequence[ clear_state, symbolic_loop(x20, solveRoutine),
+                     disambiguate ]
 
            solveRoutine = Sequence[ sub_transform,
                                     RepeatUntilSuccess(x6, Sequence[assigner,
@@ -350,7 +352,13 @@ def build_symbolic_branch(tag='', leaf_debug=False, solver_debug=False,
     clearState.Name = 'Clear Solver State' + tag
     clearState.BHdebug = leaf_debug
 
-    branch = b3.Sequence([clearState, symLoop])
+    ###  Once every unknown is solved:  drop solution branches that an
+    #  equation no solver used rules out.  Always SUCCESS.
+    disamb = disambiguate()
+    disamb.Name = 'Disambiguate' + tag
+    disamb.BHdebug = leaf_debug
+
+    branch = b3.Sequence([clearState, symLoop, disamb])
     branch.Name = 'Symbolic Branch' + tag
     return branch
 
@@ -365,7 +373,8 @@ def build_default_bt(leaf_debug=False, solver_debug=False, codegen=False,
                                        hybrid_branch ]
 
            symbolic_branch = Sequence[ clear_state,
-                                       symbolic_loop(x20, solveRoutine) ]
+                                       symbolic_loop(x20, solveRoutine),
+                                       disambiguate ]
 
            onevar_branch   = Sequence[ onevar_rank,
                                        RepeatUntilSuccess(

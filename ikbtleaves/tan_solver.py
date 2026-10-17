@@ -318,6 +318,11 @@ class tan_solve(b3.Action):    # Solve sin cos equation pairs
                 u.assumption.append(sp.Q.positive(d2[Aw]))
                 u.assumption.append(sp.Q.negative(d2[Aw]))
                 u.nsolutions = 2
+                #  The one-branch form above is right for EITHER sign;  it was
+                #  not used only because d[Aw], d2[Aw] hold unsolved unknowns.
+                #  disambiguate may later express those from other equations.
+                u.unsplit = {'solutions': [sol1, sol2],
+                             'expr': sp.atan2(Y/d[Aw], X/d2[Aw])}
 
                 # note that set_solved is done in ranker (ranking sincos, and tan sols)
 

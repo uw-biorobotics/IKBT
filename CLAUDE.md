@@ -21,6 +21,14 @@ and where every log and artifact lands. Read it (especially "Testing Overview") 
 numbers, dated decisions, and designs that were tried and abandoned. Nothing there is needed to
 read or change IKBT; it is where a "why is it like this?" question gets answered.  
 
+## Terminology (must use)
+
+Never write a bare "pose". In anything written for this project (explanations, comments, docs,
+commit messages) say which one is meant:
+
+- **joint-pose**: a joint vector `q`, a point in joint space.
+- **end-effector-pose**: a 4x4 transform `T`, where the hand is in task space. `T = FK(q)`.
+
 ## Commands
 
 All commands must be run **from the repo root** (module imports are package-relative):
