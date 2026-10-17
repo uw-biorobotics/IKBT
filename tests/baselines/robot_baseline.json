@@ -2,9 +2,6 @@
  "closed_loop": true,
  "codegen": true,
  "complaints": {
-  "Craig417": [
-   "2 of 4 returned joint vectors miss the target"
-  ],
   "DZhang": [
    "1 of 2 returned joint vectors miss the target"
   ],
@@ -14,20 +11,11 @@
   "MiniDD": [
    "3 of 4 returned joint vectors miss the target"
   ],
-  "Palm13": [
-   "1 of 2 returned joint vectors miss the target"
-  ],
   "Panda": [
    "8 of 16 returned joint vectors miss the target"
   ],
   "Parkman13": [
    "3 of 4 returned joint vectors miss the target"
-  ],
-  "Sims11": [
-   "1 of 2 returned joint vectors miss the target"
-  ],
-  "Wachtveitl": [
-   "1 of 2 returned joint vectors miss the target"
   ]
  },
  "n_robots": 32,
@@ -65,7 +53,7 @@
    },
    "solution_set_error": null,
    "status": "solved (onevar)",
-   "wall_s": 20.82,
+   "wall_s": 38.99,
    "written": [
     "cond",
     "cpp_robot",
@@ -106,7 +94,7 @@
    },
    "solution_set_error": null,
    "status": "solved (onevar)",
-   "wall_s": 32.69,
+   "wall_s": 37.8,
    "written": [
     "cond",
     "cpp_robot",
@@ -143,7 +131,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 5.89,
+   "wall_s": 7.51,
    "written": [
     "cpp_robot",
     "fk",
@@ -179,7 +167,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 3.05,
+   "wall_s": 23.34,
    "written": [
     "cpp_robot",
     "fk",
@@ -214,7 +202,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 2.3,
+   "wall_s": 2.51,
    "written": [
     "cpp_robot",
     "fk",
@@ -255,7 +243,7 @@
    },
    "solution_set_error": null,
    "status": "solved (onevar)",
-   "wall_s": 12.92,
+   "wall_s": 35.91,
    "written": [
     "cond",
     "cpp_robot",
@@ -292,7 +280,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 4.56,
+   "wall_s": 26.43,
    "written": [
     "cpp_robot",
     "fk",
@@ -308,7 +296,7 @@
     "note": "probe recovered",
     "path": "symbolic",
     "recovered": true,
-    "total": 4
+    "total": 2
    },
    "codegen_run": true,
    "error": null,
@@ -316,11 +304,11 @@
    "methods": {
     "th_1": "sinANDcos",
     "th_2": "simultaneous eqn",
-    "th_3": "sinANDcos",
+    "th_3": "sinANDcos, disambiguated",
     "th_34": "algebra",
     "th_4": "simultaneous eqn"
    },
-   "n_solutions": 4,
+   "n_solutions": 2,
    "n_solved": 5,
    "n_unknowns": 5,
    "name": "Craig417",
@@ -328,7 +316,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 5.24,
+   "wall_s": 30.29,
    "written": [
     "cpp_robot",
     "fk",
@@ -365,7 +353,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 10.5,
+   "wall_s": 23.62,
    "written": [
     "cpp_robot",
     "fk",
@@ -401,7 +389,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 8.73,
+   "wall_s": 32.95,
    "written": [
     "cpp_robot",
     "fk",
@@ -436,7 +424,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 6.04,
+   "wall_s": 7.23,
    "written": [
     "cpp_robot",
     "fk",
@@ -475,7 +463,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 15.15,
+   "wall_s": 17.69,
    "written": [
     "cpp_robot",
     "fk",
@@ -513,7 +501,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 17.1,
+   "wall_s": 41.74,
    "written": [
     "cpp_robot",
     "fk",
@@ -551,7 +539,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 15.38,
+   "wall_s": 39.66,
    "written": [
     "cpp_robot",
     "fk",
@@ -592,7 +580,7 @@
    },
    "solution_set_error": null,
    "status": "solved (onevar)",
-   "wall_s": 23.85,
+   "wall_s": 48.56,
    "written": [
     "cond",
     "cpp_robot",
@@ -631,7 +619,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 16.82,
+   "wall_s": 41.8,
    "written": [
     "cpp_robot",
     "fk",
@@ -672,7 +660,7 @@
    },
    "solution_set_error": null,
    "status": "solved (onevar)",
-   "wall_s": 43.83,
+   "wall_s": 71.9,
    "written": [
     "cond",
     "cpp_robot",
@@ -709,7 +697,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 6.39,
+   "wall_s": 34.87,
    "written": [
     "cpp_robot",
     "fk",
@@ -744,7 +732,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 3.15,
+   "wall_s": 23.45,
    "written": [
     "cpp_robot",
     "fk",
@@ -780,7 +768,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 5.75,
+   "wall_s": 33.73,
    "written": [
     "cpp_robot",
     "fk",
@@ -818,7 +806,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 8.95,
+   "wall_s": 52.26,
    "written": [
     "cpp_robot",
     "fk",
@@ -834,18 +822,18 @@
     "note": "probe recovered",
     "path": "symbolic",
     "recovered": true,
-    "total": 2
+    "total": 1
    },
    "codegen_run": true,
    "error": null,
    "hybrid": null,
    "methods": {
     "d_2": "algebra",
-    "th_1": "atan2(y,x)",
+    "th_1": "atan2(y,x), disambiguated",
     "th_3": "simultaneous eqn",
     "th_4": "simultaneous eqn"
    },
-   "n_solutions": 2,
+   "n_solutions": 1,
    "n_solved": 4,
    "n_unknowns": 4,
    "name": "Palm13",
@@ -853,7 +841,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 3.36,
+   "wall_s": 4.13,
    "written": [
     "cpp_robot",
     "fk",
@@ -890,7 +878,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 18.78,
+   "wall_s": 73.75,
    "written": [
     "cpp_robot",
     "fk",
@@ -927,7 +915,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 12.39,
+   "wall_s": 54.59,
    "written": [
     "cpp_robot",
     "fk",
@@ -965,7 +953,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 16.58,
+   "wall_s": 41.96,
    "written": [
     "cpp_robot",
     "fk",
@@ -1014,7 +1002,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved (hybrid)",
-   "wall_s": 41.07,
+   "wall_s": 74.88,
    "written": [
     "cpp_robot",
     "fk",
@@ -1033,7 +1021,7 @@
     "note": "probe recovered",
     "path": "symbolic",
     "recovered": true,
-    "total": 2
+    "total": 1
    },
    "codegen_run": true,
    "error": null,
@@ -1041,11 +1029,11 @@
    "methods": {
     "d_1": "algebra",
     "d_2": "algebra",
-    "th_3": "atan2(y,x)",
+    "th_3": "atan2(y,x), disambiguated",
     "th_4": "simultaneous eqn",
     "th_5": "simultaneous eqn"
    },
-   "n_solutions": 2,
+   "n_solutions": 1,
    "n_solved": 5,
    "n_unknowns": 5,
    "name": "Sims11",
@@ -1053,7 +1041,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 4.88,
+   "wall_s": 5.59,
    "written": [
     "cpp_robot",
     "fk",
@@ -1090,7 +1078,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 6.54,
+   "wall_s": 30.94,
    "written": [
     "cpp_robot",
     "fk",
@@ -1127,7 +1115,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 6.67,
+   "wall_s": 28.74,
    "written": [
     "cpp_robot",
     "fk",
@@ -1167,7 +1155,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 55.3,
+   "wall_s": 122.92,
    "written": [
     "cpp_robot",
     "fk",
@@ -1183,20 +1171,20 @@
     "note": "probe recovered",
     "path": "symbolic",
     "recovered": true,
-    "total": 2
+    "total": 1
    },
    "codegen_run": true,
    "error": null,
    "hybrid": null,
    "methods": {
     "d_1": "algebra",
-    "th_2": "atan2(y,x)",
+    "th_2": "atan2(y,x), disambiguated",
     "th_3": "atan2(y,x), arcsin, best ranked, atan2(y,x)",
     "th_34": "algebra",
     "th_4": "simultaneous eqn",
     "th_5": "simultaneous eqn"
    },
-   "n_solutions": 2,
+   "n_solutions": 1,
    "n_solved": 6,
    "n_unknowns": 6,
    "name": "Wachtveitl",
@@ -1204,7 +1192,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 9.13,
+   "wall_s": 20.97,
    "written": [
     "cpp_robot",
     "fk",
@@ -1238,7 +1226,7 @@
    "onevar": null,
    "solution_set_error": null,
    "status": "solved",
-   "wall_s": 2.28,
+   "wall_s": 22.87,
    "written": [
     "cpp_robot",
     "fk",

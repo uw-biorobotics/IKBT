@@ -18,17 +18,17 @@ generate the LaTex report, etc.   Fully closed loop testing is the most rigorous
 
 
 
-## Pose, posture, seed
+## End-effector-pose, joint-pose, seed
 
 Three words used throughout the checks below.  Keep them apart:
 
 | term | space | meaning |
 |---|---|---|
-| **pose** | task space | `T = FK(q0)`, a 4×4 transform:  where the hand is.  The checks make one from a random joint vector `q0`, so the arm reaches it by construction. |
-| **posture** | joint space | a joint vector `q` with `FK(q) = T`.  A pose usually has several — Puma up to 8 (shoulder left/right × elbow up/down × wrist flipped or not).  The closed form gives the exact set. |
-| **seed** | joint space | a `q` that the hybrid method's *derived* arm's closed form gives for `T` (Phase I).  Only approximately a true posture;  Phase II refines it into one. |
+| **end-effector-pose** | task space | `T = FK(q0)`, a 4×4 transform:  where the hand is.  The checks make one from a random joint vector `q0`, so the arm reaches it by construction. |
+| **joint-pose** | joint space | a joint vector `q` with `FK(q) = T`.  An end-effector-pose usually has several — Puma up to 8 (shoulder left/right × elbow up/down × wrist flipped or not).  The closed form gives the exact set. |
+| **seed** | joint space | a `q` that the hybrid method's *derived* arm's closed form gives for `T` (Phase I).  Only approximately a true joint-pose;  Phase II refines it into one. |
 
-On the hybrid path the chain is **pose → Phase I → seeds → Phase II → postures**, and
+On the hybrid path the chain is **end-effector-pose → Phase I → seeds → Phase II → joint-poses**, and
 `FK` always means the *true* arm's:  a seed is judged by where it puts the real robot.
 
 Everything runs from the **repo root** — module imports are package-relative.
@@ -42,7 +42,7 @@ There are six questions worth asking of a change, and one command for each.
 | 3 | Did any path through the tree stop delivering? | `python3 -m scripts.robot_baseline --gate` | ~5 min |
 | 4 | Did anything move, anywhere, on any robot? | `python3 -m scripts.robot_baseline --full --diff` | hours |
 | 5 | Does the generated C++ still say what the generated Python says? | `python3 -m scripts.cpp_closed_loop_check --gate --keep` | ~2 min |
-| 6 | Does the hybrid method give the *right* answers, not just ones that reach the pose? | `python3 -m scripts.hybrid_test` | ~3 min |
+| 6 | Does the hybrid method give the *right* answers, not just ones that reach the end-effector-pose? | `python3 -m scripts.hybrid_test` | ~3 min |
 
 Run 1–3 after any edit. Run 4 before a commit that touches the tree, a solver
 leaf, or the code generators. Run 5 after touching a code generator — it needs
@@ -171,7 +171,7 @@ hand-checked, and a failure is the solver's, never the target's.
 | `scripts/cpp_expr_check.py` | one sympy expression through both printers | earliest |
 
 ```bash
-python3 -m scripts.check_solution_sets Puma              # one robot, 10 random poses
+python3 -m scripts.check_solution_sets Puma              # one robot, 10 random joint-poses
 python3 -m scripts.check_solution_sets Puma Stanford --poses 20 --gate
 python3 -m scripts.numerical_closed_loop_sol_check Puma
 python3 -m scripts.numerical_closed_loop_sol_check --keep     # don't re-solve
@@ -215,18 +215,20 @@ you whether the fault is in the closed form or in the code generator.
 own oracle — `T` came from `FK`, so a version that does not reproduce it is
 wrong and no stored count is needed to say so — and the sweep role belongs to
 `robot_baseline`, which calls the *second* script. It solves the robot **once**
-and then evaluates the version matrix at several random poses, because the
-solve is pose-independent and is the only expensive step.
+and then evaluates the version matrix at several random joint-poses, because the
+solve is independent of the end-effector-pose and is the only expensive step.
 
 It fails on two defects:
 
-- **a version that does not reproduce the pose.** Every version, not most of
-  them — a partial score is a failure here, so Craig417 (2-of-4), MiniDD
-  (1-of-4) and the other robots with spurious branches do not pass.
+- **a version that does not reproduce the end-effector-pose.** Every version, not most of
+  them — a partial score is a failure here, so MiniDD (1-of-4) and the other
+  robots with spurious branches do not pass.
   Why is diagnosed (2026-10-15, DEV_NOTES.md): the extra rows are combinations
   of branches that satisfy the equations each variable was solved from but not
-  the rest, and the true solution is always among the rows. A version that evaluates *complex* is excused
-  — that posture does not exist at that pose.
+  the rest, and the true solution is always among the rows. The `disambiguate`
+  leaf (2026-10-16) removes them where an unused equation decides the branch
+  symbolically; Palm13, Sims11, Wachtveitl and Craig417 pass because of it.
+  A version that evaluates *complex* is excused — that joint-pose does not exist at that end-effector-pose.
 - **two versions that are identical** — the same arm configuration — whether or
   not that configuration is correct (compared mod 2π on revolute joints, since
   `th` and `th + 2π` place the arm the same way). A repeated *right* one
@@ -236,10 +238,10 @@ It fails on two defects:
   `sinANDcos` branches coincide while `nsolutions` stays 2 — see
   `test_scB_tangency_duplicate_solutions`.
 
-It also reports when **which versions fail depends on the pose** — a stable
+It also reports when **which versions fail depends on the end-effector-pose** — a stable
 2-of-4 can mean two permanently broken branches or two-spurious-at-a-time with
-the guilty pair rotating, and the counts cannot tell those apart. Craig417 is
-the second kind.
+the guilty pair rotating, and the counts cannot tell those apart. Craig417 was
+the second kind, before `disambiguate` fixed it; MiniDD is now.
 
 What it **cannot** see is a solution that is *missing*: every count it has
 descends from the same leaves that built the solution set, so there is nothing
@@ -268,7 +270,7 @@ Like the python checker, it covers **all three paths from one command**:
 
 **Soundness and fidelity are different questions, and both are asked.**
 Soundness is the same closed loop as everywhere else: `q → T = FK(q) → compiled
-ikin → FK(each branch) == T`. Fidelity is that the *same* pose through the
+ikin → FK(each branch) == T`. Fidelity is that the *same* end-effector-pose through the
 generated Python gives the *same* rows in the *same* order to 1e-12. Fidelity
 is the one that earns its keep — every permutation of a correct answer is still
 a correct answer, so a round trip through FK cannot see a wrong column order, a
@@ -302,7 +304,7 @@ python3 -m scripts.hybrid_test --no-cpp               # skip the C++ comparison
 
 **Why it exists.** Raven-II is the only robot in `ROBOT_LIST` that needs the
 hybrid method, and nobody knows its exact answer independently, so the closed
-loop can say whether a refined answer *reaches* the pose but not whether it is
+loop can say whether a refined answer *reaches* the end-effector-pose but not whether it is
 *one of the right answers*. This test sends robots that **already solve
 symbolically** down the hybrid branch on purpose
 (`bt_assembly.build_hybrid_test_bt`), so their own closed form is the oracle.
@@ -315,55 +317,55 @@ Puma's DH table under another name, so the test's report, code and FK pickle
 never overwrite the real Puma's. Aliases are not in `ROBOT_LIST`, so no sweep
 picks them up.
 
-### Poses, postures and seeds
+### End-effector-poses, joint-poses and seeds
 
-As defined at the top of this file ([Pose, posture, seed](#pose-posture-seed)).
+As defined at the top of this file ([End-effector-pose, joint-pose, seed](#end-effector-pose-joint-pose-seed)).
 Here the derived arm is the true one with every link length scaled, each converged
-refined posture is compared with the robot's exact closed-form set, and the poses
+refined joint-pose is compared with the robot's exact closed-form set, and the end-effector-poses
 are 20 random ones by default.
 
-### Why some poses have no seeds
+### Why some end-effector-poses have no seeds
 
-Phase I asks the **derived** arm to reach the **true** arm's pose. If `T` is
+Phase I asks the **derived** arm to reach the **true** arm's end-effector-pose. If `T` is
 outside the derived arm's workspace, every branch of its closed form leaves its
 domain (an arccosine argument outside [−1, 1], a negative square root) and
 Phase I returns nothing. Scaling every length up does not just enlarge the
-workspace — it moves the **inner** boundaries outward too, so poses just inside
+workspace — it moves the **inner** boundaries outward too, so end-effector-poses just inside
 the true arm's inner boundary fall into the derived arm's hole.
 
-Measured on Puma, 20 poses, `delta = 0.05`:  all 4 seedless poses fail the
+Measured on Puma, 20 end-effector-poses, `delta = 0.05`:  all 4 seedless ones fail the
 same limit, the **shoulder offset** `d_3`. Puma's wrist center can never come
 closer to the base axis than `d_3 = 0.1245`;  the scaled arm's limit is
-`1.05 × d_3 = 0.1307`. At each of the 4 poses the wrist center sits at about
+`1.05 × d_3 = 0.1307`. At each of the 4 the wrist center sits at about
 0.125 from the axis — inside the true arm's workspace, inside the scaled arm's
 hole. The elbow's law-of-cosines limit was satisfied at all four;  the other 16
-poses clear both limits and Phase I gave all 8 seeds.
+clear both limits and Phase I gave all 8 seeds.
 
 That is a property of the **hybrid method**, not of this test: a derived arm
-that is slightly *bigger* loses poses near the true arm's inner boundaries, and
+that is slightly *bigger* loses end-effector-poses near the true arm's inner boundaries, and
 one that is slightly *smaller* (`--delta -0.05`) loses them near its outer
 reach instead. A smaller `|delta|` narrows the band.
 
 ### What fails and what is reported
 
 **Fails** (exit 1):  the hybrid solve does not finish;  a converged refined
-posture is **not** one of the exact ones (`unsound`);  or Phase I gave a pose
+joint-pose is **not** one of the exact ones (`unsound`);  or Phase I gave an end-effector-pose
 seeds and none of them converged (`stuck`).
 
-**Reported, not asserted:**  how many of the exact postures some refined seed
+**Reported, not asserted:**  how many of the exact joint-poses some refined seed
 reached (`exact: found/total`) — damped least squares stays in its seed's
-basin, and two seeds can share one;  poses with no seeds (`no seeds`), for the
-reason above;  and whether `q0` itself was among the refined postures
+basin, and two seeds can share one;  end-effector-poses with no seeds (`no seeds`), for the
+reason above;  and whether `q0` itself was among the refined joint-poses
 (`probe`). It also runs `cpp_closed_loop_check --hybrid` on each alias.
 
-Measured 2026-10-09, 20 poses, `delta = 0.05`:
+Measured 2026-10-09, 20 end-effector-poses, `delta = 0.05`:
 
-| robot | exact postures reached | unsound | no seeds | seeds converged | probe | C++ |
+| robot | exact joint-poses reached | unsound | no seeds | seeds converged | probe | C++ |
 |---|---|---|---|---|---|---|
 | Puma | 128 / 160 | 0 | 4 / 20 | 128 / 128 | 16 / 20 | agrees |
 | KawasakiRS007L | 160 / 160 | 0 | 0 / 20 | 160 / 160 | 20 / 20 | agrees |
 
-Puma's 32 missing postures are exactly the 8 at each of the 4 seedless poses.
+Puma's 32 missing joint-poses are exactly the 8 at each of the 4 seedless end-effector-poses.
 
 ## What a finished solve owes — `artifacts_owed()`
 

@@ -17,7 +17,7 @@ For release history, see [oldNews.md](oldNews.md).
 
 **Kinematics and numerics** — [`ikbtbasics/numeric_ik.py`](#ikbtbasicsnumeric_ikpy), [`ikbtbasics/kin_cl.py`](#ikbtbasicskin_clpy), [`ikbtbasics/eqn_sanity.py`](#ikbtbasicseqn_sanitypy), [`ikbtbasics/dh_analysis.py`](#ikbtbasicsdh_analysispy)
 
-**The behavior tree and its leaves** — [`ikbtfunctions/bt_assembly.py`](#ikbtfunctionsbt_assemblypy), [`ikbtleaves/symbolic_loop.py`](#ikbtleavessymbolic_looppy), [`ikbtleaves/assigner_leaf.py`](#ikbtleavesassigner_leafpy), [`ikbtleaves/onevar_ik.py`](#ikbtleavesonevar_ikpy), [`ikbtleaves/comp_detect.py`](#ikbtleavescomp_detectpy), [`ikbtleaves/invariant_gen.py`](#ikbtleavesinvariant_genpy), [`ikbtleaves/parallel_triple.py`](#ikbtleavesparallel_triplepy), [`ikbtleaves/tan_solver.py`](#ikbtleavestan_solverpy), [`ikbtleaves/updateL.py, ikbtbasics/ik_classes.py`](#ikbtleavesupdatelpy-ikbtbasicsik_classespy)
+**The behavior tree and its leaves** — [`ikbtfunctions/bt_assembly.py`](#ikbtfunctionsbt_assemblypy), [`ikbtleaves/symbolic_loop.py`](#ikbtleavessymbolic_looppy), [`ikbtleaves/assigner_leaf.py`](#ikbtleavesassigner_leafpy), [`ikbtleaves/onevar_ik.py`](#ikbtleavesonevar_ikpy), [`ikbtleaves/comp_detect.py`](#ikbtleavescomp_detectpy), [`ikbtleaves/invariant_gen.py`](#ikbtleavesinvariant_genpy), [`ikbtleaves/parallel_triple.py`](#ikbtleavesparallel_triplepy), [`ikbtleaves/tan_solver.py`](#ikbtleavestan_solverpy), [`ikbtleaves/disambiguate.py`](#ikbtleavesdisambiguatepy), [`ikbtleaves/updateL.py, ikbtbasics/ik_classes.py`](#ikbtleavesupdatelpy-ikbtbasicsik_classespy)
 
 **Report and code generation** — [`ikbtfunctions/progress.py`](#ikbtfunctionsprogresspy), [`ikbtfunctions/texwidth.py`](#ikbtfunctionstexwidthpy), [`ikbtfunctions/subexpressions.py`](#ikbtfunctionssubexpressionspy), [`ikbtfunctions/output_python.py`](#ikbtfunctionsoutput_pythonpy), [`ikbtfunctions/ik_robots.py`](#ikbtfunctionsik_robotspy)
 
@@ -560,6 +560,56 @@ fails to match because `cos(th_2)` sits inside an unexpanded product and `match(
 structural. Before `exclude=`, the same expression matched as `{Cw: 0, Dw: <whole expr>}`,
 which `count_unknowns(Dw) > 0` then rejected — same outcome, no crash.
 
+## ikbtleaves/disambiguate.py
+
+**Added 2026-10-16** to remove the spurious branches diagnosed on 2026-10-15 (see
+[`scripts/expected.py`](#scriptsexpectedpy)): rows that satisfy the equation each unknown was
+solved from but break an equation no leaf used. Plugging a row into that unused equation
+symbolically does not simply give 0 or non-0. It gives an expression that vanishes for some
+end-effector-poses and not others, which is why *which* rows fail rotates with the
+end-effector-pose. So the leaf does not drop rows; it looks for ONE expression per unknown that
+picks the right branch everywhere, by Groebner elimination over the unused equations, and
+accepts it only if it reproduces the joint value at random joint-poses of the true arm.
+
+| robot | before | after | split |
+|---|---|---|---|
+| Palm13 | 1/2 | 1/1 | `tan_solver` sign pair, decided by `Py` |
+| Sims11 | 1/2 | 1/1 | `tan_solver` sign pair, decided by `Px` |
+| Wachtveitl | 1/2 | 1/1 | `tan_solver` sign pair, `Px`, `Pz`, `r_33`, `th_3` eliminated |
+| Craig417 | 2/4 | 2/2 | `+-sqrt` |
+| DZhang, Mackler13, MiniDD, Parkman13 | 1/4 | 1/4 | `asin` / `pi - asin`, not resolved |
+| Panda | 8/16 | 8/16 | not resolved |
+| Puma, Stanford, Wrist | 8, 8, 2 | unchanged | genuine branches, correctly kept |
+
+**Why the four 1/4 robots are not resolved** (measured on MiniDD). `th_3 = +-acos(-Py/l_4)`
+and `th_4 = asin(r_23/sin(th_3))` or its supplement. No equation holds only `th_3`, `th_4` and
+the end-effector-pose, so deciding `th_4` means eliminating at least `th_5`, and the search runs
+out of its 20 s budget there: 40 eliminations with `th_5`, 29 of them hitting the 2 s limit, and
+it never reaches `th_2` or `d_1`. A 300 s budget does not help either: 211 eliminations with
+`th_5`, 138 hitting the limit, 6 giving a linear result, and all 6 failing the numerical check,
+so still nothing. Allowing two extra
+unknowns, or a better guess at which equations decide the branch, are the open options; both
+cost solve time on every robot with a genuine pair, since a genuine pair always runs to the
+budget.
+
+**Small subsets, not every equation at once.** On Wachtveitl, all 12 qualifying polynomials in
+15 variables did not finish in minutes. Every deciding system found so far uses exactly one
+more equation than there are unknowns to eliminate, so subsets of n to n+2 are tried, simplest
+first.
+
+**Two bugs found the day it was added.**
+
+- *It never ran on most robots.* Unknowns unpickled from an FK cache written before
+  `unknown.unsplit` existed have no such attribute; `_target()` raised, the leaf's catch-all
+  printed "skipped", and `check_solution_sets` hides solve output. `getattr(u, 'unsplit',
+  None)` fixed it, and Craig417 was resolved as a result.
+- *The time limit did not cover the whole elimination.* A `SIGALRM` alarm wrapped only
+  `sp.groebner`. On Panda one basis took 0.5 s and the back-substitution after it ran 420-470 s,
+  so the Panda check went from 40 s to 8-26 min. Found by pickling the slow call's arguments
+  from a full solve and replaying the single call (2 s to reproduce instead of 9 min). Now the
+  whole elimination runs in a forked child that is killed at the limit; `test_disE` checks a
+  sleep and a long C-level integer power are both stopped. Panda's check is now 1m34s.
+
 ## ikbtleaves/updateL.py, ikbtbasics/ik_classes.py
 
 **Sign-duplicate equations were common.** Measured on the shipped robots: half of
@@ -720,6 +770,9 @@ arm the same `atan2` pair is the genuine wrist flip. For Sims11, Wachtveitl, Pal
 Parkman13 every bad row has the orientation exact and misses on position only. Panda (6 DOF) is
 the exception that rules out a solve-time fix: which 8 of its 16 rows are spurious changes with the
 pose (rows 2, 6, 11, 15 are never right; row 1 is right at 60 poses of 100).
+
+Four of the nine were resolved by the `disambiguate` leaf on 2026-10-16; see
+[`ikbtleaves/disambiguate.py`](#ikbtleavesdisambiguatepy).
 
 **The history the table carried**, kept here because it was only in comments:
 

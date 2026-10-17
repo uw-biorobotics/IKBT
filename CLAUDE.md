@@ -181,6 +181,10 @@ tan and sin/cos solved a variable, picks fewer solutions / fewer dependencies, t
 `updateL` (re-scans equations and folds `R.kequation_aux_list` SOA definitions into L1/L2/L3p),
 `comp_detect` (termination), `sum_id` (identifies sum-of-angles terms; the actual solving is left to the
 algebra leaf), `sub_transform` / `x2y2_transform` (equation transforms, the latter is Craig eqn 4.65). 
+`disambiguate` runs once after the symbolic loop, in all three branches: where an unknown has two
+solutions, it searches the equations NO leaf used (Groebner elimination, small subsets, 2 s per try,
+20 s per unknown) for one expression that decides the branch, checks it numerically at random
+joint-poses, and replaces the pair. Always SUCCESS; a pair it cannot resolve stays.
 
 **THE RULE, precisely.** An unsolved unknown is **determined** when `Robot.kequation_aux_list` holds a
 *definition* of it — an equation whose LHS is that unknown's own symbol and whose RHS is free of
@@ -480,8 +484,8 @@ at some values and not others would stitch one branch's error onto another's cur
 the per-branch domain edges the search hunts roots at.
 
 **AN OUT-OF-DOMAIN ARCCOSINE IS NORMAL, EVEN ON A REACHABLE POSE.** "Reachable" means at least
-one joint vector exists, not that every enumerated branch exists: IKBT does not discard
-spurious branches, a posture can fail to exist at a pose the arm reaches, and on the hybrid
+one joint vector exists, not that every enumerated branch exists: IKBT discards a spurious
+branch only where `disambiguate` can resolve it, a posture can fail to exist at a pose the arm reaches, and on the hybrid
 path the closed form belongs to a *displaced* arm that genuinely cannot reach everything the
 true one can (Raven-II's derived arm puts the tool 13 mm off at every joint vector). It is data, not a fault. Full
 reasoning and the measurement: @IKdocs/DEV_NOTES.md.

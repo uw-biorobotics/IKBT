@@ -10,7 +10,7 @@ Bartell            solved             5/5         2 2/2 symbolic   cpp_robot, fk
 Brad               solved             4/4         1 1/1 symbolic   cpp_robot, fk, py, tex
 C-Arm              solved (onevar)    6/6         2 8/8 onevar     cond, cpp_robot, fk, onevar, tex
 Chair_Helper       solved             5/5         2 2/2 symbolic   cpp_robot, fk, py, tex
-Craig417           solved             5/5         4 2/4 symbolic   cpp_robot, fk, py, tex
+Craig417           solved             5/5         2 2/2 symbolic   cpp_robot, fk, py, tex
 DZhang             solved             6/6         4 1/2 symbolic   cpp_robot, fk, py, tex
 Frei13             solved             5/5         4 4/4 symbolic   cpp_robot, fk, py, tex
 ICP5p5_A21         solved             4/4         1 1/1 symbolic   cpp_robot, fk, py, tex
@@ -24,16 +24,16 @@ Mackler13          solved             5/5         4 1/4 symbolic   cpp_robot, fk
 Minder13           solved             4/4         2 2/2 symbolic   cpp_robot, fk, py, tex
 MiniDD             solved             5/5         4 1/4 symbolic   cpp_robot, fk, py, tex
 Olson13            solved             7/7         4 4/4 symbolic   cpp_robot, fk, py, tex
-Palm13             solved             4/4         2 1/2 symbolic   cpp_robot, fk, py, tex
+Palm13             solved             4/4         1 1/1 symbolic   cpp_robot, fk, py, tex
 Panda              solved             6/6        16 8/16 symbolic  cpp_robot, fk, py, tex
 Parkman13          solved             6/6         4 1/4 symbolic   cpp_robot, fk, py, tex
 Puma               solved             7/7         8 8/8 symbolic   cpp_robot, fk, py, tex
 Raven-II           solved (hybrid)    6/6         8 4/4 hybrid     cpp_robot, fk, hybrid, tex  [Raven-II_a_5_0: fk, py]
-Sims11             solved             5/5         2 1/2 symbolic   cpp_robot, fk, py, tex
+Sims11             solved             5/5         1 1/1 symbolic   cpp_robot, fk, py, tex
 Srisuan11          solved             6/6         4 4/4 symbolic   cpp_robot, fk, py, tex
 Stanford           solved             6/6         8 8/8 symbolic   cpp_robot, fk, py, tex
 UR5                solved             9/9         8 4/4 symbolic   cpp_robot, fk, py, tex
-Wachtveitl         solved             6/6         2 1/2 symbolic   cpp_robot, fk, py, tex
+Wachtveitl         solved             6/6         1 1/1 symbolic   cpp_robot, fk, py, tex
 Wrist              solved             3/3         2 2/2 symbolic   cpp_robot, fk, py, tex
 ------------------------------------------------------------------------------
   solved: 26,  solved (hybrid): 1,  solved (onevar): 5
@@ -49,15 +49,11 @@ Raven-II           SIMPLIFIED to Raven-II_a_5_0 -- a_5: 13.0000000000000 -> 0 (a
 
 FAILURES
 --------------------------------------------------------------
-Craig417           2 of 4 returned joint vectors miss the target
 DZhang             1 of 2 returned joint vectors miss the target
 Mackler13          3 of 4 returned joint vectors miss the target
 MiniDD             3 of 4 returned joint vectors miss the target
-Palm13             1 of 2 returned joint vectors miss the target
 Panda              8 of 16 returned joint vectors miss the target
 Parkman13          3 of 4 returned joint vectors miss the target
-Sims11             1 of 2 returned joint vectors miss the target
-Wachtveitl         1 of 2 returned joint vectors miss the target
 
 Solution methods  (recorded, not compared)
 --------------------------------------------------------------
@@ -107,7 +103,7 @@ Chair_Helper
 Craig417
     th_1     sinANDcos
     th_2     simultaneous eqn
-    th_3     sinANDcos
+    th_3     sinANDcos, disambiguated
     th_34    algebra
     th_4     simultaneous eqn
 DZhang
@@ -202,7 +198,7 @@ Olson13
     th_6     simultaneous eqn
 Palm13
     d_2      algebra
-    th_1     atan2(y,x)
+    th_1     atan2(y,x), disambiguated
     th_3     simultaneous eqn
     th_4     simultaneous eqn
 Panda
@@ -237,7 +233,7 @@ Raven-II
 Sims11
     d_1      algebra
     d_2      algebra
-    th_3     atan2(y,x)
+    th_3     atan2(y,x), disambiguated
     th_4     simultaneous eqn
     th_5     simultaneous eqn
 Srisuan11
@@ -266,7 +262,7 @@ UR5
     th_6     simultaneous eqn
 Wachtveitl
     d_1      algebra
-    th_2     atan2(y,x)
+    th_2     atan2(y,x), disambiguated
     th_3     atan2(y,x), arcsin, best ranked, atan2(y,x)
     th_34    algebra
     th_4     simultaneous eqn

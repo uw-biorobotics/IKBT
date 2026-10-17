@@ -64,10 +64,8 @@
 #   Developed by Blake Hannaford
 #   BioRobotics Lab, University of Washington
 
-import contextlib
 import itertools
-import signal
-import threading
+import multiprocessing
 import time
 import unittest
 
@@ -81,10 +79,11 @@ import b3 as b3          # behavior trees
 N_CHECK = 6
 CHECK_TOL = 1e-6
 
-#  Time limits:  one Groebner basis, and the whole search for one unknown.
+#  Time limits:  one elimination (Groebner basis and back-substitution), and
+#  the whole search for one unknown.
 #  The search for a GENUINE branch pair (Puma's elbow) always runs to the
 #  budget, since nothing will be found, so this is what it costs per pair.
-GROEBNER_SECONDS = 2.0
+ELIMINATE_SECONDS = 2.0
 SECONDS_PER_UNKNOWN = 20.0
 
 POSE_SYMBOLS = ([sp.Symbol(f'r_{i + 1}{j + 1}') for i in range(3) for j in range(3)]
@@ -141,7 +140,7 @@ def _is_revolute(u, eqns):
 
 def _target(u, eqns):
     '''Step 1:  the expression to make unknown-free.'''
-    rec = u.unsplit
+    rec = getattr(u, 'unsplit', None)   # absent on unknowns from an older FK pickle
     if rec and list(rec['solutions']) == list(u.solutions):
         return rec['expr']
     if _is_revolute(u, eqns):
@@ -181,31 +180,38 @@ def _back_substitute(basis, order):
     return vals
 
 
-class _Timeout(Exception):
-    pass
+def _limited(work, seconds):
+    '''work(), or None if it raised or took longer than `seconds`.  An
+       elimination can grow explosively, and an improvement must never stall a
+       solve.
 
+       IN A FORKED CHILD, KILLED AT THE LIMIT, and the WHOLE elimination, not
+       just the Groebner call.  On Panda a basis that took 0.5 s fed a
+       back-substitution that ran 420-470 s, outside the limit that then
+       covered only sp.groebner.  A kill also stops what an alarm signal
+       cannot:  a long C-level integer operation, or sympy code that catches
+       the alarm's exception.  Forking costs a few ms.  Where fork does not
+       exist (Windows) work() runs unlimited, and only the per-unknown budget
+       applies, between calls.'''
+    def guarded():
+        try:
+            return work()
+        except Exception:        # sympy declining a domain, or anything else
+            return None
 
-@contextlib.contextmanager
-def _time_limit(seconds):
-    '''Raise _Timeout inside the block after `seconds`.  A Groebner basis can
-       grow explosively, and an improvement must never stall a solve.  Uses
-       SIGALRM, so it limits nothing where that is unavailable (Windows, or
-       off the main thread);  the per-unknown budget still applies there.'''
-    if (not hasattr(signal, 'setitimer')
-            or threading.current_thread() is not threading.main_thread()):
-        yield
-        return
-
-    def expire(signum, frame):
-        raise _Timeout()
-
-    old = signal.signal(signal.SIGALRM, expire)
-    signal.setitimer(signal.ITIMER_REAL, seconds)
     try:
-        yield
-    finally:
-        signal.setitimer(signal.ITIMER_REAL, 0)
-        signal.signal(signal.SIGALRM, old)
+        ctx = multiprocessing.get_context('fork')
+    except ValueError:
+        return guarded()
+    receive, send = ctx.Pipe(duplex=False)
+    child = ctx.Process(target=lambda: send.send(guarded()))
+    child.start()
+    out = receive.recv() if receive.poll(seconds) else None
+    child.kill()
+    child.join()
+    receive.close()
+    send.close()
+    return out
 
 
 #  WHY A GROEBNER BASIS FITS THIS PROBLEM.
@@ -254,17 +260,17 @@ def _eliminate(polys, variables, elim, rep, needed, target_p):
     pose = sorted(free & set(POSE_SYMBOLS), key=str)
     coeffs = sorted(free - set(order) - set(pose), key=str)
     domain = sp.QQ.frac_field(*coeffs) if coeffs else sp.QQ
-    try:
-        with _time_limit(GROEBNER_SECONDS):
-            G = sp.groebner(polys, *order, *pose, order='lex', domain=domain)
-    except (_Timeout, sp.PolynomialError, sp.CoercionFailed, sp.DomainError):
-        return None
-    if list(G.exprs) == [1]:
-        return None
-    vals = _back_substitute(list(G.exprs), order)
-    if not needed <= set(vals):
-        return None
-    return target_p.xreplace(vals)
+
+    def work():
+        G = list(sp.groebner(polys, *order, *pose, order='lex', domain=domain).exprs)
+        if G == [1]:
+            return None
+        vals = _back_substitute(G, order)
+        if not needed <= set(vals):
+            return None
+        return target_p.xreplace(vals)
+
+    return _limited(work, ELIMINATE_SECONDS)
 
 
 def solve_target(target, S, allowed, eqns, unk_syms, u_sym=None, extras=(),
@@ -481,6 +487,7 @@ class TestSolver032(unittest.TestCase):
         self.test_disB_genuine_pair_left_alone()
         self.test_disC_prismatic()
         self.test_disD_extra_unknown_eliminated()
+        self.test_disE_time_limit_holds()
 
     def setUp(self):
         print('\n\n===============  Test disambiguate  =====================')
@@ -553,6 +560,19 @@ class TestSolver032(unittest.TestCase):
                     th_2: q2, th_3: q3, th_34: q3 + q4}
             vals.update({k: v.subs(vals) for k, v in F.items()})
             self.assertTrue(self.reaches(new, q2, vals), f'wrong at {q2, q3, q4}')
+
+    def test_disE_time_limit_holds(self):
+        '''An elimination past its limit is abandoned on time, including one
+           stuck in a single long C-level operation -- what Panda's runaway
+           back-substitution (420-470 s against a 2 s limit) looked like.'''
+        if 'fork' not in multiprocessing.get_all_start_methods():
+            self.skipTest('no fork:  the time limit is not enforced here')
+        for name, work in (('sleep', lambda: time.sleep(30)),
+                           ('C-level integer power', lambda: 3**(10**9))):
+            t = time.monotonic()
+            self.assertIsNone(_limited(work, 0.5), name)
+            self.assertLess(time.monotonic() - t, 3.0, f'{name} was not stopped')
+        self.assertEqual(_limited(lambda: 42, 5.0), 42)
 
 
 if __name__ == '__main__':
