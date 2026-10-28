@@ -57,14 +57,18 @@ and the string SOLUTION_PATH in it says which of the three paths produced it:
 
 IKdocs/CPP_API.md is the full reference, with a compiled example per path.
 
-C++17, AND EIGEN, WHICH SHIPS WITH IKBT.  A pose is an Eigen::Matrix4d (Mat4),
-a joint vector an Eigen::VectorXd (JointVec).  Eigen is header-only and a copy
+C++17, AND EIGEN, WHICH SHIPS WITH IKBT.  An end-effector-pose is an
+Eigen::Matrix4d, a joint-pose an Eigen::VectorXd -- spelled out in every
+signature, no aliases.  Eigen is header-only and a copy
 is vendored in Cpp_src/third_party/eigen3/, so there is nothing to install, no
 build system and no include path:
 
     g++ -std=c++17 -O2 -c Cpp/<Robot>CppCode/<Robot>.cpp
 
-Define IKBT_SYSTEM_EIGEN to use your own Eigen instead of the vendored copy.
+If your build already has an Eigen (ROS, CMake's find_package(Eigen3), or
+any -I that makes <Eigen/Dense> visible, or Eigen included earlier in the
+file), the generated code uses YOURS, automatically, so one program never
+holds two.  IKBT_SYSTEM_EIGEN / IKBT_VENDORED_EIGEN force either choice.
 
 The shared material in Cpp_src/ is reached by a relative #include,
 

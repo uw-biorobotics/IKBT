@@ -116,12 +116,12 @@ using namespace ikbt;
 using namespace ikbt::**IDENT**;
 int main(void)
 {
-    Mat4 T;
+    Eigen::Matrix4d T;
     for (int i = 0; i < 4; ++i)
         for (int j = 0; j < 4; ++j)
             if (std::scanf("%lf", &T(i, j)) != 1)
                 return 2;
-    SolutionList sols = **CALL**;
+    std::vector<Eigen::VectorXd> sols = **CALL**;
     std::printf("%d\\n", (int) sols.size());
     for (size_t i = 0; i < sols.size(); ++i) {
         for (int j = 0; j < (int) sols[i].size(); ++j)
@@ -144,7 +144,7 @@ def classify(stderr):
     return 'other'
 
 
-#  Which entry point returns a SolutionList, on each path.  The DRIVER below
+#  Which entry point returns the list of joint-poses, on each path.  The DRIVER below
 #  calls exactly one function and prints what it returns, so the compile gate
 #  has to ask each robot for the one it HAS.
 _COMPILE_CALL = {
@@ -311,11 +311,11 @@ FK_DRIVER = """
 using namespace ikbt;
 int main(void)
 {
-    JointVec q = JointVec::Zero(**NDOF**);
+    Eigen::VectorXd q = Eigen::VectorXd::Zero(**NDOF**);
     for (int i = 0; i < **NDOF**; ++i)
         if (std::scanf("%lf", &q[i]) != 1)
             return 2;
-    Mat4 T = fk_**IDENT**(q);
+    Eigen::Matrix4d T = fk_**IDENT**(q);
     for (int i = 0; i < 4; ++i)
         for (int j = 0; j < 4; ++j)
             std::printf("%.17g\\n", T(i, j));
@@ -324,7 +324,7 @@ int main(void)
 }
 """
 
-FK_DRIVER_JAC = """    Matrix J = jacobian_**IDENT**(q);
+FK_DRIVER_JAC = """    Eigen::MatrixXd J = jacobian_**IDENT**(q);
     for (int i = 0; i < (int) J.rows(); ++i)
         for (int j = 0; j < (int) J.cols(); ++j)
             std::printf("%.17g\\n", J(i, j));
@@ -424,10 +424,10 @@ using namespace ikbt;
 int main(void)
 {
     const int n = NDOF_**IDENT**;
-    JointVec q0 = JointVec::Zero(n);
+    Eigen::VectorXd q0 = Eigen::VectorXd::Zero(n);
     for (int i = 0; i < n; ++i)
         if (std::scanf("%lf", &q0[i]) != 1) return 2;
-    Mat4 Td;
+    Eigen::Matrix4d Td;
     for (int i = 0; i < 4; ++i)
         for (int j = 0; j < 4; ++j)
             if (std::scanf("%lf", &Td(i, j)) != 1) return 2;
@@ -587,7 +587,7 @@ using namespace ikbt;
 using namespace ikbt::**IDENT**;
 int main(void)
 {
-    Mat4 T;
+    Eigen::Matrix4d T;
     for (int i = 0; i < 4; ++i)
         for (int j = 0; j < 4; ++j)
             if (std::scanf("%lf", &T(i, j)) != 1) return 2;
@@ -615,7 +615,7 @@ using namespace ikbt;
 using namespace ikbt::**IDENT**;
 int main(void)
 {
-    Mat4 T;
+    Eigen::Matrix4d T;
     for (int i = 0; i < 4; ++i)
         for (int j = 0; j < 4; ++j)
             if (std::scanf("%lf", &T(i, j)) != 1) return 2;

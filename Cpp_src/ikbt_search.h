@@ -74,7 +74,7 @@ namespace ikbt {
 
 //  One solution:  the python twin's dict, field for field.
 struct OneVarSolution {
-    JointVec q;             // NDOF floats, JOINT_NAMES order, ready for FK
+    Eigen::VectorXd q;             // NDOF floats, JOINT_NAMES order, ready for FK
     double known_value;     // the value of the assumed variable it sits at
     int branch;             // which branch of the closed form it came from
     double error;           // ||dp|| + w_rot*theta -- what accept_tol measures
@@ -100,8 +100,8 @@ struct SearchConfig {
 
 
 //  The two robot-specific pieces.
-using BranchesFn = std::function<SolutionList(const Mat4 &, double)>;
-using ErrorsFn   = std::function<std::vector<double>(const Mat4 &, double)>;
+using BranchesFn = std::function<std::vector<Eigen::VectorXd>(const Eigen::Matrix4d &, double)>;
+using ErrorsFn   = std::function<std::vector<double>(const Eigen::Matrix4d &, double)>;
 
 typedef std::map<double, std::vector<double> > ErrorCache;
 
@@ -144,7 +144,7 @@ inline double wrap_value(double t, const SearchConfig &cfg)
 //  sample at every finer resolution, and a sample costs one closed-form solve
 //  plus one FK per branch.  Keyed on the double itself, which is exact across
 //  a doubling -- see sample_values().
-inline const std::vector<double> &cached_errors(const Mat4 &T, double value,
+inline const std::vector<double> &cached_errors(const Eigen::Matrix4d &T, double value,
                                                 ErrorCache &cache,
                                                 const ErrorsFn &errors)
 {
@@ -155,7 +155,7 @@ inline const std::vector<double> &cached_errors(const Mat4 &T, double value,
 }
 
 
-inline double error_of(const Mat4 &T, double t, int b, ErrorCache &cache,
+inline double error_of(const Eigen::Matrix4d &T, double t, int b, ErrorCache &cache,
                        const ErrorsFn &errors, const SearchConfig &cfg)
 {
     const std::vector<double> &e = cached_errors(T, wrap_value(t, cfg),
@@ -174,7 +174,7 @@ inline double error_of(const Mat4 &T, double t, int b, ErrorCache &cache,
 //  to, so the grid is extended by one step past each end instead: the closed
 //  form is as evaluable there as anywhere, and a root found just outside a
 //  GUESSED range is worth more than a root not found.
-inline void scan_curves(const Mat4 &T, int n, ErrorCache &cache,
+inline void scan_curves(const Eigen::Matrix4d &T, int n, ErrorCache &cache,
                         const ErrorsFn &errors, const SearchConfig &cfg,
                         std::vector<double> &values,
                         std::vector<std::vector<double> > &curves)
@@ -282,7 +282,7 @@ inline std::vector<size_t> local_minima(const std::vector<double> &curve)
 }
 
 
-inline double max_abs_diff(const JointVec &a, const JointVec &b)
+inline double max_abs_diff(const Eigen::VectorXd &a, const Eigen::VectorXd &b)
 {
     if (a.size() != b.size())
         return INF;
@@ -318,7 +318,7 @@ inline std::vector<OneVarSolution> dedup(std::vector<OneVarSolution> found,
 
 //  Bracket every dip in one branch's sampled curve and refine it.
 inline std::vector<OneVarSolution>
-roots_in(const Mat4 &T, const std::vector<double> &values,
+roots_in(const Eigen::Matrix4d &T, const std::vector<double> &values,
          const std::vector<double> &curve, int b, ErrorCache &cache,
          const BranchesFn &branches, const ErrorsFn &errors,
          const SearchConfig &cfg)
@@ -337,7 +337,7 @@ roots_in(const Mat4 &T, const std::vector<double> &values,
         if (e_star > cfg.accept_tol)
             continue;                   // a dip, not a root -- see the header
         t_star = wrap_value(t_star, cfg);
-        const std::vector<JointVec> qs = branches(T, t_star);
+        const std::vector<Eigen::VectorXd> qs = branches(T, t_star);
         if (b >= (int) qs.size())
             continue;
         OneVarSolution s;
@@ -354,7 +354,7 @@ roots_in(const Mat4 &T, const std::vector<double> &values,
 
 //  Look again, finely, in a window one grid step wide around each root.
 inline std::vector<OneVarSolution>
-hunt_near(const Mat4 &T, const std::vector<OneVarSolution> &found, double h,
+hunt_near(const Eigen::Matrix4d &T, const std::vector<OneVarSolution> &found, double h,
           ErrorCache &cache, const BranchesFn &branches,
           const ErrorsFn &errors, const SearchConfig &cfg,
           int fanout = 16, int rounds = 3)
@@ -417,7 +417,7 @@ domain_edges(const std::vector<double> &curve)
 
 //  Probe inward from every edge of this branch's domain, in halving steps.
 inline std::vector<OneVarSolution>
-hunt_edges(const Mat4 &T, const std::vector<double> &values,
+hunt_edges(const Eigen::Matrix4d &T, const std::vector<double> &values,
            const std::vector<double> &curve, int b, ErrorCache &cache,
            const BranchesFn &branches, const ErrorsFn &errors,
            const SearchConfig &cfg, int bisect = 40, int depth = 40)
@@ -475,7 +475,7 @@ hunt_edges(const Mat4 &T, const std::vector<double> &values,
 //  neighbourhood of everything found so far is re-scanned, because a root the
 //  grid stepped over is within one step of a root it did not.
 inline std::vector<OneVarSolution>
-solve_at(const Mat4 &T, int n, ErrorCache &cache, const BranchesFn &branches,
+solve_at(const Eigen::Matrix4d &T, int n, ErrorCache &cache, const BranchesFn &branches,
          const ErrorsFn &errors, const SearchConfig &cfg)
 {
     std::vector<double> values;
@@ -526,7 +526,7 @@ inline bool same_postures(const std::vector<OneVarSolution> &a,
 //  An empty result means no solution was FOUND, which is not quite
 //  "unreachable".
 inline std::vector<OneVarSolution>
-onevar_solve(const Mat4 &T, const BranchesFn &branches, const ErrorsFn &errors,
+onevar_solve(const Eigen::Matrix4d &T, const BranchesFn &branches, const ErrorsFn &errors,
              const SearchConfig &cfg)
 {
     ErrorCache cache;

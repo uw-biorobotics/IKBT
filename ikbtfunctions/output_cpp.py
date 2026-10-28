@@ -183,14 +183,14 @@ def output_cpp_code(Robot, solution_groups, f, known=None, owner=None):
     #
     #   The solution equations themselves.
     #
-    arglist = 'const Mat4 &T' + (', double %s' % known if known else '')
+    arglist = 'const Eigen::Matrix4d &T' + (', double %s' % known if known else '')
     print('//', file=f)
     print('//   Solve the unknowns in closed form.', file=f)
     print('//       T   4x4 numerical target for T06, row major', file=f)
-    print('//   Returns one JointVec per finite solution branch, or an EMPTY', file=f)
+    print('//   Returns one Eigen::VectorXd per finite solution branch, or an EMPTY', file=f)
     print('//   list if no branch is finite.', file=f)
     print('//', file=f)
-    print('SolutionList %s(%s)' % (funcname, arglist), file=f)
+    print('std::vector<Eigen::VectorXd> %s(%s)' % (funcname, arglist), file=f)
     print('{', file=f)
     print('    //  define the input vars', file=f)
     print(pose_unpack_cpp(), file=f)
@@ -253,14 +253,14 @@ def output_cpp_code(Robot, solution_groups, f, known=None, owner=None):
     //
     /////////////////////////////////////////////////////////////
 ''', file=f)
-    print('    SolutionList solution_list;', file=f)
+    print('    std::vector<Eigen::VectorXd> solution_list;', file=f)
     print('    solution_list.reserve(%d);' % n_branches, file=f)
     for row in rows:
         #  `known` has no column in the solution matrix, because nothing
         #  solved it, so its cell is just the argument's own name.
         vals = [known if j == known else row[order.index(j)] for j in joint_cols]
         print('    {', file=f)
-        print(f'        JointVec s({len(joint_cols)});', file=f)
+        print(f'        Eigen::VectorXd s({len(joint_cols)});', file=f)
         for k, (j, v) in enumerate(zip(joint_cols, vals)):
             print(f'        s({k}) = {v};   // {j}', file=f)
         print('        solution_list.push_back(s);', file=f)
@@ -276,7 +276,7 @@ def output_cpp_code(Robot, solution_groups, f, known=None, owner=None):
         print('    //  posture does not exist at this pose -- an arccosine', file=f)
         print('    //  out of range, or a negative discriminant.  An EMPTY', file=f)
         print('    //  list is what python says with False.', file=f)
-        print('    SolutionList reachable;', file=f)
+        print('    std::vector<Eigen::VectorXd> reachable;', file=f)
         print('    for (size_t i = 0; i < solution_list.size(); ++i)', file=f)
         print('        if (solution_list[i].allFinite())', file=f)
         print('            reachable.push_back(solution_list[i]);', file=f)
@@ -293,7 +293,7 @@ def output_cpp_code(Robot, solution_groups, f, known=None, owner=None):
 
     #
     #   The fixed-array entry point, for callers who have a double[4][4]
-    #   rather than a Mat4.
+    #   rather than an Eigen::Matrix4d.
     #
     print('''
 
@@ -312,7 +312,7 @@ def output_cpp_code(Robot, solution_groups, f, known=None, owner=None):
     print('int %s(%s)'
           % (funcname.replace('ikin', 'ikin_array', 1), array_args), file=f)
     print('{', file=f)
-    print('    SolutionList sols = %s(from_array(T)%s);'
+    print('    std::vector<Eigen::VectorXd> sols = %s(from_array(T)%s);'
           % (funcname, (', %s' % known) if known else ''), file=f)
     print('    if (sols.empty())', file=f)
     print('        return 0;', file=f)
@@ -367,7 +367,7 @@ int main()
 {
     //  The same sample pose the generated python tries:  Rx(pi/7) Ry(2pi/7),
     //  at (0.2, 0.3, 0.6).
-    Mat4 T = Mat4::Identity();
+    Eigen::Matrix4d T = Eigen::Matrix4d::Identity();
     T.topLeftCorner<3, 3>() =
         (Eigen::AngleAxisd(M_PI / 7.0, Eigen::Vector3d::UnitX())
          * Eigen::AngleAxisd(2.0 * M_PI / 7.0, Eigen::Vector3d::UnitY()))
@@ -376,7 +376,7 @@ int main()
 
     std::printf("**ROBOT**:  inverse kinematics of a sample pose\\n");**KNOWN_NOTE**
 
-    SolutionList sols = **FUNC**(T**EXTRA_ARG**);
+    std::vector<Eigen::VectorXd> sols = **FUNC**(T**EXTRA_ARG**);
     if (sols.empty()) {
         std::printf("  no solution:  that pose is not reachable by this arm\\n");
         return 0;

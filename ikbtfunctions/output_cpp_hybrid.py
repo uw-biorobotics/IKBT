@@ -128,16 +128,16 @@ _PHASES = '''
 //  cheap and weeds them out;  pass false to see the unfiltered list.
 //
 //  THESE ARE SEEDS, NOT ANSWERS.  Pass the one you want to refine_seed().
-inline SolutionList ikin_approx(const Mat4 &T,
+inline std::vector<Eigen::VectorXd> ikin_approx(const Eigen::Matrix4d &T,
                                           bool filter_spurious = true)
 {
-    SolutionList raw = ikin_**DIDENT**(T);
+    std::vector<Eigen::VectorXd> raw = ikin_**DIDENT**(T);
     if (!filter_spurious)
         return raw;
 
-    SolutionList out;
+    std::vector<Eigen::VectorXd> out;
     for (size_t i = 0; i < raw.size(); ++i) {
-        const Mat4 Tq = fk_**DIDENT**(raw[i]);
+        const Eigen::Matrix4d Tq = fk_**DIDENT**(raw[i]);
         if (!Tq.allFinite())
             continue;
         if ((Tq - T).cwiseAbs().maxCoeff() < APPROX_TOL)
@@ -171,7 +171,7 @@ inline SolutionList ikin_approx(const Mat4 &T,
 //
 //  Refinement stays in the basin of the seed it is given, which is why this
 //  takes a seed rather than choosing one.
-inline SolveResult refine_seed(const Mat4 &T, const JointVec &q_seed,
+inline SolveResult refine_seed(const Eigen::Matrix4d &T, const Eigen::VectorXd &q_seed,
                                          double tol = 1e-9, int max_iter = 100)
 {
     if ((int) q_seed.size() != NDOF) {
@@ -200,15 +200,15 @@ inline SolveResult refine_seed(const Mat4 &T, const JointVec &q_seed,
 
 struct RefineRecord {
     int index;
-    JointVec q_seed;
+    Eigen::VectorXd q_seed;
     SolveResult result;
 };
 
-inline std::vector<RefineRecord> refine_all(const Mat4 &T,
+inline std::vector<RefineRecord> refine_all(const Eigen::Matrix4d &T,
                                                       double tol = 1e-9,
                                                       int max_iter = 100)
 {
-    const SolutionList seeds = ikin_approx(T);
+    const std::vector<Eigen::VectorXd> seeds = ikin_approx(T);
     std::vector<RefineRecord> out;
     for (size_t i = 0; i < seeds.size(); ++i) {
         RefineRecord rec;
@@ -243,10 +243,10 @@ int main(void)
     //  A round trip:  pick joint values, build the pose they produce on the
     //  TRUE arm, and see whether the two phases recover them.
     const double q_all[6] = {0.4, -0.6, 0.7, 0.9, -0.5, 0.3};
-    JointVec q_demo = JointVec::Zero(NDOF);
+    Eigen::VectorXd q_demo = Eigen::VectorXd::Zero(NDOF);
     for (int i = 0; i < NDOF && i < 6; ++i)
         q_demo[i] = q_all[i];
-    const Mat4 T_goal = fk(q_demo);
+    const Eigen::Matrix4d T_goal = fk(q_demo);
 
     std::printf("\\n  %s -- hybrid IK via %s\\n", TRUE_ROBOT, APPROXIMATE_ARM);
     std::printf("  approximated by: %s\\n", DH_CHANGES);
@@ -255,7 +255,7 @@ int main(void)
         std::printf("%s%.2f", i ? " " : "", q_demo[i]);
     std::printf(") on the TRUE arm\\n\\n");
 
-    SolutionList seeds = ikin_approx(T_goal);
+    std::vector<Eigen::VectorXd> seeds = ikin_approx(T_goal);
     std::printf("  PHASE I: %d usable branch(es) from the approximate arm\\n",
                 (int) seeds.size());
     std::printf("           joints: ");

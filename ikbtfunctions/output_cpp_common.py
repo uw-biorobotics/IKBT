@@ -276,7 +276,7 @@ def joint_unpack_cpp(syms, indent='    '):
 
 
 def pose_unpack_cpp(indent='    '):
-    '''r_11..r_33, Px, Py, Pz out of a Mat4.
+    '''r_11..r_33, Px, Py, Pz out of an Eigen::Matrix4d.
 
        The same twelve names the equations are written in, indexed exactly
        as python indexes them:  T[0,3] there is T(0, 3) here, and is Px.'''
@@ -436,10 +436,10 @@ def fk_body_cpp(M, name, f, jacobian=True, owner=None, inline=True):
 
     print('//  q -> 4x4 homogeneous transform of frame 6 in the base frame.%s'
           % what_arm, file=f)
-    print('%sMat4 fk%s(const JointVec &q)' % (kw, sfx), file=f)
+    print('%sEigen::Matrix4d fk%s(const Eigen::VectorXd &q)' % (kw, sfx), file=f)
     print('{', file=f)
     print(joint_unpack_cpp(syms), file=f)
-    print('    Mat4 T;', file=f)
+    print('    Eigen::Matrix4d T;', file=f)
     print(matrix_cpp(T, 'T'), file=f)
     print('    return T;', file=f)
     print('}', file=f)
@@ -453,10 +453,10 @@ def fk_body_cpp(M, name, f, jacobian=True, owner=None, inline=True):
         print('//  rotates it into the base frame, which is where a pose', file=f)
         print('//  error lives;  it is in Cpp_src/ikbt_types.h, which this', file=f)
         print('//  file includes.', file=f)
-        print('%sMatrix jacobian%s(const JointVec &q)' % (kw, sfx), file=f)
+        print('%sEigen::MatrixXd jacobian%s(const Eigen::VectorXd &q)' % (kw, sfx), file=f)
         print('{', file=f)
         print(joint_unpack_cpp(syms), file=f)
-        print(f'    Matrix J = Matrix::Zero(6, {ndof});', file=f)
+        print(f'    Eigen::MatrixXd J = Eigen::MatrixXd::Zero(6, {ndof});', file=f)
         print(matrix_cpp(J, 'J'), file=f)
         print('    return J;', file=f)
         print('}', file=f)
@@ -622,10 +622,10 @@ class TestSolver031(unittest.TestCase):
                                            dirname=tmp)
             self.assertTrue(_os.path.exists(path))
             probe = ('#include "FK_numericWrist.h"\n'
-                     'int main(){ ikbt::JointVec q = '
-                     'ikbt::JointVec::Constant(ikbt::NDOF_Wrist, 0.1);\n'
-                     '  ikbt::Mat4 T = ikbt::fk_Wrist(q);\n'
-                     '  ikbt::Matrix J = ikbt::jacobian_Wrist(q);\n'
+                     'int main(){ Eigen::VectorXd q = '
+                     'Eigen::VectorXd::Constant(ikbt::NDOF_Wrist, 0.1);\n'
+                     '  Eigen::Matrix4d T = ikbt::fk_Wrist(q);\n'
+                     '  Eigen::MatrixXd J = ikbt::jacobian_Wrist(q);\n'
                      '  return (T(3, 3) == 1.0 && J.rows() == 6) ? 0 : 1; }\n')
             ok, err = self._compiles(probe, extra=('-I', tmp))
             self.assertTrue(ok, 'the generated FK header does not compile:\n%s'

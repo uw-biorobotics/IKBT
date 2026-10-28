@@ -183,11 +183,11 @@ namespace Puma = ikbt::Puma;
 int main()
 {
     //  A pose the arm certainly reaches: its own FK on a joint vector.
-    ikbt::JointVec q0(6);
+    Eigen::VectorXd q0(6);
     q0 << 0.30, -0.80, 0.50, 1.10, 0.70, -0.40;
-    const ikbt::Mat4 T = Puma::fk(q0);
+    const Eigen::Matrix4d T = Puma::fk(q0);
 
-    ikbt::SolutionList sols = Puma::ikin(T);          // 0..8 postures
+    std::vector<Eigen::VectorXd> sols = Puma::ikin(T);          // 0..8 postures
     if (sols.empty()) {
         printf("no branch of the closed form exists at this pose\n");
         return 1;
@@ -241,9 +241,9 @@ namespace CArm = ikbt::C_Arm;      // 'C-Arm' is not an identifier
 int main()
 {
     //  A pose we know is reachable: run the arm's own FK on a joint vector.
-    ikbt::JointVec q0(6);
+    Eigen::VectorXd q0(6);
     q0 << 0.35, 0.60, -0.40, 0.90, 0.25, -0.70;
-    const ikbt::Mat4 T = CArm::fk(q0);
+    const Eigen::Matrix4d T = CArm::fk(q0);
 
     std::vector<ikbt::OneVarSolution> sols = CArm::solve(T);   // the 1-D search
     if (sols.empty()) {
@@ -300,19 +300,19 @@ int main()
 {
     //  A pose we know the TRUE arm reaches: its own FK on a joint vector.
     //  d_3 is the insertion depth, in mm.
-    ikbt::JointVec q0(6);
+    Eigen::VectorXd q0(6);
     q0 << 0.30, 1.20, 50.0, 0.40, 0.60, -0.25;
-    const ikbt::Mat4 T = Raven::fk(q0);
+    const Eigen::Matrix4d T = Raven::fk(q0);
 
     //  PHASE I -- seeds from the APPROXIMATE arm.  Not answers.
-    const ikbt::SolutionList seeds = Raven::ikin_approx(T);
+    const std::vector<Eigen::VectorXd> seeds = Raven::ikin_approx(T);
     printf("%zu seeds\n", seeds.size());
     if (seeds.empty())
         return 1;
 
     //  Pick the posture you want -- normally the seed nearest where the arm
     //  is now.  Here the arm is "now" at q0 plus a small offset.
-    const ikbt::JointVec q_now = q0 + ikbt::JointVec::Constant(6, 0.05);
+    const Eigen::VectorXd q_now = q0 + Eigen::VectorXd::Constant(6, 0.05);
     size_t pick = 0;
     for (size_t i = 1; i < seeds.size(); ++i)
         if ((seeds[i] - q_now).norm() < (seeds[pick] - q_now).norm())
@@ -354,7 +354,7 @@ actually reach, and `refine_seed()` from then on.
 **You do not need this section in order to use the generated code.** `<Robot>.cpp` includes what
 it needs by itself, and sections 1 and 2 are enough to call it. Read on when you want to:
 
-- know what the types in those signatures are — `Mat4`, `JointVec`, `SolutionList` (3.1);
+- know what the types in those signatures are — `Eigen::Matrix4d`, `Eigen::VectorXd`, `std::vector<Eigen::VectorXd>` (3.1);
 - measure the distance between two poses yourself, with the same definition IKBT uses (3.2);
 - read the fields of what the hybrid path returns (`SolveResult`, 3.3) or what the one-variable
   path returns (`OneVarSolution`, 3.4), or change their tolerances.
@@ -368,26 +368,30 @@ the robot's own directory), and that is the whole mechanism.
 
 ### 3.1 `ikbt_types.h` — the types, which are Eigen's
 
-| symbol | line | meaning |
-|---|---|---|
-| `Mat4` | 75 | `Eigen::Matrix4d` — a homogeneous transform. `T(row, col)`; `T(0, 3)` is x |
-| `Mat3` | 76 | `Eigen::Matrix3d` — a rotation |
-| `Vec6` | 79 | `Eigen::Matrix<double, 6, 1>` — a pose residual |
-| `JointVec` | 83 | `Eigen::VectorXd` — one joint vector. Dynamic size, so the shared numerics are not templated on DOF |
-| `SolutionList` | 91 | `std::vector<JointVec>` — one entry per posture. A `std::vector` because the count varies with the pose |
-| `Matrix` | 94 | `Eigen::MatrixXd` — what a Jacobian comes back as (6 x NDOF) |
-| `INF` | 96 | `std::numeric_limits<double>::infinity()` |
+**There are no IKBT types.** Every signature spells out the Eigen type, so what you read is what
+you get, and an answer goes straight into any Eigen code with no conversion:
+
+| type | used for |
+|---|---|
+| `Eigen::Matrix4d` | an end-effector-pose, a homogeneous transform. `T(row, col)`; `T(0, 3)` is x |
+| `Eigen::VectorXd` | one joint-pose. Dynamic size, so the shared numerics are not templated on DOF |
+| `std::vector<Eigen::VectorXd>` | one joint-pose per posture. A `std::vector` because the count varies with the end-effector-pose; empty means unreachable |
+| `Eigen::MatrixXd` | a Jacobian (6 x NDOF) |
+| `Eigen::Matrix3d` | a rotation |
+| `Eigen::Matrix<double, 6, 1>` | a pose residual `[dp ; w_rot*theta*axis]` |
+
+`ikbt::INF` (`std::numeric_limits<double>::infinity()`) is the one constant.
 
 | function | line | what it does |
 |---|---|---|
-| `Mat4 from_array(const double T[4][4])` | 102 | interop with a plain row-major C array |
-| `void to_array(const Mat4 &M, double T[4][4])` | 112 | the other direction |
-| `Matrix jacobian_base(const Mat4 &T, const Matrix &J66)` | 125 | `J_0 = blkdiag(R,R) . J_66` — frame 6 into the base frame. Here because every generated file includes this header, so it is callable whichever path wrote the file |
+| `Eigen::Matrix4d from_array(const double T[4][4])` | 114 | interop with a plain row-major C array |
+| `void to_array(const Eigen::Matrix4d &M, double T[4][4])` | 124 | the other direction |
+| `Eigen::MatrixXd jacobian_base(const Eigen::Matrix4d &T, const Eigen::MatrixXd &J66)` | 137 | `J_0 = blkdiag(R,R) . J_66` — frame 6 into the base frame. Here because every generated file includes this header, so it is callable whichever path wrote the file |
 
-Line numbers are as of 2026-10-08 and will drift; the symbol names will not.
+Line numbers are as of 2026-10-27 and will drift; the symbol names will not.
 
 **What you get from Eigen, and no longer from IKBT.** The old hand-written helpers are gone,
-because Eigen has them: `identity4()` is `Mat4::Identity()`, `mat_mul(A, B)` is `A * B`, and
+because Eigen has them: `identity4()` is `Eigen::Matrix4d::Identity()`, `mat_mul(A, B)` is `A * B`, and
 `all_finite(x)` is `x.allFinite()`. A few more that an application tends to want:
 
 ```cpp
@@ -411,7 +415,7 @@ has to decide whether an answer is good enough. Both poses are 4x4 homogeneous t
 |---|---|---|
 | `struct PoseError` | 32 | `Vec6 residual;` and `double metric;` |
 | `double rotation_angle_axis(const Mat3 &Rerr, Eigen::Vector3d &axis)` | 48 | returns theta in `[0, pi]`, writes the unit axis |
-| `PoseError pose_error(const Mat4 &T, const Mat4 &T_d, double w_rot)` | 78 | residual `[dp ; w_rot*theta*axis]` and metric `\|\|dp\|\| + w_rot*theta` |
+| `PoseError pose_error(const Eigen::Matrix4d &T, const Eigen::Matrix4d &T_d, double w_rot)` | 78 | residual `[dp ; w_rot*theta*axis]` and metric `\|\|dp\|\| + w_rot*theta` |
 
 `w_rot` is one characteristic arm length per radian — it is what puts a position error and an
 orientation error in comparable units. The generated code bakes a value in as `W_ROT` /
@@ -432,14 +436,14 @@ own pose error, do it this way.
 
 | symbol | line | meaning |
 |---|---|---|
-| `FkFn` | 44 | `std::function<Mat4(const JointVec &)>` |
-| `JacFn` | 45 | `std::function<Matrix(const JointVec &)>` |
+| `FkFn` | 44 | `std::function<Eigen::Matrix4d(const Eigen::VectorXd &)>` |
+| `JacFn` | 45 | `std::function<Eigen::MatrixXd(const Eigen::VectorXd &)>` |
 | `struct SolveResult` | 50 | `q`, `metric`, `iterations`, `converged`, `reason`, `history` |
 | `SolveResult solve_numeric(...)` | 64 | the solver |
 
 ```cpp
 SolveResult solve_numeric(const FkFn &fk, const JacFn &jac,
-                          const JointVec &q0, const Mat4 &T_d,
+                          const Eigen::VectorXd &q0, const Eigen::Matrix4d &T_d,
                           double w_rot, double tol = 1e-9,
                           int max_iter = 100, double lam0 = 1e-3,
                           double lam_min = 1e-12, double lam_max = 1e12);
@@ -478,17 +482,17 @@ diagnosis.
 
 | symbol | line | meaning |
 |---|---|---|
-| `struct OneVarSolution` | 76 | `JointVec q`, `double known_value`, `int branch`, `double error`, `int n_samples` |
+| `struct OneVarSolution` | 76 | `Eigen::VectorXd q`, `double known_value`, `int branch`, `double error`, `int n_samples` |
 | `struct SearchConfig` | 85 | `lo`, `hi`, `periodic`, `n_samples`, `max_samples`, `accept_tol`, `dedup_tol`, `refine_iters` — defaults `[-pi, pi]`, periodic, 128, 4096, 1e-6, 1e-6, 80 |
-| `BranchesFn` | 103 | `std::function<SolutionList(const Mat4 &, double)>` — "what does the closed form give at this value" |
-| `ErrorsFn` | 104 | `std::function<std::vector<double>(const Mat4 &, double)>` — "how wrong is each branch there" |
+| `BranchesFn` | 103 | `std::function<std::vector<Eigen::VectorXd>(const Eigen::Matrix4d &, double)>` — "what does the closed form give at this value" |
+| `ErrorsFn` | 104 | `std::function<std::vector<double>(const Eigen::Matrix4d &, double)>` — "how wrong is each branch there" |
 | `ErrorCache` | 106 | `std::map<double, std::vector<double>>` — memo keyed on the sample value |
 
 **The entry point**
 
 | function | line |
 |---|---|
-| `std::vector<OneVarSolution> onevar_solve(const Mat4 &T, const BranchesFn &, const ErrorsFn &, const SearchConfig &)` | 529 |
+| `std::vector<OneVarSolution> onevar_solve(const Eigen::Matrix4d &T, const BranchesFn &, const ErrorsFn &, const SearchConfig &)` | 529 |
 
 Climbs a **doubling ladder** — scan at `n_samples`, then 2n, 4n — and returns as soon as two
 successive resolutions agree about the whole set of postures, or when doubling would pass
@@ -543,8 +547,8 @@ whatever the path; 4.1, 4.2 and 4.3 are mutually exclusive, and your file has ex
 | symbol | what it is |
 |---|---|
 | `const char* const SOLUTION_PATH` | `"symbolic"`, `"onevar"` or `"hybrid"` — which path produced this file |
-| `Mat4 fk(const JointVec &q)` | q -> 4x4 transform of frame 6 in the base frame |
-| `Matrix jacobian(const JointVec &q)` | q -> 6 x NDOF Jacobian **expressed in frame 6** |
+| `Eigen::Matrix4d fk(const Eigen::VectorXd &q)` | q -> 4x4 transform of frame 6 in the base frame |
+| `Eigen::MatrixXd jacobian(const Eigen::VectorXd &q)` | q -> 6 x NDOF Jacobian **expressed in frame 6** |
 | `FK_JOINT_NAMES[]`, `N_FK_JOINT_NAMES`, `NDOF` | the DH **chain** order a `q` must be in |
  
 
@@ -555,7 +559,7 @@ the surplus columns of an arm with less than 6DOF are **not** zero.
 
 | symbol | what it is |
 |---|---|
-| `SolutionList ikin(const Mat4 &T)` | the closed form. **One row per posture that EXISTS at `T`** |
+| `std::vector<Eigen::VectorXd> ikin(const Eigen::Matrix4d &T)` | the closed form. **One row per posture that EXISTS at `T`** |
 | `int ikin_array(double T[4][4], double sol[IK_NBRANCHES][IK_NJOINTS])` | a plain C-array interface, for callers holding a `double[4][4]`. Returns 1 if any posture was found, 0 if none |
 | `JOINT_NAMES[]`, `N_JOINT_NAMES` | the order of a returned row: which joint sits at each position |
 | `AUX_NAMES[]`, `N_AUX_NAMES` | sum-of-angle intermediates: computed, **not returned** |
@@ -584,12 +588,12 @@ searches for the values that are right.
 
 | symbol | what it is |
 |---|---|
-| `std::vector<OneVarSolution> solve(const Mat4 &T, int n_samples = N_SAMPLES)` | **the entry point.** Every joint vector that reaches `T` |
-| `SolutionList ikin_given(const Mat4 &T, double <known>)` | the conditional closed form. The assumed value is an **argument**, not a constant |
+| `std::vector<OneVarSolution> solve(const Eigen::Matrix4d &T, int n_samples = N_SAMPLES)` | **the entry point.** Every joint vector that reaches `T` |
+| `std::vector<Eigen::VectorXd> ikin_given(const Eigen::Matrix4d &T, double <known>)` | the conditional closed form. The assumed value is an **argument**, not a constant |
 | `int ikin_array_given(double T[4][4], double sol[][], double <known>)` | fixed-array interface |
-| `void sweep(const Mat4 &T, int n, std::vector<double> &values, std::vector<std::vector<double>> &curves)` | the raw scan at ONE resolution — for plotting, and for understanding a pose that comes back empty |
-| `SolutionList branches_at(const Mat4 &T, double value)` | the `BranchesFn`. Every branch at one assumed value |
-| `std::vector<double> errors(const Mat4 &T, double value)` | the `ErrorsFn`. `INF` where a branch is undefined |
+| `void sweep(const Eigen::Matrix4d &T, int n, std::vector<double> &values, std::vector<std::vector<double>> &curves)` | the raw scan at ONE resolution — for plotting, and for understanding a pose that comes back empty |
+| `std::vector<Eigen::VectorXd> branches_at(const Eigen::Matrix4d &T, double value)` | the `BranchesFn`. Every branch at one assumed value |
+| `std::vector<double> errors(const Eigen::Matrix4d &T, double value)` | the `ErrorsFn`. `INF` where a branch is undefined |
 | `SearchConfig search_config(int n_samples = N_SAMPLES)` | the baked-in config |
 | `ROBOT`, `KNOWN_VARIABLE`, `COND_KNOWN_VARIABLE` | the robot, and which variable was assumed known |
 | `ONEVAR_JOINT_NAMES[]`, `ONEVAR_NDOF` | the order of `OneVarSolution::q` |
@@ -620,13 +624,13 @@ derived arm's name**, which is in `APPROXIMATE_ARM`.
 
 | symbol | what it is |
 |---|---|
-| `SolutionList ikin_approx(const Mat4 &T, bool filter_spurious = true)` | **PHASE I** — seeds from the approximate arm. `filter_spurious` drops branches that do not reach `T` on the approximate arm's own FK; pass `false` to see the raw list |
-| `SolveResult refine_seed(const Mat4 &T, const JointVec &q_seed, double tol = 1e-9, int max_iter = 100)` | **PHASE IIa** — the operational call. DLS against the **true** arm |
-| `std::vector<RefineRecord> refine_all(const Mat4 &T, double tol = 1e-9, int max_iter = 100)` | **PHASE II** — Phase IIa over every seed. `RefineRecord` is `{int index; JointVec q_seed; SolveResult result;}` |
+| `std::vector<Eigen::VectorXd> ikin_approx(const Eigen::Matrix4d &T, bool filter_spurious = true)` | **PHASE I** — seeds from the approximate arm. `filter_spurious` drops branches that do not reach `T` on the approximate arm's own FK; pass `false` to see the raw list |
+| `SolveResult refine_seed(const Eigen::Matrix4d &T, const Eigen::VectorXd &q_seed, double tol = 1e-9, int max_iter = 100)` | **PHASE IIa** — the operational call. DLS against the **true** arm |
+| `std::vector<RefineRecord> refine_all(const Eigen::Matrix4d &T, double tol = 1e-9, int max_iter = 100)` | **PHASE II** — Phase IIa over every seed. `RefineRecord` is `{int index; Eigen::VectorXd q_seed; SolveResult result;}` |
 | `TRUE_ROBOT`, `APPROXIMATE_ARM`, `DH_CHANGES` | which arm is which, and what was changed |
 | `HYBRID_JOINT_NAMES[]`, `NDOF` | the order of `q_seed` and of `result.q` |
 | `W_ROT`, `APPROX_TOL` | the metric weight; the Phase I acceptance tolerance |
-| `ikin_<D>(const Mat4 &T)`, `ikin_array_<D>(...)` | the **derived** arm's closed form |
+| `ikin_<D>(const Eigen::Matrix4d &T)`, `ikin_array_<D>(...)` | the **derived** arm's closed form |
 | `fk_<D>(q)`, `FK_JOINT_NAMES_<D>[]`, `NDOF_<D>` | the **derived** arm's forward kinematics. No Jacobian: nothing wants one for it |
 | `JOINT_NAMES[]`, `AUX_NAMES[]`, `IK_NJOINTS`, `IK_NBRANCHES` | the row order and sizes of the derived arm's closed form |
 
@@ -694,14 +698,37 @@ minimal types. But an application does need it, and those types would have meant
 library one function at a time. With Eigen's types, what IKBT returns is what the rest of a
 robotics C++ program already uses.
 
-**Why C++17.** `Mat4` is a fixed-size Eigen type. Under C++11/14 a fixed-size Eigen type inside a
+**Why C++17.** `Eigen::Matrix4d` is a fixed-size Eigen type. Under C++11/14 a fixed-size Eigen type inside a
 `std::vector` or a struct needs `Eigen::aligned_allocator` and `EIGEN_MAKE_ALIGNED_OPERATOR_NEW`,
 or it can crash on an unaligned load. C++17's aligned `operator new` makes that problem go away
 entirely. `ikbt_types.h` refuses to compile under anything older and says why.
 
-**Already using Eigen?** Define `IKBT_SYSTEM_EIGEN` before including a robot file (or pass
-`-DIKBT_SYSTEM_EIGEN`). `ikbt_types.h` then includes `<Eigen/Dense>` from your include path
-instead of the vendored copy, so your program contains one Eigen, not two.
+**Already using Eigen? Then IKBT uses yours, automatically.** A program must contain one Eigen,
+not two, so `ikbt_types.h` picks, in order:
+
+| condition | Eigen used |
+|---|---|
+| `IKBT_VENDORED_EIGEN` defined | the vendored copy, regardless |
+| `IKBT_SYSTEM_EIGEN` defined | `<Eigen/Dense>` from your include path |
+| Eigen already included (`EIGEN_WORLD_VERSION` defined) | `<Eigen/Dense>` — the one you included |
+| `__has_include(<Eigen/Dense>)` — your build put Eigen on the include path | `<Eigen/Dense>` |
+| otherwise | the vendored copy |
+
+A distribution's Eigen lives in `/usr/include/eigen3/`, which is not on the default include path,
+so a bare `g++ -std=c++17 Robot.cpp` still gets the vendored copy; any build that sets Eigen up
+(ROS, CMake's `find_package(Eigen3)`, `-I/usr/include/eigen3`) gets its own. Eigen 3.3 or newer
+is required, and checked.
+
+**ROS.** ROS has no matrix types of its own: messages are a wire format, and the math is done in
+Eigen. `tf2_eigen` converts both ways, so a `geometry_msgs::msg::Transform` reaches `ikin()` as
+
+```cpp
+#include <tf2_eigen/tf2_eigen.hpp>
+Eigen::Matrix4d T = tf2::transformToEigen(msg).matrix();
+auto postures = ikbt::Puma::ikin(T);
+```
+
+and MoveIt's `Eigen::Isometry3d` the same way, by `.matrix()`. Nothing in IKBT depends on ROS.
 
 **Compile time is one to two seconds per robot file** with `-c`, a little more with `main` and
 linking, almost all of it Eigen's headers, and paid once per translation unit that includes a

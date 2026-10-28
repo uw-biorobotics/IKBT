@@ -41,14 +41,14 @@
 
 namespace ikbt {
 
-using FkFn  = std::function<Mat4(const JointVec &)>;
-using JacFn = std::function<Matrix(const JointVec &)>;
+using FkFn  = std::function<Eigen::Matrix4d(const Eigen::VectorXd &)>;
+using JacFn = std::function<Eigen::MatrixXd(const Eigen::VectorXd &)>;
 
 //  What solve_numeric() reports.  The python twin returns a dict with exactly
 //  these keys;  `history` is kept because its length is the iteration count
 //  and its shape is how a non-converging solve is diagnosed.
 struct SolveResult {
-    JointVec q;
+    Eigen::VectorXd q;
     double metric;
     int iterations;
     bool converged;
@@ -62,19 +62,19 @@ struct SolveResult {
 //  NEVER FAILS ON A BAD STEP:  a singular solve or a non-finite FK is a
 //  REJECTED step, which raises lam and tries again.
 inline SolveResult solve_numeric(const FkFn &fk, const JacFn &jac,
-                                 const JointVec &q0, const Mat4 &T_d,
+                                 const Eigen::VectorXd &q0, const Eigen::Matrix4d &T_d,
                                  double w_rot, double tol = 1e-9,
                                  int max_iter = 100, double lam0 = 1e-3,
                                  double lam_min = 1e-12, double lam_max = 1e12)
 {
-    JointVec q = q0;
+    Eigen::VectorXd q = q0;
     double lam = lam0;
-    Vec6 w;
+    Eigen::Matrix<double, 6, 1> w;
     w << 1.0, 1.0, 1.0, w_rot, w_rot, w_rot;
 
     //  The python closure measure(), with `inf` for a non-finite FK.
-    auto measure = [&](const JointVec &qq, Vec6 &e_out, double &m_out) {
-        const Mat4 T = fk(qq);
+    auto measure = [&](const Eigen::VectorXd &qq, Eigen::Matrix<double, 6, 1> &e_out, double &m_out) {
+        const Eigen::Matrix4d T = fk(qq);
         if (!T.allFinite()) {
             e_out.setZero();
             m_out = INF;
@@ -85,7 +85,7 @@ inline SolveResult solve_numeric(const FkFn &fk, const JacFn &jac,
         }
     };
 
-    Vec6 e;
+    Eigen::Matrix<double, 6, 1> e;
     double m;
     measure(q, e, m);
 
@@ -99,7 +99,7 @@ inline SolveResult solve_numeric(const FkFn &fk, const JacFn &jac,
             break;
         }
 
-        const Matrix J = w.asDiagonal() * jacobian_base(fk(q), jac(q));   // W J
+        const Eigen::MatrixXd J = w.asDiagonal() * jacobian_base(fk(q), jac(q));   // W J
         Eigen::Matrix<double, 6, 6> A = J * J.transpose();
         A.diagonal().array() += lam * lam;
 
@@ -107,7 +107,7 @@ inline SolveResult solve_numeric(const FkFn &fk, const JacFn &jac,
         //  LinAlgError is in python.  Eigen's LU does not report singularity;
         //  it divides by the zero pivot, and the finiteness test catches it.
         bool ok = A.allFinite() && e.allFinite();
-        JointVec dq;
+        Eigen::VectorXd dq;
         if (ok) {
             dq = J.transpose() * A.partialPivLu().solve(e);
             ok = dq.allFinite();
@@ -121,8 +121,8 @@ inline SolveResult solve_numeric(const FkFn &fk, const JacFn &jac,
             continue;                    //  no history entry, as in python
         }
 
-        const JointVec q_try = q + dq;
-        Vec6 e_try;
+        const Eigen::VectorXd q_try = q + dq;
+        Eigen::Matrix<double, 6, 1> e_try;
         double m_try;
         measure(q_try, e_try, m_try);
 

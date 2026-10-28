@@ -425,12 +425,15 @@ discarded that solve's IK.
 `g++ -std=c++17 -O2 file.cpp -o x -lm`. Same rule as "a generated python module stands on
 numpy alone": a generated artifact must not make the user install anything, which is why Eigen
 (header-only) ships inside `Cpp_src/third_party/eigen3/` and `ikbt_types.h` reaches it by a
-relative `#include`. The types ARE Eigen's -- `Mat4` is `Eigen::Matrix4d`, `JointVec` is
-`Eigen::VectorXd`, `Matrix` is `Eigen::MatrixXd`, `SolutionList` is `std::vector<JointVec>` --
-because an application calling the generated code needs norms, products and inverses, and
+relative `#include`. The types ARE Eigen's, **spelled out with no aliases** --
+`Eigen::Matrix4d`, `Eigen::VectorXd`, `Eigen::MatrixXd`, `std::vector<Eigen::VectorXd>` -- so a
+reader sees Eigen in every signature, because an application calling the generated code needs norms, products and inverses, and
 hand-rolled types meant rewriting them. C++17 because a fixed-size Eigen type in a `std::vector`
 or struct needs aligned `operator new`; `ikbt_types.h` `#error`s under anything older.
-`-DIKBT_SYSTEM_EIGEN` swaps the vendored copy for the application's own `<Eigen/Dense>`.
+**ONE EIGEN PER PROGRAM, AND THE APPLICATION'S WINS**: `ikbt_types.h` includes `<Eigen/Dense>` when
+Eigen is already included or `__has_include(<Eigen/Dense>)` finds one (ROS, CMake), else the
+vendored copy; `-DIKBT_SYSTEM_EIGEN` / `-DIKBT_VENDORED_EIGEN` force either. Eigen's module guards
+are the same in every 3.x, so a second copy would be silently half-skipped, mixing versions.
 The DLS step is `partialPivLu()` -- the factorisation numpy's `solve` uses -- because
 `--dls` pins it against python iteration for iteration. `pose_error()` stays hand-written and is
 not `Eigen::AngleAxisd`, which takes the angle from an arccosine.

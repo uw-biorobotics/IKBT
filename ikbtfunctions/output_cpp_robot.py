@@ -112,8 +112,8 @@ def _assemble(name, dirname, what, headers, sections, main_text, solved_by,
         print('//  ONE NAMESPACE PER ROBOT, so two robots can be linked into', file=f)
         print('//  one program:  ikbt::%s::ikin() and ikbt::Other::ikin()' % ident,
               file=f)
-        print('//  are different functions.  Nested inside ikbt, so Mat4,', file=f)
-        print('//  JointVec and pose_error() need no qualification here.', file=f)
+        print('//  are different functions.  Nested inside ikbt, so jacobian_base()', file=f)
+        print('//  and pose_error() need no qualification here.', file=f)
         print('namespace ikbt {', file=f)
         print('namespace %s {' % ident, file=f)
         print('', file=f)

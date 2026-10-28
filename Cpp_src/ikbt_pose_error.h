@@ -30,7 +30,7 @@ namespace ikbt {
 //  The 6-vector residual and the scalar metric built from it, together,
 //  because they must never be computed two different ways.
 struct PoseError {
-    Vec6 residual;
+    Eigen::Matrix<double, 6, 1> residual;
     double metric;
 };
 
@@ -45,7 +45,7 @@ struct PoseError {
 //  cannot see past a step.  atan2 is linear in the perturbation and gives
 //  exactly 0.0 at R = I.  Same reasoning, and the same fix, as the python
 //  twin and as dh_analysis.py.
-inline double rotation_angle_axis(const Mat3 &Rerr, Eigen::Vector3d &axis)
+inline double rotation_angle_axis(const Eigen::Matrix3d &Rerr, Eigen::Vector3d &axis)
 {
     const Eigen::Vector3d skew(Rerr(2, 1) - Rerr(1, 2),
                                Rerr(0, 2) - Rerr(2, 0),
@@ -64,7 +64,7 @@ inline double rotation_angle_axis(const Mat3 &Rerr, Eigen::Vector3d &axis)
     //  theta ~ pi:  the skew part vanishes, so take the axis from R + I = 2aa',
     //  using its largest COLUMN, as numpy does.  maxCoeff() keeps the first of
     //  equal values, as np.argmax does.
-    const Mat3 Msym = Rerr + Mat3::Identity();
+    const Eigen::Matrix3d Msym = Rerr + Eigen::Matrix3d::Identity();
     Eigen::Index best;
     const double bestn = Msym.colwise().norm().maxCoeff(&best);
     if (bestn < 1e-12)
@@ -75,10 +75,10 @@ inline double rotation_angle_axis(const Mat3 &Rerr, Eigen::Vector3d &axis)
 
 
 //  Residual and scalar metric between pose T and target T_d.
-inline PoseError pose_error(const Mat4 &T, const Mat4 &T_d, double w_rot)
+inline PoseError pose_error(const Eigen::Matrix4d &T, const Eigen::Matrix4d &T_d, double w_rot)
 {
     const Eigen::Vector3d dp = T_d.block<3, 1>(0, 3) - T.block<3, 1>(0, 3);
-    const Mat3 Rerr = T_d.topLeftCorner<3, 3>()
+    const Eigen::Matrix3d Rerr = T_d.topLeftCorner<3, 3>()
                       * T.topLeftCorner<3, 3>().transpose();
 
     Eigen::Vector3d axis;

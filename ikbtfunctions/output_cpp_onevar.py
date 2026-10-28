@@ -145,7 +145,7 @@ _BODY = '''
 //  INCLUDING the assumed variable in its own chain position.  Empty when the
 //  closed form reports the pose unreachable at that value, which is ordinary:
 //  a branch is typically defined over part of the range, not all of it.
-inline SolutionList branches_at(const Mat4 &T, double value)
+inline std::vector<Eigen::VectorXd> branches_at(const Eigen::Matrix4d &T, double value)
 {
     //  Nothing is guarded here.  Where the closed form divides by zero or
     //  takes the root of a negative, IEEE arithmetic gives inf or NaN
@@ -157,9 +157,9 @@ inline SolutionList branches_at(const Mat4 &T, double value)
 
 //  Pose error of each branch at one assumed value;  INF where undefined.
 //  This is the function the search minimises, one entry per branch.
-inline std::vector<double> errors(const Mat4 &T, double value)
+inline std::vector<double> errors(const Eigen::Matrix4d &T, double value)
 {
-    const SolutionList qs = branches_at(T, value);
+    const std::vector<Eigen::VectorXd> qs = branches_at(T, value);
     std::vector<double> out;
     out.reserve(qs.size());
     for (size_t i = 0; i < qs.size(); ++i) {
@@ -167,7 +167,7 @@ inline std::vector<double> errors(const Mat4 &T, double value)
             out.push_back(INF);
             continue;
         }
-        const Mat4 Tq = fk(qs[i]);
+        const Eigen::Matrix4d Tq = fk(qs[i]);
         if (!Tq.allFinite()) {
             out.push_back(INF);
             continue;
@@ -203,7 +203,7 @@ inline SearchConfig search_config(int n_samples = N_SAMPLES)
 //  n_samples field, the grid resolution the search settled at.  A solution
 //  reporting MAX_SAMPLES means the answer was still changing when the ladder
 //  ran out.
-inline std::vector<OneVarSolution> solve(const Mat4 &T,
+inline std::vector<OneVarSolution> solve(const Eigen::Matrix4d &T,
                                                    int n_samples = N_SAMPLES)
 {
     return onevar_solve(T, branches_at, errors,
@@ -215,7 +215,7 @@ inline std::vector<OneVarSolution> solve(const Mat4 &T,
 //  understanding a pose that comes back unreachable.  solve() does not stop
 //  at one resolution -- it climbs a ladder of them until the answer stops
 //  changing.
-inline void sweep(const Mat4 &T, int n_samples,
+inline void sweep(const Eigen::Matrix4d &T, int n_samples,
                             std::vector<double> &values,
                             std::vector<std::vector<double> > &curves)
 {
@@ -259,10 +259,10 @@ int main(int argc, char **argv)
                                      : (unsigned) 12345u;
     std::srand(seed);
 
-    JointVec q_true(ONEVAR_NDOF);
+    Eigen::VectorXd q_true(ONEVAR_NDOF);
     for (int i = 0; i < ONEVAR_NDOF; ++i)
         q_true[i] = -1.0 + 2.0 * (std::rand() / (double) RAND_MAX);
-    const Mat4 T = fk(q_true);
+    const Eigen::Matrix4d T = fk(q_true);
 
     std::printf("%s:  searching over %s in [%.3f, %.3f]   (seed %u)\\n",
                 ROBOT, KNOWN_VARIABLE, SEARCH_LO, SEARCH_HI, seed);
