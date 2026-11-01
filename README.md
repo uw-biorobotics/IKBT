@@ -1,15 +1,47 @@
 # IKBT
 A python based system for generating closed-form solutions to the manipulator inverse kinematics problem using
 behavior trees for action selection. 
-Solutions are fully symbolic and are output as LaTex, Python, and C++.
+Solutions are symbolic where possible, and otherwise symbolic plus numerical, and are output as LaTex, Python, and C++.
 
-# Latest News 28-Sept-2026
+# Announcing IKBT 3.0  Released 31-Oct-2026
 
-* **New branch dev_OnVarSolution merged into RelCandidate2** 
+Developed as "IKBT2" (the release candidate below), released as 3.0 because tags v2.0-v2.3 were used in 2021.
+
+The main new features are two new hybrid (symbolic + numerical) 
+solvers which are tried if the symbolic solver cannot find a closed 
+form solution:
+* The "One-variable" method:  Sometimes if one joint variable is *assumed* to 
+   be known, the others have a symbolic form (Friedman et al., 2010, see IKdocs/ folder). In this case the remaining joints are solved symbolically 
+   and a 1-D search is performed on the "assumed" variable.
+   
+* The "Hybrid method": (see notes below)
+   In this method, IKBT finds a solvable arm which is as close as possible to the true arm.  Then the solution becomes: 
+
+   1. Get an exact IK solution set for the approximate arm.
+   2. User selects one of the solutions as desired (or refines all of them).
+   3. Selected solution seeds an accurate numerical solution to the true arm by a damped least squares method using the true arm's FK and Jacobian matrix.
+
+* The top level of the BT automatically tries the three 
+solvers in order to minimize the numerical portion of the 
+solution. 
+
+* Generated code will include the needed numerical algorithms as well as the symbolic solution.
+
+* Python and C++ code are generated for all three methods, and the C++ is validated against the Python (see the C++ notes below).
+
+* Release IKBT 3.0 has been validated on Puma (symbolic), C-Arm (one-variable) and Raven-II (hybrid):
+every returned solution reproduces the target end-effector configuration, and none are missing, in both Python and C++.
+
+* The rigorous "closed loop" test (described in the JAIR paper for Puma validation) is now automated and can be run for any solved robot.
+
+    
+#  28-Sept-2026
+
+* **New branch dev_OneVarSolve merged into RelCandidate2** (now released on `main` as v3.0)
   Developed a major new feature for RelCandidate2: 
 
   One-Variable hybrid solution for faster and more robust numerical solution finding when no
-  fully analytic solution can be found.  Based on Friedman et al., 2010 (see ICdocs/ folder).
+  fully analytic solution can be found.  Based on Friedman et al., 2010 (see IKdocs/ folder).
   If fully symbolic solve fails, this **assumes** that one joint variable is known, which often unlocks the rest of the joint variables'  symbolic solutions.  
   
   First, all variables
@@ -34,7 +66,7 @@ Solutions are fully symbolic and are output as LaTex, Python, and C++.
   (currently 31 robots!).
   
 
-## Sept 2026: Release candidate for IKBT2 on branch RelCandidate2.
+## Sept 2026: Release candidate for IKBT2 on branch RelCandidate2 (now released on `main` as v3.0).
   
 * Summer of 2026 marks significant upgrades to IKBT resulting from a collaboration between Blake Hannaford and Claude Code Pro. 
 * Key new feature:  IKBT2 introduces a new hybrid symbolic/numerical solver for arms which cannot be solved (by IKBT) symbolically.   In this method, IKBT finds a solvable arm which is as close as possible to the true arm.  Then the solution becomes: 
@@ -42,7 +74,7 @@ Solutions are fully symbolic and are output as LaTex, Python, and C++.
     2. User selects one of the solutions as desired.
     3. Selected solution seeds an accurate numerical solution to the true arm by a damped least squares method using the true arm's FK and Jacobian matrix. 
     
-* Additionally, there two new script for validation of symbolic solutions: `check_solution_sets.py`,
+* Additionally, there are two new scripts for validation of symbolic solutions: `check_solution_sets.py`,
 and `numerical_closed_loop_sol_check.py`.  
 Both perform the full *closed-loop* solution validation: 
     1. Solves the IK symbolically (where possible)
