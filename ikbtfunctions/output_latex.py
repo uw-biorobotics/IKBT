@@ -623,7 +623,7 @@ def onevar_search_section(onevar, name):
 def output_latex_solution(Robot, variables, groups, hybrid=None, R_true=None,
                           onevar=None, force_ids=None):
     GRAPH = True
-    '''Print out a latex document of the solution equations.
+    r'''Print out a latex document of the solution equations.
 
        onevar is set on the ONE-VARIABLE path.  `Robot` is then the TRUE arm
        -- nothing was approximated -- but every equation in the report assumes
@@ -998,7 +998,7 @@ def output_latex_solution(Robot, variables, groups, hybrid=None, R_true=None,
     for r in rows:
         solsection += str(tuple(r[i] for i in keep))+eol
 
-    solsection += '\end{verbatim}'+eol
+    solsection += r'\end{verbatim}'+eol
 
     if soa:
         solsection += (r'Sum-of-angle intermediates ($'
