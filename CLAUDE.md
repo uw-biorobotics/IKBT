@@ -17,6 +17,12 @@ files — everything runs from the repo root as modules.
 **`IKdocs/TESTING.md` is the one-page orientation** — what to run, when, what each command asserts,
 and where every log and artifact lands. Read it (especially "Testing Overview") before adding a test.
 
+**`IKdocs/USER_MANUAL.pdf`** (source `LaTex_src/USER_MANUAL.tex`; rebuild the PDF after editing it,
+build command in its header) is for the person *using* the outputs: which files a solve writes,
+how to call each method's Python and C++, how to check them. Every report's last section,
+*Files Produced for <Robot>* (`output_latex.generated_files_section()`), lists that robot's files
+and points there; it follows the same rule as `robot_baseline.artifacts_owed()` -- change both.
+
 **`IKdocs/DEV_NOTES.md`** carries the rationale that does not belong inline in the source: measured
 numbers, dated decisions, and designs that were tried and abandoned. Nothing there is needed to
 read or change IKBT; it is where a "why is it like this?" question gets answered.  
@@ -77,7 +83,8 @@ This package produces generated code artifacts, which are not source code for th
 `LaTex_src/` **is** source: `IK_preamble.tex` and `IK_close.tex` are read and inlined by
 `output_latex.py`, so a generated report is self-contained. They live apart from `LaTex/`
  so that wiping the reports cannot take the templates with them
-(`LaTex_src/cleanLaTexFolder` does that wipe, from the repo root).
+(`LaTex_src/cleanLaTexFolder` does that wipe, from the repo root). `USER_MANUAL.tex` lives there
+too, for the same reason; its PDF goes to `IKdocs/`.
 
 `Cpp_src/` **is** source too, on exactly that precedent: hand-written C++ headers
 (`ikbt_types.h`, `ikbt_pose_error.h`, `ikbt_dls.h`, `ikbt_search.h`), plus a vendored, unmodified

@@ -1,6 +1,9 @@
 Generated inverse kinematics code
 =================================
 
+IKdocs/USER_MANUAL.md is the full guide to using these files, for all three
+solution methods;  this note is a summary.
+
 IKBT writes the closed-form IK solution as both Python and C++.  Everything in
 Python/ and Cpp/ is a GENERATED artifact and is overwritten by the next solve.
 

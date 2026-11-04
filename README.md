@@ -142,6 +142,7 @@ Generated code initializes the new constants.   Try >python3 fkOnly \<RobotName\
 # Details    
 
 ### Documenation:  
+   * [ User Manual: using the generated code and reports ](IKdocs/USER_MANUAL.pdf)
    * [ Theory of Operation ](https://www.jair.org/index.php/jair/article/view/11592)
    * [ Major Classes ](IKdocs/classes.md)
    * [ Solution Set Generation Strategy Doc ](IKdocs/solExamp.pdf) (updated June 2024)

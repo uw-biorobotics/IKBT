@@ -355,7 +355,11 @@ def hybrid_true_arm_section(hybrid, R_true):
        confident document about a robot nobody asked about, carrying the real
        robot's name on the title page.  That is the worst thing this method
        could produce, so the true arm is stated FIRST and the substitution is
-       stated before any closed form appears."""
+       stated before any closed form appears.
+
+       Written for the report's typical reader -- a robotics graduate student
+       or engineer who wants to USE the result -- so it says what each step
+       does for them, not how IKBT is built."""
 
     if not hybrid:
         return []
@@ -364,22 +368,34 @@ def hybrid_true_arm_section(hybrid, R_true):
     true_name = tex_name(hybrid.get('true_robot') or '?')
     derived = tex_name(hybrid.get('derived_robot') or '?')
 
-    sec = r'\section{The Arm This Report Solves}' + eol
-    sec += r'\textbf{IKBT could not find a closed-form inverse kinematic' + eol
-    sec += r'solution for ' + true_name + r'.}  What follows is therefore a' + eol
-    sec += r'\emph{hybrid} result, in two parts:' + eol
+    sec = r'\section{Read This First:  a Hybrid Solution}' + eol
+    sec += (r'\textbf{IKBT could not find a closed-form inverse kinematics'
+            r' solution for ' + true_name + r'.}  This report gives a'
+            r' \emph{hybrid} solution instead, built in three steps:' + eol)
     sec += r'\begin{enumerate}' + eol
-    sec += (r'\item a closed form solved exactly for a \emph{simplified} arm, '
-            + derived + r', which differs from the real robot in the' + eol)
-    sec += r'Denavit-Hartenberg parameters listed below;  and' + eol
-    sec += (r'\item a numerical correction that refines those joint values'
-            r' against the real robot' + "'" + r's own forward kinematics.' + eol)
+    sec += (r'\item \textbf{Simplify the arm.}  IKBT makes a small change to '
+            + true_name + r"'s Denavit-Hartenberg (DH) parameters, giving a"
+            r' nearby arm, ' + derived + r', that \emph{does} have a'
+            r' closed-form solution.' + eol)
+    sec += (r'\item \textbf{Solve the simplified arm exactly.}  Its closed form'
+            r' gives one joint-pose per posture (elbow up or down, wrist'
+            r' flipped, \ldots).  The two arms are close, so each of these'
+            r' approximates a solution of the real robot in the same posture.'
+            + eol)
+    sec += (r'\item \textbf{Correct each one numerically.}  An iterative solver'
+            r' (damped least squares) starts from the approximation and'
+            r' converges to an exact solution, using ' + true_name
+            + r"'s own forward kinematics and Jacobian." + eol)
     sec += r'\end{enumerate}' + eol
-    sec += (r'The closed form alone does \textbf{not} place ' + true_name +
-            r' at the requested pose.  Only the corrected values do.' + eol)
+    sec += (r'Most of this report --- the kinematic parameters, forward'
+            r' kinematics and closed-form equations --- describes the'
+            r' \emph{simplified} arm ' + derived + r'.  Those equations alone'
+            r' do \textbf{not} place ' + true_name + r' at the requested'
+            r' end-effector-pose;  the corrected joint-poses of'
+            r' Section~\ref{sec:hybridnumeric} do.' + eol)
 
     ####  what was changed, and what it cost
-    sec += r'\subsection{The simplification}' + eol
+    sec += r'\subsection{What was changed}' + eol
     edits = hybrid.get('edits') or []
     if edits:
         sec += r'\begin{center}\begin{tabular}{lrr}' + eol
@@ -392,33 +408,34 @@ def hybrid_true_arm_section(hybrid, R_true):
     axes = hybrid.get('axes')
     kind = hybrid.get('kind')
     if axes and kind:
-        sec += (r'These changes make joint axes $' +
+        sec += (r'With these changes, joint axes $' +
                 ', '.join(str(a) for a in axes) + r'$ ' +
                 ('intersect at a common point' if kind == 'intersect'
-                 else 'mutually parallel') +
-                r", which satisfies Pieper's sufficient condition for a closed"
-                r' form to exist.' + eol)
+                 else 'are mutually parallel') +
+                r".  By Pieper's condition, an arm with three consecutive"
+                r' axes like that always has a closed-form solution.' + eol)
     elif kind == 'scaled':
         sec += (r'\textbf{This is a test of the hybrid method.}  Every nonzero'
                 r' link length was scaled by the same factor, which keeps every'
                 r' intersection and parallelism of the joint axes.  The real arm'
                 r' solves symbolically;  it was sent down the hybrid path on'
-                r' purpose, so that the refined answers can be compared with its'
-                r' exact ones.' + eol)
+                r' purpose, so that the corrected answers can be compared with'
+                r' its exact ones.' + eol)
 
     cost = hybrid.get('cost')
     if cost is not None:
-        sec += (r'The simplification was chosen as the \emph{cheapest}'
-                r' available, measured in task-space displacement:  the mean'
-                r' of $\|\Delta p\| + w_{rot}\Delta\theta$ over sampled joint'
-                r' vectors, comparing the real arm' + "'" + r's end-effector'
-                r' pose with the simplified arm' + "'" + r's at the same joint'
-                r' values.  Its cost is $' + ('%.4g' % float(cost)) +
-                r'$, in the length units of the DH table.' + eol)
+        sec += (r'Of all the changes that would do this, IKBT chose the one'
+                r' that moves the end effector least.  Averaged over random'
+                r' joint-poses, the simplified arm' + "'" + r's end-effector-pose'
+                r' differs from the real arm' + "'" + r's by $'
+                + ('%.4g' % float(cost)) + r'$ (position error plus weighted'
+                r' orientation error, in the length units of the DH table).'
+                + eol)
 
     ####  the true arm's own parameters, so the reader can compare
     if R_true is not None and getattr(R_true, 'Mech', None) is not None:
-        sec += r'\subsection{Kinematic parameters of ' + true_name + r'}' + eol
+        sec += (r'\subsection{Kinematic parameters of ' + true_name
+                + r' (the real arm)}' + eol)
         sec += (r'\[ \left [ \alpha_{i-1}, \quad a_{i-1}, \quad d_i,'
                 r' \quad \theta_i \right  ] \]' + eol)
         sec += r'\begin{dmath}' + sp.latex(R_true.Mech.DH) + r'\end{dmath}' + eol
@@ -431,67 +448,67 @@ def hybrid_true_arm_section(hybrid, R_true):
 
 
 def hybrid_numeric_section(hybrid, true_name):
-    r"""The Phase II half of a hybrid report:  how the closed form is
-       corrected, and what the generated code calls it."""
+    r"""Step 3 of a hybrid report:  how the closed form is corrected, how to
+       choose a posture."""
 
     if not hybrid:
         return []
 
     eol = '\n'
-    ident = tex_name(true_name)
+    fname = tex_name(true_name)                    # as the FILE is called
+    rid = py_identifier(true_name)                 # as the FUNCTION is called
 
-    sec = r'\section{Numerical Correction (Phase II)}' + eol
-    sec += (r'The equations above solve the simplified arm exactly.  To place'
-            r' the real robot at the goal pose $T_d$, the joint vector they'
-            r' produce is used as a \emph{seed} for damped least squares'
-            r' (Levenberg-Marquardt) against the real arm' + "'" + r's forward'
-            r' kinematics:' + eol)
+    sec = (r'\section{Correcting to the Real Arm}\label{sec:hybridnumeric}'
+           + eol)
+    sec += (r'The equations above give joint-poses that are exact for the'
+            r' simplified arm and approximate for ' + fname + r'.  Each one is'
+            r' corrected by damped least squares (Levenberg-Marquardt),'
+            r' repeating the step' + eol)
     sec += r'\begin{dmath}' + eol
     sec += r'\Delta q = J^{T}\left(J J^{T} + \lambda^{2} I\right)^{-1} e' + eol
     sec += r'\end{dmath}' + eol
-    sec += r'with the residual and the convergence metric' + eol
+    sec += (r'where $J$ is ' + fname + r"'s Jacobian at the current"
+            r' joint-pose and $e$ is how far the end effector (by ' + fname
+            + r"'s forward kinematics) is from the goal $T_d$:" + eol)
     sec += r'\begin{dmath}' + eol
-    sec += (r'e = \left[ \Delta p ;\; w_{rot}\,\theta\,\hat{a} \right], \qquad'
-            r' m = \|\Delta p\| + w_{rot}\,\theta' + eol)
+    sec += r'e = \left[ \Delta p ;\; w_{rot}\,\theta\,\hat{a} \right]' + eol
     sec += r'\end{dmath}' + eol
-    sec += (r'where $\theta$ and $\hat{a}$ are the angle and axis of the'
-            r' orientation error $R_d R^{T}$.  Both expressions use the same'
-            r' rotation parameterisation and the same weight $w_{rot}$, so the'
-            r' step and the stopping test agree about which of two poses is'
-            r' closer.  The damping $\lambda$ rises on a rejected step and'
-            r' falls on an accepted one, which is what lets the method pass'
-            r' through a singularity, where an undamped Newton step does not'
-            r' exist.' + eol)
-    sec += (r'Because the seed determines which solution branch the correction'
-            r' converges to, the phases are separate entry points:  the'
-            r' caller enumerates the branches, chooses one, and only then'
-            r' refines it.' + eol)
+    sec += (r'$\Delta p$ is the position error;  the orientation error'
+            r' $R_d R^{T}$ is written as a rotation by angle $\theta$ about'
+            r' axis $\hat{a}$, and the weight $w_{rot}$ converts it to length'
+            r' units.  The iteration stops when $\|\Delta p\| + w_{rot}\,\theta$'
+            r' is negligible.  The damping $\lambda$ keeps each step small near'
+            r' a singularity, where $J$ cannot be inverted;  it is raised'
+            r' after a step that makes the error worse and lowered after one'
+            r' that helps.' + eol)
 
-    sec += r'\subsection{Generated code}' + eol
-    sec += r'\begin{center}\begin{tabular}{ll}' + eol
-    sec += r'{\tt IK\_hybrid\_' + ident + r'.py} & the phases \\' + eol
-    sec += (r'{\tt ikin\_' + ident + r'\_approx(T)} & Phase I: seed branches of'
-            r' the simplified arm \\' + eol)
-    sec += (r'{\tt refine\_seed\_' + ident + r'(T, q)} & Phase IIa: refine ONE'
-            r' seed \\' + eol)
-    sec += (r'{\tt refine\_all\_' + ident + r'(T)} & Phase II: score every'
-            r' seed \\' + eol)
-    sec += r'\end{tabular}\end{center}' + eol
-    sec += (r'Phase IIa is the operational call:  it takes a seed --- normally'
-            r' the branch nearest where the arm is now --- and returns the'
-            r' refined joints, the residual error and the iteration count.'
-            r'  Phase II is its wrapper over a whole seed list, for finding'
-            r' out once which postures the real arm can reach.' + eol)
-    sec += (r'Phase I discards candidate branches that do not reproduce $T_d$'
-            r' on the simplified arm;  IKBT enumerates combinations of each'
-            r" unknown's solution branches and does not itself filter the"
-            r' spurious ones.  Phase II reports {\tt converged}, which can'
-            r' legitimately be false:  the real arm may not reach the'
-            r' requested pose from the chosen branch, or at all.' + eol)
-
+    sec += r'\subsection{Choosing a posture}' + eol
+    sec += (r'Damped least squares converges to the solution nearest its'
+            r' starting joint-pose, so choosing where to start \emph{is}'
+            r' choosing the posture.  Which posture you want depends on'
+            r' things IKBT cannot know --- obstacles, joint limits, where the'
+            r' arm is now --- so the generated code leaves that choice to you.'
+            r'  {\tt IK\_hybrid\_' + fname + r'.py} has three functions:' + eol)
+    sec += r'{\raggedright\begin{itemize}' + eol
+    sec += (r'\item ' + _tt(f'ikin_{rid}_approx(T)') + r':  the approximate'
+            r' joint-poses from the simplified arm, one per posture.'
+            r'  Approximations that miss $T$ even on the simplified arm are'
+            r' dropped.' + eol)
+    sec += (r'\item ' + _tt(f'refine_seed_{rid}(T, q_seed)') + r':  corrects'
+            r' one approximation against the real arm and returns the'
+            r' corrected joint-pose, its remaining error and the iteration'
+            r' count.  \textbf{This is the normal call:}  pass the'
+            r' approximation nearest the arm' + "'" + r's current joint-pose.'
+            + eol)
+    sec += (r'\item ' + _tt(f'refine_all_{rid}(T)') + r':  corrects every'
+            r' approximation, to find out which postures the real arm can'
+            r' actually reach at $T$.' + eol)
+    sec += r'\end{itemize}\par}' + eol
+    sec += (r'A correction can fail to converge (it reports {\tt converged}'
+            r' false).  That is not necessarily a fault:  the real arm may be'
+            r' unable to reach $T$ in that posture, or at all.'
+            r'  Section~\ref{sec:files} lists all the generated files.' + eol)
     return sec.splitlines()
-#
-
 
 
 def known_math(known):
@@ -522,34 +539,33 @@ def onevar_assumption_section(onevar):
     known = known_math(onevar.get('known') or '?')
     robot = tex_name(str(onevar.get('robot') or '?'))
 
-    sec = r'\section{What Was Assumed}' + eol
-    sec += (r'IKBT could not solve ' + robot + r' in closed form.  It could,'
-            r' however, solve every other joint once $' + known + r'$ is'
-            r' treated as \emph{known}, and that is what the equations in this'
-            r' report are:' + eol)
+    sec = r'\section{Read This First:  a One-Variable Solution}' + eol
+    sec += (r'\textbf{IKBT could not solve ' + robot + r' in closed form.}'
+            r'  It could, however, solve every other joint in closed form once'
+            r' $' + known + r'$ is treated as \emph{known}.  The solution'
+            r' therefore has two parts:' + eol)
+    sec += r'\begin{enumerate}' + eol
+    sec += (r'\item \textbf{A conditional closed form.}  The equations in this'
+            r' report give every other joint from the goal end-effector-pose'
+            r' \emph{and} a value of $' + known + r'$:' + eol)
     sec += r'\begin{center}' + eol
     sec += (r'\fbox{\parbox{0.8\textwidth}{\centering Given a value of $'
             + known + r'$, these equations give every other joint exactly.'
             r'\\ They hold only where that value is correct.}}' + eol)
     sec += r'\end{center}' + eol
-    sec += (r'Nothing about the robot has been changed or approximated:  the'
-            r' kinematic parameters below, the forward kinematics and every'
-            r' equation are ' + robot + r"'s own.  What is missing is one"
-            r' number, and Section~\ref{sec:onevarsearch} is how it is found.'
-            + eol)
+    sec += (r'\item \textbf{A one-dimensional search}'
+            r' (Section~\ref{sec:onevarsearch}) for the values of $' + known
+            + r'$ that are correct:  those where the resulting joint-pose,'
+            r' put through the forward kinematics, reproduces the goal.  Every'
+            r' value found gives an exact solution.' + eol)
+    sec += r'\end{enumerate}' + eol
 
     counts = onevar.get('counts') or {}
     if counts.get('n1') is not None:
-        sec += (r'$' + known + r'$ was chosen by measurement:  declaring it'
-                r' known leaves ' + str(counts.get('n1')) + r' equations in a'
-                r' single unknown (and ' + str(counts.get('n2', '?')) + r' in'
-                r' two), more than any other choice, and a solver can only'
-                r' begin from an equation in one unknown.' + eol)
-    if onevar.get('of'):
-        sec += (r'It was candidate ' + str(onevar.get('attempt')) + r' of '
-                + str(onevar.get('of')) + r' tried.' + eol)
+        sec += (r'IKBT chose $' + known + r'$ because treating it as known'
+                r' generated the most equations with only one unknown.' +eol)
 
-    sec += (r'The method is that of Friedman \emph{et al.}, \emph{Freeing the'
+    sec += (r'See Friedman \emph{et al.}, \emph{Freeing the'
             r' serial mechanism designer from inverse kinematic solvability'
             r' constraints}, Applied Bionics and Biomechanics 7(3), 2010,'
             r' 209--216.' + eol)
@@ -565,58 +581,192 @@ def onevar_search_section(onevar, name):
 
     eol = '\n'
     fname = tex_name(name)                    # as the FILE is called
-    ident = tex_name(py_identifier(name))     # as the FUNCTION is called
+    rid = py_identifier(name)                 # as the FUNCTION is called
     known = known_math(onevar.get('known') or '?')
 
-    sec = r'\section{The One-Dimensional Search}\label{sec:onevarsearch}' + eol
-    sec += (r'Evaluate the equations above at some value of $' + known + r'$'
-            r' and they return joint vectors.  Put those joints through the'
-            r" arm's own forward kinematics and compare with the goal pose"
-            r' $T_d$, and the result is a function of one variable:' + eol)
-    sec += r'\begin{dmath}' + eol
-    sec += (r'\epsilon(' + known + r') = \|\Delta p\| + w_{rot}\,\theta,'
-            r' \qquad \Delta p = p_d - p(q(' + known + r')), \quad'
-            r' R_d R^{T}(q(' + known + r')) = \mathrm{Rot}(\hat{a}, \theta)'
+    sec = (r'\section{Finding $' + known + r'$:  the One-Dimensional Search}'
+           r'\label{sec:onevarsearch}' + eol)
+    sec += (r'For a trial value of $' + known + r'$, the equations of'
+            r' Section~\ref{all_versions_gen} give one joint-pose per'
+            r' solution branch.  Putting each through the forward kinematics'
+            r' and comparing with the goal end-effector-pose $T_d$ gives an'
+            r' error that depends on $' + known + r'$ alone:' + eol)
+    #  align*, not dmath:  three short equations side by side made breqn
+    #  wrap them mid-equation
+    sec += r'\begin{align*}' + eol
+    sec += r'\epsilon(' + known + r') &= \|\Delta p\| + w_{rot}\,\theta \\' + eol
+    sec += r'\Delta p &= p_d - p(q(' + known + r')) \\' + eol
+    sec += (r'R_d\, R^{T}(q(' + known + r')) &= \mathrm{Rot}(\hat{a}, \theta)'
             + eol)
-    sec += r'\end{dmath}' + eol
-    sec += (r'The solutions of the true arm are the \emph{zeros} of'
-            r' $\epsilon$, so this is root finding rather than optimisation:'
-            r' a reachable pose drives a genuine solution to zero, and a local'
-            r' minimum that stops short is a feature of that branch and not an'
-            r' answer.  The generated code accepts a minimum only when it'
-            r' reaches zero.' + eol)
-    sec += (r'Each solution branch of the closed form is a separate function'
-            r' of $' + known + r'$, with its own zeros and its own domain --- a'
-            r' branch vanishes where its arcsine leaves $[-1,1]$ --- so they'
-            r' are searched separately.' + eol)
-    sec += (r'The sweep is a van der Corput sequence over the range of $'
-            + known + r'$: each new sample falls in the middle of the largest'
-            r' untested gap, with no bias toward either end, and the sequence'
-            r' is a prefix of itself, so asking for more samples refines'
-            r' everywhere and repeats nothing.  Each bracketed minimum is then'
-            r' refined by golden section, which needs no derivative --- near a'
-            r' solution $\epsilon$ is a norm going to zero, a V rather than a'
-            r' parabola.' + eol)
+    sec += r'\end{align*}' + eol
+    sec += (r'where $\Delta p$ is the position error, $\theta$ is the angle'
+            r' of the orientation error. $w_{rot}$ converts orientation error to length'
+            r' units.  \textbf{Every value of $' + known + r'$ where $\epsilon$'
+            r' reaches zero is an exact solution of the real arm.}' + eol)
 
-    sec += r'\subsection{Generated code}' + eol
-    sec += r'\begin{center}\begin{tabular}{ll}' + eol
-    sec += (r'{\tt IK\_onevar' + fname + r'.py} & the search --- \textbf{start'
-            r' here} \\' + eol)
-    sec += (r'{\tt solve\_' + ident + r'(T)} & every joint vector that reaches'
-            r' $T$ \\' + eol)
-    sec += (r'{\tt IK\_conditional' + fname + r'.py} & the closed form above \\'
-            + eol)
-    sec += (r'{\tt ikin\_' + ident + r'\_given(T, '
-            + tex_name(str(onevar.get('known') or '?')) + r')} & it, at one'
-            r' assumed value \\' + eol)
-    sec += (r'{\tt FK\_numeric' + fname + r'.py} & this arm' + "'" + r's forward'
-            r' kinematics \\' + eol)
-    sec += r'\end{tabular}\end{center}' + eol
-    sec += (r'{\tt solve} is the call to make.  The conditional closed form is'
-            r' exposed because it is what the search evaluates and because'
-            r' plotting $\epsilon$ is the way to understand a pose that comes'
-            r' back unreachable --- but a joint vector taken from it at a value'
-            r' chosen by hand does not put the robot at $T_d$.' + eol)
+    sec += (_tt(f'solve_{rid}(T)') + r' in {\tt IK\_onevar' + fname
+            + r'.py} runs this search and returns every joint-pose that'
+            r' reaches $T$.  Section~\ref{sec:files} lists all the generated'
+            r' files.' + eol)
+    return sec.splitlines()
+
+
+#  Where the generic how-to-use-it lives.  The section below says WHICH files
+#  this robot got;  the manual says what to do with any of them.
+USER_MANUAL = 'IKdocs/USER_MANUAL.pdf'      # source: LaTex_src/USER_MANUAL.tex
+
+
+def _path(p):
+    #  \nolinkurl (hyperref) breaks at '/' and takes '_' unescaped, so a long
+    #  path neither runs off the page nor needs tex_name()
+    return r'\nolinkurl{' + p + '}'
+
+
+def _tt(s):
+    return r'{\tt ' + tex_name(s) + '}'
+
+
+def _file_table(rows):
+    #  \noindent and \par make the table a paragraph of its own;  without
+    #  them it sits inline, and the next sentence overflows beside it
+    eol = '\n'
+    sec = r'\par\noindent\begin{tabular}{p{0.47\textwidth}p{0.47\textwidth}}' + eol
+    for p, what in rows:
+        #  ragged right, since a justified narrow column spaces badly;
+        #  \raggedright redefines \\, hence \tabularnewline
+        sec += (_path(p) + r' & \raggedright ' + what
+                + r' \tabularnewline[3pt]' + eol)
+    return sec + r'\end{tabular}\par' + eol
+
+
+def generated_files_section(orig_name, solved_name, hybrid=None, onevar=None):
+    r"""The last section of every report:  every file this run of IKBT
+       writes for the robot, by name, with one line on what it is for.
+
+       orig_name    the robot the user asked about (the report's name)
+       solved_name  the arm actually solved -- differs only on the hybrid path
+
+       PREDICTED, NOT LISTED FROM DISK.  The report is written before any
+       code (ik_driver.emit_*_outputs), so the list follows the same rule
+       scripts/robot_baseline.artifacts_owed() checks after the fact:  the
+       path decides the files, not what an earlier run left lying around.
+       Change one and change the other.
+
+       How to USE them is not robot-specific and lives in USER_MANUAL."""
+
+    eol = '\n'
+    R, D = orig_name, solved_name
+    rid, did = py_identifier(R), py_identifier(D)
+    py = 'CodeGen/Python/'
+    cpp = f'CodeGen/Cpp/{R}CppCode/{R}.cpp'
+    path_name = 'hybrid' if hybrid else ('onevar' if onevar else 'symbolic')
+
+    sec = (r'\section{Files Produced for ' + tex_name(R) + r'}\label{sec:files}'
+           + eol)
+    sec += (r'This run of IKBT wrote the files below, named relative to the'
+            r' IKBT root directory;  the \textbf{entry point} in each language'
+            r' is the call to make.  $T$ is the goal 4x4 end-effector-pose, and'
+            r' a returned joint-pose lists the joints in chain order.  How to'
+            r' call, compile and check the files is explained for every robot'
+            r' in the IKBT User Manual, ' + _path(USER_MANUAL) + '.' + eol)
+
+    ####  python
+    sec += r'\subsection{Python}' + eol
+    fk_true = (_tt(f'fk_{rid}(q)') + r' gives $T$;  ' + _tt(f'jacobian_{rid}(q)')
+               + r' the Jacobian in frame 6, and {\tt jacobian\_base(T, J)}'
+               r' rotates it into the base frame.')
+    if hybrid:
+        rows = [
+            (f'{py}IK_hybrid_{R}.py',
+             r'\textbf{the entry point:}  ' + _tt(f'ikin_{rid}_approx(T)')
+             + ', ' + _tt(f'refine_seed_{rid}(T, q_seed)') + ' and '
+             + _tt(f'refine_all_{rid}(T)') + r', explained in'
+             r' Section~\ref{sec:hybridnumeric}.'),
+            (f'{py}IK_equations{D}.py',
+             r'closed form of the \emph{simplified} arm ' + tex_name(D) + ', '
+             + _tt(f'ikin_{did}(T)') + r'.  Exact for that arm only;  it is'
+             r' not an inverse kinematics of ' + tex_name(R) + '.'),
+            (f'{py}FK_numeric{D}.py',
+             r'forward kinematics of the simplified arm, ' + _tt(f'fk_{did}(q)')
+             + r';  used to drop approximations that do not reach $T$.'),
+            (f'{py}FK_numeric{R}.py',
+             r'forward kinematics and Jacobian of the real arm --- what the'
+             r' correction uses.  ' + fk_true),
+        ]
+    elif onevar:
+        known = str(onevar.get('known') or '?')
+        rows = [
+            (f'{py}IK_onevar{R}.py',
+             r'\textbf{the entry point.}  ' + _tt(f'solve_{rid}(T)')
+             + r' returns every joint-pose that reaches $T$, each with its'
+             r' error.  Run it as a script for a self-test at a random'
+             r' end-effector-pose (it prints the random seed;  pass it back to'
+             r' repeat).'),
+            (f'{py}IK_conditional{R}.py',
+             r'the closed form joint solutions which depend on $'+known_math(known)
+             +'$.  ' + r', ' + _tt(f'ikin_{rid}_given(T, {known})')
+             + r'.  Exact only at a correct value of $' + known_math(known)
+             + r'$;  (used by the search).'),
+            (f'{py}FK_numeric{R}.py', fk_true),
+        ]
+    else:
+        rows = [
+            (f'{py}IK_equations{R}.py',
+             r'\textbf{the entry point.}  ' + _tt(f'ikin_{rid}(T)')
+             + r' returns every posture that reaches $T$, a list of joint-poses,'
+             r' or {\tt False} if none does.  Run it as a script for a'
+             r' self-test.'),
+            (f'{py}FK_numeric{R}.py',
+             fk_true + r'  Written only when every parameter of the robot has'
+             r' a numeric value.'),
+        ]
+    sec += _file_table(rows)
+    if hybrid or onevar:
+        sec += (r'The entry point loads its sibling modules by path, so keep'
+                r' these files together in one directory.' + eol)
+
+    ####  C++
+    sec += r'\subsection{C++}' + eol
+    what_ik = {
+        'symbolic': _tt('ikin(T)') + r', the closed form',
+        'onevar':   (_tt('solve(T)') + r', the search, and '
+                     + _tt('ikin_given()') + r', the closed form it evaluates'),
+        'hybrid':   (_tt('ikin_approx()') + ', ' + _tt('refine_seed()') + ', '
+                     + _tt('refine_all()') + r', and the simplified arm' + "'"
+                     + r's ' + _tt(f'ikin_{did}()') + ' and '
+                     + _tt(f'fk_{did}()')),
+    }[path_name]
+    sec += _file_table([
+        (cpp,
+         r'\textbf{the entry point.}  Everything specific to ' + tex_name(R)
+         + r', in namespace '
+         + _tt(f'ikbt::{rid}') + r':  ' + _tt('fk(q)') + ', '
+         + _tt('jacobian(q)') + ', and ' + what_ik + r'.  Its {\tt'
+         r' SOLUTION\_PATH} is {\tt "' + path_name + r'"}.  Self-test:'
+         r' {\tt g++ -std=c++17 -O2 -DIKBT\_MAIN} on this file.'),
+        ('Cpp_src/',
+         r'Shared headers and the'
+         r' bundled Eigen library.   These are included via a relative'
+         r' {\tt \#include} statement.  You may need to adjust the'
+         r' {\tt \#include} if you rearrange the files.'),
+    ])
+
+    ####  everything else
+    sec += r'\subsection{Other files}' + eol
+    rows = [(f'LaTex/ik_solution_{R}.tex',
+             r'this report.  {\tt cd LaTex; pdflatex ik\_solution\_' + tex_name(R)
+             + r'.tex} makes the PDF.'),
+            (f'graphs/{D}_graph.txt',
+             r'the solution graph, as data:  variables, dependencies and the'
+             r' version of each variable in every solution.'),
+            (f'fk_eqns/{R}_pickle.p',
+             r'cached forward kinematics, written the first time this robot is'
+             r' solved.  Safe to delete at any time.')]
+    if hybrid:
+        rows.append((f'fk_eqns/{D}_pickle.p',
+                     r'the same, for the simplified arm.'))
+    sec += _file_table(rows)
+
     return sec.splitlines()
 
 
@@ -843,7 +993,7 @@ def output_latex_solution(Robot, variables, groups, hybrid=None, R_true=None,
     # print the DETAILED equations for each version of each variable
     #  (a detailed equation for each solution version)
     #
-    solsection = r'\section{Solutions to Generate all Versions} '+eol
+    solsection = r'\section{Solutions to Generate all Versions}\label{all_versions_gen} '+eol
     solsection += ''' The following equations are the full set of solutions for each unknown
     incorporating all combinations of dependencies.''' + eol
 
@@ -904,7 +1054,20 @@ def output_latex_solution(Robot, variables, groups, hybrid=None, R_true=None,
     #  which, is exactly what a list of pairs does not show.  The listing stays
     #  because it is the exact data;  the figure is what a reader looks at.
     edgesection = r'\section{Solution Graph}' + eol
+    known, known_users, known_note = None, [], ''
     try:
+        #  ONE-VARIABLE:  the assumed variable is a root of the graph, with an
+        #  arrow to every variable whose solution uses it.  No edge records
+        #  that -- it was a parameter to the solver -- so read it off the
+        #  solutions themselves.
+        if onevar and onevar.get('known'):
+            known = str(onevar['known'])
+            known_users = [nd.unknown.name for nd in Robot.solution_nodes
+                           if any(known in {str(f) for f in
+                                            sp.sympify(sol).free_symbols}
+                                  for sol in nd.unknown.solutions)]
+            known_note = (r'  $' + known_math(known) + r'^{*}$ is the variable'
+                          r' assumed known (Section~\ref{sec:onevarsearch}).')
         edgesection += gl.solution_graph_tikz(
             [nd.unknown.name for nd in Robot.solution_nodes], graph, eol,
             caption=('Solution order graph for ' + fixed_name
@@ -912,31 +1075,40 @@ def output_latex_solution(Robot, variables, groups, hybrid=None, R_true=None,
                      r' variable to one that becomes solvable once it is known.'
                      r'  Rows are dependency depth, so the graph reads top to'
                      r' bottom in solution order and every variable sits below'
-                     r' everything it needs.'),
-            label='fig:solgraph')
+                     r' everything it needs.' + known_note),
+            label='fig:solgraph', known=known, known_users=known_users)
     except Exception as e:
         #  A drawing must never cost the report:  the listing below carries the
         #  same information, so a figure that will not build is a lost nicety.
         print('  solution graph figure skipped -- %s: %s' % (type(e).__name__, e))
 
-    edgesection += eol + r'''The same graph as an edge list (nodes with parent -1 are roots):
+    edgesection += eol + r'''The same graph as an edge list:
 \begin{verbatim}
 '''
+
+    #  The assumed variable's edges are not in the graph (see above);  they
+    #  are written in the same form as the real ones, starred like the figure.
+    edge_lines = [str(edge) for edge in graph]
+    if known:
+        edge_lines += [f'Edge:{a} depends on: {known}*  ({a}-->{known}*)'
+                       for a in known_users]
 
     i = 0
     sameline = '     '
     sepstr = sameline
     print('test: Starting Graph output')
-    for edge in graph:
+    for line in edge_lines:
         i+=1
         if i%2==0:
             sepstr = eol
         elif i>1:
             sepstr = sameline
-        # print('test: edge + sepstr: [',str(edge)+sepstr,']')
-        edgesection+= str(edge)+ sepstr
+        edgesection+= line + sepstr
 
     edgesection +=  r'\end{verbatim} '+eol
+    if known:
+        edgesection += (r'$^{*}$ ' + r'{\tt ' + tex_name(known) + r'} is the'
+                        r' variable assumed known.' + eol)
 
     LF.sections.append(edgesection.splitlines())
 
@@ -989,8 +1161,8 @@ def output_latex_solution(Robot, variables, groups, hybrid=None, R_true=None,
     rows = solution_rows(Robot, groups)
 
     solsection = r'\section{Solution Set}'+eol
-    solsection += (r'The following are the sets of joint solutions (poses) for'
-                   r' this manipulator, one row per pose, columns in the order'
+    solsection += (r'The following are the sets of joint solutions (joint-poses)'
+                   r' for this manipulator, one row per joint-pose, columns in the order'
                    + eol + '$' + '$, $'.join(version_tex(c) for c in jcols)
                    + '$:' + eol)
     solsection += r'\begin{verbatim}' + eol
@@ -1005,7 +1177,7 @@ def output_latex_solution(Robot, variables, groups, hybrid=None, R_true=None,
                        + '$, $'.join(version_tex(n) for n in soa)
                        + r'$) are computed on the way to these solutions and'
                        r' are fully determined by the joints above, so they are'
-                       r' not columns of a pose.' + eol + eol)
+                       r' not columns of a joint-pose.' + eol + eol)
 
     LF.sections.append(solsection.splitlines())
 
@@ -1087,6 +1259,10 @@ def output_latex_solution(Robot, variables, groups, hybrid=None, R_true=None,
     #  step that turns them into an answer for the robot on the title page.
     LF.sections.append(hybrid_numeric_section(hybrid, orig_name))
     LF.sections.append(onevar_search_section(onevar, orig_name))
+
+    ####################  Every file this run writes, on every path
+    LF.sections.append(generated_files_section(orig_name, solved_name,
+                                               hybrid=hybrid, onevar=onevar))
 
     # Write out the file!!
     LF.output()

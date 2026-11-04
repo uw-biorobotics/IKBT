@@ -1,0 +1,480 @@
+%  IKBT User Manual -- using what IKBT produces.
+%
+%  SOURCE.  The PDF is IKdocs/USER_MANUAL.pdf, built from the repo root with
+%
+%     pdflatex -output-directory=/tmp LaTex_src/USER_MANUAL.tex   (run twice, for the contents)
+%     cp /tmp/USER_MANUAL.pdf IKdocs/
+%
+%  Every generated report's last section, "Files Produced for <Robot>"
+%  (output_latex.generated_files_section()), points here:  that section says
+%  WHICH files a robot got, this manual says what to do with any of them.
+
+\documentclass[11pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=1in]{geometry}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage[obeyspaces,spaces]{url}   % a long command may break at a space
+\usepackage[colorlinks=true, linkcolor=blue!50!black, urlcolor=blue!50!black]{hyperref}
+
+\lstset{basicstyle=\ttfamily\small, columns=fullflexible, keepspaces=true,
+        upquote=true, frame=single, rulecolor=\color{black!25},
+        xleftmargin=1em, xrightmargin=1em, aboveskip=0.8em, belowskip=0.8em}
+
+%  \code{} for identifiers and commands, \file{} for paths.  Both are url-style:
+%  _ < > print as typed, and a long one may break at a space, '.', '/' or '_'.
+\DeclareUrlCommand\code{\urlstyle{tt}}
+\DeclareUrlCommand\file{\urlstyle{tt}}
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}
+
+\setlist{itemsep=2pt}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.6em}
+
+\title{IKBT User Manual\\[0.3em]\large Using what IKBT produces}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+\raggedright      % long inline commands wrap instead of overrunning
+
+\textbf{Who this is for:}  you have a robot, you have run IKBT on it, and you want
+to \emph{use} the result:  call the inverse kinematics from your own program,
+read the report, check that the answers are right.  Nothing here needs
+knowledge of how IKBT works inside;  for that, see the JAIR paper
+(\file{IKdocs/IKBT_JAIR_2019.pdf}) and \file{CLAUDE.md}.
+
+\textbf{Which files did my robot get?}  The last section of your robot's report,
+\emph{Files Produced for \textless Robot\textgreater}, lists them by name with
+one line each.  This manual explains, for every robot, what to do with them.
+
+\tableofcontents
+
+%======================================================================
+\section{Running IKBT}
+
+Everything runs \textbf{from the IKBT root directory}:
+
+\begin{lstlisting}
+python3 ikSolver.py Puma     # solve one robot (no argument -> Wrist, the fast one)
+python3 fkOnly.py Puma       # forward kinematics and Jacobian only, no IK
+\end{lstlisting}
+
+A robot is defined by name in \file{ikbtfunctions/ik_robots.py}
+(\code{robot_params()}):  its DH table, its joint variables, and numeric values
+(\code{pvals}) for its link lengths.  Adding a robot means adding a block there,
+following the many existing ones.  \textbf{Give every parameter a numeric value
+in \code{pvals}} if you want numeric code;  see Section~\ref{sec:wrong} for what
+happens if you don't.
+
+A solve takes from seconds (Wrist) to tens of minutes.  Requirements:  Python 3,
+\code{sympy}, \code{numpy};  a LaTeX distribution to compile the report;
+\code{g++} (C++17) to build the C++.
+
+%======================================================================
+\section{Words and conventions}
+
+These hold for every generated file, in both languages.
+
+\begin{itemize}
+\item \textbf{end-effector-pose $T$} --- where the hand is:  a $4\times4$
+  homogeneous transform of frame 6 (the last DH frame) in the base frame.
+  \code{T[0,3]}, \code{T[1,3]}, \code{T[2,3]} are $x$, $y$, $z$.  This is what an
+  IK call takes.
+\item \textbf{joint-pose $q$} --- a joint vector, one value per joint, in
+  \textbf{DH chain order}.  The generated code names that order in
+  \code{JOINT_NAMES}.  This is what an IK call returns, and what FK takes.
+  $T = \mathrm{FK}(q)$.
+\item \textbf{Units.}  Revolute joints are in \textbf{radians}.  Prismatic joints
+  and all positions are in the \textbf{length units of the robot's DH table}
+  (whatever you used in \code{pvals}:  m, mm, \ldots).
+\item \textbf{Posture.}  Most arms reach one end-effector-pose with several
+  joint-poses --- elbow up or down, wrist flipped.  IKBT returns \textbf{all} of
+  them it can find.  Choosing one is your job, because it depends on things IKBT
+  does not know:  joint limits, obstacles, where the arm is now.
+\item \textbf{No joint limits, no angle wrapping.}  Returned angles are whatever
+  the equations give (for example in $(-\pi, \pi]$).  Apply your joint limits and
+  any $2\pi$ wrap to the returned joint-poses yourself.
+\item \textbf{Sum-of-angles intermediates} (\code{th_23} and the like) are
+  computed internally and \textbf{not} returned;  they are listed in
+  \code{AUX_NAMES}.
+\end{itemize}
+
+%======================================================================
+\section{Which method did my robot get?}\label{sec:method}
+
+IKBT tries three methods in order and stops at the first that works, so
+\textbf{your robot got exactly one of them}.  That decides which function you
+call.
+
+\begin{description}
+\item[Symbolic.]  A complete closed form:  an explicit equation for every joint.\\
+  Python:  \code{ikin_<Robot>(T)} in \file{IK_equations<Robot>.py}.
+  C++:  \code{ikin(T)}.
+\item[One-variable.]  No full closed form, but once ONE variable is assumed
+  known, the rest is closed form;  a 1-D search finds the right value(s) of that
+  variable.  Exact --- nothing about the arm is approximated.\\
+  Python:  \code{solve_<Robot>(T)} in \file{IK_onevar<Robot>.py}.
+  C++:  \code{solve(T)}.
+\item[Hybrid.]  When the first two fail,  IKBT creates and solves a slightly \emph{simplified}
+  arm in closed form, and uses its solutions as starting points for a 6d numerical
+  solution of your actual arm.\\
+  Python:  \code{ikin_<Robot>_approx(T)}, then
+  \code{refine_seed_<Robot>(T, q_seed)}, in \file{IK_hybrid_<Robot>.py}.
+  C++:  \code{ikin_approx(T)}, then \code{refine_seed(T, q_seed)}.
+\end{description}
+
+To find out which you have, any of these works:
+\begin{itemize}
+\item the report's Introduction says ``closed form'', ``ONE-VARIABLE'' or
+  ``HYBRID'';
+\item the Python file names (above) differ by method;
+\item the C++ file says it:
+  \code{grep SOLUTION_PATH CodeGen/Cpp/<Robot>CppCode/<Robot>.cpp}.
+\end{itemize}
+
+\textbf{Robot names in function names.}  File names use the robot's own name
+(\file{IK_onevarC-Arm.py});  function names and the C++ namespace use it with
+every non-identifier character turned into \code{_} (\code{solve_C_Arm},
+\code{ikbt::C_Arm}).
+
+%======================================================================
+\section{The files, at a glance}
+
+All paths are relative to the IKBT root.  Everything below except
+\file{Cpp_src/} is \textbf{generated}:  the next solve of that robot overwrites
+it, so edit a copy, never the original.
+
+\begin{center}\small
+\begin{tabularx}{\textwidth}{@{}p{0.42\textwidth}Ll@{}}
+\toprule
+file & what & method \\
+\midrule
+\file{LaTex/ik_solution_<R>.tex} & the report (Section~\ref{sec:report}) & all \\
+\file{CodeGen/Python/IK_equations<R>.py} & closed-form IK & symbolic \\
+\file{CodeGen/Python/IK_onevar<R>.py} & the 1-D search --- \textbf{entry point} & one-variable \\
+\file{CodeGen/Python/IK_conditional<R>.py} & closed form \emph{given} the assumed variable & one-variable \\
+\file{CodeGen/Python/IK_hybrid_<R>.py} & approximate, then correct --- \textbf{entry point} & hybrid \\
+\file{CodeGen/Python/IK_equations<D>.py} & closed form of the simplified arm \code{<D>} & hybrid \\
+\file{CodeGen/Python/FK_numeric<D>.py} & FK of the simplified arm & hybrid \\
+\file{CodeGen/Python/FK_numeric<R>.py} & FK and Jacobian of your robot & all \\
+\file{CodeGen/Cpp/<R>CppCode/<R>.cpp} & \textbf{all} the C++ for the robot:  FK, Jacobian, and the IK & all \\
+\file{Cpp_src/} & shared C++ headers and a bundled Eigen (source, not generated) & all \\
+\file{graphs/<R>_graph.txt} & the solution graph as data & all \\
+\file{fk_eqns/<R>_pickle.p} & FK cache;  safe to delete & all \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+On the hybrid path \code{<D>} is the simplified (``derived'') arm, named for what
+was changed --- Raven-II's is \code{Raven-II_a_5_0} (DH parameter \code{a_5} set
+to 0).  Its graph file and pickle carry \code{<D>} too.
+
+%======================================================================
+\section{Python}
+
+Each generated module requires only numpy  (no IKBT, or sympy imports required) so
+you can copy \file{CodeGen/Python/} anywhere.  When using the  one-variable or hybrid
+methods, the entry point loads its sibling modules (e.g. {\tt IK_onevar<R>.py})
+\textbf{by path}, so keep the
+robot's files together in one directory.
+
+Robot names such as \code{C-Arm} are not legal module names, so the examples load
+modules by path;  for a name like \code{Puma}, a plain
+\code{import IK_equationsPuma} with \file{CodeGen/Python} on \code{sys.path} also
+works.
+
+\begin{lstlisting}
+import importlib.util, os
+import numpy as np
+
+def load(path):
+    name = os.path.basename(path)[:-3].replace('-', '_')
+    spec = importlib.util.spec_from_file_location(name, path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+\end{lstlisting}
+
+Every module also runs as a script
+(\code{python3 CodeGen/Python/IK_equationsPuma.py}) as a self-test.
+
+\subsection{Symbolic}
+
+\begin{lstlisting}
+ik = load('CodeGen/Python/IK_equationsPuma.py')
+fk = load('CodeGen/Python/FK_numericPuma.py')
+
+T = fk.fk_Puma([0.3, -0.5, 0.4, 0.2, 0.7, -0.1])  # a reachable end-effector-pose
+sols = ik.ikin_Puma(T)       # list of joint-poses (JOINT_NAMES order), or False
+if sols is False:
+    print('unreachable')
+else:
+    for q in sols:
+        print(np.abs(fk.fk_Puma(q) - T).max())  # ~1e-16: every one reaches T
+\end{lstlisting}
+
+\begin{itemize}
+\item Returns \textbf{one row per posture that exists at $T$}, so the count varies
+  with the end-effector-pose;  Puma gives up to 8.  \code{False} means none exist.
+\item \code{ikin_Puma_labeled(T)} returns the same rows as dicts keyed by joint
+  name.
+\item Link lengths are module-level constants (\code{d_1 = 0.6}, \ldots), visible
+  at the top of the file.
+\end{itemize}
+
+\subsection{One-variable}
+
+\begin{lstlisting}
+ov = load('CodeGen/Python/IK_onevarC-Arm.py')
+for s in ov.solve_C_Arm(T):
+    s['q']            # the joint-pose, JOINT_NAMES order, ready for FK
+    s['error']        # ||dp|| + W_ROT*theta at q; accepted only if <= ACCEPT_TOL
+    s['known_value']  # the value of KNOWN_VARIABLE it was found at
+    s['branch']       # which branch of the closed form it came from
+    s['n_samples']    # the search resolution it settled at
+\end{lstlisting}
+
+\begin{itemize}
+\item The answers are \textbf{exact} --- the equations are your real arm's.
+  Typical cost:  about 0.1\,s per call.
+\item \code{[]} means no solution was \textbf{found}, which is not quite the same
+  as unreachable.
+\item If \code{n_samples == MAX_SAMPLES}, the search was still finding new
+  solutions when it stopped;  every returned one is still correct, but some may
+  be missing.  Raise \code{max_samples} for that end-effector-pose:
+  \code{solve_C_Arm(T, max_samples=16384)}.
+\item \code{ikin_<R>_given(T, value)}, in \file{IK_conditional<R>.py}, is the
+  closed form at one assumed value.  It is exact \textbf{only} at a correct
+  value, so do not use it directly to command the arm;  it is exposed for
+  plotting and diagnosis (\code{sweep_<R>(T)} gives the raw error curves).
+\item Running \file{IK_onevar<R>.py} as a script picks a \textbf{random}
+  end-effector-pose and prints the random seed;  pass it back
+  (\code{python3 CodeGen/Python/IK_onevarC-Arm.py 12345}) to repeat that case.
+\end{itemize}
+
+\subsection{Hybrid --- two calls, on purpose}
+
+\begin{lstlisting}
+hy = load('CodeGen/Python/IK_hybrid_Raven-II.py')
+
+approx = hy.ikin_Raven_II_approx(T)       # one approximate joint-pose per posture
+q, err, iters = hy.refine_seed_Raven_II(T, approx[0])  # correct ONE
+if err <= 1e-9:
+    ...                                      # q puts the REAL arm at T
+
+for r in hy.refine_all_Raven_II(T):          # correct every one
+    r['index'], r['q'], r['error'], r['converged']
+\end{lstlisting}
+
+\begin{itemize}
+\item \textbf{Solutions of the  approximate arms are not answers.}
+They are good starting points for the numerical method however.
+Only a corrected joint-pose, solved by the numerical solver
+  reaches $T$.
+\item \textbf{\code{refine_seed} takes a joint-pose, not an index}, because
+  choosing where to start \emph{is} choosing the posture --- the numerical solver stays
+  near its starting point.
+\item \textbf{Test the error.}  \code{converged} can legitimately be false:  the
+  real arm may not reach $T$ in that posture, or at all.
+\item \code{refine_all} is for learning,   which postures the real arm can
+  actually reach.
+\item The module's header states how the approximate model was derived
+(\code{DH_CHANGES}) and its
+  cost.
+\end{itemize}
+
+\subsection{Forward kinematics and Jacobian (every method)}
+
+\begin{lstlisting}
+fk = load('CodeGen/Python/FK_numericPuma.py')
+T  = fk.fk_Puma(q)                 # 4x4 numpy array
+J6 = fk.jacobian_Puma(q)           # 6 x 6, EXPRESSED IN FRAME 6
+J0 = fk.jacobian_base(T, J6)       # the same, rotated into the base frame
+\end{lstlisting}
+
+Round-tripping each IK answer through \code{fk_<R>()} is the simplest way to
+check it.  On the symbolic path this module is written only when every parameter
+has a numeric value.
+
+%======================================================================
+\section{C++}
+
+\textbf{\file{IKdocs/CPP_API.md} is the full reference} --- every type and
+function, and a compiled-and-run program for each method.  The short version:
+
+\begin{itemize}
+\item \textbf{One file per robot}, \file{CodeGen/Cpp/<R>CppCode/<R>.cpp},
+  everything in \code{namespace ikbt::<R>}:  \code{fk()}, \code{jacobian()}, and
+  the IK (\code{ikin()}, \code{solve()}, or \code{ikin_approx()} +
+  \code{refine_seed()}, as in Section~\ref{sec:method}).  Use it by including it:
+\begin{lstlisting}
+#include "CodeGen/Cpp/PumaCppCode/Puma.cpp"
+// T is an Eigen::Matrix4d
+std::vector<Eigen::VectorXd> sols = ikbt::Puma::ikin(T);
+\end{lstlisting}
+\item \textbf{Build:}  \code{g++ -std=c++17 -O2 myapp.cpp -o myapp -lm}.  No
+  \code{-I}, nothing to install:  Eigen is bundled in
+  \file{Cpp_src/third_party/eigen3/}, and if your build already has Eigen (ROS,
+  CMake) the generated code uses yours.
+\item \textbf{Self-test:}
+\begin{lstlisting}
+g++ -std=c++17 -O2 -DIKBT_MAIN CodeGen/Cpp/PumaCppCode/Puma.cpp -o ik && ./ik
+\end{lstlisting}
+\item \textbf{Keep the directory where it is relative to \file{Cpp_src/}.}  The
+  robot file reaches the shared headers by a relative \texttt{\#include}
+  (\file{../../../Cpp_src/...}).  To build elsewhere, copy \file{Cpp_src/} along
+  with it at the same relative depth.
+\item Unreachable is an \textbf{empty vector}, not \code{false}.  The search
+  parameters, joint-name arrays and the two hybrid calls mirror the Python one
+  for one.
+\end{itemize}
+
+%======================================================================
+\section{The LaTeX report}\label{sec:report}
+
+\file{LaTex/ik_solution_<R>.tex} is a self-contained document.  To make the PDF:
+
+\begin{lstlisting}
+cd LaTex && pdflatex ik_solution_Puma.tex
+\end{lstlisting}
+
+It contains the DH parameters, forward kinematics, the unknowns in solution
+order, every solution equation (long expressions are shortened by naming pieces
+$K_1$, $K_2$, \ldots\ defined just above them), the solution graph (which
+variable depends on which), the table of complete solutions, the Jacobian, and
+--- on the one-variable and hybrid paths --- sections saying what was assumed or
+simplified and how the numerical step works.  The last section lists the files
+produced.
+
+The equations are the same ones the generated code evaluates, so the report is
+the way to read or cite the solution by hand.  \code{pdflatex} leaves
+\file{.aux}, \file{.log} and \file{.out} files beside the PDF;  they can be
+deleted.
+
+%======================================================================
+\section{Checking the outputs}
+
+Each command runs from the IKBT root.  \code{--keep} checks the files already
+written instead of solving the robot again.
+
+\begin{center}\small
+\begin{tabularx}{\textwidth}{@{}p{0.40\textwidth}L@{}}
+\toprule
+command & asks \\
+\midrule
+\code{python3 -m scripts.numerical_closed_loop_sol_check <R> --keep}
+  & Is the generated \textbf{Python} right?  For random reachable
+    end-effector-poses, every returned joint-pose must reproduce it
+    (\textbf{sound}), and the joint-pose it came from must be among them
+    (\textbf{complete}).  Works for all three methods. \\[3pt]
+\code{python3 -m scripts.cpp_closed_loop_check <R> --keep}
+  & Is the generated \textbf{C++} right, and does it agree with the Python,
+    branch for branch? \\[3pt]
+\code{python3 -m scripts.check_solution_sets <R>}
+  & Is IKBT's \textbf{symbolic} solution set itself right?  Every version must
+    reproduce random reachable end-effector-poses, and no two versions may be
+    identical. \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\textbf{Why \code{python3 -m}?}  These scripts import IKBT's own packages
+(\code{ikbtfunctions}, \code{ikbtbasics}, \ldots).  Python puts the
+\emph{directory of the script it runs} on its import path, so
+\code{python3 scripts/numerical_closed_loop_sol_check.py} looks for those
+packages inside \file{scripts/} and stops with
+\code{ModuleNotFoundError: No module named 'ikbtfunctions'}.
+\code{python3 -m scripts.<name>}, run from the IKBT root, puts the root on the
+path instead, and everything is found.
+
+\file{IKdocs/TESTING.md} describes these and the rest of the test suite in
+detail.
+
+%======================================================================
+\section{Other outputs}
+
+These are made only when you run them;  none of them solves the robot again.
+
+\begin{center}\small
+\begin{tabularx}{\textwidth}{@{}p{0.32\textwidth}L@{}}
+\toprule
+how & what \\
+\midrule
+\code{python3 -m scripts.tube_map <R>}
+  & \file{graphs/<R>_tube.svg}:  the solution graph drawn as a subway map ---
+    one coloured line per complete solution, one station per version of each
+    variable.  Reads only \file{graphs/<R>_graph.txt}, so it is instant.  On
+    the hybrid path use the simplified arm's name. \\[3pt]
+\code{python3 fkOnly.py <R>}
+  & forward kinematics only:  \file{LaTex/fk_equations_<R>.tex},
+    \file{CodeGen/Python/FK_equations<R>.py} (a readable dump of the symbolic
+    FK), and \file{CodeGen/Cpp/<R>CppCode/FK_numeric<R>.h}.  Use it for a robot
+    you need only FK for;  it does not touch IK files. \\[3pt]
+\code{python3 -m scripts.bt_diagram}
+  & the behavior tree itself, as slides (\file{IKdocs/IKBT_BT_p1..p3.svg}). \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+%======================================================================
+\section{Regenerating and cleaning up}
+
+\begin{itemize}
+\item \textbf{Re-run the solve} to regenerate everything for a robot;  it
+  overwrites that robot's files.
+\item \textbf{\file{CodeGen/cleanCodeGenOutput}} (run from the root) deletes all
+  generated Python and C++.
+\item \textbf{\file{LaTex_src/cleanLaTexFolder}} (run from the root) deletes all
+  generated reports.
+\item \textbf{\file{fk_eqns/}} is a cache of forward kinematics;  delete any or
+  all of it at any time.  The next solve recomputes it, which costs only time.
+  Changing a robot's DH table refreshes its cache automatically.
+\item \file{Cpp_src/} and \file{LaTex_src/} are source, not output:  the cleanup
+  scripts never touch them, and neither should you.
+\end{itemize}
+
+%======================================================================
+\section{When something looks wrong}\label{sec:wrong}
+
+\begin{center}\small
+\begin{tabularx}{\textwidth}{@{}p{0.36\textwidth}L@{}}
+\toprule
+you see & it means \\
+\midrule
+\code{ikin_<R>()} returns \code{False} (Python) or an empty vector (C++)
+  & no posture exists at that end-effector-pose.  Check it is in the workspace,
+    and in the DH table's units. \\[3pt]
+fewer joint-poses than the report's solution table has rows
+  & normal:  rows whose \code{acos}/\code{asin}/\code{sqrt} argument leaves its
+    domain at this end-effector-pose are postures that do not exist there, and
+    are dropped. \\[3pt]
+\code{XXXXX} in the C++, and \code{g++} stops on it
+  & a parameter has no \code{pvals} entry.  Deliberate:  a missing link length
+    is never silently defaulted.  Add it to \file{ik_robots.py} and re-solve, or
+    type the value in. \\[3pt]
+no \file{FK_numeric<R>.py} after a symbolic solve
+  & same cause:  FK needs every parameter to have a value.  The IK is still
+    fine. \\[3pt]
+hybrid:  \code{converged} false / large error
+  & the real arm does not reach $T$ from that starting joint-pose.  Try
+    another, or the arm's current joint-pose;  if none converges, $T$ may be
+    unreachable. \\[3pt]
+one-variable:  \code{n_samples == MAX_SAMPLES}
+  & the search had not settled;  raise \code{max_samples}. \\[3pt]
+one-variable:  \code{[]} for an end-effector-pose you believe reachable
+  & raise \code{n_samples}/\code{max_samples}, and plot \code{sweep_<R>(T)} to
+    see the error curves. \\[3pt]
+a solve takes very long
+  & normal for hard arms (minutes).  \code{python3 ikSolver.py <R> --perf}
+    reports sympy timings and names each slow call as it happens. \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\end{document}
