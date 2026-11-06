@@ -426,7 +426,9 @@ detail.
 
 Some additional outputs can be generated but are not automatic with
 {\tt ikSolver} or with closed-loop testing. None of them solves the robot again.
-Note use of . and lack of the \code{.py}; needed for invocation as modules.
+
+For Tube Map and FK-only, the python is invoked as a module via \code{python3 -m} (use of . and lack of the extension \code{.py}
+in the command line).
 
 \begin{center}\small
 \begin{tabularx}{\textwidth}{@{}p{0.32\textwidth}L@{}}
@@ -437,12 +439,12 @@ how & what \\
   & Produce   the solution graph drawn as a ``London Tube Map'' ---
     one coloured line per complete solution, one station per version of each
     variable (\file{graphs/<R>_tube.svg}).  Reads only \file{graphs/<R>_graph.txt}.  On
-    the hybrid path use the simplified arm's name. \\[3pt]
+    the hybrid path use the simplified arm's name. \\\hline
 \code{python3 fkOnly.py <R>}
   & Forward kinematics only:  \file{LaTex/fk_equations_<R>.tex},
     \file{CodeGen/Python/FK_equations<R>.py} (a readable dump of the symbolic
     FK), and \file{CodeGen/Cpp/<R>CppCode/FK_numeric<R>.h}.  Use it for a robot
-    you need only FK for;  it does not touch IK files. \\[3pt]
+    you need only FK for;  it does not touch IK files. \\\hline
 \code{python3 -m scripts.bt_diagram}
   & Draws the behavior tree itself, as \file{.svg} files (\file{IKdocs/IKBT_BT_p1..p3.svg}).
   (an open source tool to view and edit  \file{.svg} is Inkscape.)\\
@@ -455,7 +457,7 @@ how & what \\
 
 \begin{itemize}
 \item \textbf{Re-run the solve} to regenerate everything for a robot;  it
-  overwrites that robot's files.
+  overwrites that robot's files (except for the forward kinematics pickle).
 \item \textbf{\file{CodeGen/cleanCodeGenOutput}} (run from the root) deletes all
   generated Python and C++.
 \item \textbf{\file{LaTex_src/cleanLaTexFolder}} (run from the root) deletes all
@@ -463,7 +465,8 @@ how & what \\
 \item \textbf{\file{fk_eqns/}} is a cache of forward kinematics;  delete any or
   all of it at any time.  The next solve recomputes it, which costs only time.
   Changing a robot's DH table refreshes its cache automatically.
-\item \file{Cpp_src/} and \file{LaTex_src/} are source, not output:  the cleanup
+\item \file{Cpp_src/} and \file{LaTex_src/} are source code templates for the
+code generators, not output:  the cleanup
   scripts never touch them, and neither should you.
 \end{itemize}
 
@@ -471,38 +474,37 @@ how & what \\
 \section{When something looks wrong}\label{sec:wrong}
 
 \begin{center}\small
-\begin{tabularx}{\textwidth}{@{}p{0.36\textwidth}L@{}}
-\toprule
-you see & it means \\
-\midrule
+\begin{tabular}{p{0.36\textwidth}|p{0.64\textwidth}}
+\hline
+you see & it means \\\hline
 \code{ikin_<R>()} returns \code{False} (Python) or an empty vector (C++)
   & no posture exists at that end-effector-pose.  Check it is in the workspace,
-    and in the DH table's units. \\[3pt]
+    and in the DH table's units. \\\hline
 fewer joint-poses than the report's solution table has rows
   & normal:  rows whose \code{acos}/\code{asin}/\code{sqrt} argument leaves its
     domain at this end-effector-pose are postures that do not exist there, and
-    are dropped. \\[3pt]
+    are dropped. \\\hline
 \code{XXXXX} in the C++, and \code{g++} stops on it
   & a parameter has no \code{pvals} entry.  Deliberate:  a missing link length
     is never silently defaulted.  Add it to \file{ik_robots.py} and re-solve, or
-    type the value in. \\[3pt]
+    type the value in. \\\hline
 no \file{FK_numeric<R>.py} after a symbolic solve
   & same cause:  FK needs every parameter to have a value.  The IK is still
-    fine. \\[3pt]
+    fine. \\\hline
 hybrid:  \code{converged} false / large error
   & the real arm does not reach $T$ from that starting joint-pose.  Try
     another, or the arm's current joint-pose;  if none converges, $T$ may be
-    unreachable. \\[3pt]
+    unreachable. \\\hline
 one-variable:  \code{n_samples == MAX_SAMPLES}
-  & the search had not settled;  raise \code{max_samples}. \\[3pt]
+  & the search had not settled;  raise \code{max_samples}. \\\hline
 one-variable:  \code{[]} for an end-effector-pose you believe reachable
   & raise \code{n_samples}/\code{max_samples}, and plot \code{sweep_<R>(T)} to
-    see the error curves. \\[3pt]
+    see the error curves. \\\hline
 a solve takes very long
   & normal for hard arms (minutes).  \code{python3 ikSolver.py <R> --perf}
     reports sympy timings and names each slow call as it happens. \\
 \bottomrule
-\end{tabularx}
+\end{tabular}
 \end{center}
 
 \end{document}
