@@ -225,6 +225,7 @@ class sum_solve(b3.Action):
                         sol = (e.LHS - unka.symbol)/d[sgn]
                         unkb.solutions.append(sol)
                         unkb.nsolutions = 1
+                        unkb.eqntosolve = e     # what the long report cites
                         unkb.set_solved(R, unknowns)
                         solvedtag = True
                         
@@ -236,6 +237,7 @@ class sum_solve(b3.Action):
                         sol = e.LHS - d[sgn] *unkb.symbol
                         unka.solutions.append(sol)
                         unka.nsolutions = 1
+                        unka.eqntosolve = e     # what the long report cites
                         unka.set_solved(R, unknowns)
                         solvedtag = True
                         

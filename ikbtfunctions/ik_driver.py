@@ -36,6 +36,10 @@ import ikbtfunctions.texwidth as texwidth
 #  ikSolver.py turns this on with PERFORMANCE_OUTPUT.
 REPORT_PROGRESS = False
 
+#  ikSolver.py --long / --longreport:  the report shows, under each generic
+#  solution, the equation(s) it was solved from and where they came from.
+LONG_REPORT = False
+
 from ikbtfunctions.ik_robots import robot_params
 from ikbtbasics.ik_classes  import kinematics_pickle, check_the_pickle
 
@@ -206,7 +210,8 @@ def write_latex_fitted(R, unks, groups, hybrid=None, R_true=None, onevar=None,
        pass 1 report is already written and correct, just wide.'''
 
     path = ol.output_latex_solution(R, unks, groups, hybrid=hybrid,
-                                    R_true=R_true, onevar=onevar)
+                                    R_true=R_true, onevar=onevar,
+                                    long_report=LONG_REPORT)
 
     force = set()
     for _ in range(max(0, passes - 1)):
@@ -226,7 +231,8 @@ def write_latex_fitted(R, unks, groups, hybrid=None, R_true=None, onevar=None,
             print('  LaTeX: %d equation(s) too wide, shortening: %s'
                   % (len(new_force), ', '.join(sorted(new_force))))
         ol.output_latex_solution(R, unks, groups, hybrid=hybrid, R_true=R_true,
-                                 onevar=onevar, force_ids=force)
+                                 onevar=onevar, force_ids=force,
+                                 long_report=LONG_REPORT)
     return path
 
 

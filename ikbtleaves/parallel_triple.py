@@ -154,7 +154,7 @@ def generate_parallel_equations(R, unknowns, debug=False, triples=None):
 
     keepers = []
 
-    def consider(lhs_raw, rhs_raw, what, k):
+    def consider(lhs_raw, rhs_raw, what, k, how):
         '''Score one candidate and keep it if it beats every gate.'''
         try:
             rhs = best_form(simplify_cached(rhs_raw), unknowns, soa_defs)
@@ -183,6 +183,8 @@ def generate_parallel_equations(R, unknowns, debug=False, triples=None):
             return
         known_forms.append(flat)
         keepers.append(kequation(lhs, rhs))
+        if hasattr(R, 'register'):         # a note for the long report
+            R.register(keepers[-1], how, meqn=k)
         if debug:
             print('parallel_triple:    ++ KEEPING meqn %d %s:  %s = %s'
                   % (k, what, lhs, rhs))
@@ -212,9 +214,13 @@ def generate_parallel_equations(R, unknowns, debug=False, triples=None):
             #  th_23 -> th_2 + th_3 with th_3 already solved leaves exactly one.
             #  The expanded form is a different expression, so it survives
             #  is_redundant() on its own merits rather than by accident.
-            consider(Meq.Td[i, 3] - kn, un, 'P[%d]' % i, k)
+            consider(Meq.Td[i, 3] - kn, un, 'P[%d]' % i, k,
+                     'moving the known terms of row %d of the position'
+                     ' column to the left' % (i + 1))
 
-        consider(lhs_raw, rhs_raw, '|P_res|^2', k)
+        consider(lhs_raw, rhs_raw, '|P_res|^2', k,
+                 r'the law of cosines:  $\|\cdot\|^2$ of the unknown part'
+                 r' of the position column')
 
     return keepers
 

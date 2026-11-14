@@ -617,6 +617,26 @@ KawasakiRS05L's `eqns_2u` and a quarter of ArmRobo's were sign duplicates. Beyon
 every list the solvers scan, they make a pair of equations look independent when the pair
 carries no new information — exactly the precondition a future elimination leaf would test.
 
+**The equation registry (`--long`, 2026-11-14).** Designs considered, in order:
+
+- *A `source` attribute on each `kequation`.* Rejected: `scan_for_equations()` and `updateL`
+  rebuild every equation object on every pass, so the attribute would need copying through
+  ~10 sites, and a missed one silently loses the trail.
+- *A random code per equation (a UUID).* Fine as a label, but it cannot FIND anything: the
+  rebuilt object would get a new code. Assignment has to go through a content lookup anyway,
+  and a random label also changes every run, so two reports of one robot would differ in
+  every reference.
+- *Chosen: a content key -> a counter id.* The key is `expand(LHS - RHS)`, sign ignored. It
+  matched every solver's equation on the eight robots tried (the gate six, Craig417, Arm_3)
+  with no solver edited: tan's `(RHS - LHS).collect()`, algebra's `kequation(0, tmp)` and
+  m7's split sums are all rearrangements that `expand` undoes. Ids are a counter, assigned
+  lazily at report time, so they are reproducible and run in report order.
+
+`disambiguate`'s RESULT is not shown as an equation (it was, briefly): the deciding
+expression IS the solution printed just below it. What it used — the equations Groebner
+eliminated over — is what the reader cannot otherwise see, so that is what `u.decided_by`
+holds.
+
 ---
 
 ## ikbtfunctions/progress.py

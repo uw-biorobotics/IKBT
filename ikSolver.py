@@ -6,13 +6,18 @@
 #   and the behavior tree in ikbtfunctions/bt_assembly.py, so importing either
 #   does not trigger a solve.
 #
-#        python3 ikSolver.py <RobotName> [--perf]   ( no argument -> Wrist )
+#        python3 ikSolver.py <RobotName> [--perf] [--long]   ( no argument -> Wrist )
 #
 #   --perf  report per-call sympy timings, and name each slow call AS IT
 #           HAPPENS.  That heartbeat is the only thing that can print from
 #           inside a blocking sp.simplify(), so it is what to reach for when
 #           a robot looks hung.  Off by default: the extra lines bury the
 #           per-pass progress report.
+#
+#   --long  (or --longreport)  the report's "Solutions in Generic Form" shows,
+#           under each solution, the equation(s) it was solved from and where
+#           each came from:  an element of one of the matrix equations, or a
+#           transform of other equations.
 
 # Copyright 2017 University of Washington
 
@@ -74,6 +79,11 @@ def main(argv):
     #  which is positional and counts arguments.
     performance_output = '--perf' in argv
     argv = [a for a in argv if a != '--perf']
+    #  --long and --longreport are the same flag:  the report shows where each
+    #  solution came from (see ik_driver.LONG_REPORT).
+    LONG_FLAGS = ('--long', '--longreport')
+    ik_driver.LONG_REPORT = any(a in LONG_FLAGS for a in argv)
+    argv = [a for a in argv if a not in LONG_FLAGS]
 
 
     ########################################################

@@ -73,6 +73,7 @@ import numpy as np
 import sympy as sp
 
 import b3 as b3          # behavior trees
+import ikbtbasics.kin_cl as kc
 
 #  Random joint-poses for the numerical check, and how close the new
 #  expression must come to the true joint value at each of them.
@@ -436,6 +437,7 @@ def disambiguate_robot(R, unknowns, verbose=False):
                       f' from {len(used)} equations')
             u.solutions = [new]
             u.nsolutions = 1
+            u.decided_by = [kc.kequation(e, 0) for e in used]  # long report
             u.assumption = []
             u.unsplit = None
             u.add_solvemethod('disambiguated')

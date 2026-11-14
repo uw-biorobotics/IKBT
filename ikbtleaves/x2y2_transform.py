@@ -281,6 +281,9 @@ class x2z2_transform(b3.Action):
         #    no further test is needed here)
         target.solvemethod += 'x2z2 transform and ' # only part of soln.
         R.kequation_aux_list.append(kc.kequation(temp_l,temp_r))
+        R.register(R.kequation_aux_list[-1],
+                   'squaring and adding two equations (Craig eq. 4.65)',
+                   parents=[eqn1, eqn2])
         #############################################################
         tick.blackboard.set('Robot', R)
         tick.blackboard.set('unknowns',unknowns)   # the current list of unknowns

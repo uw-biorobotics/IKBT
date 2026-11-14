@@ -55,7 +55,7 @@ from ikbtleaves.invariant_gen  import TestSolver012
 from tests.bt_assembly_test    import TestSolver013
 from ikbtleaves.comp_detect    import TestSolver014
 from ikbtfunctions.output_latex import TestSolver015
-from ikbtbasics.ik_classes   import TestSolver030
+from ikbtbasics.ik_classes   import TestSolver030, TestSolver033
 from ikbtleaves.symbolic_loop   import TestSolver016
 from ikbtleaves.output_gen      import TestSolver017
 from ikbtleaves.hybrid_ik       import TestSolver018
@@ -411,6 +411,7 @@ if __name__ == '__main__':
     #  name would leave one of them shadowed and never run.
     suite3.addTest(TestSolver031())   # output_cpp_common.py # the C++ generator
     suite3.addTest(TestSolver032())   # disambiguate.py   # unused equations decide a branch
+    suite3.addTest(TestSolver033())   # ik_classes.py     # equation registry (--long)
     suite1.addTest(TestSolver009())   # helperfunctions.py
 
     if(not HTML):

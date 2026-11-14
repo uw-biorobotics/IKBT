@@ -103,6 +103,12 @@ class unknown(object):
         self.eqntosolve = None #this has to be NONE, otherwise the None judgement in tan_solver wouldn't work
 
         self.secondeqn  = None
+        #  The equation(s) this unknown was solved from, kept by set_solved()
+        #  for the long report.  kequations, not ids:  Robot.eqn_id() numbers
+        #  them only if the report asks.
+        self.derivation = []
+        #  The equations disambiguate used to pick one branch of a pair, if it did.
+        self.decided_by = []
 
         self.solvemethod = ''
         self.solved = False
@@ -224,6 +230,9 @@ class unknown(object):
 
 
         print('            ', self.symbol, '=', self.solutions[0], '\n\n')
+
+        self.derivation = [e for e in (self.eqntosolve, self.secondeqn)
+                           if e is not None]
 
         R.solveN += 1                 # increment solution level counter
         self.solveorder = R.solveN    # first solution starts with 0 (no more "Root")

@@ -449,6 +449,20 @@ Off by default, because the extra lines bury the per-pass progress report. It
 replaces a function inside sympy while it runs, so nothing turns it on but this
 flag, and `disable_sympy_meter()` puts sympy back as it was.
 
+## The long report — `--long`
+
+```bash
+python3 ikSolver.py <RobotName> --long        # --longreport is the same flag
+```
+
+Not part of the sweep (which writes the default report, so its record does not
+move). What to look for: the log must contain no `long report: no origin
+recorded` / `no source equation recorded` line — each one is a solved variable
+whose derivation the report cannot show — and the `.tex` must compile. Unit
+coverage: `TestSolver033` (the registry, `ik_classes.py`) and
+`TestSolver015.test_ltD_long_report_derivation` (`set_solved()` through to the
+LaTeX, on Puma).
+
 ## Where the output goes
 
 | path | what | keep? |

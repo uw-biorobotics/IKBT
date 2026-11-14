@@ -84,6 +84,21 @@ class test_sub_transform(b3.Action):    # tester for your ID
         tick.blackboard.set('Robot',R)    
         return b3.SUCCESS
 
+def note_substitution(R, m, ij, kl, new):
+    '''Tell R's equation registry (the long report) that element ij of
+       matrix equation m is about to become `new`, by substituting element kl
+       into it.  Called BEFORE the rewrite, while the old element still exists.'''
+    Meq = R.mequation_list[m]
+    old = kequation(Meq.Td[ij], Meq.Ts[ij])
+    src = kequation(Meq.Td[kl], Meq.Ts[kl])
+    R.register(old, origin=(m,) + ij)
+    R.register(src, origin=(m,) + kl)
+    R.register(kequation(Meq.Td[ij], new),
+               'substituting one element of a matrix equation into another',
+               parents=[old, src], meqn=m, rewrites=True)
+    R.forget_meqn_index()
+
+
 class sub_transform(b3.Action):
     
     def tick(self, tick):
@@ -135,6 +150,7 @@ class sub_transform(b3.Action):
                                     print('Unknowns: old/new:', nold, '/', nnew)
                                     print('Prop Sub: ', e2, '/', new)
                                 if(nnew < nold):
+                                    note_substitution(R, m, (i, j), (k, l), new)
                                     R.mequation_list[m].Ts[i,j] = new
                                     found = True
                                         
@@ -149,6 +165,7 @@ class sub_transform(b3.Action):
                                     print('Unknowns: old/new:', nold, '/', nnew)
                                     print('Prop Sub: ', e2, '/', new)
                                 if(nnew < nold): # only do this to *reduce* # of unknowns!
+                                    note_substitution(R, m, (i, j), (k, l), new)
                                     R.mequation_list[m].Ts[i,j] = new
                                     found = True
                                 

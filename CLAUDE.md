@@ -35,6 +35,7 @@ All commands must be run **from the repo root** (module imports are package-rela
 
 ```bash
 python3 ikSolver.py Wrist          # full IK solve (Wrist is the fast one; no arg -> Wrist)
+python3 ikSolver.py Puma --long    # ... report shows where each solution came from (--longreport: same)
 python3 fkOnly.py <RobotName>      # forward kinematics + Jacobian only (py, LaTeX, and C++)
 
 python3 -m tests.leavestest        # main unit-test suite (basic classes + all leaves)
@@ -517,6 +518,34 @@ its pieces named whatever the dependency rule thinks, which shortens it without 
 loop repeats while each pass turns up equations the previous one had not seen, since shortening one can
 expose another.
 
+
+### The long report: where each solution came from (`--long`, `--longreport`)
+
+Optional (`ik_driver.LONG_REPORT`, default off, so baselines do not move).  Under each
+variable in "Solutions in Generic Form" the report prints the equation(s) it was solved
+from and where each came from: **element (row, col) of a matrix equation**, written as its
+split `(0T_i)^-1 T_d (jT_6)^-1 = iT_j` (`meqn_tex()`, from `kin_cl.MEQN_SPLITS`), or
+**obtained by a transform** (an invariant, the parallel-triple law of cosines, an in-place
+substitution) from parent equations, followed back `DERIVATION_DEPTH` (3) steps.  Each
+equation is labelled `(E3)` by breqn's `number=`, and carries a `%%IKBT-EQ src:E3` marker,
+so the width fitting shortens it like any other.
+
+**`Robot`'s equation registry is KEYED BY CONTENT** (`ik_classes.py`, `Robot.eqn_id()`):
+`expand(LHS - RHS)`, sign ignored.  `scan_for_equations()` and `updateL` rebuild every
+`kequation` on every pass, so an attribute on the object would have to be copied through
+each rebuild by hand;  a content key finds the same equation in whatever object, and
+whichever way round, a solver wrote it -- so **no solver needed changing**.
+`set_solved()` keeps `eqntosolve` / `secondeqn` as `u.derivation`;  `disambiguate`
+adds `u.decided_by`.  A transform that MAKES an equation says how with `R.register()`.
+
+**LAZY**:  nothing is looked up during a solve.  Ids are assigned when the report asks, so
+`E1, E2, ...` run in report order;  a solve without `--long` pays only one `expand` per
+equation a transform makes.  An element of
+a matrix equation is the preferred explanation (it beats a transform's note), except for an
+element a transform rewrote in place (`register(..., rewrites=True)`, `sub_transform`).
+Sum-of-angles definitions are made when the FK is cached, so they are recognised by form.
+Anything else unexplained is printed as "origin not recorded", with a warning in the log.
+The registry is **not pickled** (`Robot.__getstate__`).
 
 ### The solution graph as a figure (`ikbtfunctions/graph2latex.py`)
 

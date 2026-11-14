@@ -227,14 +227,19 @@ class simu_solver(b3.Action):
         D = D.simplify()
 
 
+        #  Each FAILURE below takes back the method name simu_id added, or a
+        #  variable another leaf goes on to solve is reported as solved by
+        #  both (27W_5p3's th_4 read "simultaneous eqn, atan2(y,x)").
         if C == 0 and D == 0:
             print("Simultaneous Eqn Unsuccessful: divded by 0")
+            curr_unk.withdraw_solvemethod('simultaneous eqn')
             return b3.FAILURE
 
 
         sol = sp.atan2(A*C - B*D, A*D + B*C)
         if sol.has(curr_unk.symbol):    # not a solution;  _partner_of should have refused
             print(f"Simultaneous Eqn Unsuccessful: solution contains {curr_unk.symbol}")
+            curr_unk.withdraw_solvemethod('simultaneous eqn')
             return b3.FAILURE
 
         curr_unk.solutions=[sol]
@@ -272,6 +277,7 @@ class TestSolver005(unittest.TestCase):
         self.test_m7_solvable_pair_tries_both_role_assignments()
         self.test_m7_ur5_th2_sum_of_angles()
         self.test_m7_rejects_leftover_unknown()
+        self.test_m7_failure_withdraws_method()
 
     #####################################################################
     #  helpers
@@ -545,6 +551,21 @@ class TestSolver005(unittest.TestCase):
 
         self.assertEqual(status, b3.FAILURE, fs + ' (accepted the pair)')
         self.assertFalse(u.solved, fs)
+
+
+    def test_m7_failure_withdraws_method(self):
+        '''A pair the ID accepts but the solver cannot use (C = D = 0, so
+           atan2(0, 0)) must leave no 'simultaneous eqn' on the variable:  the
+           leaf that does solve it adds its own name.'''
+        sp.var('AA BB th_23')
+        fs = ' simultaneous eqn failure-withdraws-method FAIL'
+        eq1 = AA*sp.sin(th_23) + BB*sp.cos(th_23)
+        eq2 = AA*sp.cos(th_23) - BB*sp.sin(th_23)
+
+        status, u = self.run_leaf([eq1, eq2], th_23)
+
+        self.assertEqual(status, b3.FAILURE, fs + ' (solved atan2(0, 0))')
+        self.assertNotIn('simultaneous eqn', u.solvemethod, fs)
 
 
 def run_test():

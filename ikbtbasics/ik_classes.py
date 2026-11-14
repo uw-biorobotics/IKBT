@@ -223,6 +223,17 @@ def check_the_pickle(dh1, dh2):
 #     Robot Class
 
 #  Class to contain all robot info
+class EqnRecord:
+    '''One equation in a Robot's equation registry (see Robot.eqn_id).'''
+    def __init__(self, eid, eqn):
+        self.eid = eid        # 'E7':  its label in the long report
+        self.eqn = eqn        # kequation, in the form it was first met
+        self.origins = []     # (k, i, j):  element (i, j) of matrix equation k
+        self.how = None       # how a DERIVED equation was obtained
+        self.meqn = None      # the matrix equation it was derived from, if one
+        self.parents = []     # eids of the equations it was derived from
+
+
 class Robot:
     def __init__(self, Mech=None, name="*Unnamed*"):
         self.name = name
@@ -426,6 +437,140 @@ class Robot:
         pos = '%s|%s' % (L, R)
         neg = '%s|%s' % (sp.expand(-L), sp.expand(-R))
         return min(pos, neg)
+
+    #
+    #   THE EQUATION REGISTRY -- where each equation a solver used came from,
+    #   for the long report (ikSolver.py --long).
+    #
+    #   KEYED BY CONTENT, not by object.  scan_for_equations() and updateL
+    #   rebuild every kequation on every pass, so an attribute on the object
+    #   would have to be copied by hand through each rebuild.  A key computed
+    #   from the equation finds it again whatever object it arrives in, and
+    #   whichever way round a solver wrote it:  expand(LHS - RHS), sign
+    #   ignored.  Unlike eqn_key(), a re-split of the same statement IS the
+    #   same equation here -- provenance is about what was stated, not about
+    #   which sp.Wild pattern fits it.
+    #
+    #   LAZY.  Nothing is looked up during a solve:  set_solved() keeps the
+    #   kequation objects, and an id is assigned the first time the report
+    #   asks for one.  So the ids (E1, E2, ...) number the equations in the
+    #   order the report shows them;  a solve without --long pays only one
+    #   expand per equation a transform makes.
+    #   Transforms that make a new equation say how with register(), which
+    #   only notes it until it is asked for.
+    #
+    #   NOT PICKLED (__getstate__):  it is rebuilt on every solve, so a cached
+    #   Robot can never carry a stale one.
+    #
+    @staticmethod
+    def content_key(e):
+        d = sp.expand(e.LHS - e.RHS)
+        if d == 0:
+            return None
+        return min(str(d), str(-d))
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        for k in ('eqn_records', 'eqn_ids', 'eqn_pending', 'meqn_index'):
+            state.pop(k, None)
+        return state
+
+    def _registry(self):
+        if 'eqn_records' not in self.__dict__:
+            self.eqn_records = {}     # eid -> EqnRecord
+            self.eqn_ids = {}         # content key -> eid
+            self.eqn_pending = {}     # content key -> register() arguments
+            self.meqn_index = None    # content key -> [(k, i, j), ...]
+
+    def meqn_elements(self):
+        '''Every element of every matrix equation, by content key.  Rebuilt
+           when a transform rewrites an element (forget_meqn_index()).'''
+        self._registry()
+        if self.meqn_index is None:
+            idx = {}
+            for k, Meq in enumerate(self.mequation_list):
+                for i in range(3):
+                    for j in range(4):
+                        key = self.content_key(kc.kequation(Meq.Td[i, j], Meq.Ts[i, j]))
+                        if key is not None:
+                            idx.setdefault(key, []).append((k, i, j))
+            self.meqn_index = idx
+        return self.meqn_index
+
+    def forget_meqn_index(self):
+        self._registry()
+        self.meqn_index = None
+
+    def register(self, e, how=None, parents=(), meqn=None, origin=None,
+                 rewrites=False):
+        '''Note where e came from:  derived by `how` from the kequations
+           `parents` and/or matrix equation `meqn`, or -- origin=(k, i, j) --
+           element (i, j) of matrix equation k, for an element that is about
+           to be rewritten.  rewrites=True:  e has REPLACED an element, so
+           being an element is not its explanation.  First word wins;  nothing
+           is resolved until eqn_id() asks.'''
+        key = self.content_key(e)
+        if key is None:
+            return
+        self._registry()
+        if key not in self.eqn_ids and key not in self.eqn_pending:
+            self.eqn_pending[key] = (e, how, list(parents), meqn, origin,
+                                     rewrites)
+
+    def eqn_record(self, e):
+        '''The EqnRecord of equation e (None for 0 = 0).'''
+        eid = self.eqn_id(e)
+        return None if eid is None else self.eqn_records[eid]
+
+    def eqn_id(self, e):
+        '''The id of equation e, giving it one if it has none yet.  None for
+           an equation that states nothing (0 = 0).'''
+        key = self.content_key(e)
+        if key is None:
+            return None
+        self._registry()
+        if key in self.eqn_ids:
+            return self.eqn_ids[key]
+
+        def new_record(eqn):
+            eid = 'E' + str(len(self.eqn_records) + 1)
+            rec = EqnRecord(eid, eqn)
+            self.eqn_records[eid] = rec
+            self.eqn_ids[key] = eid
+            return rec
+
+        #  An element of a matrix equation is the best explanation there is,
+        #  so it wins over anything a transform said about the same equation.
+        pend = self.eqn_pending.get(key)
+        hits = self.meqn_elements().get(key)
+        if hits and not (pend and pend[5]):
+            k, i, j = hits[0]
+            Meq = self.mequation_list[k]
+            rec = new_record(kc.kequation(Meq.Td[i, j], Meq.Ts[i, j]))
+            rec.origins = list(hits)
+            return rec.eid
+
+        if pend:
+            eqn, how, parents, meqn, origin, _ = self.eqn_pending.pop(key)
+            pids = [self.eqn_id(p) for p in parents]   # parents numbered first
+            rec = new_record(eqn)
+            rec.how, rec.meqn = how, meqn
+            rec.parents = [p for p in pids if p is not None]
+            if origin is not None:
+                rec.origins = [origin]
+            return rec.eid
+
+        #  Nobody registered it.  The sum-of-angles definitions are made when
+        #  the FK is cached, so they are recognised by their form (th_23 =
+        #  th_2 + th_3), in the shape the aux list holds them.  Anything else
+        #  is left with no origin, which the report says.
+        eqn = next((a for a in self.kequation_aux_list
+                    if self.content_key(a) == key), e)
+        rec = new_record(eqn)
+        if (isinstance(eqn.LHS, sp.Symbol) and eqn.RHS.is_Add
+                and not eqn.RHS.atoms(sp.Function)):
+            rec.how = 'sum-of-angles definition'
+        return rec.eid
 
     # get lists of unsolved equations having 1, 2, and 3-or-more unks
     #
@@ -886,8 +1031,107 @@ class TestSolver030(unittest.TestCase):
             get_variable_index([good], th_2)
 
 
+class TestSolver033(unittest.TestCase):
+    """The equation registry (Robot.eqn_id / register) behind --long.
+
+       A hand-built Robot with two small matrix equations:  milliseconds, no
+       FK, no solve."""
+
+    def setUp(self):
+        print('\n\n=======  Test equation registry  =========')
+
+    def runTest(self):
+        self.test_erA_same_equation_same_id()
+        self.test_erB_element_origins()
+        self.test_erC_registered_transforms()
+        self.test_erD_unregistered()
+        #  set_solved() -> the long report is tested in output_latex.py
+        #  (TestSolver015), against a real robot.
+
+    def robot(self):
+        Px, Py = sp.symbols('Px Py')
+        R = Robot()
+        Td = sp.zeros(4)
+        Td[0, 3], Td[1, 3] = Px, Py
+        Ts = sp.zeros(4)
+        Ts[0, 3], Ts[1, 3] = l_1*sp.cos(th_1), l_1*sp.sin(th_1) + d_2
+        Td2 = sp.zeros(4)
+        Td2[0, 3] = Px            # the same element again:  a second origin
+        Ts2 = sp.zeros(4)
+        Ts2[0, 3] = l_1*sp.cos(th_1)
+        R.mequation_list = [kc.matrix_equation(Td, Ts),
+                            kc.matrix_equation(Td2, Ts2)]
+        return R, Px, Py
+
+    def test_erA_same_equation_same_id(self):
+        fs = 'equation registry: one equation, one id '
+        R, Px, Py = self.robot()
+        e = kc.kequation(Px, l_1*sp.cos(th_1))
+        eid = R.eqn_id(e)
+        self.assertEqual(eid, 'E1', fs)
+        #  updateL's rebuild, the negation, and a solver's re-split are all
+        #  the same statement
+        for same in (kc.kequation(0, Px - l_1*sp.cos(th_1)),
+                     kc.kequation(0, l_1*sp.cos(th_1) - Px),
+                     kc.kequation(Px - l_1*sp.cos(th_1), 0)):
+            self.assertEqual(R.eqn_id(same), eid, fs + str(same))
+        self.assertIsNone(R.eqn_id(kc.kequation(Px, Px)), fs + '(0 = 0)')
+        self.assertEqual(len(R.eqn_records), 1, fs + '(no extra records)')
+
+    def test_erB_element_origins(self):
+        fs = 'equation registry: element origins '
+        R, Px, Py = self.robot()
+        rec = R.eqn_record(kc.kequation(0, Px - l_1*sp.cos(th_1)))
+        self.assertEqual(rec.origins, [(0, 0, 3), (1, 0, 3)], fs)
+        #  shown in the form the matrix equation states it, not the caller's
+        self.assertEqual(rec.eqn.LHS, Px, fs + '(form)')
+
+    def test_erC_registered_transforms(self):
+        fs = 'equation registry: transforms '
+        R, Px, Py = self.robot()
+        a = kc.kequation(Px, l_1*sp.cos(th_1))
+        b = kc.kequation(Py, l_1*sp.sin(th_1) + d_2)
+        new = kc.kequation(Px**2 + (Py - d_2)**2, l_1**2)
+        R.register(new, 'squaring and adding', parents=[a, b])
+        self.assertEqual(R.eqn_records, {}, fs + '(registering numbers nothing)')
+        rec = R.eqn_record(new)
+        self.assertEqual(rec.eid, 'E3', fs + '(parents are numbered first)')
+        self.assertEqual(rec.parents, ['E1', 'E2'], fs)
+        self.assertEqual(rec.how, 'squaring and adding', fs)
+
+        #  an element rewritten in place (sub_transform) is explained by the
+        #  rewrite, not by being an element
+        R2, Px, Py = self.robot()
+        Meq = R2.mequation_list[0]
+        R2.register(kc.kequation(Meq.Td[1, 3], Meq.Ts[1, 3]), origin=(0, 1, 3))
+        newrhs = l_1*sp.sin(th_1) + 2*d_2
+        R2.register(kc.kequation(Py, newrhs), 'substituting',
+                    parents=[kc.kequation(Meq.Td[1, 3], Meq.Ts[1, 3])],
+                    meqn=0, rewrites=True)
+        Meq.Ts[1, 3] = newrhs
+        R2.forget_meqn_index()
+        rec = R2.eqn_record(kc.kequation(Py, newrhs))
+        self.assertEqual(rec.how, 'substituting', fs + '(rewrites=True)')
+        self.assertEqual(R2.eqn_records[rec.parents[0]].origins, [(0, 1, 3)],
+                         fs + '(the old element keeps its origin)')
+
+    def test_erD_unregistered(self):
+        fs = 'equation registry: unregistered equations '
+        R, Px, Py = self.robot()
+        soa = kc.kequation(th_23, th_2 + th_3)
+        R.kequation_aux_list.append(soa)
+        rec = R.eqn_record(kc.kequation(0, th_23 - th_2 - th_3))
+        self.assertEqual(rec.how, 'sum-of-angles definition', fs)
+        self.assertEqual(rec.eqn.LHS, th_23, fs + '(the aux list form)')
+        stray = R.eqn_record(kc.kequation(Py, d_2**2))
+        self.assertTrue(not stray.origins and not stray.how and not stray.parents,
+                        fs + '(no origin is recorded as none)')
+        self.assertNotIn('eqn_records', R.__getstate__(), fs + '(not pickled)')
+
+
 def run_test():
     suite = unittest.TestLoader().loadTestsFromTestCase(TestSolver030)
+    suite.addTest(TestSolver033())
     unittest.TextTestRunner(verbosity=2).run(suite)
 
 

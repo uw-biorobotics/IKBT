@@ -113,6 +113,15 @@ INVARIANTS = [
     ('P.col2',   _make_P_dot_col(2)),
 ]
 
+#  How each family reads in the long report:  "obtained by <this> of ...".
+INVARIANT_TEX = {
+    '|P|^2':    r'taking $\|P\|^2$ of both sides',
+    'trace(R)': r'taking the trace of the rotation part of both sides',
+    'P.col0':   r'taking $P \cdot$ (column 1 of the rotation) of both sides',
+    'P.col1':   r'taking $P \cdot$ (column 2 of the rotation) of both sides',
+    'P.col2':   r'taking $P \cdot$ (column 3 of the rotation) of both sides',
+}
+
 
 #####################################################################
 #
@@ -351,6 +360,8 @@ def generate_invariants(R, unknowns, debug=False):
 
             newe = kequation(lhs, rhs)
             known.append(flat)
+            if hasattr(R, 'register'):     # a note for the long report
+                R.register(newe, INVARIANT_TEX[name], meqn=k)
 
             if debug:
                 print('invariant_gen:    ++ KEEPING meqn %d %s:  %s = %s' % (k, name, lhs, rhs))

@@ -270,6 +270,113 @@ def definition_block(defs, eol):
     return out
 
 
+###################
+#
+#   THE LONG REPORT (ikSolver.py --long):  under each generic solution, the
+#   equation(s) it was solved from and where each came from -- an element of
+#   one of the matrix equations, or a transform of other equations, followed
+#   back DERIVATION_DEPTH steps.  The provenance is Robot's equation registry
+#   (ik_classes.py, Robot.eqn_id()).
+#
+
+DERIVATION_DEPTH = 3
+
+LONG_REPORT_INTRO = r'''Under each variable is the equation it was solved from,
+    and where that equation came from.  The matrix equations are
+    $\left({}^{0}T_{i}\right)^{-1} T_d \left({}^{j}T_{6}\right)^{-1} = {}^{i}T_{j}$,
+    where $T_d$ is the desired end-effector-pose (the matrix of $r_{ij}$ and
+    $P_x, P_y, P_z$) and ${}^{i}T_{j} = {}^{i}T_{i+1} \cdots {}^{j-1}T_{j}$ is
+    the product of the link transforms from frame $i$ to frame $j$;  each of
+    their elements (row, column) is one scalar equation.  Equations are shown
+    as the solver saw them, after sum-of-angles substitution.  An equation
+    labelled (E3) is the same equation wherever that label appears.'''
+
+
+def meqn_tex(R, k):
+    r'''Matrix equation k, written as the split it is:
+       $(0T_i)^{-1} T_d (jT_6)^{-1} = iT_j$, factors equal to I left out.'''
+    if len(R.mequation_list) != len(kc.MEQN_SPLITS):
+        return f'matrix equation {k + 1}'     # a test's hand-built list
+    i, j = kc.MEQN_SPLITS[k]
+    lhs = ((r'\left({}^{0}T_{%d}\right)^{-1} ' % i if i > 0 else '')
+           + 'T_d'
+           + (r' \left({}^{%d}T_{6}\right)^{-1}' % j if j < 6 else ''))
+    return f'${lhs} = {{}}^{{{i}}}T_{{{j}}}$'
+
+
+def source_equation_tex(R, rec, pool, force_ids, eol):
+    '''One registry record:  where the equation came from, then the equation,
+       with a marker so the width fitting can shorten it like any other.'''
+    parents = ' and '.join(f'({p})' for p in rec.parents)
+    if rec.origins:
+        k, i, j = rec.origins[0]
+        where = f'element ({i + 1}, {j + 1}) of {meqn_tex(R, k)}'
+        others = len({o[0] for o in rec.origins}) - 1
+        if others:
+            where += (f' (and of {others} other matrix equation'
+                      + ('s' if others > 1 else '') + ')')
+    elif rec.how and (rec.parents or rec.meqn is not None):
+        where = 'obtained by ' + rec.how
+        if rec.meqn is not None:
+            where += ', in ' + meqn_tex(R, rec.meqn)
+        if parents:
+            where += ', from ' + parents
+    elif rec.how:
+        where = rec.how
+    else:
+        where = 'origin not recorded'
+        print(f'output_latex: long report: no origin recorded for {rec.eid}:'
+              f' {rec.eqn}')
+
+    out = r'\noindent ' + where[0].upper() + where[1:] + ':' + eol
+    lhs, rhs = rec.eqn.LHS, rec.eqn.RHS
+    src_id = 'src:' + rec.eid
+    if src_id in force_ids:              # MEASURED too wide on a previous pass
+        lhs, d1 = pool.split(lhs, force=True)
+        rhs, d2 = pool.split(rhs, force=True)
+        out += definition_block(d1 + d2, eol)
+    out += texwidth.MARKER + src_id + eol
+    #  breqn's number= puts the label where the equation number goes.
+    out += (r'\begin{dmath}[number={' + rec.eid + '}] '
+            + kc.kequation(lhs, rhs).LaTexOutput(False)
+            + r' \end{dmath}' + eol)
+    return out
+
+
+def derivation_block(R, u, pool, force_ids, eol):
+    '''The equations unknown u was solved from, and their ancestors.'''
+    def ids(eqns):
+        out = [R.eqn_id(e) for e in eqns]
+        return list(dict.fromkeys(d for d in out if d))    # once each, in order
+
+    direct = ids(getattr(u, 'derivation', []))
+    decided = ids(getattr(u, 'decided_by', []))
+    if not direct:
+        print(f'output_latex: long report: no source equation recorded for {u.name}')
+        return r'\noindent Source equation: not recorded.' + eol + eol
+
+    shown = list(direct) + [d for d in decided if d not in direct]
+    frontier = list(shown)
+    for _ in range(DERIVATION_DEPTH):     # breadth first:  nearest first
+        nxt = []
+        for eid in frontier:
+            for p in R.eqn_records[eid].parents:
+                if p not in shown:
+                    shown.append(p)
+                    nxt.append(p)
+        frontier = nxt
+
+    out = r'\noindent Solved from ' + ' and '.join(f'({d})' for d in direct) + '.'
+    if decided:
+        out += (r'  Of the branches that gives, the one that holds was picked'
+                r' by eliminating the other unknowns (Gr\"obner basis) from '
+                + ' and '.join(f'({d})' for d in decided) + '.')
+    out += eol + eol
+    for eid in shown:
+        out += source_equation_tex(R, R.eqn_records[eid], pool, force_ids, eol)
+    return out + r'\noindent Solution:' + eol
+
+
 def version_tex(vname):
     r"""One version name, typeset:  'th_23v12' -> '\theta_{23}v12'.
 
@@ -621,7 +728,7 @@ def onevar_search_section(onevar, name):
 
 
 def output_latex_solution(Robot, variables, groups, hybrid=None, R_true=None,
-                          onevar=None, force_ids=None):
+                          onevar=None, force_ids=None, long_report=False):
     GRAPH = True
     r'''Print out a latex document of the solution equations.
 
@@ -636,6 +743,10 @@ def output_latex_solution(Robot, variables, groups, hybrid=None, R_true=None,
        generated code is for -- and it gains two sections saying which arm was
        actually solved and how the answer gets corrected.  Left at None, this
        function behaves exactly as it always did.
+
+       long_report=True (ikSolver.py --long) puts under each generic
+       solution the equation(s) it was solved from and where they came from;
+       see derivation_block().
 
        force_ids names the equations a previous pass MEASURED as too wide, by
        their left-hand side:  their pieces are named as K_i whatever the
@@ -794,6 +905,8 @@ def output_latex_solution(Robot, variables, groups, hybrid=None, R_true=None,
 
     solsection = r'\section{Solutions in Generic Form} '+eol
     solsection += ''' The following equations comprise solutions for each unknown.''' + eol
+    if long_report:
+        solsection += LONG_REPORT_INTRO + eol
 
     # sort the nodes into solution order
     #sorted_node_list = sorted(Robot.solution_nodes)
@@ -813,6 +926,9 @@ def output_latex_solution(Robot, variables, groups, hybrid=None, R_true=None,
 
             #new subsection for this variable and solution(s)
             solsection += '\n' +r'\subsection{'+varLHS+r' } '+eol + 'Solution Method: ' + u.solvemethod + eol
+
+            if long_report:
+                solsection += eol + derivation_block(Robot, u, pool, force_ids, eol)
 
             #  Lift the big pieces out FIRST, then print what is left.  The
             #  definitions have to precede the whole align block, not sit
@@ -1284,6 +1400,7 @@ class TestSolver015(unittest.TestCase):
         self.test_ltA_product_is_the_forward_kinematics()
         self.test_ltB_padding_rows_are_skipped()
         self.test_ltC_section_is_wellformed_latex()
+        self.test_ltD_long_report_derivation()
 
     def robot(self, name='Puma'):
         '''Uses the cached FK pickle, so this stays fast.'''
@@ -1292,6 +1409,36 @@ class TestSolver015(unittest.TestCase):
         with contextlib.redirect_stdout(io.StringIO()):
             M, R, unknowns = load_robot(name)
         return M, R
+
+    def test_ltD_long_report_derivation(self):
+        '''--long:  set_solved() keeps the equation a solver used, and the
+           report traces it to its element of a real matrix equation -- the
+           solver's rebuilt, re-split copy included.'''
+        fs = ' long report derivation FAIL'
+        from ikbtfunctions.ik_driver import load_robot
+        from ikbtfunctions.subexpressions import SubexprPool
+        import io, contextlib
+        with contextlib.redirect_stdout(io.StringIO()):
+            M, R, unknowns = load_robot('Puma')
+            L1 = R.scan_for_equations(unknowns)[0]
+            th_1 = sp.Symbol('th_1')
+            u = next(x for x in unknowns if x.symbol == th_1)
+            e = next(x for x in L1 if (x.LHS - x.RHS).has(th_1))
+            u.eqntosolve = kc.kequation(0, e.RHS - e.LHS)    # as updateL makes it
+            u.solutions = [sp.Symbol('Px')]                  # a stand-in
+            u.set_solved(R, unknowns)
+            tex = derivation_block(R, u, SubexprPool(R), set(), '\n')
+        self.assertEqual(len(u.derivation), 1, fs + ' (not kept)')
+        self.assertIn('Solved from (E1).', tex, fs)
+        self.assertIn(r'Element (', tex, fs + ' (no element named)')
+        self.assertIn('T_d', tex, fs + ' (matrix equation not written out)')
+        self.assertIn('%%IKBT-EQ src:E1', tex, fs + ' (width marker)')
+        self.assertIn('[number={E1}]', tex, fs + ' (label)')
+        rec = R.eqn_record(u.derivation[0])
+        k, i, j = rec.origins[0]
+        Meq = R.mequation_list[k]
+        self.assertEqual((rec.eqn.LHS, rec.eqn.RHS), (Meq.Td[i, j], Meq.Ts[i, j]),
+                         fs + ' (not shown as the matrix equation states it)')
 
     def test_ltA_product_is_the_forward_kinematics(self):
         '''The whole point of the section:  these are the factors of the FK.
