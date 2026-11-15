@@ -1,4 +1,5 @@
 *.pyc
+*.cfg
 fk_eqns/*
 LaTex/ik_sol*
 LaTex/fk_eq*
