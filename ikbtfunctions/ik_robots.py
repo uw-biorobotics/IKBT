@@ -37,7 +37,8 @@ from ikbtbasics.ik_classes import *     # special classes for Inverse kinematics
 #   Watch the commas:  a missing one silently concatenates two names into a
 #   bogus entry and makes the second robot unselectable.
 #
-ROBOT_LIST = [ 'KinovaLite',
+ROBOT_LIST = [ '27W_5p3',
+               'KinovaLite',
                'C-Arm',
                'ICP5p5_A21', 'KR16',
                'UR5',
@@ -164,6 +165,25 @@ def robot_params(name):
          pvals = {l_2: 280, d_3:10, d_4:245, d_5:57, d_6:105 }
 
 
+############################################################
+
+    if(name == '27W_5p3'):         #  See Friedman et al., 2010
+        #
+        sp.var('l_0 l_2 l_3')
+
+        dh = sp.Matrix([
+        [      0    ,    0 ,  l_0, th_1 ],
+        [   sp.pi/2 ,    0 ,   0 , th_2 ],
+        [      0    ,   l_2,   0 , th_3 ],
+        [  -sp.pi/2 ,   l_3,   0 , th_4 ],
+        [    sp.pi/2,    0 ,   0 , th_5 ],
+        [    sp.pi/2,    0 ,   0 , th_6 ]
+        ])
+
+        vv = [0,1,1,1,1,1]
+        variables =  [unknown(th_1), unknown(th_2), unknown(th_3), unknown(th_4), unknown(th_5), unknown(th_6)]
+        params = [l_0, l_1, l_2]
+        pvals = {l_0:1, l_1:1, l_2:1}
 ############################################################
 
     if(name == 'C-Arm'):         #  See Friedman et al., 2010
