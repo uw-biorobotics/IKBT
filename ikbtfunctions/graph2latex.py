@@ -189,7 +189,8 @@ def _levels(names, deps):
     return level
 
 
-def solution_graph_tikz(order, edges, eol='\n', caption=None, label=None):
+def solution_graph_tikz(order, edges, eol='\n', caption=None, label=None,
+                        known=None, known_users=()):
     r"""A TikZ figure of the solution graph, or '' if there is nothing to draw.
 
        order    variable names, in SOLVE order
@@ -204,6 +205,11 @@ def solution_graph_tikz(order, edges, eol='\n', caption=None, label=None):
        so it reads downward in the order the solver could have worked.
 
        Rows come from the dependency depth rather than from solve order.
+
+       known        ONE-VARIABLE path only:  the variable assumed known.  The
+                    solver treated it as a parameter, so no edge mentions it;
+                    it is drawn as an extra root, marked with an asterisk.
+       known_users  the variables whose solutions use it -- its arrows.
     """
 
     order = [str(n) for n in order]
@@ -215,6 +221,12 @@ def solution_graph_tikz(order, edges, eol='\n', caption=None, label=None):
         a, b = str(e.StartNode), str(e.dependsOn)
         if a in order and b in order and a != b:
             deps.setdefault(a, set()).add(b)
+    if known:
+        known = str(known)
+        for a in known_users:
+            if str(a) in order:
+                deps.setdefault(str(a), set()).add(known)
+        order = [known] + order
 
     level = _levels(order, deps)
     rows = {}
@@ -246,8 +258,9 @@ def solution_graph_tikz(order, edges, eol='\n', caption=None, label=None):
         x0 = -DX * (len(row) - 1) / 2.0   # centre each row on the axis
         for i, n in enumerate(row):
             pos[n] = (x0 + i * DX, -r * DY)
+            tex = _tex_label(n) + (r'^{*}' if n == known else '')
             out += (r'  \node (%s) at (%.2f,%.2f) {$%s$};'
-                    % (_tikz_name(n), pos[n][0], pos[n][1], _tex_label(n)) + eol)
+                    % (_tikz_name(n), pos[n][0], pos[n][1], tex) + eol)
 
     #  Drawn b -> a:  b unlocks a.  deps[a] holds what a needs, so the arrow
     #  is emitted the other way round from how the dependency is stored.

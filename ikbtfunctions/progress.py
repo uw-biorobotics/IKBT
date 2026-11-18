@@ -360,14 +360,14 @@ class SolveProgress(object):
         dt = time.time() - self.t_start
 
         if ns == self.n:
-            verdict = 'COMPLETE -- all %d variables solved' % self.n
+            verdict = 'COMPLETE -- all %d variables solved.  Now generating code and LaTex ...' % self.n
         elif ns > 0:
             verdict = 'PARTIAL -- %d of %d variables solved' % (ns, self.n)
         else:
             verdict = 'NO SOLUTION -- nothing was solved'
 
         _say('')
-        _say('  %s%s: %s in %s.' % (self.robot, self.tag, verdict, fmt_time(dt)))
+        _say('  %s%s: %s  Solution time: %s sec. ' % (self.robot, self.tag, verdict, fmt_time(dt)))
         if exhausted:
             _say('  (the %d-pass budget ran out;  comp_det did not stop it)'
                   % self.max_passes)
